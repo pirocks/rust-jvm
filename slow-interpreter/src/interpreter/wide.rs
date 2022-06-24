@@ -6,7 +6,7 @@ use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJa
 use crate::interpreter::store::{astore, dstore, fstore, istore, lstore};
 use crate::JVMState;
 
-pub fn wide<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, w: &Wide) -> PostInstructionAction<'gc>{
+pub fn wide<'gc, 'j, 'k, 'l,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, w: &Wide) -> PostInstructionAction<'gc>{
     match w {
         Wide::Iload(WideIload { index }) => iload(jvm, current_frame, *index),
         Wide::Fload(WideFload { index }) => fload(jvm, current_frame, *index),

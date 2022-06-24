@@ -27,7 +27,7 @@ use crate::utils::run_static_or_virtual;
 Should only be used for an actual invoke_virtual instruction.
 Otherwise we have a better method for invoke_virtual w/ resolution
  */
-pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
+pub fn invoke_virtual_instruction<'gc, 'l, 'k, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
     //let the main instruction check intresstate inste
     let mut args = vec![];
     for _ in 0..(expected_descriptor.arg_types.len() + 1) {//todo dupe
@@ -68,7 +68,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_stat
     }
 }
 
-pub fn invoke_virtual_instruction_new<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
+pub fn invoke_virtual_instruction_new<'gc, 'l, 'k, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, method_name: MethodName, expected_descriptor: &CMethodDescriptor) -> PostInstructionAction<'gc> {
     //let the main instruction check intresstate inste
     let mut args = vec![];
     for _ in 0..(expected_descriptor.arg_types.len() + 1) {//todo dupe

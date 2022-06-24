@@ -116,7 +116,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
     }
 }
 
-pub fn invoke_instanceof<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
+pub fn invoke_instanceof<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
     let interpreter_jv = current_frame.pop(CClassName::object().into());
     let possibly_null = interpreter_jv.unwrap_object();
     let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
@@ -125,9 +125,9 @@ pub fn invoke_instanceof<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_f
     PostInstructionAction::Next {}
 }
 
-pub fn instance_of_impl<'gc, 'l, 'k>(
+pub fn instance_of_impl<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {

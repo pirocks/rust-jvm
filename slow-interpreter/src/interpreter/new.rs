@@ -12,7 +12,7 @@ use crate::interpreter_util::new_object;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_new_array_impl;
 use crate::java_values::{default_value};
 
-pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, classname: CClassName)-> PostInstructionAction<'gc>  {
+pub fn new<'gc, 'k, 'l, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, classname: CClassName) -> PostInstructionAction<'gc>  {
     let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), classname.into()) {
         Ok(x) => x,
         Err(WasException {}) => {
@@ -26,7 +26,7 @@ pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpre
     PostInstructionAction::Next {}
 }
 
-pub fn anewarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpdtype: &CPDType) -> PostInstructionAction<'gc> {
+pub fn anewarray<'gc, 'k, 'l, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, cpdtype: &CPDType) -> PostInstructionAction<'gc> {
     let len = match int_state.current_frame_mut().pop(RuntimeType::IntType) {
         InterpreterJavaValue::Int(i) => i,
         _ => panic!(),
@@ -38,7 +38,7 @@ pub fn anewarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
     PostInstructionAction::Next {}
 }
 
-pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, len: i32, elem_type: CPDType) -> Result<(), WasException> {
+pub fn a_new_array_from_name<'gc, 'k, 'l, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, len: i32, elem_type: CPDType) -> Result<(), WasException> {
     if len < 0 {
         todo!("check array length");
     }
@@ -47,7 +47,7 @@ pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'
     Ok(int_state.current_frame_mut().push(new_array.to_interpreter_jv()))
 }
 
-pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, a_type: Atype) -> PostInstructionAction<'gc> {
+pub fn newarray<'gc, 'k, 'l, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, a_type: Atype) -> PostInstructionAction<'gc> {
     let count = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
     let type_ = match a_type {
         Atype::TChar => CPDType::CharType,
@@ -68,7 +68,7 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     }
 }
 
-pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, dims: u8, type_: CPDType) -> PostInstructionAction<'gc>{
+pub fn multi_a_new_array<'gc, 'k, 'l, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, dims: u8, type_: CPDType) -> PostInstructionAction<'gc>{
     if let Err(_) = check_resolved_class(jvm, int_state.inner(), type_) {
         return todo!();
     };

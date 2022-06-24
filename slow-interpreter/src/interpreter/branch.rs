@@ -9,7 +9,7 @@ pub fn goto_<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, target: i32) -> PostInstr
     PostInstructionAction::NextOffset { offset_change: target }
 }
 
-pub fn ifnull<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifnull<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(CClassName::object().into());
     let succeeds = match val {
         InterpreterJavaValue::Object(o) => o.is_none(),
@@ -22,7 +22,7 @@ pub fn ifnull<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Inter
     }
 }
 
-pub fn ifnonnull<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifnonnull<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(CClassName::object().into());
     let succeeds = match val {
         InterpreterJavaValue::Object(o) => o.is_some(),
@@ -35,7 +35,7 @@ pub fn ifnonnull<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn ifle<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifle<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() <= 0;
     if succeeds {
@@ -45,7 +45,7 @@ pub fn ifle<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn ifgt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifgt<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() > 0;
     if succeeds {
@@ -55,7 +55,7 @@ pub fn ifgt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn ifge<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifge<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() >= 0;
     if succeeds {
@@ -65,7 +65,7 @@ pub fn ifge<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn iflt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn iflt<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() < 0;
     if succeeds {
@@ -75,7 +75,7 @@ pub fn iflt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn ifne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifne<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() != 0;
     if succeeds {
@@ -85,7 +85,7 @@ pub fn ifne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn ifeq<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn ifeq<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     //todo dup
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() == 0;
@@ -96,7 +96,7 @@ pub fn ifeq<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     }
 }
 
-pub fn if_icmpgt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmpgt<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 > value2;
@@ -107,7 +107,7 @@ pub fn if_icmpgt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_icmplt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmplt<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 < value2;
@@ -118,7 +118,7 @@ pub fn if_icmplt<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_icmple<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmple<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 <= value2;
@@ -129,7 +129,7 @@ pub fn if_icmple<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_icmpge<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmpge<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 >= value2;
@@ -140,7 +140,7 @@ pub fn if_icmpge<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_icmpne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmpne<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 != value2;
@@ -151,7 +151,7 @@ pub fn if_icmpne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_icmpeq<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_icmpeq<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let succeeds = value1 == value2;
@@ -162,7 +162,7 @@ pub fn if_icmpeq<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_acmpne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_acmpne<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::object());
     let value1 = current_frame.pop(RuntimeType::object());
     let succeeds = !equal_ref(value2, value1);
@@ -173,7 +173,7 @@ pub fn if_acmpne<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: In
     }
 }
 
-pub fn if_acmpeq<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
+pub fn if_acmpeq<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>, offset: i16) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::object());
     let value1 = current_frame.pop(RuntimeType::object());
     let succeeds = equal_ref(value2, value1);

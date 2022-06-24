@@ -1,6 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
+
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::{InterpreterStateGuard, JVMState, NewJavaValueHandle};
 
 #[derive(Copy, Clone, PartialEq, Debug)]
@@ -13,7 +15,7 @@ pub enum InterpreterJavaValue {
 }
 
 impl InterpreterJavaValue {
-    pub fn null() -> Self{
+    pub fn null() -> Self {
         Self::Object(None)
     }
 
@@ -73,7 +75,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_int(&self) -> i32{
+    pub fn unwrap_int(&self) -> i32 {
         match self {
             InterpreterJavaValue::Int(int) => {
                 *int
@@ -84,7 +86,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_object(&self) -> Option<NonNull<c_void>>{
+    pub fn unwrap_object(&self) -> Option<NonNull<c_void>> {
         match self {
             InterpreterJavaValue::Object(o) => {
                 *o
@@ -95,7 +97,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_long(&self) -> i64{
+    pub fn unwrap_long(&self) -> i64 {
         match self {
             InterpreterJavaValue::Long(long) => {
                 *long
@@ -106,7 +108,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_float(&self) -> f32{
+    pub fn unwrap_float(&self) -> f32 {
         match self {
             InterpreterJavaValue::Float(float) => {
                 *float
@@ -117,7 +119,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_double(&self) -> f64{
+    pub fn unwrap_double(&self) -> f64 {
         match self {
             InterpreterJavaValue::Double(double) => {
                 *double
@@ -129,36 +131,36 @@ impl InterpreterJavaValue {
     }
 }
 
-pub struct RealInterpreterStateGuard<'gc, 'l, 'k> {
+pub struct RealInterpreterStateGuard<'gc, 'l, 'k, 'h> {
     interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>,
     jvm: &'gc JVMState<'gc>,
-    pub current_stack_depth_from_start: u16,
+    pub current_stack_depth_from_start: &'h mut u16,
 }
 
-impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
-    pub fn new(jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>) -> Self {
+impl<'gc, 'l, 'k, 'h> RealInterpreterStateGuard<'gc, 'l, 'k, 'h> {
+    pub fn new(jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>, current_stack_depth_from_start: &'h mut u16) -> Self {
         Self {
             interpreter_state,
             jvm,
-            current_stack_depth_from_start: 0,
+            current_stack_depth_from_start,
         }
     }
 
-    pub fn from_save(jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>, save: RealInterpreterStateSave) -> Self{
-        Self {
-            interpreter_state,
-            jvm,
-            current_stack_depth_from_start: save.current_stack_depth_from_start
-        }
-    }
+    // pub fn from_save(jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>, save: RealInterpreterStateSave) -> Self {
+    //     Self {
+    //         interpreter_state,
+    //         jvm,
+    //         current_stack_depth_from_start: save.current_stack_depth_from_start,
+    //     }
+    // }
+    //
+    // pub fn save(&self) -> RealInterpreterStateSave {
+    //     RealInterpreterStateSave {
+    //         current_stack_depth_from_start: self.current_stack_depth_from_start
+    //     }
+    // }
 
-    pub fn save(&self) -> RealInterpreterStateSave{
-        RealInterpreterStateSave{
-            current_stack_depth_from_start: self.current_stack_depth_from_start
-        }
-    }
-
-    pub fn current_frame_mut(&mut self) -> InterpreterFrame<'gc, 'l, 'k, '_> {
+    pub fn current_frame_mut(&mut self) -> InterpreterFrame<'gc, 'l, 'k, '_, 'h> {
         InterpreterFrame {
             inner: self
         }
@@ -170,33 +172,33 @@ impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
 }
 
 #[derive(Clone)]
-pub struct RealInterpreterStateSave{
+pub struct RealInterpreterStateSave {
     current_stack_depth_from_start: u16,
 }
 
 
-pub struct InterpreterFrame<'gc, 'l, 'k, 'j> {
-    inner: &'j mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+pub struct InterpreterFrame<'gc, 'l, 'k, 'j, 'h> {
+    inner: &'j mut RealInterpreterStateGuard<'gc, 'l, 'k, 'h>,
 }
 
-impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
+impl<'gc, 'l, 'k, 'j, 'h> InterpreterFrame<'gc, 'l, 'k, 'j, 'h> {
     pub fn pop(&mut self, runtime_type: RuntimeType) -> InterpreterJavaValue {
-        if self.inner.current_stack_depth_from_start < 1{
+        if *self.inner.current_stack_depth_from_start < 1 {
             let jvm = self.inner.jvm;
             self.inner.inner().debug_print_stack_trace(jvm);
             panic!()
         }
-        self.inner.current_stack_depth_from_start -= 1;
-        let current_depth = self.inner.current_stack_depth_from_start;
+        *self.inner.current_stack_depth_from_start -= 1;
+        let current_depth = *self.inner.current_stack_depth_from_start;
         let current_frame = self.inner.interpreter_state.current_frame();
         let operand_stack = current_frame.operand_stack(self.inner.jvm);
         operand_stack.interpreter_get(current_depth, runtime_type)
     }
 
     pub fn push(&mut self, val: InterpreterJavaValue) {
-        let current_depth = self.inner.current_stack_depth_from_start;
+        let current_depth = *self.inner.current_stack_depth_from_start;
         self.inner.interpreter_state.current_frame_mut().operand_stack_mut().interpreter_set(current_depth, val);
-        self.inner.current_stack_depth_from_start += 1;
+        *self.inner.current_stack_depth_from_start += 1;
     }
 
     pub fn local_get(&self, i: u16, rtype: RuntimeType) -> InterpreterJavaValue {
@@ -211,7 +213,7 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
         operand_stack.interpreter_get(i, rtype)
     }
 
-    pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue)  {
+    pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue) {
         let mut current_frame = self.inner.interpreter_state.current_frame_mut();
         let mut local_vars = current_frame.local_vars_mut(self.inner.jvm);
         local_vars.interpreter_set(i, local)

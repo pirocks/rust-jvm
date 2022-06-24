@@ -61,7 +61,7 @@ pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: 
 //     Ok(())
 // }
 //
-pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc>{
+pub fn ldc2_w<'gc, 'l, 'k, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc>{
     let mut current_frame = int_state.current_frame_mut();
     match ldc2w {
         CompressedLdc2W::Long(l) => {
@@ -74,7 +74,7 @@ pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
     PostInstructionAction::Next {}
 }
 
-pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) -> PostInstructionAction<'gc> {
+pub fn ldc_w<'gc, 'l, 'k, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, either: &Either<&CompressedLdcW, &CompressedLdc2W>) -> PostInstructionAction<'gc> {
     match either {
         Either::Left(ldcw) => {
             match &ldcw {
@@ -121,7 +121,7 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
     PostInstructionAction::Next {}
 }
 
-pub fn from_constant_pool_entry<'gc, 'l, 'k>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> NewJavaValueHandle<'gc> {
+pub fn from_constant_pool_entry<'gc, 'l, 'k, 'h>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>) -> NewJavaValueHandle<'gc> {
     match &c {
         ConstantInfoView::Integer(i) => NewJavaValueHandle::Int(i.int),
         ConstantInfoView::Float(f) => NewJavaValueHandle::Float(f.float),

@@ -18,9 +18,9 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::stack_entry::StackEntryPush;
 
-pub fn invoke_special<'gc, 'l, 'k>(
+pub fn invoke_special<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>,
     method_class_name: CClassName,
     method_name: MethodName,
     parsed_descriptor: &CMethodDescriptor
@@ -58,9 +58,9 @@ pub fn invoke_special<'gc, 'l, 'k>(
     }
 }
 
-pub fn invoke_special_new<'gc, 'l, 'k>(
+pub fn invoke_special_new<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>,
     method_class_name: CClassName,
     method_name: MethodName,
     parsed_descriptor: &CMethodDescriptor

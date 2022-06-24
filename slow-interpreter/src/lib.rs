@@ -83,6 +83,39 @@ pub mod new_java_values;
 pub mod known_type_to_address_mappings;
 pub mod string_exit_cache;
 pub mod function_instruction_count;
+pub mod better_java_stack{
+    use std::marker::PhantomData;
+    use libc::c_void;
+    use another_jit_vm_ir::ir_stack::OwnedIRStack;
+    use crate::{AllocatedHandle, JVMState};
+
+    //needs to keep track of operand stack for interpreter
+    //needs to have same underlying for interpreter and not-interpreter
+    //      follows that there needs to be a mechanism for non-interpreter frames in exits to know
+    //      operand stack depth
+    //needs to be fast
+    // one per java thread, needs to be
+    // maybe built on top of ir stack
+    pub struct JavaStack<'gc, 'l> {
+        jvm: &'gc JVMState<'gc>,
+        phantom_lifetime_for_interpreter_state_guard_compat: PhantomData<&'l ()>,
+        owned_ir_stack: OwnedIRStack,
+        interpreter_frame_operand_stack_depths: Vec<(*const c_void,u16)>,//frame pointer and depth
+        throw: Option<AllocatedHandle<'gc>>//todo this should probably be in some kind of thread state thing
+    }
+
+    //need enter and exit native functions, enter taking an operand stack depth?
+
+    pub struct JavaFrame{
+        //get/set/etc
+    }
+
+    pub struct JavaInterpreterFrame{
+        //push, pop etc
+    }
+
+    // don't have the function call vec thing
+}
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

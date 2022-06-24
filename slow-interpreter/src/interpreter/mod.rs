@@ -8,13 +8,13 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
-use rust_jvm_common::compressed_classfile::code::{CompressedExceptionTableElem, CompressedInstructionInfo};
+use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 
 use crate::{JavaValueCommon, StackEntryPush};
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::native::run_native_method;
 use crate::instructions::special::instance_of_exit_impl_impl_impl;
-use crate::interpreter::real_interpreter_state::{RealInterpreterStateGuard, RealInterpreterStateSave};
+use crate::interpreter::real_interpreter_state::{RealInterpreterStateGuard};
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::interpreter_state::{FramePushGuard, InterpreterStateGuard};
 use crate::ir_to_java_layer::exit_impls::new_run_native::{setup_native_special_args, setup_static_native_args};
@@ -138,45 +138,43 @@ pub struct FunctionCallState {
     current_method_id: MethodId,
     frame_push_guard: Option<FramePushGuard>,
     instruction_size_for_invoke_skip: Option<u16>,
-    real_interpreter_state_save: RealInterpreterStateSave,
+    real_interpreter_state_save: u16,
 }
 
 impl FunctionCallState {
-    pub fn real_interpreter_state<'gc, 'l, 'k>(&self, jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>) -> RealInterpreterStateGuard<'gc, 'l, 'k> {
-        RealInterpreterStateGuard::from_save(jvm, interpreter_state, self.real_interpreter_state_save.clone())
+    pub fn real_interpreter_state<'gc, 'l, 'k, 'h>(&'h mut self, jvm: &'gc JVMState<'gc>, interpreter_state: &'k mut InterpreterStateGuard<'gc, 'l>) -> RealInterpreterStateGuard<'gc, 'l, 'k, 'h> {
+        RealInterpreterStateGuard::new(jvm, interpreter_state, &mut self.real_interpreter_state_save)
     }
 }
 
 pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, frame_push_guard: Option<FramePushGuard>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     // eprintln!("{}",Backtrace::force_capture().to_string());
     let current_method_id = interpreter_state.current_frame().method_id();
-    let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
     let mut function_stack = vec![FunctionCallState {
         current_offset: ByteCodeOffset(0),
         current_method_id,
         frame_push_guard,
         instruction_size_for_invoke_skip: None,
-        real_interpreter_state_save: real_interpreter_state.save(),
+        real_interpreter_state_save: 0,
     }];
     'outer: loop {
-        match run_current_function_interpreted(jvm, real_interpreter_state.inner(), function_stack.last_mut().unwrap()) {
+        match run_current_function_interpreted(jvm, interpreter_state, function_stack.last_mut().unwrap()) {
             PostFunctionAction::Return { res } => {
-                let inner = real_interpreter_state.inner();
                 let current_function = function_stack.pop().unwrap();
                 if let Some(frame_push_guard) = current_function.frame_push_guard {
-                    inner.pop_frame(jvm, frame_push_guard, false);
+                    interpreter_state.pop_frame(jvm, frame_push_guard, false);
                 }
                 if function_stack.is_empty() {
                     return Ok(res);
                 }
                 function_stack.last_mut().unwrap().current_offset.0 += function_stack.last_mut().unwrap().instruction_size_for_invoke_skip.unwrap();
                 if let Some(res) = res {
-                    function_stack.last_mut().unwrap().real_interpreter_state(jvm, inner).current_frame_mut().push(res.to_interpreter_jv());
+                    let mut real_interpreter_state_guard = function_stack.last_mut().unwrap().real_interpreter_state(jvm, interpreter_state);
+                    real_interpreter_state_guard.current_frame_mut().push(res.to_interpreter_jv());
                 }
             }
             PostFunctionAction::Call { method_id, local_vars } => {
-                let inner = real_interpreter_state.inner();
-                let frame_push_guard = inner.push_frame(StackEntryPush::Java {
+                let frame_push_guard = interpreter_state.push_frame(StackEntryPush::Java {
                     method_id,
                     local_vars: local_vars.iter().map(|njvh| njvh.as_njv()).collect_vec(),
                     operand_stack: vec![],
@@ -186,14 +184,13 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                     current_method_id: method_id,
                     frame_push_guard: Some(frame_push_guard),
                     instruction_size_for_invoke_skip: None,
-                    real_interpreter_state_save: RealInterpreterStateGuard::new(jvm, inner).save(),
+                    real_interpreter_state_save: 0,
                 });
             }
             PostFunctionAction::Exception { exception } => {
-                let inner = real_interpreter_state.inner();
                 loop {
-                    let rc = inner.current_frame().class_pointer(jvm);
-                    let method_i = inner.current_frame().method_i(jvm);
+                    let rc = interpreter_state.current_frame().class_pointer(jvm);
+                    let method_i = interpreter_state.current_frame().method_i(jvm);
                     let view = rc.view();
                     let method_view = view.method_view_i(method_i);
                     let code = method_view.code_attribute().unwrap();
@@ -203,7 +200,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                         handler_pc,
                         catch_type
                     } in code.exception_table.iter() {
-                        let rc = inner.throw().unwrap().runtime_class(jvm);
+                        let rc = interpreter_state.throw().unwrap().runtime_class(jvm);
                         // dump_frame(&mut real_interpreter_state,&method,code);
                         let current_function = function_stack.last_mut().unwrap();
                         if *start_pc <= current_function.current_offset && current_function.current_offset < *end_pc {
@@ -215,17 +212,17 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                             };
                             if matches_class {
                                 current_function.current_offset = *handler_pc;
-                                let throw_obj = inner.throw().unwrap().duplicate_discouraged().new_java_handle();
-                                inner.set_throw(None);
-                                real_interpreter_state.current_stack_depth_from_start = 0;
-                                real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
+                                let throw_obj = interpreter_state.throw().unwrap().duplicate_discouraged().new_java_handle();
+                                interpreter_state.set_throw(None);
+                                current_function.real_interpreter_state_save = 0;
+                                current_function.real_interpreter_state(jvm, interpreter_state).current_frame_mut().push(throw_obj.to_interpreter_jv());
                                 continue 'outer;
                             }
                         }
                     }
                     let this_frame = function_stack.pop().unwrap();
                     if let Some(frame_push_guard) = this_frame.frame_push_guard {
-                        inner.pop_frame(jvm, frame_push_guard, true);
+                        interpreter_state.pop_frame(jvm, frame_push_guard, true);
                     }
                     if function_stack.is_empty() {
                         return Err(WasException {});
@@ -243,13 +240,12 @@ fn run_current_function_interpreted<'gc>(
 ) -> PostFunctionAction<'gc> {
     let method_id = current_function.current_method_id;
     let function_counter = jvm.function_execution_count.for_function(method_id);
-    let mut real_interpreter_state = current_function.real_interpreter_state(jvm, interpreter_state);
     let FunctionCallState { current_offset, current_method_id, frame_push_guard: _, instruction_size_for_invoke_skip, real_interpreter_state_save } = current_function;
-    let rc = real_interpreter_state.inner().current_frame().class_pointer(jvm);
-    let method_i = real_interpreter_state.inner().current_method_i(jvm);
+    let rc = interpreter_state.current_frame().class_pointer(jvm);
+    let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_i);
     assert_eq!(method_id, *current_method_id);
-    let view = real_interpreter_state.inner().current_class_view(jvm).clone();
+    let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
     eprintln!("Interpreted:{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method.name().0.to_str(&jvm.string_pool));
     let code = match method.code_attribute() {
@@ -258,11 +254,12 @@ fn run_current_function_interpreted<'gc>(
             panic!()
         }
     };
-    let resolver = MethodResolverImpl { jvm, loader: real_interpreter_state.inner().current_loader(jvm) };
+    let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, true);
     loop {
         let current_instruct = &code.instructions.get(&current_offset).unwrap();
-        assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
+        let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm,interpreter_state,real_interpreter_state_save);
+        assert!(*real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
         current_function.instruction_size_for_invoke_skip = Some(current_instruct.instruction_size);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, *current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
@@ -293,13 +290,13 @@ fn run_current_function_interpreted<'gc>(
                 };
                 match run_native_method(jvm, real_interpreter_state.inner(), rc.clone(), method_i, args.iter().map(|njvh| njvh.as_njv()).collect_vec()) {
                     Ok(res) => {
-                        if let Some(res) = res{
+                        if let Some(res) = res {
                             real_interpreter_state.current_frame_mut().push(res.to_interpreter_jv());
                         }
                         current_offset.0 += current_instruct.instruction_size;
                     }
                     Err(WasException {}) => {
-                        return PostFunctionAction::Exception { exception: WasException{} }
+                        return PostFunctionAction::Exception { exception: WasException {} };
                     }
                 }
             }

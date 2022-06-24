@@ -30,9 +30,9 @@ use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
 use crate::interpreter::wide::wide;
 
-pub fn run_single_instruction<'gc, 'l, 'k>(
+pub fn run_single_instruction<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    interpreter_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    interpreter_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k, 'h>,
     instruct: &CInstructionInfo,
     function_counter: &FunctionExecutionCounter,
     method: &MethodView,
@@ -55,8 +55,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
 
-    dbg!(interpreter_state.current_stack_depth_from_start);
-    match dbg!(instruct) {
+    match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
         CInstructionInfo::aload_1 => aload(interpreter_state.current_frame_mut(), 1),
@@ -315,7 +314,7 @@ pub fn dump_frame(interpreter_state: &mut RealInterpreterStateGuard, method: &Me
     }
     eprintln!();
     eprint!("Operand Stack:");
-    for i in 0..interpreter_state.current_stack_depth_from_start {
+    for i in 0..*interpreter_state.current_stack_depth_from_start {
         let raw = interpreter_state.current_frame_mut().operand_stack_get(i, RuntimeType::object()).to_raw();
         eprint!(" {:X}", raw);
     }

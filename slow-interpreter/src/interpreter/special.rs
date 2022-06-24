@@ -5,7 +5,7 @@ use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::JVMState;
 
-pub fn arraylength<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn arraylength<'gc, 'l, 'k, 'j,'h>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j, 'h>) -> PostInstructionAction<'gc> {
     let array_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {
         Some(x) => x,
         None => {
@@ -19,7 +19,7 @@ pub fn arraylength<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: 
     PostInstructionAction::Next {}
 }
 
-pub fn checkcast<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
+pub fn checkcast<'gc, 'l, 'k, 'j, 'h>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
     let obj = int_state.current_frame_mut().pop(RuntimeType::object());
     if obj.unwrap_object().is_none(){
         int_state.current_frame_mut().push(obj);

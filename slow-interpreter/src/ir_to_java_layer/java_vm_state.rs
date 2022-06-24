@@ -198,7 +198,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                             temp_register: Register(0),
                             ir_method_id: reserved_method_id,
                             method_id,
-                            frame_size: java_frame_data.full_frame_size(),
+                            frame_size: dbg!(java_frame_data.full_frame_size()),
                             num_locals: java_frame_data.local_vars,
                         }),
                         (ByteCodeOffset(0), IRInstr::VMExit2 {
@@ -294,8 +294,12 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 let frame_ref = int_state.current_frame().frame_view.ir_ref;
                 if let Some(expected_current_frame_size) = frame_ref.try_frame_size(&jvm.java_vm_state.ir) {
                     if offset != expected_current_frame_size {
+                        int_state.debug_print_stack_trace(jvm);
                         dbg!(offset);
                         dbg!(expected_current_frame_size);
+                        let java_function_frame_guard = jvm.java_function_frame_data.read().unwrap();
+                        let java_frame_data = &java_function_frame_guard.get(&frame_ref.method_id().unwrap()).unwrap();
+                        dbg!(java_frame_data.full_frame_size());
                         dbg!(jvm.method_table.read().unwrap().lookup_method_string(frame_ref.method_id().unwrap(), &jvm.string_pool));
                         panic!()
                     }

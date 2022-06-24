@@ -21,9 +21,9 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static<'gc, 'l, 'k>(
+pub fn run_invoke_static<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>,
     method: &MethodView,
     code: &CompressedCode,
     ref_type: CPRefType,
@@ -97,9 +97,9 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
 
 
 // todo this doesn't handle sig poly
-pub fn run_invoke_static_new<'gc, 'l, 'k>(
+pub fn run_invoke_static_new<'gc, 'l, 'k, 'h>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k,'h>,
     method: &MethodView,
     code: &CompressedCode,
     ref_type: CPRefType,
