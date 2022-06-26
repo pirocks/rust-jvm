@@ -41,6 +41,21 @@ use crate::utils::lookup_method_parsed;
 
 pub mod multi_allocate_array;
 pub mod new_run_native;
+pub mod fast_exit{
+    //todo how I'm going to do this but it would be useful
+    use another_jit_vm::Register;
+
+    pub struct FastInstanceOf{
+
+    }
+    impl FastInstanceOf{
+        pub const FRAME_HEADER_POINTER: Register = Register(1);
+    }
+
+    pub unsafe extern "C" fn instanceof() {
+
+    }
+}
 
 
 #[inline(never)]

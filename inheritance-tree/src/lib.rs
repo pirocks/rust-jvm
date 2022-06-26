@@ -9,7 +9,6 @@ use crate::paths::{BitPath256, DoesNotFit, InheritanceClassIDPath, InheritanceTr
 
 pub mod class_list;
 pub mod paths;
-pub mod class_ids;
 pub mod bit_vec_path;
 #[cfg(test)]
 pub mod test;
@@ -175,5 +174,3 @@ pub enum Bit {
 }
 
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct ClassID(u32);

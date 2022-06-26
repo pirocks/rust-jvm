@@ -1,12 +1,10 @@
 [package]
-name = "inheritance-tree"
+name = "interface-fast-instanceof"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-itertools = "0.10"
-rust-jvm-common = { path = "../rust-jvm-common" }
 class-ids = { path = "../class-ids" }
-libc = "0.2.126"
+itertools = "0.10"

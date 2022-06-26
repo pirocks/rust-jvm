@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 use rust_jvm_common::compressed_classfile::CPDType;
-use crate::ClassID;
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct ClassID(pub u32);
 
 pub struct ClassIdsInner{
     classes: Vec<CPDType>,

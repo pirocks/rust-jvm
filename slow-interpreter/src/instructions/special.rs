@@ -1,3 +1,4 @@
+use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -5,8 +6,8 @@ use another_jit_vm_ir::WasException;
 use classfile_view::view::interface_view::InterfaceView;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType, NonArrayCompressedParsedDescriptorType};
+use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 
 use crate::{AllocatedHandle, JVMState};
 use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_resolved_class, try_assert_loaded_class};
@@ -31,86 +32,88 @@ pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_clas
     instance_of_exit_impl_impl_impl(&jvm, instance_of_class_type, rc)
 }
 
-pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, rc: Arc<RuntimeClass>) -> jint {
-    let actual_cpdtype = rc.cpdtype();
+pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, object_rc: Arc<RuntimeClass<'gc>>) -> jint {
+    let actual_cpdtype = object_rc.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
         CompressedParsedRefType::Array { base_type: actual_base_type, num_nested_arrs: actual_num_nested_arrs } => {
-            match instance_of_class_type {
-                CompressedParsedRefType::Class(instance_of_class_name) => {
-                    if instance_of_class_name == CClassName::serializable() || instance_of_class_name == CClassName::cloneable() {
-                        unimplemented!() //todo need to handle serializable and the like, check subtype is castable as per spec
-                    } else if instance_of_class_name == CClassName::object() {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                CompressedParsedRefType::Array { base_type: expected_class_type, num_nested_arrs: expected_num_nested_arrs } => {
-                    if actual_base_type == expected_class_type && actual_num_nested_arrs == expected_num_nested_arrs {
-                        1
-                    } else {
-                        if actual_num_nested_arrs == expected_num_nested_arrs {
-                            if inherits_from_cpdtype(jvm, &assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
-                                return 1;
-                            }
-                        }
-                        dbg!(actual_num_nested_arrs);
-                        dbg!(expected_num_nested_arrs);
-                        dbg!(actual_base_type.to_cpdtype().jvm_representation(&jvm.string_pool));
-                        dbg!(expected_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
-                        todo!()
-                    }
-                }
-            }
+            return array_instance_of(jvm, instance_of_class_type, actual_base_type, actual_num_nested_arrs);
         }
         CompressedParsedRefType::Class(object) => {
-            match instance_of_class_type {
-                CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let object_class = assert_loaded_class(jvm, (object).into());
-                    if !object_class.unwrap_class_class().class_view.is_interface() {
-                        if let Some(sub_inheritance_tree_vec) = rc.unwrap_class_class().inheritance_tree_vec.as_ref() {
-                            let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()){
-                                None => {
-                                    return if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
-                                        panic!()
+            return class_instance_of(jvm, instance_of_class_type, object_rc);
+        }
+    }
+}
+
+fn class_instance_of<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, object_rc: Arc<RuntimeClass<'gc>>) -> jint {
+    match instance_of_class_type {
+        CompressedParsedRefType::Class(instance_of_class_name) => {
+            if !object_rc.unwrap_class_class().class_view.is_interface() {
+                if let Some(sub_inheritance_tree_vec) = object_rc.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                    match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()) {
+                        None => {
+                            return if inherits_from_cpdtype(jvm, &object_rc, instance_of_class_name.into()) {
+                                panic!()
+                            } else {
+                                0
+                            }
+                        }
+                        Some(instance_of_class) => {
+                            if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                                unsafe {
+                                    return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
+                                        debug_assert!(inherits_from_cpdtype(jvm, &object_rc, instance_of_class_name.into()));
+                                        1
                                     } else {
+                                        debug_assert!(!inherits_from_cpdtype(jvm, &object_rc, instance_of_class_name.into()));
                                         0
                                     }
                                 }
-                                Some(instance_of_class) => {
-                                    if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
-                                        unsafe {
-                                            return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
-                                                // dbg!(CPDType::Class(instance_of_class_name).jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(sub_inheritance_tree_vec);
-                                                // dbg!(super_inheritance_tree_vec);
-                                                assert!(inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
-                                                1
-                                            } else {
-                                                // dbg!(instance_of_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.view().name().to_cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.unwrap_class_class().inheritance_tree_vec.as_ref());
-                                                // dbg!(sub_inheritance_tree_vec);
-                                                // dbg!(super_inheritance_tree_vec);
-                                                assert!(!inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
-                                                0
-                                            }
-                                        }
-                                    }
-                                }
-                            };
+                            }
                         }
                     }
-                    if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
-                        1
-                    } else {
-                        0
+                }
+            }else {
+/*
+
+                todo!()*/
+            }
+            if inherits_from_cpdtype(jvm, &object_rc, instance_of_class_name.into()) {
+                1
+            } else {
+                0
+            }
+        }
+        CompressedParsedRefType::Array { .. } => {
+            0
+        }
+    }
+}
+
+fn array_instance_of<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, actual_base_type: NonArrayCompressedParsedDescriptorType, actual_num_nested_arrs: NonZeroU8) -> jint {
+    match instance_of_class_type {
+        CompressedParsedRefType::Class(instance_of_class_name) => {
+            if instance_of_class_name == CClassName::serializable() || instance_of_class_name == CClassName::cloneable() {
+                unimplemented!() //todo need to handle serializable and the like, check subtype is castable as per spec
+            } else if instance_of_class_name == CClassName::object() {
+                1
+            } else {
+                0
+            }
+        }
+        CompressedParsedRefType::Array { base_type: expected_class_type, num_nested_arrs: expected_num_nested_arrs } => {
+            if actual_base_type == expected_class_type && actual_num_nested_arrs == expected_num_nested_arrs {
+                1
+            } else {
+                if actual_num_nested_arrs == expected_num_nested_arrs {
+                    if inherits_from_cpdtype(jvm, &assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
+                        return 1;
                     }
                 }
-                CompressedParsedRefType::Array { .. } => {
-                    0
-                }
+                dbg!(actual_num_nested_arrs);
+                dbg!(expected_num_nested_arrs);
+                dbg!(actual_base_type.to_cpdtype().jvm_representation(&jvm.string_pool));
+                dbg!(expected_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
+                todo!()
             }
         }
     }

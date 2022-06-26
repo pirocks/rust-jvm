@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::iter::FromIterator;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;

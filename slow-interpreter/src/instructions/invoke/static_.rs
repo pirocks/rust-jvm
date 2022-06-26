@@ -47,25 +47,6 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
         args.push(NewJavaValueHandle::Top);
     }
     let mut i = 0;
-    /*
-    for ptype in expected_descriptor.arg_types.iter().rev() {
-        let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
-        match &popped {
-            NewJavaValueHandle::Long(_) | NewJavaValueHandle::Double(_) => i += 1,
-            _ => {}
-        }
-        args[i] = popped;
-        i += 1;
-    }
-    args[0..i].reverse();
-*/
-    // dbg!(expected_method_name.0.to_str(&jvm.string_pool));
-    // dbg!(int_state.current_stack_depth_from_start);
-    // int_state.inner().debug_print_stack_trace(jvm);
-    // if method.classview().name().unwrap_name() == CClassName::string(){
-    //     dump_frame(int_state, method, code);
-    //     // eprintln!("{}",instruct.better_debug_string(&jvm.string_pool));
-    // }
     for ptype in expected_descriptor.arg_types.iter().rev() {
         let popped = int_state.current_frame_mut().pop(ptype.to_runtime_type().unwrap()).to_new_java_handle(jvm);
         args[i] = popped;
@@ -142,12 +123,12 @@ pub fn invoke_static_impl<'l, 'gc>(
             }
         }
     } else {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
-                return Ok(res);
+                Ok(res)
             }
-            Err(WasException{}) => {
-                return Err(WasException{})
+            Err(WasException {}) => {
+                Err(WasException {})
             },
         }
     }
