@@ -28,11 +28,11 @@ pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDTyp
 
 pub fn instance_of_exit_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, obj: &'_ AllocatedHandle<'gc>) -> jint {
     let rc = obj.runtime_class(jvm);
-    instance_of_exit_impl_impl_impl(&jvm, instance_of_class_type, rc)
+    instance_of_exit_impl_impl_impl(&jvm, instance_of_class_type, rc, obj)
 }
 
-pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, rc: Arc<RuntimeClass>) -> jint {
-    let actual_cpdtype = rc.cpdtype();
+pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of_class_type: CompressedParsedRefType, runtime_object_class: Arc<RuntimeClass<'gc>>, obj: &'_ AllocatedHandle<'gc>) -> jint {
+    let actual_cpdtype = runtime_object_class.cpdtype();
     match actual_cpdtype.unwrap_ref_type() {
         CompressedParsedRefType::Array { base_type: actual_base_type, num_nested_arrs: actual_num_nested_arrs } => {
             match instance_of_class_type {
@@ -66,12 +66,12 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let object_class = assert_loaded_class(jvm, (object).into());
-                    if !object_class.unwrap_class_class().class_view.is_interface() {
-                        if let Some(sub_inheritance_tree_vec) = rc.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                    let instance_of_class = assert_loaded_class(jvm, instance_of_class_name.into());
+                    if !instance_of_class.unwrap_class_class().class_view.is_interface() {
+                        if let Some(sub_inheritance_tree_vec) = runtime_object_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
                             let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()){
                                 None => {
-                                    return if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
+                                    return if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
                                         panic!()
                                     } else {
                                         0
@@ -81,19 +81,10 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                                     if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
                                         unsafe {
                                             return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
-                                                // dbg!(CPDType::Class(instance_of_class_name).jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(sub_inheritance_tree_vec);
-                                                // dbg!(super_inheritance_tree_vec);
-                                                assert!(inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
+                                                assert!(inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
                                                 1
                                             } else {
-                                                // dbg!(instance_of_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.view().name().to_cpdtype().jvm_representation(&jvm.string_pool));
-                                                // dbg!(rc.unwrap_class_class().inheritance_tree_vec.as_ref());
-                                                // dbg!(sub_inheritance_tree_vec);
-                                                // dbg!(super_inheritance_tree_vec);
-                                                assert!(!inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()));
+                                                assert!(!inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
                                                 0
                                             }
                                         }
@@ -101,8 +92,19 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                                 }
                             };
                         }
+                    }else {
+                        let interface_class_id = jvm.class_ids.get_id_or_add(instance_of_class.cpdtype());
+                        let guard = jvm.gc.memory_region.lock().unwrap();
+                        let region_header = guard.find_object_region_header(obj.ptr());
+                        for i in 0..region_header.interface_ids_list_len{
+                            let current_class_id = unsafe { region_header.interface_ids_list.offset(i as isize).read() };
+                            if current_class_id == interface_class_id{
+                                return 1;
+                            }
+                        }
+                        return 0;
                     }
-                    if inherits_from_cpdtype(jvm, &object_class, instance_of_class_name.into()) {
+                    if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
                         1
                     } else {
                         0

@@ -8,6 +8,7 @@ use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
 use memoffset::offset_of;
 
 use another_jit_vm::Register;
+use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
@@ -20,16 +21,40 @@ use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
-    Class { name: CClassName, loader: LoaderName, size: usize, vtable: NonNull<RawNativeVTable>, itable: NonNull<ITableRaw>, inheritance_bit_vec: Option<NonNull<BitPath256>> },
-    ObjectArray { sub_type: CPRefType, sub_type_loader: LoaderName, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITableRaw> },
-    PrimitiveArray { primitive_type: CPDType, len: i32, object_vtable: NonNull<RawNativeVTable>, array_itable: NonNull<ITableRaw> },
+    Class {
+        name: CClassName,
+        loader: LoaderName,
+        size: usize,
+        vtable: NonNull<RawNativeVTable>,
+        itable: NonNull<ITableRaw>,
+        inheritance_bit_vec: Option<NonNull<BitPath256>>,
+        interfaces: *const ClassID,
+        interfaces_len: usize,
+    },
+    ObjectArray {
+        sub_type: CPRefType,
+        sub_type_loader: LoaderName,
+        len: i32,
+        object_vtable: NonNull<RawNativeVTable>,
+        array_itable: NonNull<ITableRaw>,
+        array_interfaces: *const ClassID,
+        interfaces_len: usize,
+    },
+    PrimitiveArray {
+        primitive_type: CPDType,
+        len: i32,
+        object_vtable: NonNull<RawNativeVTable>,
+        array_itable: NonNull<ITableRaw>,
+        array_interfaces: *const ClassID,
+        interfaces_len: usize,
+    },
     Raw { size: usize },
 }
 
 impl AllocatedObjectType {
     pub fn inheritance_bit_vec(&self) -> *const BitPath256 {
         match self {
-            AllocatedObjectType::Class { inheritance_bit_vec, .. } => inheritance_bit_vec.map(|x|x.as_ptr() as *const BitPath256).unwrap_or(null()),
+            AllocatedObjectType::Class { inheritance_bit_vec, .. } => inheritance_bit_vec.map(|x| x.as_ptr() as *const BitPath256).unwrap_or(null()),
             AllocatedObjectType::ObjectArray { .. } |
             AllocatedObjectType::PrimitiveArray { .. } |
             AllocatedObjectType::Raw { .. } => {
@@ -104,6 +129,36 @@ impl AllocatedObjectType {
             }
         }
     }
+
+    pub fn interfaces_ptr(&self) -> *const ClassID {
+        *match self {
+            AllocatedObjectType::Class { interfaces, .. } => {
+                interfaces
+            }
+            AllocatedObjectType::ObjectArray { array_interfaces, .. } => {
+                array_interfaces
+            }
+            AllocatedObjectType::PrimitiveArray { array_interfaces, .. } => {
+                array_interfaces
+            }
+            AllocatedObjectType::Raw { .. } => panic!()
+        }
+    }
+
+    pub fn interfaces_len(&self) -> usize {
+        *match self {
+            AllocatedObjectType::Class { interfaces_len, .. } => {
+                interfaces_len
+            }
+            AllocatedObjectType::ObjectArray { interfaces_len, .. } => {
+                interfaces_len
+            }
+            AllocatedObjectType::PrimitiveArray { interfaces_len, .. } => {
+                interfaces_len
+            }
+            AllocatedObjectType::Raw { .. } => panic!()
+        }
+    }
 }
 
 #[repr(C)]
@@ -117,6 +172,8 @@ pub struct RegionHeader {
     pub inheritance_bit_path_ptr: *const BitPath256,
     pub vtable_ptr: *mut RawNativeVTable,
     pub itable_ptr: *mut ITableRaw,
+    pub interface_ids_list: *const ClassID,
+    pub interface_ids_list_len: usize,
     region_header_magic_2: u32,
 }
 
@@ -312,6 +369,8 @@ impl MemoryRegions {
                 vtable_ptr: to_allocate_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,
                 itable_ptr: to_allocate_type.itable().map(|itable| itable.as_ptr()).unwrap_or(null_mut()),
+                interface_ids_list: to_allocate_type.interfaces_ptr(),
+                interface_ids_list_len: to_allocate_type.interfaces_len(),
                 inheritance_bit_path_ptr: to_allocate_type.inheritance_bit_vec(),
             });
         }

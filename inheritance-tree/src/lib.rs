@@ -175,5 +175,6 @@ pub enum Bit {
 }
 
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[repr(transparent)]
 pub struct ClassID(u32);

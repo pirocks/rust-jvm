@@ -8,6 +8,7 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use crate::AllocatedHandle;
 
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::special::{instance_of_exit_impl_impl_impl};
@@ -148,7 +149,8 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                         let matches_class = match catch_type {
                             None => true,
                             Some(class_name) => {
-                                instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc) == 1
+                                let throw = AllocatedHandle::NormalObject(real_interpreter_state.inner().throw().unwrap().duplicate_discouraged());
+                                instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc,&throw) == 1
                             }
                         };
                         if matches_class {
