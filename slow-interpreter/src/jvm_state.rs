@@ -60,6 +60,7 @@ use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
+use crate::jit::leaked_interface_arrays::InterfaceArrays;
 use crate::jvmti::event_callbacks::SharedLibJVMTI;
 use crate::known_type_to_address_mappings::KnownAddresses;
 use crate::loading::Classpath;
@@ -134,6 +135,7 @@ pub struct JVMState<'gc> {
     pub class_ids: ClassIDs,
     pub inheritance_tree: InheritanceTree,
     pub bit_vec_paths: RwLock<BitVecPaths>,
+    pub interface_arrays: RwLock<InterfaceArrays>
 }
 
 
@@ -350,6 +352,7 @@ impl<'gc> JVMState<'gc> {
             class_ids,
             inheritance_tree,
             bit_vec_paths: bt_vec_paths,
+            interface_arrays: RwLock::new(InterfaceArrays::new())
         };
         (args, jvm)
     }

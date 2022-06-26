@@ -172,6 +172,7 @@ pub struct RegionHeader {
     pub inheritance_bit_path_ptr: *const BitPath256,
     pub vtable_ptr: *mut RawNativeVTable,
     pub itable_ptr: *mut ITableRaw,
+    //todo in future instead of iterating this could be done with zero page mapped everywhere to make sparse array
     pub interface_ids_list: *const ClassID,
     pub interface_ids_list_len: usize,
     region_header_magic_2: u32,
@@ -181,6 +182,7 @@ impl RegionHeader {
     pub const REGION_HEADER_MAGIC: u32 = 0xddeeaadd;
 
     pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>) -> Option<NonNull<c_void>> {
+        // assert!(dbg!(size_of::<RegionHeader>()) < SMALL_REGION_SIZE);//todo deal with this
         let region_base = region_header.as_ptr().add(1);
         assert_eq!(region_header.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(region_header.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);

@@ -9,7 +9,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CP
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState};
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_resolved_class, try_assert_loaded_class};
+use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class, try_assert_loaded_class};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::java_values::GcManagedObject;
@@ -66,43 +66,46 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
         CompressedParsedRefType::Class(object) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
-                    let instance_of_class = assert_loaded_class(jvm, instance_of_class_name.into());
-                    if !instance_of_class.unwrap_class_class().class_view.is_interface() {
-                        if let Some(sub_inheritance_tree_vec) = runtime_object_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
-                            let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()){
-                                None => {
-                                    return if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
-                                        panic!()
-                                    } else {
-                                        0
-                                    }
+                    if let Some(instance_of_class) = try_assert_loaded_class(jvm, instance_of_class_name.into()) {
+                        if instance_of_class.unwrap_class_class().class_view.is_interface() {
+                            let interface_class_id = jvm.class_ids.get_id_or_add(instance_of_class.cpdtype());
+                            let guard = jvm.gc.memory_region.lock().unwrap();
+                            let region_header = guard.find_object_region_header(obj.ptr());
+                            for i in 0..region_header.interface_ids_list_len {
+                                let current_class_id = unsafe { region_header.interface_ids_list.offset(i as isize).read() };
+                                if current_class_id == interface_class_id {
+                                    assert!(inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
+                                    return 1;
                                 }
-                                Some(instance_of_class) => {
-                                    if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
-                                        unsafe {
-                                            return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
-                                                assert!(inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
-                                                1
-                                            } else {
-                                                assert!(!inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
-                                                0
+                            }
+                            assert!(!inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
+                            return 0;
+                        } else {
+                            if let Some(sub_inheritance_tree_vec) = runtime_object_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                                let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()) {
+                                    None => {
+                                        return if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
+                                            panic!()
+                                        } else {
+                                            0
+                                        }
+                                    }
+                                    Some(instance_of_class) => {
+                                        if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                                            unsafe {
+                                                return if sub_inheritance_tree_vec.as_ref().is_subpath_of(super_inheritance_tree_vec.as_ref()) {
+                                                    assert!(inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
+                                                    1
+                                                } else {
+                                                    assert!(!inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
+                                                    0
+                                                }
                                             }
                                         }
                                     }
-                                }
-                            };
-                        }
-                    }else {
-                        let interface_class_id = jvm.class_ids.get_id_or_add(instance_of_class.cpdtype());
-                        let guard = jvm.gc.memory_region.lock().unwrap();
-                        let region_header = guard.find_object_region_header(obj.ptr());
-                        for i in 0..region_header.interface_ids_list_len{
-                            let current_class_id = unsafe { region_header.interface_ids_list.offset(i as isize).read() };
-                            if current_class_id == interface_class_id{
-                                return 1;
+                                };
                             }
                         }
-                        return 0;
                     }
                     if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
                         1

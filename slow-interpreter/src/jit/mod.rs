@@ -27,6 +27,7 @@ use crate::jvm_state::JVMState;
 
 pub mod ir;
 pub mod state;
+pub mod leaked_interface_arrays;
 
 #[derive(Clone, Debug)]
 pub struct ResolvedInvokeVirtual {

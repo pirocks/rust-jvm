@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use itertools::Itertools;
 
 use gc_memory_layout_common::layout::ObjectMemoryLayout;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
@@ -37,7 +36,7 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
             let cloneable_id = jvm.class_ids.get_id_or_add(arr.cloneable.cpdtype());
             let serializable_id = jvm.class_ids.get_id_or_add(arr.serializable.cpdtype());
             let array_interfaces = BTreeSet::from([cloneable_id, serializable_id]);
-            let (array_interfaces, interfaces_len) = leak_interface_array(array_interfaces);
+            let (array_interfaces, interfaces_len) = jvm.interface_arrays.write().unwrap().add_interfaces(array_interfaces);
             let object_vtable = jvm.vtables.lock().unwrap().lookup_or_new_vtable(assert_inited_or_initing_class(jvm, CClassName::object().into()));
             let primitive_type = match arr.sub_class.deref() {
                 RuntimeClass::Byte => CompressedParsedDescriptorType::ByteType,
@@ -77,7 +76,7 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
             let inheritance_bit_vec = class_class.inheritance_tree_vec.clone();
 
 
-            let (interfaces, interfaces_len) = leak_interface_array(all_interfaces_recursive(jvm, class_class));
+            let (interfaces, interfaces_len) = jvm.interface_arrays.write().unwrap().add_interfaces(all_interfaces_recursive(jvm, class_class));
             AllocatedObjectType::Class {
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
@@ -93,13 +92,6 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
     }
 }
 
-pub fn leak_interface_array(interfaces: BTreeSet<ClassID>) -> (*const ClassID, usize) {
-    let mut interfaces = interfaces.into_iter().collect_vec();
-    interfaces.shrink_to_fit();
-    let (ptr, len, capacity) = interfaces.into_raw_parts();
-    assert_eq!(len, capacity);
-    (ptr, len)
-}
 
 pub fn all_interfaces_recursive<'gc>(jvm: &'gc JVMState<'gc>, rc: &RuntimeClassClass<'gc>) -> BTreeSet<ClassID> {
     let mut res = BTreeSet::new();
