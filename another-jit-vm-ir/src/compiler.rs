@@ -116,6 +116,7 @@ pub enum IRInstr {
     BranchAGreaterB { a: Register, b: Register, label: LabelName, size: Size },
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName, size: Size },
     BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
+    BranchEqualVal { a: Register, const_: u32, label: LabelName, size: Size },
     BoundsCheck { length: Register, index: Register, size: Size },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     RestartPoint(RestartPointID),
@@ -414,6 +415,9 @@ impl IRInstr {
             }
             IRInstr::InstanceOfInterface { .. } => {
                 "InstanceOfInterface".to_string()
+            }
+            IRInstr::BranchEqualVal { .. } => {
+                "BranchEqualVal".to_string()
             }
         }
     }

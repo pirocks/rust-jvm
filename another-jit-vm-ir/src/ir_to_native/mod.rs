@@ -12,7 +12,7 @@ use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::generate_itable_access;
 
-use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
+use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID, Size};
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};
@@ -332,6 +332,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let mut before_exit_label = assembler.create_label();
                     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
                 }
+                IRVMExitType::CheckCast { .. } => {
+                    let registers = instance_of_exit.registers_to_save();
+                    instance_of_exit.gen_assembly(assembler, &mut done, &registers);
+                    let mut before_exit_label = assembler.create_label();
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
+                }
                 _ => {
                     panic!()
                 }
@@ -354,10 +360,10 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.lea(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + interface_list_base_pointer_len.to_native_64() * size_of::<ClassID>()).unwrap();
             let mut loop_ = assembler.create_label();
             assembler.set_label(&mut loop_).unwrap();
-            assembler.cmp(interface_list_base_pointer.to_native_64(),interface_list_base_pointer_len.to_native_64()).unwrap();
+            assembler.cmp(interface_list_base_pointer.to_native_64(), interface_list_base_pointer_len.to_native_64()).unwrap();
             assembler.je(instance_of_fail).unwrap();
             assembler.cmp(dword_ptr(interface_list_base_pointer.to_native_64()), target_interface_id.0 as u32).unwrap();
-            assembler.je( instance_of_succeed).unwrap();
+            assembler.je(instance_of_succeed).unwrap();
             assembler.lea(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + size_of::<ClassID>() as u64).unwrap();
             assembler.jmp(loop_).unwrap();
             let mut done = assembler.create_label();
@@ -369,6 +375,25 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.jmp(done).unwrap();
             assembler.set_label(&mut done).unwrap();
             assembler.nop().unwrap();
+        }
+        IRInstr::BranchEqualVal { a, const_, label, size } => {
+            let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
+            match size {
+                Size::Byte => {
+                    todo!()
+                }
+                Size::X86Word => {
+                    todo!()
+                }
+                Size::X86DWord => {
+                    assembler.cmp(a.to_native_32(), *const_ as u32).unwrap();
+                }
+                Size::X86QWord => {
+                    panic!()
+                }
+            }
+
+            assembler.je(*code_label).unwrap();
         }
     }
     None

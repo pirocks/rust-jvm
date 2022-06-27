@@ -637,7 +637,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(instanceof(resolver, &mut restart_point_generator, recompile_conditions, method_frame_data, &current_instr_data, *cpdtype))
             }
             CompressedInstructionInfo::checkcast(cpdtype) => {
-                this_function_ir.extend(checkcast(resolver, method_frame_data, current_instr_data, *cpdtype))
+                this_function_ir.extend(checkcast(resolver, recompile_conditions, &mut restart_point_generator, method_frame_data, current_instr_data, *cpdtype))
             }
             CompressedInstructionInfo::iinc(IInc { index, const_ }) => {
                 this_function_ir.extend(iinc(method_frame_data, current_instr_data, *index, *const_))
