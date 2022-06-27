@@ -1,4 +1,5 @@
 use itertools::Either;
+
 use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
@@ -80,7 +81,7 @@ pub fn instanceof<'vm>(
                 },
             }]))
         }
-        Some((rc,_loader_name)) => {
+        Some((rc, _loader_name)) => {
             let exit_type = IRVMExitType::InstanceOf {
                 value: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                 res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
@@ -88,24 +89,24 @@ pub fn instanceof<'vm>(
                 java_pc: current_instr_data.current_offset,
             };
             if !rc.view().is_interface() && !rc.cpdtype().is_array() && !rc.cpdtype().is_primitive() {
-                if let Some(inheritance_tree_vec) = rc.unwrap_class_class().inheritance_tree_vec.as_ref(){
-                    return Either::Right(array_into_iter([restart_point,
+                if let Some(inheritance_tree_vec) = rc.unwrap_class_class().inheritance_tree_vec.as_ref() {
+                    return Either::Right(Either::Left(array_into_iter([restart_point,
                         IRInstr::InstanceOfClass {
                             inheritance_path: inheritance_tree_vec.clone(),
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                             return_val: Register(1),
-                            instance_of_exit: exit_type
+                            instance_of_exit: exit_type,
                         },
                         IRInstr::StoreFPRelative {
                             from: Register(1),
                             to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
-                            size: Size::int()
+                            size: Size::int(),
                         }
-                    ]))
+                    ])));
                 }
             };
-            if rc.view().is_interface(){
-                return Either::Right(array_into_iter([restart_point,
+            if rc.view().is_interface() {
+                return Either::Right(Either::Right(array_into_iter([restart_point,
                     IRInstr::InstanceOfInterface {
                         target_interface_id: resolver.lookup_interface_class_id(rc.cpdtype()),
                         object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
@@ -114,16 +115,15 @@ pub fn instanceof<'vm>(
                     IRInstr::StoreFPRelative {
                         from: Register(1),
                         to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
-                        size: Size::int()
+                        size: Size::int(),
                     }
-                ]))
+                ])));
             }
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type
                 }
             ]))
-
         }
     }
 }

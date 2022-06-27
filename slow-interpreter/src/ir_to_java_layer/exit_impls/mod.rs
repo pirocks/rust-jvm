@@ -211,10 +211,8 @@ pub fn assert_instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     let value = value.unwrap_object();
     let initied = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
-    // dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
-    // unsafe { dbg!(value.unwrap().runtime_class(jvm).unwrap_class_class().inheritance_tree_vec.as_ref().unwrap().as_ref()); }
-    // unsafe { dbg!(initied.unwrap_class_class().inheritance_tree_vec.as_ref().unwrap().as_ref()); }
-    // dbg!(cpdtype.jvm_representation(&jvm.string_pool));
+    dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+    dbg!(cpdtype.jvm_representation(&jvm.string_pool));
     assert_eq!(res_int, if expected { 1 } else { 0 });
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }

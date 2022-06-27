@@ -349,7 +349,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             let interface_list_base_pointer = Register(3);
             let interface_list_base_pointer_len = Register(5);
             MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), interface_list_base_pointer.clone());
-            assembler.mov(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list)).unwrap();
+            assembler.mov(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list_len)).unwrap();
             assembler.mov(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list)).unwrap();
             assembler.lea(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + interface_list_base_pointer_len.to_native_64() * size_of::<ClassID>()).unwrap();
             let mut loop_ = assembler.create_label();
