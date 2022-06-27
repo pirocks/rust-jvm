@@ -1,20 +1,19 @@
-use std::borrow::{Borrow};
+use std::borrow::Borrow;
 use std::sync::Arc;
+
 use another_jit_vm_ir::WasException;
-
-
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
-use crate::AllocatedHandle;
 
+use crate::AllocatedHandle;
 use crate::class_objects::get_or_create_class_object;
-use crate::instructions::special::{instance_of_exit_impl_impl_impl};
+use crate::instructions::special::instance_of_exit_impl_impl_impl;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::interpreter::single_instruction::{run_single_instruction};
-use crate::interpreter_state::{InterpreterStateGuard};
+use crate::interpreter::single_instruction::run_single_instruction;
+use crate::interpreter_state::InterpreterStateGuard;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
 use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
@@ -60,6 +59,8 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
 
     if !compile_interpreted {
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
+    } else {
+        return run_function_interpreted(jvm, interpreter_state);
     }
 
     let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }) {
@@ -150,7 +151,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                             None => true,
                             Some(class_name) => {
                                 let throw = AllocatedHandle::NormalObject(real_interpreter_state.inner().throw().unwrap().duplicate_discouraged());
-                                instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc,&throw) == 1
+                                instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc, &throw) == 1
                             }
                         };
                         if matches_class {
