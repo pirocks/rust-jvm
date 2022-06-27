@@ -10,6 +10,7 @@ use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use method_table::MethodTable;
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -158,7 +159,9 @@ pub trait MethodResolver<'gc> {
     fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID;
     fn lookup_native_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<MethodId>;
+    //todo unnify both of thes
     fn lookup_interface_id(&self, interface: CPDType) -> Option<InterfaceID>;
+    fn lookup_interface_class_id(&self, interface: CPDType) -> ClassID;
     fn lookup_interface_method_number(&self, interface: CPDType, method_shape: MethodShape) -> Option<MethodNumber>;
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc>>, LoaderName)>;

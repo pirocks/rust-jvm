@@ -2,6 +2,7 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
+use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
@@ -130,6 +131,11 @@ pub enum IRInstr {
         object_ref: FramePointerOffset,
         return_val: Register,
         instance_of_exit: IRVMExitType
+    },
+    InstanceOfInterface{
+        target_interface_id: ClassID,
+        object_ref: FramePointerOffset,
+        return_val: Register,
     },
     VMExit2 { exit_type: IRVMExitType },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
@@ -405,6 +411,9 @@ impl IRInstr {
             }
             IRInstr::InstanceOfClass { .. } => {
                 "InstanceOfClass".to_string()
+            }
+            IRInstr::InstanceOfInterface { .. } => {
+                "InstanceOfInterface".to_string()
             }
         }
     }

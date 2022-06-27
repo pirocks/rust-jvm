@@ -104,6 +104,20 @@ pub fn instanceof<'vm>(
                     ]))
                 }
             };
+            if rc.view().is_interface(){
+                return Either::Right(array_into_iter([restart_point,
+                    IRInstr::InstanceOfInterface {
+                        target_interface_id: resolver.lookup_interface_class_id(rc.cpdtype()),
+                        object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
+                        return_val: Register(1),
+                    },
+                    IRInstr::StoreFPRelative {
+                        from: Register(1),
+                        to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                        size: Size::int()
+                    }
+                ]))
+            }
             Either::Left(array_into_iter([restart_point,
                 IRInstr::VMExit2 {
                     exit_type

@@ -17,6 +17,7 @@ sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 verification = { path = "../verification" }
 java5-verifier = { path = "../java5-verifier" }
 method-table = { path = "../method-table" }
+inheritance-tree = { path = "../inheritance-tree" }
 itertools = "0.10"
 wtf8 = "0.1"
 by_address = "1"

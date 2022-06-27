@@ -1,20 +1,25 @@
 use std::collections::HashMap;
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
+use std::mem::size_of;
+
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
-use another_jit_vm::code_modification::{AssemblerFunctionCallTarget};
+
 use another_jit_vm::{Register, VMState};
+use another_jit_vm::code_modification::AssemblerFunctionCallTarget;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
+use gc_memory_layout_common::memory_regions::RegionHeader;
+use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::generate_itable_access;
+
+use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};
 use crate::ir_to_native::integer_compare::{int_compare, sized_integer_compare};
 use crate::ir_to_native::load_store::{ir_load, ir_load_fp_relative, ir_store, ir_store_fp_relative};
 use crate::ir_to_native::special::{bounds_check, npe_check, vtable_lookup_or_exit};
-use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
 use crate::vm_exit_abi::register_structs::InvokeInterfaceResolve;
-use gc_memory_layout_common::memory_regions::RegionHeader;
 
 pub mod bit_manipulation;
 pub mod integer_arithmetic;
@@ -278,12 +283,10 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             let mut instance_of_fail = assembler.create_label();
             let obj_ptr = Register(0);
             assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
-            assembler.cmp(obj_ptr.to_native_64(),0).unwrap();
+            assembler.cmp(obj_ptr.to_native_64(), 0).unwrap();
             assembler.je(instance_of_fail).unwrap();
             let object_inheritance_path_pointer = Register(3);
             MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), object_inheritance_path_pointer.clone());
-            // assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
-            // assembler.je(instance_of_exit_label).unwrap();
             assembler.mov(object_inheritance_path_pointer.to_native_64(), object_inheritance_path_pointer.to_native_64() + offset_of!(RegionHeader,inheritance_bit_path_ptr)).unwrap();
             assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
             assembler.je(instance_of_exit_label).unwrap();
@@ -316,7 +319,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.jmp(instance_of_fail.clone()).unwrap();
             let mut done = assembler.create_label();
             assembler.set_label(&mut instance_of_succeed).unwrap();
-            assembler.mov(return_val.to_native_64(),1u64).unwrap();
+            assembler.mov(return_val.to_native_64(), 1u64).unwrap();
             assembler.jmp(done).unwrap();
             assembler.set_label(&mut instance_of_fail).unwrap();
             assembler.mov(return_val.to_native_64(), 0u64).unwrap();
@@ -334,6 +337,37 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 }
             }
             // assembler.set_label(&mut done).unwrap(); //done in gen_vm_exit
+            assembler.nop().unwrap();
+        }
+        IRInstr::InstanceOfInterface { target_interface_id, object_ref, return_val } => {
+            let obj_ptr = Register(0);
+            let mut instance_of_succeed = assembler.create_label();
+            let mut instance_of_fail = assembler.create_label();
+            assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+            assembler.cmp(obj_ptr.to_native_64(), 0).unwrap();
+            assembler.je(instance_of_fail).unwrap();
+            let interface_list_base_pointer = Register(3);
+            let interface_list_base_pointer_len = Register(5);
+            MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), interface_list_base_pointer.clone());
+            assembler.mov(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list)).unwrap();
+            assembler.mov(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list)).unwrap();
+            assembler.lea(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + interface_list_base_pointer_len.to_native_64() * size_of::<ClassID>()).unwrap();
+            let mut loop_ = assembler.create_label();
+            assembler.set_label(&mut loop_).unwrap();
+            assembler.cmp(interface_list_base_pointer.to_native_64(),interface_list_base_pointer_len.to_native_64()).unwrap();
+            assembler.je(instance_of_fail).unwrap();
+            assembler.cmp(dword_ptr(interface_list_base_pointer.to_native_64()), target_interface_id.0 as u32).unwrap();
+            assembler.je( instance_of_succeed).unwrap();
+            assembler.lea(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + size_of::<ClassID>() as u64).unwrap();
+            assembler.jmp(loop_).unwrap();
+            let mut done = assembler.create_label();
+            assembler.set_label(&mut instance_of_succeed).unwrap();
+            assembler.mov(return_val.to_native_64(), 1u64).unwrap();
+            assembler.jmp(done).unwrap();
+            assembler.set_label(&mut instance_of_fail).unwrap();
+            assembler.mov(return_val.to_native_64(), 0u64).unwrap();
+            assembler.jmp(done).unwrap();
+            assembler.set_label(&mut done).unwrap();
             assembler.nop().unwrap();
         }
     }

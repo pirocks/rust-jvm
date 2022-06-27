@@ -8,6 +8,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -168,6 +169,10 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (_, rc) = classes_guard.get_loader_and_runtime_class(&interface)?;
         Some(self.jvm.interface_table.get_interface_id(rc))
+    }
+
+    fn lookup_interface_class_id(&self, interface: CPDType) -> ClassID {
+        self.jvm.class_ids.get_id_or_add(interface)
     }
 
     fn lookup_interface_method_number(&self, interface: CPDType, method_shape: MethodShape) -> Option<MethodNumber> {
