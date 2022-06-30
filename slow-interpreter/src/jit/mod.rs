@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::sync::Arc;
+use std::sync::atomic::AtomicPtr;
 
 use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
@@ -7,7 +8,7 @@ use another_jit_vm::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use gc_memory_layout_common::memory_regions::{AllocatedTypeID, BaseAddressAndMask, RegionHeader};
 use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -24,6 +25,7 @@ use stage0::compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAn
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 
 pub mod ir;
@@ -200,6 +202,16 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         let rc = read_guard.is_inited_or_initing(cpdtype)?;
         let loader = read_guard.get_initiating_loader(&rc);
         Some((rc, loader))
+    }
+
+    fn allocated_object_type_id(&self, rc: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedTypeID {
+        let allocated_object_type = runtime_class_to_allocated_object_type(self.jvm,rc, loader,arr_len);
+        let mut guard = self.jvm.gc.memory_region.lock().unwrap();
+        guard.lookup_or_add_type(&allocated_object_type)
+    }
+
+    fn allocated_object_region_header_pointer(&self, id: AllocatedTypeID) -> *const AtomicPtr<RegionHeader> {
+        self.jvm.gc.memory_region.lock().unwrap().get_region_header_raw_ptr(id)
     }
 
     fn lookup_method_layout(&self, method_id: usize) -> YetAnotherLayoutImpl {

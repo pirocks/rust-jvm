@@ -112,6 +112,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, main_frame_guard, false);
             }
+            panic!();
             sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
         }
         Err(WasException {}) => {

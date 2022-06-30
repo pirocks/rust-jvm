@@ -37,7 +37,13 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
         args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
         i += 1;
     }
-    let res = run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()).unwrap();
+    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+        Ok(x) => x,
+        Err(WasException{}) => {
+            let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
+            return throw_impl(jvm,int_state, throw_obj);
+        },
+    };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
     diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().object }).unwrap_or(null_mut()));
     IRVMExitAction::RestartWithRegisterState {

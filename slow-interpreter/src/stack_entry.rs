@@ -425,7 +425,7 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
             native_local_refs: vec![HashSet::new()],
         }*/
         assert!(operand_stack.is_empty());
-        assert_eq!(loader, LoaderName::BootstrapLoader);
+        assert_eq!(loader, LoaderName::BootstrapLoader);// loader should be set from thread loader for new threads
         let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
         Self::Opaque { opaque_id, native_local_refs: vec![] }
     }

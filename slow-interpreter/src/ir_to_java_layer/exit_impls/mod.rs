@@ -432,7 +432,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
     unsafe {
-        libc::memset(allocated_object.as_ptr(), 0, object_size);
+        memset(allocated_object.as_ptr(), 0, object_size);
     }//todo do correct initing of fields
     unsafe { res_address.write(allocated_object) }
     drop(guard);
@@ -620,8 +620,8 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
 pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_handle: NewJavaValueHandle<'gc>) -> IRVMExitAction {
     let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
     let throwable = exception_object_handle.cast_throwable();
-    let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
-    dbg!(exception_as_string.to_rust_string(jvm));
+    // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
+    // dbg!(exception_as_string.to_rust_string(jvm));
     // let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
     for current_frame in int_state.frame_iter() {
         let rc = match current_frame.try_class_pointer(jvm) {

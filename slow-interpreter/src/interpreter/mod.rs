@@ -84,6 +84,9 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
     }
+    if interpreter_state.throw().is_some(){
+        return Err(WasException{})
+    }
     let return_type = &method.desc().return_type;
     Ok(match return_type {
         CompressedParsedDescriptorType::VoidType => None,

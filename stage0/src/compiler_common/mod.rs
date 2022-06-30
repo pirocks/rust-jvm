@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::sync::Arc;
+use std::sync::atomic::AtomicPtr;
 
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
@@ -9,7 +10,7 @@ use wtf8::Wtf8Buf;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
-use gc_memory_layout_common::memory_regions::BaseAddressAndMask;
+use gc_memory_layout_common::memory_regions::{AllocatedTypeID, BaseAddressAndMask, RegionHeader};
 use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use method_table::MethodTable;
@@ -165,6 +166,8 @@ pub trait MethodResolver<'gc> {
     fn lookup_interface_method_number(&self, interface: CPDType, method_shape: MethodShape) -> Option<MethodNumber>;
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)>;
     fn lookup_type_inited_initing(&self, cpdtype: &CPDType) -> Option<(Arc<RuntimeClass<'gc>>, LoaderName)>;
+    fn allocated_object_type_id(&self, rc: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedTypeID;
+    fn allocated_object_region_header_pointer(&self, id: AllocatedTypeID) -> *const AtomicPtr<RegionHeader>;
     fn lookup_method_layout(&self, method_id: usize) -> YetAnotherLayoutImpl;
     fn lookup_native_method_layout(&self, method_id: usize) -> NativeStackframeMemoryLayout;
     fn lookup_partial_method_layout(&self, method_id: usize) -> PartialYetAnotherLayoutImpl;

@@ -40,5 +40,6 @@ members = [
     "vtable",
     "interface-vtable",
     "stage0",
-    "inheritance-tree"
+    "inheritance-tree",
+    "native-vec"
 ]

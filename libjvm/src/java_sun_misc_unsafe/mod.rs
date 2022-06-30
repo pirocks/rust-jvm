@@ -17,7 +17,7 @@ use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
@@ -134,7 +134,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
 unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEnv, the_unsafe: jobject, field_obj: jobject) -> jlong {
     //todo major duplication
     let jvm = get_state(env);
-    let jfield = JavaValue::Object(from_object(jvm, field_obj)).cast_field();
+    let jfield = NewJavaValueHandle::Object(from_object_new(jvm, field_obj).unwrap()).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
     let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let class_view = clazz.view();
@@ -261,7 +261,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             assert!(field_view.is_static());
             let name = field_view.field_name();
             let res = static_vars(runtime_class.deref(), jvm).get(name);
-            to_object(todo!()/*res.unwrap_object()*/)
+            to_object_new(res.as_njv().unwrap_object_alloc())
         }
         Some(object_to_read) => {
             let offseted = object_to_read.ptr().as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;

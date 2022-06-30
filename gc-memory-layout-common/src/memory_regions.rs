@@ -2,7 +2,8 @@ use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::{NonNull, null, null_mut};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
 use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
 use memoffset::offset_of;
@@ -225,6 +226,7 @@ pub struct MemoryRegions {
     pub free_extra_large_region_index: usize,
     //indexed by allocated type id
     pub types: Vec<AllocatedObjectType>,
+    pub current_region_header: Vec<Arc<AtomicPtr<RegionHeader>>>,
     pub current_region_type: Vec<Region>,
     pub type_to_region_datas: Vec<Vec<(Region, usize)>>,
     pub current_region_index: Vec<Option<usize>>,
@@ -244,11 +246,17 @@ impl MemoryRegions {
             free_large_region_index: 0,
             free_extra_large_region_index: 0,
             types: vec![],
+            current_region_header: vec![],
             current_region_type: vec![],
             type_to_region_datas: vec![],
             current_region_index: vec![],
             types_reverse: Default::default(),
         }
+    }
+
+    pub fn get_region_header_raw_ptr(&self, id: AllocatedTypeID) -> *const AtomicPtr<RegionHeader>{
+        let other_arc = self.current_region_header[id.0 as usize].clone();
+        Arc::into_raw(other_arc)
     }
 
     pub fn lookup_or_add_type(&mut self, type_: &AllocatedObjectType) -> AllocatedTypeID {
@@ -261,6 +269,7 @@ impl MemoryRegions {
                 self.current_region_type.push(region_to_use);
                 self.current_region_index.push(None);
                 self.type_to_region_datas.push(vec![]);
+                self.current_region_header.push(Arc::new(AtomicPtr::new(null_mut())));
                 self.types_reverse.insert(type_.clone(), new_id);
                 new_id
             }
@@ -285,6 +294,7 @@ impl MemoryRegions {
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         assert_ne!(size, 0);
+        self.current_region_header[region_type.0 as usize].store(region.as_ptr(),Ordering::SeqCst);
         let res_ptr = unsafe {
             match RegionHeader::get_allocation(region) {
                 Some(x) => x,

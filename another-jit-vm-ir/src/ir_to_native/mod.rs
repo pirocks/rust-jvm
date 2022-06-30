@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{CodeAssembler, CodeLabel, dword_ptr, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{byte_ptr, CodeAssembler, CodeLabel, dword_ptr, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
 use another_jit_vm::{Register, VMState};
@@ -394,6 +394,50 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             }
 
             assembler.je(*code_label).unwrap();
+        }
+        IRInstr::Allocate { region_header_ptr, allocate_exit } => {
+            let mut before_exit_label = assembler.create_label();
+            let mut after_exit_label = assembler.create_label();
+            let region_header = Register(4);
+            let zero = Register(5);
+            assembler.int3().unwrap();
+            assembler.sub(zero.to_native_64(), zero.to_native_64()).unwrap();
+            assembler.mov(region_header.to_native_64(), *region_header_ptr as u64).unwrap();
+            assembler.mov(region_header.to_native_64(), region_header.to_native_64() + 0).unwrap();
+            assembler.cmp(region_header.to_native_64(), zero.to_native_64()).unwrap();
+            assembler.je(before_exit_label.clone()).unwrap();
+            let current_index = Register(6);
+            assembler.mov(current_index.to_native_64(), 1 as u64).unwrap();
+            assembler.lock().xadd(region_header.to_native_64() + offset_of!(RegionHeader,num_current_elements), current_index.to_native_64()).unwrap();
+            let max_elements = Register(7);
+            assembler.mov(max_elements.to_native_64(),region_header.to_native_64() + offset_of!(RegionHeader, region_max_elements)).unwrap();
+            assembler.cmp(current_index.to_native_64(), max_elements.to_native_64()).unwrap();
+            assembler.jge(before_exit_label.clone()).unwrap();
+            let region_elem_size = Register(8);
+            assembler.mov(region_elem_size.to_native_64(), region_header.to_native_64() + offset_of!(RegionHeader, region_elem_size)).unwrap();
+            let res_ptr = Register(0);
+            assembler.mov(res_ptr.to_native_64(), current_index.to_native_64()).unwrap();
+            assembler.mul(region_elem_size.to_native_64()).unwrap();//implicit mul with res
+            assembler.add(res_ptr.to_native_64(), region_header.to_native_64()).unwrap();
+            let mut zero_loop_start = assembler.create_label();
+            assembler.set_label(&mut zero_loop_start).unwrap();
+            assembler.sub(region_elem_size.to_native_64(), 1).unwrap();
+            assembler.mov(byte_ptr(res_ptr.to_native_64() + region_elem_size.to_native_64()), zero.to_native_8()).unwrap();
+            assembler.cmp(region_elem_size.to_native_64(), 0).unwrap();
+            assembler.jne(zero_loop_start).unwrap();
+
+            assembler.jmp( after_exit_label.clone()).unwrap();
+            match allocate_exit {
+                IRVMExitType::AllocateObject { .. } => {
+                    let registers = allocate_exit.registers_to_save();
+                    allocate_exit.gen_assembly(assembler, &mut after_exit_label, &registers);
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+                }
+                _ => {
+                    panic!()
+                }
+            }
+            assembler.nop().unwrap();
         }
     }
     None

@@ -1,7 +1,9 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
+use std::sync::atomic::AtomicPtr;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
+use gc_memory_layout_common::memory_regions::{RegionHeader};
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -139,6 +141,10 @@ pub enum IRInstr {
         return_val: Register,
     },
     VMExit2 { exit_type: IRVMExitType },
+    Allocate {
+        region_header_ptr: *const AtomicPtr<RegionHeader>,
+        allocate_exit: IRVMExitType
+    },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
         temp_register_1: Register,
@@ -418,6 +424,9 @@ impl IRInstr {
             }
             IRInstr::BranchEqualVal { .. } => {
                 "BranchEqualVal".to_string()
+            }
+            IRInstr::Allocate { .. } => {
+                "Allocate".to_string()
             }
         }
     }
