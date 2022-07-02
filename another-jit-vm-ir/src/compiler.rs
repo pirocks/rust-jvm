@@ -143,6 +143,7 @@ pub enum IRInstr {
     VMExit2 { exit_type: IRVMExitType },
     Allocate {
         region_header_ptr: *const AtomicPtr<RegionHeader>,
+        res_offset: FramePointerOffset,
         allocate_exit: IRVMExitType
     },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },

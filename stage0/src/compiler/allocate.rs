@@ -35,8 +35,13 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
         Some((loaded_class, loader)) => {
             let allocated_object_id = resolver.allocated_object_type_id(loaded_class, loader, None);
             let allocated_object_region_pointer = resolver.allocated_object_region_header_pointer(allocated_object_id);
-            array_into_iter([restart_point, IRInstr::Allocate {
+            array_into_iter([restart_point, /*IRInstr::VMExit2 { exit_type: IRVMExitType::AllocateObject {
+                class_type: cpd_type_id,
+                res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                java_pc: current_instr_data.current_offset,
+            } }*/IRInstr::Allocate {
                 region_header_ptr: allocated_object_region_pointer,
+                res_offset: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 allocate_exit: IRVMExitType::AllocateObject {
                     class_type: cpd_type_id,
                     res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),

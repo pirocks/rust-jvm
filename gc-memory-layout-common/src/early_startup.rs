@@ -121,6 +121,7 @@ pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
 }
 
 pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
+    // dbg!(ptr as *mut c_void);
     let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
     //1 3 5 7
     let i = ((shifted - 1) >> 1) + 1;

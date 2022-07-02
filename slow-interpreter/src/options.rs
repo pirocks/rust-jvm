@@ -6,7 +6,7 @@ use rust_jvm_common::MethodId;
 
 use crate::JVMState;
 use crate::loading::Classpath;
-use crate::options::InstructionTraceOptions::{TraceNone};
+use crate::options::InstructionTraceOptions::{TraceAll, TraceNone};
 
 pub struct SharedLibraryPaths {
     pub(crate) libjava: OsString,

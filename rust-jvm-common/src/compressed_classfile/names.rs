@@ -149,6 +149,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_UTIL_HASHTABLE as AddOnlyVecIDType)
     }
 
+    pub const fn hashtable_entry() -> Self {
+        Self::from_raw_id(JAVA_UTIL_HASHTABLE_ENTRY as AddOnlyVecIDType)
+    }
+
     pub const fn thread() -> Self {
         Self::from_raw_id(JAVA_LANG_THREAD as AddOnlyVecIDType)
     }
@@ -305,6 +309,7 @@ enum PredefinedStrings {
     JAVA_LANG_REFLECT_FIELD,
     JAVA_UTIL_PROPERTIES,
     JAVA_UTIL_HASHTABLE,
+    JAVA_UTIL_HASHTABLE_ENTRY,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE,
     JAVA_LANG_DEPRECATED,
@@ -612,7 +617,8 @@ impl PredefinedStrings {
             JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE => "java/util/concurrent/ConcurrentHashMap$Node".to_string(),
             JAVA_LANG_REFLECT_GENERIC_DECLARATION => "java/lang/reflect/GenericDeclaration".to_string(),
             JAVA_LANG_REFLECT_TYPE => "java/lang/reflect/Type".to_string(),
-            JAVA_LANG_REFLECT_ANNOTATED_ELEMENT => "java/lang/reflect/AnnotatedElement".to_string()
+            JAVA_LANG_REFLECT_ANNOTATED_ELEMENT => "java/lang/reflect/AnnotatedElement".to_string(),
+            JAVA_UTIL_HASHTABLE_ENTRY => "java/util/Hashtable$Entry".to_string()
         }
     }
 }

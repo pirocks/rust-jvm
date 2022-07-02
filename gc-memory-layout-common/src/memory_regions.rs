@@ -191,9 +191,10 @@ impl RegionHeader {
         assert_eq!((region_header.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
         let current_index = region_header.as_ref().num_current_elements.fetch_add(1, Ordering::SeqCst);
         assert!(current_index < region_header.as_ref().region_max_elements);
-        if current_index >= region_header.as_ref().region_max_elements {
+        if current_index == region_header.as_ref().region_max_elements {
             return None;
         }
+        assert!(current_index < region_header.as_ref().region_max_elements);
         let res = (region_base as *mut c_void).add((current_index * region_header.as_ref().region_elem_size) as usize);
         libc::memset(res, 0, region_header.as_ref().region_elem_size);
         assert_eq!(region_header.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
