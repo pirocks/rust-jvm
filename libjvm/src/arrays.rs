@@ -134,11 +134,11 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
         unimplemented!()
     }
     let mut to_copy = vec![];
-    for i in 0..(length) {
-        let temp = src.get_i(((src_pos + i) as usize));
+    for i in 0..length {
+        let temp = src.get_i((src_pos + i) as usize);
         to_copy.push(temp);
     }
-    for i in 0..(length) {
+    for i in 0..length {
         dest.set_i((dst_pos + i) as usize, to_copy[i as usize].as_njv());
     }
 }

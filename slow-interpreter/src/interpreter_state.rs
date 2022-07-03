@@ -2,22 +2,22 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
-use std::ptr::{slice_from_raw_parts};
+use std::ptr::slice_from_raw_parts;
 use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use jvmti_jni_bindings::{jobject};
+use jvmti_jni_bindings::jobject;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::{AllocatedHandle, JavaValueCommon, MethodResolverImpl};
 
+use crate::{AllocatedHandle, JavaValueCommon, MethodResolverImpl};
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{JavaValue};
+use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};
@@ -53,7 +53,7 @@ pub enum InterpreterStateGuard<'vm, 'l> {
         registered: bool,
         jvm: &'vm JVMState<'vm>,
         current_exited_pc: Option<ByteCodeOffset>,
-        throw: Option<AllocatedHandle<'vm>>
+        throw: Option<AllocatedHandle<'vm>>,
     },
 }
 
@@ -66,8 +66,8 @@ pub static CURRENT_INT_STATE_GUARD :RefCell<Option<*mut InterpreterStateGuard<'s
 }
 
 #[must_use]
-pub struct OldInterpreterState{
-    pub old: Option<*mut InterpreterStateGuard<'static,'static>>
+pub struct OldInterpreterState {
+    pub old: Option<*mut InterpreterStateGuard<'static, 'static>>,
 }
 
 impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
@@ -87,9 +87,9 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
 
     pub fn register_interpreter_state_guard(&mut self, jvm: &'gc JVMState<'gc>) -> OldInterpreterState {
         let ptr = unsafe { transmute::<_, *mut InterpreterStateGuard<'static, 'static>>(self as *mut InterpreterStateGuard<'gc, '_>) };
-        let old = jvm.thread_state.int_state_guard.with(|elem|elem.borrow().clone());
-        jvm.thread_state.int_state_guard.with(|elem|elem.replace(ptr.into()));
-        jvm.thread_state.int_state_guard_valid.with(|elem|elem.replace(true));
+        let old = jvm.thread_state.int_state_guard.with(|elem| elem.borrow().clone());
+        jvm.thread_state.int_state_guard.with(|elem| elem.replace(ptr.into()));
+        jvm.thread_state.int_state_guard_valid.with(|elem| elem.replace(true));
         match self {
             InterpreterStateGuard::RemoteInterpreterState { registered, .. } => {
                 *registered = true;
@@ -99,18 +99,25 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
             }
         }
         assert!(self.thread().is_alive());
-        OldInterpreterState{
+        OldInterpreterState {
             old
         }
     }
 
     pub fn deregister_int_state(&mut self, jvm: &'gc JVMState<'gc>, old: OldInterpreterState) {
-        jvm.thread_state.int_state_guard.with(|elem|elem.replace(old.old));
+        jvm.thread_state.int_state_guard.with(|elem| elem.replace(old.old));
     }
 
     pub fn new(jvm: &'gc JVMState<'gc>, thread: Arc<JavaThread<'gc>>, int_state: MutexGuard<'interpreter_guard, InterpreterState<'gc>>) -> InterpreterStateGuard<'gc, 'interpreter_guard> {
-        jvm.thread_state.int_state_guard_valid.with(|valid|valid.replace(false));
-        Self::RemoteInterpreterState { int_state: Some(int_state), thread: thread.clone(), registered: true, jvm }
+        jvm.thread_state.int_state_guard_valid.with(|valid| valid.replace(false));
+        Self::LocalInterpreterState {
+            int_state: todo!(),
+            thread: thread.clone(),
+            registered: true,
+            jvm,
+            current_exited_pc: None,
+            throw: None
+        }
     }
 
     pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
@@ -208,7 +215,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }*/
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
-            InterpreterStateGuard::LocalInterpreterState {  throw,.. } => {
+            InterpreterStateGuard::LocalInterpreterState { throw, .. } => {
                 *throw = val;
             }
         }
@@ -217,8 +224,8 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     pub fn throw(&self) -> Option<&'_ AllocatedNormalObjectHandle<'gc>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
-            InterpreterStateGuard::LocalInterpreterState { throw,.. } => {
-                throw.as_ref().map(|handle|handle.unwrap_normal_object_ref())
+            InterpreterStateGuard::LocalInterpreterState { throw, .. } => {
+                throw.as_ref().map(|handle| handle.unwrap_normal_object_ref())
             }
         }
         /*match self.int_state.as_ref() {
@@ -241,7 +248,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }*/
     }
 
-    pub fn push_frame<'k>(&mut self, frame: StackEntryPush<'gc,'k>) -> FramePushGuard {
+    pub fn push_frame<'k>(&mut self, frame: StackEntryPush<'gc, 'k>) -> FramePushGuard {
         let frame_push_guard = match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => {
                 todo!()
@@ -256,7 +263,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         let ir_method_id = jvm.java_vm_state.try_lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
                         for local_var in local_vars {
-                            if let Some(Some(obj)) = local_var.try_unwrap_object_alloc(){
+                            if let Some(Some(obj)) = local_var.try_unwrap_object_alloc() {
                                 jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.ptr());
                             }
                             data.push(unsafe { local_var.to_native().as_u64 });
@@ -268,7 +275,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), ir_method_id, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
                     StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
-                        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl{ jvm: jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ }, method_id, false);
+                        jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm: jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ }, method_id, false);
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
@@ -278,12 +285,12 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                             loader,
                             native_local_refs,
                             // local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
-                            operand_stack: operand_stack.iter().map(|njv|njv.to_native()).collect(),
+                            operand_stack: operand_stack.iter().map(|njv| njv.to_native()).collect(),
                         };
                         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                         //todo use NativeStackframeMemoryLayout for this
-                        let mut data = local_vars.iter().map(|local_var|unsafe { local_var.to_native().as_u64 }).collect_vec();
+                        let mut data = local_vars.iter().map(|local_var| unsafe { local_var.to_native().as_u64 }).collect_vec();
                         data.push(raw_frame_info_pointer as *const c_void as usize as u64);
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
@@ -372,12 +379,12 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} {} {} {:?}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm), stack_entry.pc.map(|offset|offset.0 as i32).unwrap_or(-1),stack_entry.frame_view.ir_ref.frame_ptr());
+                    println!("{:?}.{} {} {} {} {} {:?}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm), stack_entry.pc.map(|offset| offset.0 as i32).unwrap_or(-1), stack_entry.frame_view.ir_ref.frame_ptr());
                     if full {
                         // if stack_entry.pc.is_some() {
-                            // dump_frame_contents_impl(jvm, self);
+                        // dump_frame_contents_impl(jvm, self);
                         // } else {
-                            stack_entry.ir_stack_entry_debug_print();
+                        stack_entry.ir_stack_entry_debug_print();
                         // }
                     }
                 }
@@ -388,14 +395,14 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     }
 
     pub fn cloned_stack_snapshot(&self, jvm: &'gc JVMState<'gc>) -> Vec<StackEntry> {
-        self.frame_iter().map(|frame|{
-            if frame.is_opaque(){
-                StackEntry::Opaque { opaque_id:OpaqueFrameIdOrMethodID::from_native(frame.frame_view.ir_ref.raw_method_id()).unwrap_opaque().unwrap() }
-            }else if frame.is_native_method() {
+        self.frame_iter().map(|frame| {
+            if frame.is_opaque() {
+                StackEntry::Opaque { opaque_id: OpaqueFrameIdOrMethodID::from_native(frame.frame_view.ir_ref.raw_method_id()).unwrap_opaque().unwrap() }
+            } else if frame.is_native_method() {
                 StackEntry::Native {
                     method_id: frame.frame_view.ir_ref.method_id().unwrap(),
                 }
-            }else {
+            } else {
                 StackEntry::Java { method_id: frame.frame_view.ir_ref.method_id().unwrap() }
             }
         }).collect_vec()
@@ -408,7 +415,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 let mmaped_top = int_state.owned_ir_stack.native.mmaped_top;
                 let curent_rsp = int_state.current_rsp;
                 let curent_rbp = int_state.current_rbp;
-                let slice = unsafe { slice_from_raw_parts(from_inclusive as *const u64, mmaped_top.offset_from(from_inclusive).abs() as usize / size_of::<u64>() + 1)  };
+                let slice = unsafe { slice_from_raw_parts(from_inclusive as *const u64, mmaped_top.offset_from(from_inclusive).abs() as usize / size_of::<u64>() + 1) };
                 let data = unsafe { slice.as_ref() }.unwrap().iter().cloned().map(|elem| elem as usize as *const c_void).collect();
                 SavedAssertState {
                     frame_pointer: curent_rbp,

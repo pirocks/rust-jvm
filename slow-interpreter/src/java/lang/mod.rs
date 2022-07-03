@@ -735,6 +735,7 @@ pub mod thread {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::new_java_values::{NewJavaValueHandle};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::threading::JavaThread;
     use crate::utils::run_static_or_virtual;
 
@@ -891,7 +892,6 @@ pub mod thread {
         // as_object_or_java_value!();
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object

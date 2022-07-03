@@ -1,4 +1,3 @@
-use std::intrinsics::atomic_xchg;
 use std::sync::{Mutex, MutexGuard};
 use libc::c_void;
 
@@ -28,7 +27,9 @@ impl GlobalCodeEditingLock{
 
 impl CodeModificationHandle<'_>{
     pub fn edit_code_at(&self, location: *mut u64, new_val: u64) {
-        unsafe { atomic_xchg(location, new_val); }
+        unsafe { location.write(new_val); }
+        //todo still needs to be xchg b/c self modifying code
+        // unsafe { atomic_xchg(location, new_val); }
     }
 }
 

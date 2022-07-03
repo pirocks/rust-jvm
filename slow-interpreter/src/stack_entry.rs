@@ -415,15 +415,6 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
 
     pub fn new_completely_opaque_frame(jvm: &'gc JVMState<'gc>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc>>, debug_str: &'static str) -> Self {
         //need a better name here
-        /*Self {
-            loader,
-            opaque_frame_id: Some(0),
-            opaque_frame_optional: None,
-            non_native_data: None,
-            local_vars: vec![],
-            operand_stack,
-            native_local_refs: vec![HashSet::new()],
-        }*/
         assert!(operand_stack.is_empty());
         assert_eq!(loader, LoaderName::BootstrapLoader);// loader should be set from thread loader for new threads
         let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);

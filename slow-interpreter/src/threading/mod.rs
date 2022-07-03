@@ -355,13 +355,14 @@ impl<'gc> ThreadState<'gc> {
             jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
         }
 
-        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, loader_name, vec![],"frame for calling run on a new thread"));
+        //todo fix loader
+        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![],"frame for calling run on a new thread"));
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
             JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
             interpreter_state_guard.set_throw(None);
         };
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, &mut interpreter_state_guard) {
-            eprintln!("Exception occured exiting thread, something is pretty messed up");
+            eprintln!("Exception occurred exiting thread, something is pretty messed up");
             panic!()
         }
 
