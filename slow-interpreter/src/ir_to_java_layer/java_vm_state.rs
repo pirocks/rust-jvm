@@ -169,8 +169,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn add_method_if_needed(&'vm self, jvm: &'vm JVMState<'vm>, resolver: &MethodResolverImpl<'vm>, method_id: MethodId, interpreter_debug: bool) {
         // let compile_guard = jvm.perf_metrics.compilation_start();
-        // let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
-        // dbg!(method_string);
+        let method_string = jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool);
         if jvm.recompilation_conditions.read().unwrap().should_recompile(method_id, resolver, interpreter_debug) {
             let prev_address = self.try_lookup_method_ir_method_id(method_id).map(|it| self.ir.lookup_ir_method_id_pointer(it));
             let mut recompilation_guard = jvm.recompilation_conditions.write().unwrap();

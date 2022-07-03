@@ -1,5 +1,6 @@
 use std::os::raw::c_void;
-use std::ptr::NonNull;
+use std::ptr::{NonNull, null_mut};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
 
@@ -15,15 +16,15 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let unwrapped = from_object_new(jvm, obj).unwrap(); //todo handle npe
+    let object_region_header = MemoryRegions::find_object_region_header(NonNull::new(obj as *mut c_void).unwrap());
+    if object_region_header.class_pointer_cache != null_mut(){
+        return object_region_header.class_pointer_cache as jclass;
+    }
     let rc = unwrapped.runtime_class(jvm);
     let class_object = get_or_create_class_object(jvm,rc.cpdtype(),int_state);
-    /*let class_object = match unwrapped.deref() {
-        Object::Array(a) => get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Array(Box::new(a.elem_type.clone()))), int_state),
-        Object::Object(o) => get_or_create_class_object(jvm, o.objinfo.class_pointer.view().type_(), int_state),
-    }
-        .unwrap(); //todo pass the error up*/
-
-    new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass
+    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass;
+    object_region_header.class_pointer_cache = res_class;
+    res_class
 }
 
 pub unsafe fn get_state<'gc>(env: *mut JNIEnv) -> &'gc JVMState<'gc> {

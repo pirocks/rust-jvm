@@ -12,6 +12,7 @@ use another_jit_vm::Register;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
+use jvmti_jni_bindings::{jclass};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -176,6 +177,7 @@ pub struct RegionHeader {
     //todo in future instead of iterating this could be done with zero page mapped everywhere to make sparse array
     pub interface_ids_list: *const ClassID,
     pub interface_ids_list_len: usize,
+    pub class_pointer_cache: jclass,
     region_header_magic_2: u32,
 }
 
@@ -304,7 +306,7 @@ impl MemoryRegions {
         };
         let size = unsafe { region.as_ref() }.region_elem_size;
         assert_ne!(size, 0);
-        let after_region_type = self.find_object_region_header(res_ptr).region_type;
+        let after_region_type = MemoryRegions::find_object_region_header(res_ptr).region_type;
         assert_eq!(region_type, after_region_type);
         (res_ptr, size)
     }
@@ -385,6 +387,7 @@ impl MemoryRegions {
                 interface_ids_list: to_allocate_type.interfaces_ptr(),
                 interface_ids_list_len: to_allocate_type.interfaces_len(),
                 inheritance_bit_path_ptr: to_allocate_type.inheritance_bit_vec(),
+                class_pointer_cache: null_mut()
             });
         }
         region_header_ptr
@@ -416,6 +419,11 @@ impl MemoryRegions {
     pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
         Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,itable_ptr)).unwrap();
+    }
+
+    pub fn generate_find_class_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
+        Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
+        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,class_pointer_cache)).unwrap();
     }
 
     pub fn generate_find_allocated_type_id(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
@@ -477,26 +485,26 @@ impl MemoryRegions {
         assembler.add(out.to_native_8(), out.to_native_8()).unwrap();
     }
 
-
-    pub fn find_object_region_header(&self, ptr: NonNull<c_void>) -> &RegionHeader {
+    //todo this lifetime is maybe not right
+    pub fn find_object_region_header<'l>(ptr: NonNull<c_void>) -> &'l mut RegionHeader {
         let as_u64 = ptr.as_ptr() as u64;
         let region_size = region_pointer_to_region_size_size(as_u64);
         let region_mask = u64::MAX << region_size;
         let masked = as_u64 & region_mask;
-        unsafe { (masked as *const c_void as *const RegionHeader).as_ref().unwrap() }
+        unsafe { (masked as *mut c_void as *mut RegionHeader).as_mut().unwrap() }
     }
 
     pub fn find_type_vtable(&self, ptr: NonNull<c_void>) -> Option<NonNull<RawNativeVTable>> {
-        NonNull::new(self.find_object_region_header(ptr).vtable_ptr)
+        NonNull::new(MemoryRegions::find_object_region_header(ptr).vtable_ptr)
     }
 
     pub fn find_type_itable(&self, ptr: NonNull<c_void>) -> Option<NonNull<ITableRaw>> {
-        NonNull::new(self.find_object_region_header(ptr).itable_ptr)
+        NonNull::new(MemoryRegions::find_object_region_header(ptr).itable_ptr)
     }
 
 
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
-        let header = self.find_object_region_header(ptr);
+        let header = MemoryRegions::find_object_region_header(ptr);
         let allocated_type_id = header.region_type;
         &self.types[allocated_type_id.0 as usize]
     }

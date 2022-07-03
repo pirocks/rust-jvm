@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use another_jit_vm_ir::WasException;
 use classfile_view::view::interface_view::InterfaceView;
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
@@ -70,7 +71,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                         if instance_of_class.unwrap_class_class().class_view.is_interface() {
                             let interface_class_id = jvm.class_ids.get_id_or_add(instance_of_class.cpdtype());
                             let guard = jvm.gc.memory_region.lock().unwrap();
-                            let region_header = guard.find_object_region_header(obj.ptr());
+                            let region_header = MemoryRegions::find_object_region_header(obj.ptr());
                             for i in 0..region_header.interface_ids_list_len {
                                 let current_class_id = unsafe { region_header.interface_ids_list.offset(i as isize).read() };
                                 if current_class_id == interface_class_id {

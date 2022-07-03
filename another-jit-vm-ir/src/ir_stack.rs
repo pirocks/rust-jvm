@@ -368,6 +368,7 @@ impl<'l> IRFrameMut<'l> {
 pub const OPAQUE_FRAME_SIZE: usize = 1024;
 
 #[derive(Debug)]
+#[derive(Copy, Clone)]
 pub struct UnPackedIRFrameHeader {
     prev_rip: *mut c_void,
     prev_rbp: *mut c_void,
@@ -404,6 +405,8 @@ unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameH
     };
     if res.magic_1 != MAGIC_1_EXPECTED || res.magic_2 != MAGIC_2_EXPECTED {
         dbg!(res);
+        eprintln!("{:X}", res.magic_1);
+        eprintln!("{:X}", res.magic_2);
         panic!()
     }
     res

@@ -247,6 +247,29 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::VTableLookupOrExit { resolve_exit, java_pc } => {
             vtable_lookup_or_exit(assembler, resolve_exit, *java_pc)
         }
+        IRInstr::GetClassOrExit {  object_ref, res, get_class_exit } => {
+            let mut after_exit_label = assembler.create_label();
+            let obj_ptr = Register(0);
+            // assembler.int3().unwrap();
+            assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
+            let class_ptr_register = Register(3);
+            MemoryRegions::generate_find_class_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), class_ptr_register.clone());
+            assembler.mov(res.to_native_64(), class_ptr_register.to_native_64()).unwrap();
+            assembler.test(class_ptr_register.to_native_64(), class_ptr_register.to_native_64()).unwrap();
+            assembler.jnz(after_exit_label).unwrap();
+            match get_class_exit {
+                IRVMExitType::RunSpecialNativeNew { .. } => {
+                    let registers = get_class_exit.registers_to_save();
+                    get_class_exit.gen_assembly(assembler, &mut after_exit_label, &registers);
+                    let mut before_exit_label = assembler.create_label();
+                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+                    assembler.nop().unwrap();
+                }
+                _ => {
+                    panic!()
+                }
+            }
+        }
         IRInstr::ITableLookupOrExit { resolve_exit } => {
             match resolve_exit {
                 IRVMExitType::InvokeInterfaceResolve { object_ref, interface_id, method_number, .. } => {

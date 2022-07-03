@@ -1,5 +1,6 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{BitwiseLogicType, IRInstr, Size};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CPDType};
@@ -36,7 +37,10 @@ pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &Nativ
                 to: res,
                 size: Size::pointer(),
             },
-            IRInstr::Const16bit { to: shift_amount, const_: 32 },
+            IRInstr::Const16bit {
+                to: shift_amount,
+                const_: 32,
+            },
             IRInstr::ShiftRight {
                 res,
                 a: shift_amount,
@@ -57,6 +61,30 @@ pub fn gen_intrinsic_ir<'vm>(resolver: &impl MethodResolver<'vm>, layout: &Nativ
                 temp_register_4: Register(4),
                 frame_size: layout.full_frame_size(),
             },
+        ]);
+    }
+    if method_name == MethodName::method_getClass() && desc == CompressedMethodDescriptor::empty_args(CClassName::class().into()) && class_name == CClassName::object() {
+        return Some(vec![
+            IRInstr::IRStart {
+                temp_register: Register(2),
+                ir_method_id,
+                method_id,
+                frame_size: layout.full_frame_size(),
+                num_locals: resolver.num_locals(method_id) as usize,
+            },
+            IRInstr::GetClassOrExit {
+                object_ref: layout.local_var_entry(0),
+                res: Register(0),
+                get_class_exit: IRVMExitType::RunSpecialNativeNew { method_id },
+            },
+            IRInstr::Return {
+                return_val: Some(Register(0)),
+                temp_register_1: Register(1),
+                temp_register_2: Register(2),
+                temp_register_3: Register(3),
+                temp_register_4: Register(4),
+                frame_size: layout.full_frame_size(),
+            }
         ]);
     }
     None

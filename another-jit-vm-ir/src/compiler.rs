@@ -129,6 +129,11 @@ pub enum IRInstr {
     ITableLookupOrExit {
         resolve_exit: IRVMExitType
     },
+    GetClassOrExit{
+        object_ref: FramePointerOffset,
+        res: Register,
+        get_class_exit: IRVMExitType
+    },
     InstanceOfClass{
         inheritance_path: NonNull<BitPath256>,
         object_ref: FramePointerOffset,
@@ -428,6 +433,9 @@ impl IRInstr {
             }
             IRInstr::Allocate { .. } => {
                 "Allocate".to_string()
+            }
+            IRInstr::GetClassOrExit { .. } => {
+                "GetClassOrExit".to_string()
             }
         }
     }

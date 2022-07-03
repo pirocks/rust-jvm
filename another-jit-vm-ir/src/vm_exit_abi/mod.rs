@@ -434,8 +434,8 @@ impl IRVMExitType {
             }
             IRVMExitType::RunInterpreted { method_id } => {
                 assembler.mov(rax, RawVMExitType::RunInterpreted as u64).unwrap();
-                assembler.mov(RunSpecialNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
-                assembler.lea(RunSpecialNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
+                assembler.mov(RunInterpreted::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
+                assembler.lea(RunInterpreted::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::AssertInstanceOf { value, res, cpdtype, java_pc, expected } => {
                 assembler.mov(AssertInstanceOf::FAST_INSTANCE_OF_RES.to_native_64(), expected.to_native_64()).unwrap();

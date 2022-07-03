@@ -1,4 +1,5 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::hash::Hash;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use itertools::Either;
@@ -91,7 +92,7 @@ impl<'l> CompilerLabeler<'l> {
 }
 
 pub struct RecompileConditions {
-    conditions: HashMap<MethodId, Vec<NeedsRecompileIf>>,
+    conditions: HashMap<MethodId, HashSet<NeedsRecompileIf>>,
 }
 
 impl RecompileConditions {
@@ -108,8 +109,7 @@ impl RecompileConditions {
             }
             Some(needs_recompiling) => {
                 if interpreter_debug {
-                    // dbg!(needs_recompiling);
-                    assert!(needs_recompiling.iter().any(|elem| matches!(elem,NeedsRecompileIf::Interpreted {..})))
+                    // assert!(needs_recompiling.iter().any(|elem| matches!(elem,NeedsRecompileIf::Interpreted {..})))
                 }
                 for condition in needs_recompiling {
                     if condition.should_recompile(method_resolver) {
@@ -122,7 +122,7 @@ impl RecompileConditions {
     }
 
     pub fn recompile_conditions(&mut self, method_id: MethodId) -> MethodRecompileConditions<'_> {
-        self.conditions.insert(method_id, vec![]);
+        self.conditions.insert(method_id, HashSet::new());
         MethodRecompileConditions {
             conditions: self.conditions.get_mut(&method_id).unwrap()
         }
@@ -131,16 +131,17 @@ impl RecompileConditions {
 
 
 pub struct MethodRecompileConditions<'l> {
-    conditions: &'l mut Vec<NeedsRecompileIf>,
+    conditions: &'l mut HashSet<NeedsRecompileIf>,
 }
 
 impl<'l> MethodRecompileConditions<'l> {
     pub fn add_condition(&mut self, condition: NeedsRecompileIf) {
-        self.conditions.push(condition);
+        self.conditions.insert(condition);
     }
 }
 
 #[derive(Debug)]
+#[derive(Eq, PartialEq, Hash)]
 pub enum NeedsRecompileIf {
     FunctionRecompiled {
         function_method_id: MethodId,
