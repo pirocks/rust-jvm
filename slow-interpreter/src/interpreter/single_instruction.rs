@@ -1,5 +1,6 @@
 use std::ops::Deref;
 use itertools::Either;
+use libc::c_void;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
@@ -263,11 +264,14 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
-            // gc_managed_object.monitor_lock(jvm, interpreter_state);
+            let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+            monitor.lock(jvm,interpreter_state.inner()).unwrap();
             PostInstructionAction::Next {}
         }
         CInstructionInfo::monitorexit => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
+            let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+            monitor.unlock(jvm,interpreter_state.inner()).unwrap();
             // interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
             PostInstructionAction::Next {}
         }
