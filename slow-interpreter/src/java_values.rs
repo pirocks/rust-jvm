@@ -16,7 +16,7 @@ use add_only_static_vec::AddOnlyVec;
 use another_jit_vm_ir::WasException;
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
-use gc_memory_layout_common::memory_regions::{MemoryRegions};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{FieldNameAndFieldType, FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -79,14 +79,19 @@ impl<'gc> GC<'gc> {
 
     pub fn allocate_object<'l>(&'gc self, jvm: &'gc JVMState<'gc>, object: UnAllocatedObject<'gc, 'l>) -> AllocatedHandle<'gc> {
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
-        let mut guard = self.memory_region.lock().unwrap();
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
                 assert!(arr.whole_array_runtime_class.cpdtype().is_array());
                 runtime_class_to_allocated_object_type(jvm, arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len()))
             }//todo loader name nonsense
-            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(jvm, obj.object_rc.clone(), LoaderName::BootstrapLoader, None),
+            UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(
+                jvm,
+                obj.object_rc.clone(),
+                LoaderName::BootstrapLoader,
+                None,
+            ),
         };
+        let mut guard = self.memory_region.lock().unwrap();
         let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
         drop(guard);
@@ -1140,7 +1145,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
 
     pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, name: FieldName) -> JavaValue<'gc> {
         let name = name.into();
-        let FieldNumberAndFieldType{ .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
         todo!()
         /*unsafe {
             self.objinfo.fields[*field_index].get().as_ref()

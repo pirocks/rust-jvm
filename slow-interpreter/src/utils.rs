@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
@@ -10,8 +10,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
-use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use another_jit_vm_ir::WasException;
+use crate::instructions::invoke::virtual_::{invoke_virtual};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::boolean::Boolean;
 use crate::java::lang::byte::Byte;
@@ -23,7 +22,7 @@ use crate::java::lang::int::Int;
 use crate::java::lang::long::Long;
 use crate::java::lang::short::Short;
 use crate::java_values::{ExceptionReturn, JavaValue};
-use crate::new_java_values::{ NewJavaValueHandle};
+use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
@@ -45,17 +44,17 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
                     // dbg!(name.0.to_str(&jvm.string_pool));
                     // dbg!(descriptor.jvm_representation(&jvm.string_pool));
                     // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
-                    return None
-                },
+                    return None;
+                }
             }; //todo is this unwrap safe?
             let lookup_type = CPDType::Class(class_name);
             let super_class = assert_inited_or_initing_class(jvm, lookup_type); //todo this unwrap could fail, and this should really be using check_inited_class
-            match lookup_method_parsed_impl(jvm, super_class, name, descriptor){
+            match lookup_method_parsed_impl(jvm, super_class, name, descriptor) {
                 None => {
                     for interface in class.view().interfaces() {
-                        let interface_class = assert_inited_or_initing_class(jvm,interface.interface_name().into());
+                        let interface_class = assert_inited_or_initing_class(jvm, interface.interface_name().into());
                         if let Some(res) = lookup_method_parsed_impl(jvm, interface_class, name, descriptor) {
-                            return Some(res)
+                            return Some(res);
                         }
                     }
                     None
@@ -167,7 +166,10 @@ pub fn run_static_or_virtual<'gc, 'l>(
     if method_view.is_static() {
         invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view, args)
     } else {
-        invoke_virtual_method_i(jvm, int_state, desc, class.clone(), &method_view, args)
+        // let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, method_name, &desc, class.clone()).unwrap();
+        // let view = resolved_rc.view();
+        // let method_view = view.method_view_i(method_i);
+        invoke_virtual(jvm, int_state, method_name, desc, args)
     }
 }
 

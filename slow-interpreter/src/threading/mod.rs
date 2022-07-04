@@ -346,8 +346,16 @@ impl<'gc> ThreadState<'gc> {
 
     fn thread_start_impl<'l>(jvm: &'gc JVMState<'gc>, java_thread: Arc<JavaThread<'gc>>, loader_name: LoaderName) {
         let java_thread_clone: Arc<JavaThread<'gc>> = java_thread.clone();
-        let state = java_thread_clone.interpreter_state.lock().unwrap();
-        let mut interpreter_state_guard: InterpreterStateGuard = InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state); // { int_state: , thread: &java_thread };
+        let mut state = java_thread_clone.interpreter_state.lock().unwrap();
+        // let mut interpreter_state_guard: InterpreterStateGuard = InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state); // { int_state: , thread: &java_thread };
+        let mut interpreter_state_guard = InterpreterStateGuard::LocalInterpreterState {
+            int_state: IRStackMut::from_stack_start(&mut state.call_stack.inner),
+            thread: java_thread.clone(),
+            registered: false,
+            jvm,
+            current_exited_pc: None,
+            throw: None
+        };
         let should_be_nothing = interpreter_state_guard.register_interpreter_state_guard(jvm);
         assert!(should_be_nothing.old.is_none());
 

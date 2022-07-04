@@ -793,9 +793,10 @@ pub mod thread {
         }
 
         pub fn run<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
-            let thread_class = todo!()/*self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone()*/;
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), todo!())?;
+            let args = vec![self.normal_object.new_java_value()];
+            dbg!(self.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
+            let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
+            run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), args)?;
             Ok(())
         }
 
