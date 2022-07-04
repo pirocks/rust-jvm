@@ -221,8 +221,8 @@ impl<'l, 'h, 'vm, ExtraData: 'vm> Iterator for IRFrameIterRef<'l, 'h, 'vm, Extra
 
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameRef<'l> {
-    ptr: *const c_void,
-    _ir_stack: &'l OwnedIRStack,
+    pub ptr: *const c_void,
+    pub _ir_stack: &'l OwnedIRStack,
 }
 
 impl IRFrameRef<'_> {
@@ -318,8 +318,8 @@ pub const DEFAULT_FRAME_SIZE: usize = FRAME_HEADER_END_OFFSET + 1 * size_of::<*c
 
 // has ref b/c not valid to access this after top level stack has been modified
 pub struct IRFrameMut<'l> {
-    pub(crate) ptr: *mut c_void,
-    pub(crate) ir_stack: &'l mut OwnedIRStack,
+    pub ptr: *mut c_void,
+    pub ir_stack: &'l mut OwnedIRStack,
 }
 
 impl<'l> IRFrameMut<'l> {
