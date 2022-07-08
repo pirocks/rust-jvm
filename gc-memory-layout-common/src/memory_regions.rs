@@ -345,7 +345,7 @@ impl MemoryRegions {
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
         if num_current_elements >= max_elements {
-            eprintln!("was empty: {}", type_id.0);
+            // eprintln!("was empty: {}", type_id.0);
             unsafe {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,

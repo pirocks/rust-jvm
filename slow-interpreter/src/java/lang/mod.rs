@@ -1,30 +1,30 @@
 pub mod invoke;
 
 pub mod throwable {
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValueHandle};
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
-    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::utils::run_static_or_virtual;
 
     pub struct Throwable<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
-    impl <'gc> Clone for Throwable<'gc>{
+    impl<'gc> Clone for Throwable<'gc> {
         fn clone(&self) -> Self {
-            Throwable{ normal_object: self.normal_object.duplicate_discouraged() }
+            Throwable { normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_throwable(&self) -> Throwable<'gc> {
-            Throwable { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
+    impl<'gc> NewJavaValueHandle<'gc> {
+        pub fn cast_throwable(self) -> Throwable<'gc> {
+            Throwable { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
         }
     }
 
@@ -43,14 +43,13 @@ pub mod throwable {
     impl<'gc> Throwable<'gc> {
         pub fn print_stack_trace<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
-            int_state.push_current_operand_stack(JavaValue::Object(todo!()/*self.normal_object.clone().into()*/));
-            run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), todo!())?;
+            let args = vec![self.new_java_value()];
+            run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), args)?;
             Ok(())
         }
         // as_object_or_java_value!();
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Throwable<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -63,19 +62,20 @@ pub mod throwable {
 }
 
 pub mod stack_trace_element {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::{AllocatedHandle, NewJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{JavaValue};
+    use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct StackTraceElement<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -107,7 +107,6 @@ pub mod stack_trace_element {
         // as_object_or_java_value!();
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for StackTraceElement<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -120,6 +119,7 @@ pub mod stack_trace_element {
 }
 
 pub mod member_name {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -127,7 +127,6 @@ pub mod member_name {
 
     use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
@@ -137,6 +136,7 @@ pub mod member_name {
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -280,7 +280,7 @@ pub mod member_name {
 
         //as_object_or_java_value!();
     }
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MemberName<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -294,9 +294,9 @@ pub mod member_name {
 
 pub mod class {
     use std::sync::Arc;
+
+    use another_jit_vm_ir::WasException;
     use runtime_class_stuff::RuntimeClass;
-
-
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
@@ -304,13 +304,13 @@ pub mod class {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{JavaValue};
-    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::NewJavaValueHandle;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct JClass<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -405,12 +405,11 @@ pub mod class {
             self.normal_object.set_var_top_level(jvm, FieldName::field_name(), name.new_java_value())
         }
 
-        pub fn object_gc_life(self, jvm: &JVMState<'gc>) ->  &'gc AllocatedNormalObjectHandle<'gc> {
+        pub fn object_gc_life(self, jvm: &JVMState<'gc>) -> &'gc AllocatedNormalObjectHandle<'gc> {
             jvm.gc.handle_lives_for_gc_life(self.normal_object)
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JClass<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -423,21 +422,21 @@ pub mod class {
 }
 
 pub mod class_loader {
-
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::loading::LoaderName;
-    use crate::AllocatedHandle;
 
+    use crate::AllocatedHandle;
     use crate::class_loading::assert_inited_or_initing_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{JavaValue};
+    use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::new_java_values::NewJavaValueHandle;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::utils::run_static_or_virtual;
 
     pub struct ClassLoader<'gc> {
@@ -498,7 +497,6 @@ pub mod class_loader {
         /*as_object_or_java_value!();*/
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ClassLoader<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -514,17 +512,18 @@ pub mod string {
     use itertools::Itertools;
     use wtf8::Wtf8Buf;
 
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, UnAllocatedObject};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{JavaValue};
-    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::NewJavaValueHandle;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
@@ -535,7 +534,7 @@ pub mod string {
 
     impl Clone for JString<'_> {
         fn clone(&self) -> Self {
-            JString{
+            JString {
                 normal_object: self.normal_object.duplicate_discouraged()
             }
         }
@@ -596,7 +595,7 @@ pub mod string {
         pub fn value(&self, jvm: &'gc JVMState<'gc>) -> Vec<jchar> {
             let string_class = assert_inited_or_initing_class(jvm, CClassName::string().into());
             let mut res = vec![];
-            for elem in self.normal_object.get_var(jvm,&string_class, FieldName::field_value()).unwrap_object_nonnull().unwrap_array().array_iterator() {
+            for elem in self.normal_object.get_var(jvm, &string_class, FieldName::field_value()).unwrap_object_nonnull().unwrap_array().array_iterator() {
                 res.push(elem.as_njv().unwrap_char_strict())
             }
             res
@@ -605,7 +604,7 @@ pub mod string {
         pub fn to_rust_string_better(&self, jvm: &'gc JVMState<'gc>) -> Option<String> {
             let string_class = assert_inited_or_initing_class(jvm, CClassName::string().into());
             let as_allocated_obj = &self.normal_object;
-            let value_field = as_allocated_obj.get_var(jvm,&string_class, FieldName::field_value());
+            let value_field = as_allocated_obj.get_var(jvm, &string_class, FieldName::field_value());
             value_field.as_njv().unwrap_object_alloc()?;
             let mut res = vec![];
             for elem in value_field.unwrap_object_nonnull().unwrap_array().array_iterator() {
@@ -623,7 +622,7 @@ pub mod string {
 
         // as_object_or_java_value!();
     }
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JString<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -632,7 +631,8 @@ pub mod string {
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
             &self.normal_object
         }
-    }}
+    }
+}
 
 pub mod integer {
     use jvmti_jni_bindings::jint;
@@ -665,8 +665,9 @@ pub mod integer {
 }
 
 pub mod object {
-    use crate::java_values::{ JavaValue};
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
 
     pub struct JObject<'gc> {
         normal_object: AllocatedHandle<'gc>,
@@ -685,7 +686,6 @@ pub mod object {
     }
 
 
-    use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JObject<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -695,11 +695,11 @@ pub mod object {
             todo!()
         }
 
-        fn full_object(self) -> AllocatedHandle<'gc>{
+        fn full_object(self) -> AllocatedHandle<'gc> {
             AllocatedHandle::NormalObject(self.object())
         }
 
-        fn full_object_ref(&self) -> AllocatedObject<'gc,'_>{
+        fn full_object_ref(&self) -> AllocatedObject<'gc, '_> {
             self.normal_object.as_allocated_obj()
         }
 
@@ -707,7 +707,7 @@ pub mod object {
             NewJavaValueHandle::Object(self.normal_object)
         }
 
-        fn new_java_value(&self) -> NewJavaValue<'gc,'_>{
+        fn new_java_value(&self) -> NewJavaValue<'gc, '_> {
             self.normal_object.new_java_value()
         }
     }
@@ -718,6 +718,7 @@ pub mod thread {
 
     use wtf8::Wtf8Buf;
 
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
@@ -727,14 +728,13 @@ pub mod thread {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
     use crate::java::lang::string::JString;
     use crate::java::lang::thread_group::JThreadGroup;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
-    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::threading::JavaThread;
     use crate::utils::run_static_or_virtual;
@@ -789,12 +789,11 @@ pub mod thread {
 
         pub fn tid(&self, jvm: &'gc JVMState<'gc>) -> JavaThreadId {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.get_var(jvm,&thread_class, FieldName::field_tid()).as_njv().unwrap_long_strict()
+            self.normal_object.get_var(jvm, &thread_class, FieldName::field_tid()).as_njv().unwrap_long_strict()
         }
 
         pub fn run<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
             let args = vec![self.normal_object.new_java_value()];
-            dbg!(self.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), args)?;
             Ok(())
@@ -809,7 +808,7 @@ pub mod thread {
 
         pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.get_var(jvm,&thread_class, FieldName::field_name()).cast_string().unwrap()
+            self.normal_object.get_var(jvm, &thread_class, FieldName::field_name()).cast_string().unwrap()
         }
 
         pub fn priority(&self, jvm: &'gc JVMState<'gc>) -> i32 {
@@ -907,18 +906,19 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{JavaValue};
-    use crate::new_java_values::{NewJavaValueHandle};
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::NewJavaValueHandle;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct JThreadGroup<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1006,7 +1006,6 @@ pub mod thread_group {
         // as_object_or_java_value!();
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JThreadGroup<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -1019,16 +1018,17 @@ pub mod thread_group {
 }
 
 pub mod class_not_found_exception {
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::string::JString;
     use crate::jvm_state::JVMState;
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct ClassNotFoundException<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1051,7 +1051,6 @@ pub mod class_not_found_exception {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ClassNotFoundException<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -1066,11 +1065,11 @@ pub mod class_not_found_exception {
 pub mod null_pointer_exception {
     use wtf8::Wtf8Buf;
 
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -1101,12 +1100,12 @@ pub mod null_pointer_exception {
 }
 
 pub mod array_out_of_bounds_exception {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1135,16 +1134,17 @@ pub mod array_out_of_bounds_exception {
 }
 
 pub mod illegal_argument_exception {
+    use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::java_values::{JavaValue};
+    use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct IllegalArgumentException<'gc> {
         normal_object: AllocatedHandle<'gc>,
@@ -1171,10 +1171,8 @@ pub mod illegal_argument_exception {
             run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
             Ok(this.cast_illegal_argument_exception())
         }
-
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     impl<'gc> NewAsObjectOrJavaValue<'gc> for IllegalArgumentException<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1187,17 +1185,19 @@ pub mod illegal_argument_exception {
 }
 
 pub mod long {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Long<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1229,8 +1229,6 @@ pub mod long {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_long()
         }
     }
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Long<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
@@ -1244,19 +1242,20 @@ pub mod long {
 }
 
 pub mod int {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::java_values::{ JavaValue};
+    use crate::java_values::JavaValue;
     use crate::JavaValueCommon;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::{ NewJavaValueHandle};
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Int<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1290,8 +1289,6 @@ pub mod int {
         }
     }
 
-    use crate::NewAsObjectOrJavaValue;
-
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Int<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1304,17 +1301,19 @@ pub mod int {
 }
 
 pub mod short {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jshort;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Short<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1347,9 +1346,6 @@ pub mod short {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
-
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Short<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1362,17 +1358,19 @@ pub mod short {
 }
 
 pub mod byte {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Byte<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1404,8 +1402,6 @@ pub mod byte {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_byte()
         }
     }
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Byte<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
@@ -1419,17 +1415,19 @@ pub mod byte {
 }
 
 pub mod boolean {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Boolean<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1462,9 +1460,6 @@ pub mod boolean {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
-
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Boolean<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1477,17 +1472,19 @@ pub mod boolean {
 }
 
 pub mod char {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jchar;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Char<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1520,9 +1517,6 @@ pub mod char {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
-
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Char<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1535,17 +1529,19 @@ pub mod char {
 }
 
 pub mod float {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Float<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1578,9 +1574,6 @@ pub mod float {
         }
     }
 
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
-
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Float<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             todo!()
@@ -1593,17 +1586,19 @@ pub mod float {
 }
 
 pub mod double {
+    use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
-    use another_jit_vm_ir::WasException;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::NewAsObjectOrJavaValue;
 
     pub struct Double<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1634,11 +1629,7 @@ pub mod double {
         pub fn inner_value(&self, jvm: &'gc JVMState<'gc>) -> jdouble {
             self.normal_object.lookup_field(jvm, FieldName::field_value()).unwrap_double()
         }
-
     }
-
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Double<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
@@ -1650,6 +1641,7 @@ pub mod double {
         }
     }
 }
+
 
 pub mod reflect;
 pub mod system;

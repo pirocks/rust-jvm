@@ -74,7 +74,6 @@ impl<'gc> SafePoint<'gc> {
     pub fn set_waiting_notify(&self, monitor: MonitorID, wait_until: Option<Instant>, prev_count: usize) {
         let mut guard = self.state.lock().unwrap();
         assert!(guard.waiting_monitor_notify.is_none());
-        dbg!(&wait_until);
         guard.waiting_monitor_notify = Some(MonitorWait { wait_until, monitor, prev_count });
         self.waiton.notify_one();
     }

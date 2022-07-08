@@ -138,7 +138,7 @@ pub fn lushr(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_d
             size: Size::long(),
             signed: BitwiseLogicType::Logical,
         },
-        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::int() }
+        IRInstr::StoreFPRelative { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
     ])
 }
 

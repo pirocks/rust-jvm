@@ -159,19 +159,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.math.BigInteger;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        System.out.println((new A() instanceof Serializable));
-        System.out.println((new A[4] instanceof Serializable));
-    }
-
-
-    static class A {
-        static int foo = 1;
-    }
-
-    class B extends A {
-
+        System.out.println(new BigInteger("10000000000000000000000",10).toString());
     }
 }

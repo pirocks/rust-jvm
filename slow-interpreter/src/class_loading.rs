@@ -7,6 +7,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
@@ -21,7 +22,6 @@ use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject};
-use another_jit_vm_ir::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
@@ -107,7 +107,7 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
 }
 
 pub fn assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Arc<RuntimeClass<'gc>> {
-    try_assert_loaded_class(jvm,ptype).unwrap()
+    try_assert_loaded_class(jvm, ptype).unwrap()
 }
 
 pub fn try_assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> Option<Arc<RuntimeClass<'gc>>> {
@@ -267,7 +267,11 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(_))) => {
                     return Err(WasException);
                 }
-                Err(TypeSafetyError::NotSafe(_)) => panic!(),
+                Err(TypeSafetyError::NotSafe(not_safe)) => {
+                    dbg!(class_name.0.to_str(&jvm.string_pool));
+                    dbg!(not_safe);
+                    panic!()
+                }
                 Err(TypeSafetyError::Java5Maybe) => {
                     //todo major dup
                     for method_view in class_view.clone().methods() {

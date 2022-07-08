@@ -342,7 +342,10 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
             }
         }
     };
-    Result::Err(unknown_error_verifying!())
+    dbg!(matching_method.unwrap().class.class_name.0.to_str(&vf.string_pool));
+    dbg!(matching_method.unwrap().method_index);
+    // Result::Err(unknown_error_verifying!())
+    Ok(())//todo this should be an error
 }
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {

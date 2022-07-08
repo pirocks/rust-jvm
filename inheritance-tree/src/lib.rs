@@ -27,13 +27,7 @@ impl InheritanceTree {
 
     pub fn insert(&self, class_id_path: &InheritanceClassIDPath) -> Result<BitPath256,DoesNotFit> {
         let mut write_guard = self.inner.write().unwrap();
-        let res = write_guard.insert(class_id_path).to_bit_path256();
-        unsafe {
-            if libc::rand() < 100000000 {
-                dbg!(write_guard.max_bit_depth());
-            }
-        }
-        res
+        write_guard.insert(class_id_path).to_bit_path256()
     }
 
     pub fn max_bit_depth(&self) -> usize{

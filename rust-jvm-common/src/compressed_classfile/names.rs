@@ -153,6 +153,14 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_UTIL_HASHTABLE_ENTRY as AddOnlyVecIDType)
     }
 
+    pub const fn big_integer() -> Self {
+        Self::from_raw_id(JAVA_UTIL_BIG_INTEGER as AddOnlyVecIDType)
+    }
+
+    pub const fn mutable_big_integer() -> Self {
+        Self::from_raw_id(JAVA_UTIL_MUTABLE_BIG_INTEGER as AddOnlyVecIDType)
+    }
+
     pub const fn thread() -> Self {
         Self::from_raw_id(JAVA_LANG_THREAD as AddOnlyVecIDType)
     }
@@ -310,6 +318,8 @@ enum PredefinedStrings {
     JAVA_UTIL_PROPERTIES,
     JAVA_UTIL_HASHTABLE,
     JAVA_UTIL_HASHTABLE_ENTRY,
+    JAVA_UTIL_BIG_INTEGER,
+    JAVA_UTIL_MUTABLE_BIG_INTEGER,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
     JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE,
     JAVA_LANG_DEPRECATED,
@@ -364,6 +374,7 @@ enum PredefinedStrings {
     field_ht,
     field_and_method_getContextClassLoader,
     field_key,
+    field_int_len,
     field_index,
     field_invokers,
     field_and_method_isAlive,
@@ -407,6 +418,8 @@ enum PredefinedStrings {
     field_IMPL_LOOKUP,
     field_member,
     field_slotToArgTable,
+    field_signum,
+    field_mag,
     constructor_init,
     constructor_clinit,
     method_clone,
@@ -446,6 +459,7 @@ enum PredefinedStrings {
     method_initializeSystemClass,
     method_putIfAbsent,
     method_get,
+    method_destructiveMulAdd,
 }
 
 impl PredefinedStrings {
@@ -618,7 +632,13 @@ impl PredefinedStrings {
             JAVA_LANG_REFLECT_GENERIC_DECLARATION => "java/lang/reflect/GenericDeclaration".to_string(),
             JAVA_LANG_REFLECT_TYPE => "java/lang/reflect/Type".to_string(),
             JAVA_LANG_REFLECT_ANNOTATED_ELEMENT => "java/lang/reflect/AnnotatedElement".to_string(),
-            JAVA_UTIL_HASHTABLE_ENTRY => "java/util/Hashtable$Entry".to_string()
+            JAVA_UTIL_HASHTABLE_ENTRY => "java/util/Hashtable$Entry".to_string(),
+            JAVA_UTIL_BIG_INTEGER => "java/math/BigInteger".to_string(),
+            JAVA_UTIL_MUTABLE_BIG_INTEGER => "java/math/MutableBigInteger".to_string(),
+            field_int_len => "intLen".to_string(),
+            field_signum => "signum".to_string(),
+            field_mag => "mag".to_string(),
+            method_destructiveMulAdd => "destructiveMulAdd".to_string()
         }
     }
 }
@@ -723,6 +743,9 @@ impl FieldName {
     }
     pub fn field_key() -> Self {
         Self::from_raw_id(field_key)
+    }
+    pub fn field_int_len() -> Self {
+        Self::from_raw_id(field_int_len)
     }
     pub fn field_val() -> Self {
         Self::from_raw_id(field_val)
@@ -852,6 +875,12 @@ impl FieldName {
     }
     pub fn field_slotToArgTable() -> Self {
         Self::from_raw_id(field_slotToArgTable)
+    }
+    pub fn field_signum() -> Self {
+        Self::from_raw_id(field_signum)
+    }
+    pub fn field_mag() -> Self {
+        Self::from_raw_id(field_mag)
     }
 }
 
@@ -1021,5 +1050,8 @@ impl MethodName {
     }
     pub fn method_get() -> Self {
         Self::from_raw_id(method_get)
+    }
+    pub fn method_destructiveMulAdd() -> Self {
+        Self::from_raw_id(method_destructiveMulAdd)
     }
 }

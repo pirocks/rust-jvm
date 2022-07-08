@@ -6,7 +6,7 @@ use rust_jvm_common::MethodId;
 
 use crate::JVMState;
 use crate::loading::Classpath;
-use crate::options::InstructionTraceOptions::TraceNone;
+use crate::options::InstructionTraceOptions::{TraceNone};
 
 pub struct SharedLibraryPaths {
     pub(crate) libjava: OsString,
@@ -100,29 +100,29 @@ impl JVMOptions {
         debug_print_exceptions: bool,
         assertions_enabled: bool
     ) -> Self {
-       /*let trace_set = HashSet::from_iter(vec![
-           /* MethodToTrace {
-                combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
-            },*/
-            /*MethodToTrace {
-                combined: "com/google/common/collect/StandardTable/put".to_string(),
-            },*/
-          /* MethodToTrace {
-               combined: "java/util/AbstractMap/hashCode".to_string(),
-           },
-           MethodToTrace {
-               combined: "java/util/HashMap/hash".to_string(),
-           },
-           MethodToTrace {
-               combined: "java/util/LinkedHashMap/get".to_string(),
-           },*/
-            /*MethodToTrace {
-                combined: "beg/a".to_string(),
-            },*/
-           MethodToTrace {
-               combined: "aop/a".to_string(),
-           },
-        ].into_iter());*/
+       // let trace_set = HashSet::from_iter(vec![
+       //     /* MethodToTrace {
+       //          combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
+       //      },*/
+       //      /*MethodToTrace {
+       //          combined: "com/google/common/collect/StandardTable/put".to_string(),
+       //      },*/
+       //    /* MethodToTrace {
+       //         combined: "java/util/AbstractMap/hashCode".to_string(),
+       //     },
+       //     MethodToTrace {
+       //         combined: "java/util/HashMap/hash".to_string(),
+       //     },*/
+       //     // MethodToTrace {
+       //     //     combined: "java/math/BigInteger/oddModPow".to_string(),
+       //     // },
+       //      // MethodToTrace {
+       //      //     combined: "java/math/MutableBigInteger/divideKnuth".to_string(),
+       //      // },
+       //     // MethodToTrace {
+       //     //     combined: "java/math/MutableBigInteger/divideMagnitude".to_string(),
+       //     // },
+       //  ].into_iter());
         let trace_options = TraceNone/*TraceMethods(trace_set)*/;
         Self {
             main_class_name,

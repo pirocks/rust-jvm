@@ -37,6 +37,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         Ok(res) => res,
     };
     let jvm = get_state(env);
+    dbg!(&jvm.classpath.classpath_base);
     let int_state = get_interpreter_state(env);
     let prop_obj = from_object_new(jvm, p0).unwrap();
     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("user.dir".to_string())).unwrap();

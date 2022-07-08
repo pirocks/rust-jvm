@@ -421,11 +421,11 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("AllocateObject");
     }
-    unsafe {
-        if rand() < 1000 {
-            int_state.debug_print_stack_trace(jvm)
-        }
-    }
+    // unsafe {
+        // if rand() < 1000_000_000 {
+        //     int_state.debug_print_stack_trace(jvm)
+        // }
+    // }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), None);
@@ -441,6 +441,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
 
 pub fn trace_instruction_after<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, method_id: MethodId, return_to_ptr: *const c_void, bytecode_offset: ByteCodeOffset) -> IRVMExitAction {
     assert_eq!(Some(method_id), int_state.current_frame().frame_view.ir_ref.method_id());
+    // int_state.debug_print_stack_trace(jvm);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
     let method_view = view.method_view_i(method_i);
@@ -603,6 +604,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
     assert!(len >= 0);
+    // int_state.debug_print_stack_trace(jvm);
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
     let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();

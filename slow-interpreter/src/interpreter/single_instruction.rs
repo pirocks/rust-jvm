@@ -43,7 +43,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     function_counter.increment();
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
-    // if method.classview().name().unwrap_name() == CClassName::properties() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
+    // if method.classview().name().unwrap_name() == CClassName::big_integer() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
     // if /*method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) =="com/google/common/collect/StandardTable" &&*/
     // method.name().0.to_str(&jvm.string_pool) == "get" || method.name().0.to_str(&jvm.string_pool) == "putVal"
     // {

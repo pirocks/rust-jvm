@@ -161,6 +161,10 @@ pub struct InterpreterFrame<'gc, 'l, 'k, 'j> {
 }
 
 impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
+    pub fn inner(&'_ mut self) -> &mut RealInterpreterStateGuard<'gc, 'l, 'k>{
+        self.inner
+    }
+
     pub fn pop(&mut self, runtime_type: RuntimeType) -> InterpreterJavaValue {
         if self.inner.current_stack_depth_from_start < 1{
             let jvm = self.inner.jvm;

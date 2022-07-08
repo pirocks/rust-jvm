@@ -34,7 +34,6 @@ use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
-use crate::java_values::JavaValue;
 use crate::jit::MethodResolverImpl;
 use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
@@ -129,6 +128,36 @@ impl<'gc> ThreadState<'gc> {
     }
 
     pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, loader_obj: ClassLoader<'gc>){
+
+        // let input = vec![0,2328,1316134912];
+        // let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{
+        //     whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::IntType)).unwrap(),
+        //     elems: input.clone().into_iter().map(|int|NewJavaValue::Int(int)).collect_vec()
+        // }));
+        // BigInteger::destructive_mul_add(jvm,int_state,res.new_java_value(),1000000000,0).unwrap();
+        // assert_eq!(res.unwrap_array().array_iterator().map(|njv|njv.unwrap_int()).collect_vec(),vec![542,434162106,-1304428544]);
+        // dbg!("start");
+        // let input = vec![0, 0, 10000];
+        // let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{
+        //     whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::IntType)).unwrap(),
+        //     elems: input.clone().into_iter().map(|int|NewJavaValue::Int(int)).collect_vec()
+        // }));
+        // BigInteger::destructive_mul_add(jvm,int_state,res.new_java_value(),1000000000,0).unwrap();
+        // assert_eq!(res.unwrap_array().array_iterator().map(|njv|njv.unwrap_int()).collect_vec(),vec![0, 2328, 1316134912]);
+        // panic!();
+        // for i in [0,10,10000,10000000,1000000000000u128,10000000000000000000000u128]{
+        //     let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(format!("{}", i))).unwrap();
+        //     let biginteger = BigInteger::new(jvm, int_state, jstring,10).unwrap();
+        //     dbg!(biginteger.mag(jvm).unwrap_object_nonnull().unwrap_array().array_iterator().collect_vec());
+        //     dbg!("start");
+        //     let res = biginteger.to_string(jvm,int_state).unwrap().unwrap().to_rust_string(jvm);
+        //     assert_eq!(res, format!("{}", i));
+        // }
+        //
+        // let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("+3660456486484698469816897408490640604354".to_string())).unwrap();
+        // let biginteger = BigInteger::new(jvm, int_state, jstring,10).unwrap();
+        // let res = biginteger.to_string(jvm,int_state).unwrap().unwrap().to_rust_string(jvm);
+        // dbg!(res);
         // dbg!("here");
         // dbg!(loader_obj.hash_code(jvm, int_state).unwrap());
         // dbg!(loader_obj.hash_code(jvm, int_state).unwrap());
@@ -366,7 +395,11 @@ impl<'gc> ThreadState<'gc> {
         //todo fix loader
         let frame_for_run_call = interpreter_state_guard.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![],"frame for calling run on a new thread"));
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
-            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/).cast_throwable().print_stack_trace(jvm, &mut interpreter_state_guard).expect("Exception occured while printing exception. Something is pretty messed up");
+/*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
+                .cast_throwable()
+                .print_stack_trace(jvm, &mut interpreter_state_guard)
+                .expect("Exception occured while printing exception. Something is pretty messed up");*/
+            todo!();
             interpreter_state_guard.set_throw(None);
         };
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, &mut interpreter_state_guard) {

@@ -16,8 +16,8 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
@@ -224,7 +224,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
-    todo!("update for new offset")
+    Java_sun_misc_Unsafe_getLongVolatile(env, the_unsafe, obj, offset)
+    // todo!("update for new offset")
     /*let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     //todo major dupe with getIntVolatile
