@@ -41,5 +41,6 @@ members = [
     "interface-vtable",
     "stage0",
     "inheritance-tree",
-    "native-vec"
+    "native-vec",
+    "jvm-args"
 ]

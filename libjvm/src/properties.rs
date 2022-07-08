@@ -22,13 +22,14 @@ use slow_interpreter::utils::throw_npe_res;
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {
     //todo get rid of these  hardcoded paths
     // sun.boot.class.path
+    let jvm = get_state(env);
     let res = match (|| {
         add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64".to_string())?;
         add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes:/home/francis/Desktop/test/unzipped-jar".to_string())?;
         add_prop(env, p0, "java.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes:/home/francis/Desktop/test/unzipped-jar".to_string())?;
         add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
         // add_prop(env, p0, "org.slf4j.simpleLogger.defaultLogLevel ".to_string(), "off".to_string())?;
-        add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string());
+        add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string())?;
         // add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
         // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
         Ok(add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())?)
@@ -36,7 +37,6 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         Err(WasException {}) => return null_mut(),
         Ok(res) => res,
     };
-    let jvm = get_state(env);
     dbg!(&jvm.classpath.classpath_base);
     let int_state = get_interpreter_state(env);
     let prop_obj = from_object_new(jvm, p0).unwrap();
