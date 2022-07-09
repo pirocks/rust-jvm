@@ -16,7 +16,6 @@ pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpre
     let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), classname.into()) {
         Ok(x) => x,
         Err(WasException {}) => {
-            int_state.inner().debug_print_stack_trace(jvm);
             // int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
             return PostInstructionAction::Exception { exception: WasException{} };
         }

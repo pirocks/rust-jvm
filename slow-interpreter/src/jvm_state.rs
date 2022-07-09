@@ -391,6 +391,7 @@ impl<'gc> JVMState<'gc> {
             live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
             classfile_getter: Arc::new(DefaultClassfileGetter { jvm: self }) as Arc<dyn ClassFileGetter>,
             string_pool: &self.string_pool,
+            current_class: CClassName::object(),
             class_view_cache: Mutex::new(Default::default()),
             current_loader: LoaderName::BootstrapLoader,
             verification_types: HashMap::new(),
@@ -402,12 +403,14 @@ impl<'gc> JVMState<'gc> {
         verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");
         self.sink_function_verification_date(&context.verification_types, object_runtime_class);
         context.verification_types.clear();
+        context.current_class = CClassName::class();
         let lookup = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
         verify(&mut context, CClassName::class(), LoaderName::BootstrapLoader).expect("Class doesn't verify");
         self.sink_function_verification_date(&context.verification_types, class_runtime_class.clone());
 
         for interface in class_runtime_class.unwrap_class_class().interfaces.iter() {
             context.verification_types.clear();
+            context.current_class = interface.cpdtype().unwrap_class_type();
             let name = interface.cpdtype().unwrap_class_type();
             let lookup = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class interface");
             verify(&mut context, name, LoaderName::BootstrapLoader).expect("Class doesn't verify");
@@ -745,7 +748,7 @@ pub struct BootstrapLoaderClassGetter<'vm, 'l> {
 }
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         Ok(Arc::new(ClassBackedView::from(self.jvm.classpath.lookup(&class, &self.jvm.string_pool)?, &self.jvm.string_pool)))
     }

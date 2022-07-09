@@ -3,11 +3,12 @@ use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::NonNull;
 
-use libc::{memset, rand};
+use libc::memset;
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::{IRVMExitAction, WasException};
 use another_jit_vm_ir::compiler::RestartPointID;
+use another_jit_vm_ir::ir_stack::read_frame_ir_header;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::{InterfaceVTableEntry, ITable, ResolvedInterfaceVTableEntry};
@@ -49,11 +50,11 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("Throw");
     }
-    eprintln!("THROW AT:");
-    int_state.debug_print_stack_trace(jvm);
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<NativeJavaValue<'gc>>().read() };
     let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, CClassName::object().into(), jvm);
-    throw_impl(&jvm, int_state, exception_obj_handle)
+    let throwable = exception_obj_handle.cast_throwable();
+    // throwable.print_stack_trace(jvm, int_state).unwrap();
+    throw_impl(&jvm, int_state, throwable.new_java_value_handle())
 }
 
 #[inline(never)]
@@ -141,9 +142,10 @@ pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     let res = match run_native_method(jvm, int_state, rc, method_i, args_new_jv) {
         Ok(x) => x,
         Err(WasException {}) => {
-            let expception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
+            // assert!(interpreter_state.throw().is_some());
+            let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             int_state.set_throw(None);
-            return throw_impl(jvm, int_state, expception_obj_handle.new_java_handle());
+            return throw_impl(jvm, int_state, exception_obj_handle.new_java_handle());
         }
     };
     if let Some(res) = res {
@@ -422,9 +424,9 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
         eprintln!("AllocateObject");
     }
     // unsafe {
-        // if rand() < 1000_000_000 {
-        //     int_state.debug_print_stack_trace(jvm)
-        // }
+    // if rand() < 1000_000_000 {
+    //     int_state.debug_print_stack_trace(jvm)
+    // }
     // }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
@@ -500,16 +502,14 @@ pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    unsafe {
-        if rand() < 10_000 && cpdtype.short_representation(&jvm.string_pool) == "agp" {
-            int_state.debug_print_stack_trace(jvm);
-        }
-    }
     let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
-    let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);
+    let restart_point = jvm.java_vm_state.lookup_restart_point(
+        current_method_id,
+        restart_point,
+    );
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile done");
     }
@@ -653,11 +653,18 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                     }
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
+                    eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
                     let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
+                    let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
                     let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
                     let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
                     let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
+                    let method_resolver = MethodResolverImpl{ jvm, loader: current_frame.loader(jvm) };
+                    let frame_layout = method_resolver.lookup_method_layout(method_id);
+                    let to_write_offset = frame_layout.operand_stack_start();
+                    unsafe { handler_rbp.sub(to_write_offset.0).as_mut().cast::<NativeJavaValue>().write(throwable.new_java_value().to_native()); }
+                    unsafe { read_frame_ir_header(handler_rbp); }
                     //todo need to set caught exception in stack
                     let mut start_diff = SavedRegistersWithIPDiff::no_change();
                     start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);

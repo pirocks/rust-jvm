@@ -10,13 +10,7 @@ pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.to_new_java_handle(jvm)
     };
-    // if jvm.debug_print_exceptions {
-    println!("EXCEPTION:");
-    int_state.inner().debug_print_stack_trace(jvm);
     let allocated_handle = exception_obj.unwrap_object_nonnull();
-    dbg!(allocated_handle.duplicate_discouraged().cast_throwable().print_stack_trace(jvm, int_state.inner())).unwrap();
-    // dbg!(exception_obj.as_njv().unwrap_normal_object().unwrap().get_var_top_level(jvm, FieldName::field_detailMessage()));
-    // }
 
     //todo checkcast not array
     int_state.inner().set_throw(allocated_handle.into());

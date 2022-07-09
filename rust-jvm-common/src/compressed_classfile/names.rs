@@ -29,6 +29,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_LANG_OBJECT as AddOnlyVecIDType)
     }
 
+    pub fn invalid() -> Self {
+        Self::from_raw_id(INVALID as AddOnlyVecIDType)
+    }
+
     pub const fn class() -> Self {
         Self::from_raw_id(JAVA_LANG_CLASS as AddOnlyVecIDType)
     }
@@ -286,6 +290,7 @@ impl From<CompressedClassName> for CompressedParsedRefType {
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(non_snake_case)]
 enum PredefinedStrings {
+    INVALID,
     JAVA_LANG_OBJECT,
     JAVA_LANG_CLASS,
     JAVA_LANG_STRING,
@@ -638,7 +643,8 @@ impl PredefinedStrings {
             field_int_len => "intLen".to_string(),
             field_signum => "signum".to_string(),
             field_mag => "mag".to_string(),
-            method_destructiveMulAdd => "destructiveMulAdd".to_string()
+            method_destructiveMulAdd => "destructiveMulAdd".to_string(),
+            INVALID => "__rust_jvm_invalid".to_string()
         }
     }
 }

@@ -119,11 +119,11 @@ impl JVMOptions {
        //      // MethodToTrace {
        //      //     combined: "java/math/MutableBigInteger/divideKnuth".to_string(),
        //      // },
-       //     // MethodToTrace {
-       //     //     combined: "java/math/MutableBigInteger/divideMagnitude".to_string(),
-       //     // },
+       //     MethodToTrace {
+       //         combined: "java/lang/ClassLoader/loadClass".to_string(),
+       //     }
        //  ].into_iter());
-        let trace_options = TraceNone/*TraceMethods(trace_set)*/;
+        let trace_options = TraceNone;
         Self {
             main_class_name,
             classpath,

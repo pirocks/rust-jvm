@@ -40,7 +40,7 @@ pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) ->
     let mut guard = verifier_context.class_view_cache.lock().unwrap();
     match guard.get(class) {
         None => {
-            let res = verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())?;
+            let res = verifier_context.classfile_getter.get_classfile(verifier_context, class.loader, class.class_name.clone())?;
             guard.insert(class.clone(), res.clone());
             Ok(res)
         }
@@ -101,6 +101,7 @@ impl From<ClassLoadingError> for TypeSafetyError {
         TypeSafetyError::ClassNotFound(err)
     }
 }
+
 #[allow(unreachable_code)]
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == CClassName::object() {

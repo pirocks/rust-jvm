@@ -177,12 +177,13 @@ pub struct DefaultClassfileGetter<'l, 'k> {
 }
 
 impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
-    fn get_classfile(&self, _loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, vf_context: &VerifierContext, _loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         //todo verification needs to be better hooked in
         Ok(match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
             Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
             Err(err) => {
                 eprintln!("WARN: CLASS NOT FOUND WHILE VERIFYING:");
+                dbg!(vf_context.current_class.0.to_str(&vf_context.string_pool));
                 dbg!(&err);
                 dbg!(class.0.to_str(&self.jvm.string_pool));
                 return Err(err);
@@ -223,13 +224,13 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
             let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                 Ok(x) => x,
                 Err(_) => {
-                    int_state.debug_print_stack_trace(jvm);
                     let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
                     let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
 
                     let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.full_object();
-                    int_state.set_throw(Some(exception));
-                    // panic!();
+                    let throwable = exception.cast_throwable();
+                    throwable.print_stack_trace(jvm,int_state).unwrap();
+                    int_state.set_throw(Some(throwable.full_object()));
                     return Err(WasException {});
                 }
             };
@@ -250,6 +251,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                 live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,
                 classfile_getter: Arc::new(DefaultClassfileGetter { jvm }) as Arc<dyn ClassFileGetter>,
                 string_pool: &jvm.string_pool,
+                current_class: class_name,
                 class_view_cache: Mutex::new(Default::default()),
                 current_loader: LoaderName::BootstrapLoader,
                 verification_types: Default::default(),
@@ -264,8 +266,13 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                     let verification_types = verifier_context.verification_types;
                     jvm.sink_function_verification_date(&verification_types, res.clone());
                 }
-                Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(_))) => {
-                    return Err(WasException);
+                Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
+                    let jstring = JString::from_rust(jvm,int_state, Wtf8Buf::from_string(class_name.get_referred_name().clone())).unwrap();
+                    let exception = ClassNotFoundException::new(jvm, int_state, jstring)?.full_object();
+                    let throwable = exception.cast_throwable();
+                    throwable.print_stack_trace(jvm,int_state).unwrap();
+                    int_state.set_throw(Some(throwable.full_object()));
+                    return Err(WasException{});
                 }
                 Err(TypeSafetyError::NotSafe(not_safe)) => {
                     dbg!(class_name.0.to_str(&jvm.string_pool));

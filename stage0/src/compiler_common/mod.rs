@@ -8,6 +8,7 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, BaseAddressAndMask, RegionHeader};
@@ -37,6 +38,8 @@ pub struct JavaCompilerMethodAndFrameData {
     pub index_by_bytecode_offset: HashMap<ByteCodeOffset, ByteCodeIndex>,
     pub current_method_id: MethodId,
     pub local_vars: usize,
+    pub should_synchronize: bool,
+    pub is_static: bool
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -51,6 +54,8 @@ impl JavaCompilerMethodAndFrameData {
             index_by_bytecode_offset: code.instructions.iter().sorted_by_key(|(byte_code_offset, _)| *byte_code_offset).enumerate().map(|(index, (bytecode_offset, _))| (*bytecode_offset, ByteCodeIndex(index as u16))).collect(),
             current_method_id: method_id,
             local_vars: code.max_locals as usize,
+            should_synchronize: method_view.is_synchronized(),
+            is_static: method_view.is_static()
         }
     }
 
@@ -107,6 +112,9 @@ impl YetAnotherLayoutImpl {
         }
     }
 
+    pub fn operand_stack_start(&self) -> FramePointerOffset{
+        FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals) as usize * size_of::<u64>())
+    }
 
     pub fn operand_stack_entry(&self, index: ByteCodeIndex, from_end: u16) -> FramePointerOffset {
         if index.0 as usize >= self.stack_depth_by_index.len() {

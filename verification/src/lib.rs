@@ -39,6 +39,7 @@ pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     pub string_pool: &'l CompressedClassfileStringPool,
+    pub current_class: CClassName,
     pub class_view_cache: Mutex<HashMap<ClassWithLoader, Arc<dyn ClassView>>>,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
@@ -48,13 +49,13 @@ pub struct VerifierContext<'l> {
 }
 
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
+    fn get_classfile(&self, vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
 }
 
 pub struct NoopClassFileGetter;
 
 impl ClassFileGetter for NoopClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, _vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         todo!("{:?}{:?}", loader, class)
     }
 }

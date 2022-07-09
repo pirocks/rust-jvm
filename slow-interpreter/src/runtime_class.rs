@@ -69,8 +69,6 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
         }
         Err(WasException {}) => {
             int_state.pop_frame(jvm, new_function_frame, false);
-            // dbg!(JavaValue::Object(todo!()/*interpreter_state.throw().clone()*/).cast_object().to_string(jvm, interpreter_state).unwrap().unwrap().to_rust_string(jvm));
-            int_state.debug_print_stack_trace(jvm);
             Err(WasException)
         }
     };

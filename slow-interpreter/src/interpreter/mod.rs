@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::os::raw::c_void;
 use std::sync::Arc;
 
 use another_jit_vm_ir::WasException;
@@ -7,6 +8,7 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use rust_jvm_common::runtime_type::{RuntimeType};
 
 use crate::AllocatedHandle;
 use crate::class_objects::get_or_create_class_object;
@@ -128,6 +130,19 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
+    let should_sync = if method.is_synchronized(){
+        if method.is_static(){
+            //todo
+            false
+        }else {
+            let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
+            let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            true
+        }
+    }else {
+        false
+    };
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
@@ -137,9 +152,15 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
+                if should_sync{
+                    let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
+                    let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
+                }
                 return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
+                //todo unlock monitor
                 assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,

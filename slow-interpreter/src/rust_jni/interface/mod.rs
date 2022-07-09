@@ -698,6 +698,7 @@ pub fn define_class_safe<'gc, 'l>(
         live_pool_getter: jvm.get_live_object_pool_getter(),
         classfile_getter: jvm.get_class_getter(int_state.current_loader(jvm)),
         string_pool: &jvm.string_pool,
+        current_class: class_name,
         class_view_cache: Mutex::new(class_view_cache),
         current_loader: LoaderName::BootstrapLoader, //todo
         verification_types: Default::default(),

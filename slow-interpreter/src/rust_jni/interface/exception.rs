@@ -24,7 +24,6 @@ pub unsafe extern "C" fn exception_check(env: *mut JNIEnv) -> jboolean {
 pub unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
     let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
-    interpreter_state.debug_print_stack_trace(jvm);
     interpreter_state.set_throw(from_object_new(jvm, obj));
     0 as jint
 }

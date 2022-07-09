@@ -66,23 +66,27 @@ pub fn run_native_method<'gc, 'l, 'k>(
         match call_impl(jvm, int_state, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
+                assert!(int_state.throw().is_some());
                 int_state.pop_frame(jvm, native_call_frame, true);
                 return Err(WasException);
             }
         }
     } else {
         assert!(int_state.current_frame().is_native_method());
-        match match call(jvm, int_state, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
+        let first_call = match call(jvm, int_state, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);
-                return Err(WasException);
+                dbg!("exception");
+                assert!(int_state.throw().is_some());
+                return Err(WasException)
             }
-        } {
+        };
+        match first_call {
             Some(r) => r,
             None => match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), args) {
                 Ok(res) => res,
-                Err(_) => None,
+                Err(WasException{}) => None,
             },
         }
     };
@@ -92,6 +96,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
     if was_exception {
+        dbg!("exception");
         Err(WasException)
     } else {
         Ok(result)

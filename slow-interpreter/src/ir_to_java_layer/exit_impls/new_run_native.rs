@@ -41,7 +41,8 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
         Ok(x) => x,
         Err(WasException{}) => {
             let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
-            return throw_impl(jvm,int_state, throw_obj);
+            int_state.set_throw(None);//todo should move this into throw impl
+            return throw_impl(jvm, int_state, throw_obj);
         },
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();

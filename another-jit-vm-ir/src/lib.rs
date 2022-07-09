@@ -112,6 +112,7 @@ pub struct IRVMState<'vm, ExtraData: 'vm> {
 pub type ExitHandlerType<'vm, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm>;
 
 
+#[derive(Debug)]
 pub enum IRVMExitAction {
     ExitVMCompletely {
         return_data: u64

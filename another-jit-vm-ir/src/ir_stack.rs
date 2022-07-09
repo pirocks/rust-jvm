@@ -386,7 +386,7 @@ pub struct UnPackedIRFrameHeader {
 }
 
 
-unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
+pub unsafe fn read_frame_ir_header(frame_pointer: *const c_void) -> UnPackedIRFrameHeader {
     let rip_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RIP_OFFSET) as *const *mut c_void;
     let rbp_ptr = frame_pointer.sub(FRAME_HEADER_PREV_RBP_OFFSET) as *const *mut c_void;
     let magic1_ptr = frame_pointer.sub(FRAME_HEADER_PREV_MAGIC_1_OFFSET) as *const u64;

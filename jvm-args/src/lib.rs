@@ -1,18 +1,12 @@
 use std::error::Error;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 use clap::Parser;
 
 
 
 /// Parse a single key-value pair
-fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync>>
-    where
-        T: FromStr,
-        T::Err: Error + Send + Sync + 'static,
-        U: FromStr,
-        U::Err: Error + Send + Sync + 'static,
+fn parse_key_val(s: &str) -> Result<(String, String), Box<dyn Error + Send + Sync>>
 {
     //todo support escaping
     let pos = s
@@ -33,4 +27,6 @@ pub struct JVMArgs {
     main: Option<String>,
     #[clap(short, long, help = "properties", parse(try_from_str = parse_key_val), number_of_values = 1)]
     properties: Vec<(String, String)>,
+    #[clap(short, long, help = "args")]
+    args: Vec<String>
 }

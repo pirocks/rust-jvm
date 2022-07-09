@@ -226,6 +226,16 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         frame_size: method_frame_data.full_frame_size(),
         num_locals: method_frame_data.layout.max_locals as usize,
     })];
+
+    if method_frame_data.should_synchronize {
+        if method_frame_data.is_static {
+
+            // todo!("and do the corresponding monitor exits")
+        } else {
+            final_ir_without_labels.push((ByteCodeOffset(0), IRInstr::VMExit2 { exit_type: IRVMExitType::MonitorEnter { obj: method_frame_data.local_var_entry(ByteCodeIndex(0),0), java_pc: ByteCodeOffset(0) } }))
+        }
+    }
+
     let mut compiler_labeler = CompilerLabeler {
         labeler,
         labels_vec: vec![],
@@ -258,12 +268,15 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(return_void(method_frame_data));
             }
             CompressedInstructionInfo::ireturn => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(ireturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::freturn => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(freturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::aload_0 => {
@@ -430,15 +443,19 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(astore_n(method_frame_data, &current_instr_data, *index as u16))
             }
             CompressedInstructionInfo::athrow => {
+                //todo monitor exit
                 this_function_ir.extend(athrow(method_frame_data, &current_instr_data));
             }
             CompressedInstructionInfo::areturn => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::lreturn => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(lreturn(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::dreturn => {
+                synchronize_exit(method_frame_data, &mut this_function_ir);
                 this_function_ir.extend(dreturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::iload_1 => {
@@ -889,6 +906,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         final_ir_without_labels.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
         prev_offset = Some(current_offset);
     }
+
     let mut final_ir = vec![];
     for (offset, ir_instr) in final_ir_without_labels {
         let index = *compiler_labeler.index_by_bytecode_offset.get(&offset).unwrap();
@@ -898,6 +916,16 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         final_ir.push((offset, ir_instr));
     }
     final_ir
+}
+
+fn synchronize_exit(method_frame_data: &JavaCompilerMethodAndFrameData, this_function_ir: &mut Vec<IRInstr>) {
+    if method_frame_data.should_synchronize {
+        if method_frame_data.is_static {
+            // todo
+        } else {
+            this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::MonitorExit { obj: method_frame_data.local_var_entry(ByteCodeIndex(0), 0), java_pc: ByteCodeOffset(0) } });
+        }
+    }
 }
 
 fn swap(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {

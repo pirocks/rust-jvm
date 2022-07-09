@@ -103,6 +103,7 @@ pub fn checkcast_impl<'vm>(
                     IRInstr::VMExit2 { exit_type: IRVMExitType::Todo {} }
                 ]))
             } else {
+                res.push(restart_point);
                 res.push(IRInstr::VMExit2 {
                     exit_type
                 });

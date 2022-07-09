@@ -172,7 +172,7 @@ pub fn isub<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
 pub fn lsub<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
-    current_frame.push(InterpreterJavaValue::Long(value1 - value2));
+    current_frame.push(InterpreterJavaValue::Long((Wrapping(value1) - Wrapping(value2)).0));
     PostInstructionAction::Next {}
 }
 

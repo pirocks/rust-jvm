@@ -15,6 +15,7 @@
 #![feature(box_patterns)]
 #![feature(once_cell)]
 #![feature(backtrace)]
+#![feature(ptr_const_cast)]
 
 
 extern crate core;

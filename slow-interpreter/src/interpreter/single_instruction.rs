@@ -301,6 +301,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             PostInstructionAction::Return { res: None }
         }
         instruct => {
+            interpreter_state.inner().debug_print_stack_trace(jvm);
             dbg!(instruct);
             todo!()
         }

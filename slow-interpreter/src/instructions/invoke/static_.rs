@@ -142,12 +142,13 @@ pub fn invoke_static_impl<'l, 'gc>(
             }
         }
     } else {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
-                return Ok(res);
+                Ok(res)
             }
-            Err(WasException{}) => {
-                return Err(WasException{})
+            Err(WasException {}) => {
+                assert!(interpreter_state.throw().is_some());
+                Err(WasException {})
             },
         }
     }
