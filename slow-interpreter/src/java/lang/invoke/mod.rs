@@ -7,7 +7,7 @@ pub mod method_type {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
+    use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
@@ -50,8 +50,7 @@ pub mod method_type {
         }
 
         pub fn get_rtype_or_null<'k>(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
-            let maybe_null = self.normal_object.get_var_top_level(jvm, FieldName::field_rtype());
-            todo!()
+            Some(self.normal_object.get_var_top_level(jvm, FieldName::field_rtype()).unwrap_object()?.cast_class())
             /*if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.to_new().cast_class().into()
@@ -74,8 +73,8 @@ pub mod method_type {
             self.normal_object.set_var_top_level(jvm, FieldName::field_ptypes(), ptypes.as_njv());
         }
 
-        pub fn get_ptypes_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JavaValue<'gc>> {
-            let maybe_null = self.normal_object.get_var_top_level(jvm, FieldName::field_ptypes());
+        pub fn get_ptypes_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<NewJavaValueHandle<'gc>> {
+            Some(self.normal_object.get_var_top_level(jvm, FieldName::field_ptypes()).unwrap_object()?.new_java_value_handle())
             /*if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.clone().into()
@@ -85,14 +84,13 @@ pub mod method_type {
             } else {
                 maybe_null.clone().into()
             }*/
-            todo!()
         }
-        pub fn get_ptypes(&self, jvm: &'gc JVMState<'gc>) -> JavaValue<'gc> {
+        pub fn get_ptypes(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
             self.get_ptypes_or_null(jvm).unwrap()
         }
 
         pub fn get_ptypes_as_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<CPDType> {
-            self.get_ptypes(jvm).unwrap_array().unwrap_object_array(jvm).iter().map(|x| JavaValue::Object(x.clone()).to_new().cast_class().unwrap().as_type(jvm)).collect()
+            self.get_ptypes(jvm).unwrap_object_nonnull().unwrap_array().array_iterator().map(|x| x.cast_class().unwrap().as_type(jvm)).collect()
         }
 
         pub fn set_form(&self, jvm: &'gc JVMState<'gc>, form: MethodTypeForm<'gc>) {

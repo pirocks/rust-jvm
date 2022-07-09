@@ -15,6 +15,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use crate::instructions::invoke::native::mhn_temp::MHN_getConstant;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
+use crate::instructions::invoke::native::unsafe_temp::shouldBeInitialized;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
@@ -119,8 +120,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        /*shouldBeInitialized(jvm, int_state, todo!()/*args*/)?.into()*/
-        todo!()
+        shouldBeInitialized(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {

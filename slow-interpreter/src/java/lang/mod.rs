@@ -97,7 +97,7 @@ pub mod member_name {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::names::{FieldName};
 
-    use crate::{InterpreterStateGuard, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::reflect::constructor::Constructor;
@@ -170,6 +170,7 @@ pub mod member_name {
         }
 
         pub fn get_flags_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
+            Some(self.normal_object.get_var_top_level(jvm, FieldName::field_flags()).unwrap_int())
             /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_flags());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -180,7 +181,6 @@ pub mod member_name {
             } else {
                 maybe_null.unwrap_int().into()
             }*/
-            todo!()
         }
         pub fn get_flags(&self, jvm: &'gc JVMState<'gc>) -> jint {
             self.get_flags_or_null(jvm).unwrap()
@@ -277,7 +277,7 @@ pub mod class {
 
     impl<'gc> Clone for JClass<'gc> {
         fn clone(&self) -> Self {
-            todo!()
+            JClass{ normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 

@@ -12,6 +12,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValueHandle};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::invoke::lambda_form::LambdaForm;
@@ -23,8 +24,16 @@ use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
-pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16) {
-    let _ = invoke_dynamic_impl(jvm, int_state, cp);
+pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16) -> PostInstructionAction<'gc> {
+    match invoke_dynamic_impl(jvm, int_state, cp){
+        Ok(res) => {
+            PostInstructionAction::Next {}
+        }
+        Err(WasException{}) => {
+            panic!();
+            PostInstructionAction::Exception { exception: WasException{} }
+        }
+    }
 }
 
 fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16) -> Result<(), WasException> {

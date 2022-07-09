@@ -219,6 +219,10 @@ impl<'gc> AllocatedHandle<'gc> {
         NewJavaValue::AllocObject(AllocatedObject::Handle(self))
     }
 
+    pub fn new_java_value_handle(self) -> NewJavaValueHandle<'gc> {
+        NewJavaValueHandle::Object(self)
+    }
+
     pub fn to_jv<'any>(&'any self) -> JavaValue<'gc> {
         todo!()
     }
