@@ -37,6 +37,7 @@ use crate::java::lang::class::JClass;
 use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::runtime_class::static_vars;
 use crate::utils::lookup_method_parsed;
 
@@ -144,7 +145,6 @@ pub fn run_native_special<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
         Err(WasException {}) => {
             // assert!(interpreter_state.throw().is_some());
             let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
-            int_state.set_throw(None);
             return throw_impl(jvm, int_state, exception_obj_handle.new_java_handle());
         }
     };
@@ -620,6 +620,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
 }
 
 pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_handle: NewJavaValueHandle<'gc>) -> IRVMExitAction {
+    int_state.set_throw(None);
     let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
     let throwable = exception_object_handle.cast_throwable();
     // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();

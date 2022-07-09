@@ -12,7 +12,7 @@ use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
 use another_jit_vm_ir::WasException;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::constructor::Constructor;
@@ -21,6 +21,7 @@ use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
 use crate::java_values::JavaValue;
 use runtime_class_stuff::RuntimeClass;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;
@@ -28,9 +29,9 @@ use crate::utils::{throw_illegal_arg_res, unwrap_or_npe};
 
 pub mod resolve;
 
-pub fn MHN_getConstant<'gc>() -> Result<JavaValue<'gc>, WasException> {
+pub fn MHN_getConstant<'gc>() -> Result<NewJavaValueHandle<'gc>, WasException> {
     //so I have no idea what this is for, but openjdk does approx this so it should be fine.
-    Ok(JavaValue::Int(0))
+    Ok(NewJavaValueHandle::Int(0))
 }
 
 pub const BRIDGE: i32 = 64;
@@ -178,8 +179,8 @@ fn get_matching_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
     Ok(res)
 }
 
-pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, args: Vec<JavaValue<'gc>>) -> Result<JavaValue<'gc>, WasException> {
-    let member_name = args[0].cast_member_name();
+pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, args: Vec<NewJavaValue<'gc,'_>>) -> Result<JavaValue<'gc>, WasException> {
+    let member_name = args[0].to_handle_discouraged().cast_member_name();
     let name = member_name.get_name_func(jvm, int_state)?.expect("null name?");
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz(jvm))?;
     let field_type_option = member_name.get_field_type(jvm, int_state)?;

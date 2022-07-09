@@ -137,25 +137,17 @@ pub mod method {
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{NewJavaValueHandle};
-    use crate::{AllocatedHandle, JavaValueCommon, NewJavaValue};
+    use crate::{JavaValueCommon, NewJavaValue};
 
 
     pub struct Method<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_method(&self) -> Method<'gc> {
             todo!()
             /*Method { normal_object: self.unwrap_object_nonnull() }*/
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_method(self) -> Method<'gc> {
-            Method {
-                normal_object: self.unwrap_normal_object()
-            }
         }
     }
 
@@ -305,6 +297,8 @@ pub mod method {
     }
 
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Method<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -335,25 +329,17 @@ pub mod constructor {
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{NewJavaValueHandle};
-    use crate::{AllocatedHandle, JavaValueCommon, NewJavaValue};
+    use crate::{JavaValueCommon, NewJavaValue};
 
 
     pub struct Constructor<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_constructor(&self) -> Constructor<'gc> {
             todo!()
             /*Constructor { normal_object: self.unwrap_object_nonnull() }*/
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_constructor(self) -> Constructor<'gc> {
-            Constructor {
-                normal_object: self.unwrap_normal_object()
-            }
         }
     }
 
@@ -465,6 +451,8 @@ pub mod constructor {
     }
 
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Constructor<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object
@@ -481,35 +469,22 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
+    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use another_jit_vm_ir::WasException;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::string::JString;
     use crate::java_values::{JavaValue};
-    use crate::new_java_values::{NewJavaValueHandle};
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct Field<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_field(&self) -> Field<'gc> {
             Field { normal_object: todo!() }
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_field(self) -> Field<'gc> {
-            Field { normal_object: self.unwrap_normal_object() }
-        }
-    }
-
-    impl<'gc> NewJavaValueHandle<'gc> {
-        pub fn cast_field(self) -> Field<'gc> {
-            Field { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
         }
     }
 
@@ -568,6 +543,8 @@ pub mod field {
     }
 
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
+
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Field<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
             self.normal_object

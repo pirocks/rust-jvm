@@ -5,6 +5,7 @@ use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java::util::properties::Properties;
 use crate::java_values::{GcManagedObject};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::runtime_class::static_vars;
 
 pub struct System<'gc> {
@@ -19,5 +20,4 @@ impl<'gc> System<'gc> {
         prop_jv.unwrap_object_nonnull().cast_properties()
     }
 
-    //as_object_or_java_value!();
 }

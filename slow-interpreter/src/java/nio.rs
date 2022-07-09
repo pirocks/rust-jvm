@@ -10,22 +10,16 @@ pub mod heap_byte_buffer {
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{NewJavaValueHandle};
-    use crate::{AllocatedHandle, check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
+    use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct HeapByteBuffer<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_heap_byte_buffer(&self) -> HeapByteBuffer<'gc> {
             HeapByteBuffer { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_heap_byte_buffer(self) -> HeapByteBuffer<'gc> {
-            HeapByteBuffer { normal_object: self.unwrap_normal_object() }
         }
     }
 
@@ -50,6 +44,7 @@ pub mod heap_byte_buffer {
 
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::java_value_common::JavaValueCommon;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {

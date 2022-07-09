@@ -19,6 +19,7 @@ use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocated
 pub mod unallocated_objects;
 pub mod allocated_objects;
 pub mod java_value_common;
+pub mod owned_casts;
 
 #[derive(Debug)]
 pub enum NewJavaValueHandle<'gc> {

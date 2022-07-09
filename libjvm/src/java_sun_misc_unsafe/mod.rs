@@ -18,6 +18,7 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};

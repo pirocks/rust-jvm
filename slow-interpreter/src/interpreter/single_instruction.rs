@@ -7,6 +7,7 @@ use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCo
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JVMState};
 use crate::function_instruction_count::FunctionExecutionCounter;
+use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::invoke::interface::invoke_interface;
 use crate::instructions::invoke::special::invoke_special;
 use crate::instructions::invoke::static_::run_invoke_static;
@@ -299,6 +300,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {
             PostInstructionAction::Return { res: None }
+        }
+        CInstructionInfo::invokedynamic(cp) => {
+            invoke_dynamic(jvm,interpreter_state,*cp);
+            todo!()
         }
         instruct => {
             interpreter_state.inner().debug_print_stack_trace(jvm);

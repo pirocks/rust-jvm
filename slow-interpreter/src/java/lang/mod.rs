@@ -5,7 +5,7 @@ pub mod throwable {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValueHandle};
+    use crate::{NewAsObjectOrJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::jvm_state::JVMState;
@@ -22,24 +22,6 @@ pub mod throwable {
         }
     }
 
-    impl<'gc> NewJavaValueHandle<'gc> {
-        pub fn cast_throwable(self) -> Throwable<'gc> {
-            Throwable { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_throwable(self) -> Throwable<'gc> {
-            self.unwrap_normal_object().cast_throwable()
-        }
-    }
-
-    impl<'gc> AllocatedNormalObjectHandle<'gc> {
-        pub fn cast_throwable(self) -> Throwable<'gc> {
-            Throwable { normal_object: self }
-        }
-    }
-
     impl<'gc> Throwable<'gc> {
         pub fn print_stack_trace<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
@@ -47,7 +29,6 @@ pub mod throwable {
             run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), args)?;
             Ok(())
         }
-        // as_object_or_java_value!();
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Throwable<'gc> {
@@ -76,21 +57,16 @@ pub mod stack_trace_element {
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
 
     pub struct StackTraceElement<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_stack_trace_element(&self) -> StackTraceElement<'gc> {
             todo!()
             /*StackTraceElement { normal_object: self.unwrap_object_nonnull() }*/
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_stack_trace_element(self) -> StackTraceElement<'gc> {
-            StackTraceElement { normal_object: self.unwrap_normal_object() }
         }
     }
 
@@ -103,8 +79,6 @@ pub mod stack_trace_element {
             run_constructor(jvm, int_state, class_, full_args, &desc)?;
             Ok(res.cast_stack_trace_element())
         }
-
-        // as_object_or_java_value!();
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for StackTraceElement<'gc> {
@@ -121,13 +95,9 @@ pub mod stack_trace_element {
 pub mod member_name {
     use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
-    use rust_jvm_common::runtime_type::RuntimeType;
+    use rust_jvm_common::compressed_classfile::names::{FieldName};
 
-    use crate::{InterpreterStateGuard, JVMState};
-    use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-    use crate::interpreter_util::{new_object, run_constructor};
+    use crate::{InterpreterStateGuard, JVMState, NewJavaValue, NewJavaValueHandle};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::reflect::constructor::Constructor;
@@ -135,19 +105,11 @@ pub mod member_name {
     use crate::java::lang::reflect::method::Method;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
-    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct MemberName<'gc> {
-        normal_object: GcManagedObject<'gc>,
-    }
-
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_member_name(&self) -> MemberName<'gc> {
-            MemberName { normal_object: self.unwrap_object_nonnull() }
-        }
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> MemberName<'gc> {
@@ -156,67 +118,59 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name_func<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<JString<'gc>>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            todo!()/*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())*/
         }
 
         pub fn is_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<bool, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            todo!()/*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)
+            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)*/
         }
 
         pub fn get_name_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
-            let str_jvalue = self.normal_object.lookup_field(jvm, FieldName::field_name());
-            if str_jvalue.unwrap_object().is_none() {
-                None
-            } else {
-                str_jvalue.cast_string().into()
-            }
+            let str_jvalue = self.normal_object.get_var_top_level(jvm, FieldName::field_name());
+            Some(str_jvalue.unwrap_object()?.cast_string())
         }
 
         pub fn get_name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
             self.get_name_or_null(jvm).unwrap()
         }
 
-        pub fn set_name(&self, new_val: JString<'gc>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_name(), new_val.java_value());
+        pub fn set_name(&self, jvm: &'gc JVMState<'gc>, new_val: JString<'gc>) {
+            self.normal_object.set_var_top_level(jvm, FieldName::field_name(), new_val.new_java_value());
         }
 
         pub fn get_clazz_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
-            let possibly_null = self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).clone();
-            if possibly_null.unwrap_object().is_none() {
-                None
-            } else {
-                possibly_null.to_new().cast_class().into()
-            }
+            let possibly_null = self.normal_object.get_var_top_level(jvm, FieldName::field_clazz());
+            Some(possibly_null.unwrap_object()?.cast_class())
         }
 
         pub fn get_clazz(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
             self.get_clazz_or_null(jvm).unwrap()
         }
 
-        pub fn set_clazz(&self, new_val: JClass<'gc>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_clazz(), new_val.java_value());
+        pub fn set_clazz(&self, jvm: &'gc JVMState<'gc>, new_val: JClass<'gc>) {
+            self.normal_object.set_var_top_level(jvm, FieldName::field_clazz(), new_val.new_java_value());
         }
 
-        pub fn set_type(&self, new_val: MethodType<'gc>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_type(), new_val.java_value());
+        pub fn set_type(&self, jvm: &'gc JVMState<'gc>, new_val: MethodType<'gc>) {
+            self.normal_object.set_var_top_level(jvm, FieldName::field_type(), new_val.new_java_value());
         }
 
-        pub fn get_type(&self, jvm: &'gc JVMState<'gc>) -> JavaValue<'gc> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_type()).clone()
+        pub fn get_type(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+            self.normal_object.get_var_top_level(jvm, FieldName::field_type())
         }
 
-        pub fn set_flags(&self, new_val: jint) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_flags(), JavaValue::Int(new_val));
+        pub fn set_flags(&self, jvm: &'gc JVMState<'gc>, new_val: jint) {
+            self.normal_object.set_var_top_level(jvm, FieldName::field_flags(), NewJavaValue::Int(new_val));
         }
 
         pub fn get_flags_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
-            let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_flags());
+            /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_flags());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
                     maybe_null.unwrap_int().into()
@@ -225,69 +179,74 @@ pub mod member_name {
                 }
             } else {
                 maybe_null.unwrap_int().into()
-            }
+            }*/
+            todo!()
         }
         pub fn get_flags(&self, jvm: &'gc JVMState<'gc>) -> jint {
             self.get_flags_or_null(jvm).unwrap()
         }
 
-        pub fn set_resolution(&self, new_val: JavaValue<'gc>) {
-            self.normal_object.unwrap_normal_object().set_var_top_level(FieldName::field_resolution(), new_val);
+        pub fn set_resolution(&self, jvm: &'gc JVMState<'gc>, new_val: NewJavaValue<'gc,'_>) {
+            self.normal_object.set_var_top_level(jvm, FieldName::field_resolution(), new_val);
         }
 
-        pub fn get_resolution(&self, jvm: &'gc JVMState<'gc>) -> JavaValue<'gc> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_resolution()).clone()
+        pub fn get_resolution(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+            self.normal_object.get_var_top_level(jvm, FieldName::field_resolution())
         }
 
         pub fn clazz(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
-            self.normal_object.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_clazz()).to_new().cast_class()
+            Some(self.normal_object.get_var_top_level(jvm, FieldName::field_clazz()).unwrap_object()?.cast_class())
         }
 
         pub fn get_method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<MethodType<'gc>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            /*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())*/
+            todo!()
         }
 
         pub fn get_field_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<JClass<'gc>>, WasException> {
-            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            /*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class())
+            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class())*/
+            todo!()
         }
 
         pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, field: Field<'gc>) -> Result<Self, WasException> {
-            let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
+            /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class).to_jv();
             run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), field.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;
-            Ok(res.cast_member_name())
+            Ok(res.cast_member_name())*/
+            todo!()
         }
 
         pub fn new_from_method<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method: Method<'gc>) -> Result<Self, WasException> {
-            let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
+            /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class).to_jv();
             run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), method.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::method().into()]))?;
-            Ok(res.cast_member_name())
+            Ok(res.cast_member_name())*/
+            todo!()
         }
 
         pub fn new_from_constructor<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, constructor: Constructor<'gc>) -> Result<Self, WasException> {
-            let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
+            /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class).to_jv();
             run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), constructor.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::constructor().into()]))?;
-            Ok(res.cast_member_name())
+            Ok(res.cast_member_name())*/
+            todo!()
         }
 
-        //as_object_or_java_value!();
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MemberName<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -309,8 +268,8 @@ pub mod class {
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct JClass<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -435,8 +394,8 @@ pub mod class_loader {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::utils::run_static_or_virtual;
 
     pub struct ClassLoader<'gc> {
@@ -522,8 +481,8 @@ pub mod string {
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
@@ -670,7 +629,7 @@ pub mod object {
     use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
 
     pub struct JObject<'gc> {
-        normal_object: AllocatedHandle<'gc>,
+        pub(crate) normal_object: AllocatedHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -682,6 +641,12 @@ pub mod object {
     impl<'gc> AllocatedHandle<'gc> {
         pub fn cast_object(self) -> JObject<'gc> {
             JObject { normal_object: self }
+        }
+    }
+
+    impl<'gc> NewJavaValueHandle<'gc> {
+        pub fn cast_object(self) -> JObject<'gc> {
+            JObject { normal_object: self.unwrap_object_nonnull() }
         }
     }
 
@@ -734,8 +699,8 @@ pub mod thread {
     use crate::java::lang::thread_group::JThreadGroup;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::threading::JavaThread;
     use crate::utils::run_static_or_virtual;
 
@@ -917,8 +882,8 @@ pub mod thread_group {
     use crate::java::lang::thread::JThread;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
 
     pub struct JThreadGroup<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1253,8 +1218,8 @@ pub mod int {
     use crate::java_values::JavaValue;
     use crate::JavaValueCommon;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::NewAsObjectOrJavaValue;
 
     pub struct Int<'gc> {

@@ -201,4 +201,8 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
         let mut local_vars = current_frame.local_vars_mut(self.inner.jvm);
         local_vars.interpreter_set(i, local)
     }
+
+    pub fn operand_stack_depth(&self) -> u16{
+        self.inner.current_stack_depth_from_start
+    }
 }

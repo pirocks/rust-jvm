@@ -17,6 +17,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
@@ -113,7 +114,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         if name == MethodName::method_linkToStatic() {
             let current_frame = interpreter_state.current_frame();
             let op_stack = current_frame.operand_stack(jvm);
-            let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).to_jv().cast_member_name();
+            let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();
             assert_eq!(member_name.clone().java_value().to_type(), CClassName::member_name().into());
             interpreter_state.pop_current_operand_stack(Some(CClassName::object().into())); //todo am I sure this is an object
             let res = call_vmentry(jvm, interpreter_state, member_name)?;

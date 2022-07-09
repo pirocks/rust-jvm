@@ -13,6 +13,8 @@ use crate::interpreter::{monitor_for_function};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
+use crate::instructions::invoke::native::mhn_temp::MHN_getConstant;
+use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
@@ -77,7 +79,6 @@ pub fn run_native_method<'gc, 'l, 'k>(
             Ok(call_res) => call_res,
             Err(WasException {}) => {
                 int_state.pop_frame(jvm, native_call_frame, true);
-                dbg!("exception");
                 assert!(int_state.throw().is_some());
                 return Err(WasException)
             }
@@ -110,11 +111,9 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         //todo
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getConstant" {
-        todo!()
-        /*MHN_getConstant()?.into()*/
+        MHN_getConstant()?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
-        todo!()
-        /*MHN_resolve(jvm, int_state, todo!()/*args*/)?.into()*/
+        MHN_resolve(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
         MHN_init(jvm, int_state, todo!()/*args*/)?;
         None

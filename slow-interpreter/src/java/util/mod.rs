@@ -3,18 +3,12 @@ pub mod hashtable{
     pub mod entry{
         use jvmti_jni_bindings::jint;
         use rust_jvm_common::compressed_classfile::names::FieldName;
-        use crate::{AllocatedHandle, JavaValueCommon, JVMState};
+        use crate::{JavaValueCommon, JVMState};
         use crate::new_java_values::{ NewJavaValueHandle};
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
         pub struct Entry<'gc> {
-            normal_object: AllocatedNormalObjectHandle<'gc>,
-        }
-
-        impl<'gc> AllocatedHandle<'gc> {
-            pub fn cast_entry(self) -> Entry<'gc> {
-                Entry { normal_object: self.unwrap_normal_object() }
-            }
+            pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
         }
 
         impl <'gc> Entry<'gc> {
@@ -42,7 +36,7 @@ pub mod properties {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
+    use crate::{InterpreterStateGuard, JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use another_jit_vm_ir::WasException;
     use crate::java::lang::string::JString;
@@ -53,7 +47,7 @@ pub mod properties {
     use crate::utils::run_static_or_virtual;
 
     pub struct Properties<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -62,12 +56,6 @@ pub mod properties {
             /*let res = Properties { normal_object: todo!()/*self.unwrap_object_nonnull()*/ };
             assert_eq!(res.normal_object.unwrap_normal_object().objinfo.class_pointer.view().name(), CClassName::properties().into());
             res*/
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_properties(self) -> Properties<'gc> {
-            Properties { normal_object: self.unwrap_normal_object() }
         }
     }
 

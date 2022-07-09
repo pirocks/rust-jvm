@@ -3,24 +3,19 @@ pub mod big_integer {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
-    use crate::{AllocatedHandle, check_initing_or_inited_class, InterpreterStateGuard, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
     pub struct BigInteger<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> NewJavaValueHandle<'gc> {
         pub fn cast_big_integer(self) -> BigInteger<'gc> {
             BigInteger { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-        }
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_big_integer(self) -> BigInteger<'gc> {
-            BigInteger { normal_object: self.unwrap_normal_object() }
         }
     }
 

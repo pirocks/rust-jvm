@@ -32,6 +32,7 @@ use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::runtime_class::{initialize_class, prepare_class, static_vars};
 

@@ -2,21 +2,16 @@ pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue};
+    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::new_java_values::{NewJavaValueHandle};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
     pub struct ConcurrentHashMap<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
-    }
-
-    impl<'gc> AllocatedHandle<'gc> {
-        pub fn cast_concurrent_hash_map(self) -> ConcurrentHashMap<'gc> {
-            ConcurrentHashMap { normal_object: self.unwrap_normal_object() }
-        }
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> NewJavaValueHandle<'gc> {
@@ -88,26 +83,16 @@ pub mod concurrent_hash_map {
     pub mod node {
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-        use crate::{AllocatedHandle, JVMState};
+        use crate::{JVMState};
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::new_java_values::{NewJavaValueHandle};
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
         pub struct Node<'gc> {
-            normal_object: AllocatedNormalObjectHandle<'gc>,
-        }
-
-        impl<'gc> AllocatedHandle<'gc> {
-            pub fn cast_concurrent_hash_map_node(self) -> Node<'gc> {
-                Node { normal_object: self.unwrap_normal_object() }
-            }
+            pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
         }
 
         impl<'gc> NewJavaValueHandle<'gc> {
-            pub fn cast_concurrent_hash_map_node(self) -> Node<'gc> {
-                Node { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-            }
-
             pub fn try_cast_concurrent_hash_map_node(self) -> Option<Node<'gc>> {
                 Some(Node { normal_object: self.unwrap_object()?.unwrap_normal_object() })
             }
