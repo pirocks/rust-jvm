@@ -13,7 +13,7 @@ use crate::interpreter::{monitor_for_function};
 use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
-use crate::instructions::invoke::native::mhn_temp::MHN_getConstant;
+use crate::instructions::invoke::native::mhn_temp::{Java_java_lang_invoke_MethodHandleNatives_getMembers, Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset, MHN_getConstant};
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::unsafe_temp::shouldBeInitialized;
 use crate::rust_jni::{call, call_impl, mangling};
@@ -116,7 +116,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_resolve" {
         MHN_resolve(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_init" {
-        MHN_init(jvm, int_state, todo!()/*args*/)?;
+        MHN_init(jvm, int_state, args)?;
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
@@ -133,11 +133,9 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        /*Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, todo!()/*args*/)?.into()*/
-        todo!()
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        /*Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, todo!()/*args*/)?.into()*/
-        todo!()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {

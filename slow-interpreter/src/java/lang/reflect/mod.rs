@@ -313,7 +313,7 @@ pub mod constructor {
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -389,14 +389,12 @@ pub mod constructor {
         }
 
         pub fn get_clazz(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
-            todo!()
-            /*self.normal_object.lookup_field(jvm, FieldName::field_clazz()).to_new().cast_class().unwrap()*/
+            self.normal_object.get_var_top_level(jvm, FieldName::field_clazz()).cast_class().unwrap()
             //todo this unwrap
         }
 
         pub fn get_modifiers(&self, jvm: &'gc JVMState<'gc>) -> jint {
-            todo!()
-            /*self.normal_object.lookup_field(jvm, FieldName::field_modifiers()).unwrap_int()*/
+            self.normal_object.get_var_top_level(jvm, FieldName::field_modifiers()).unwrap_int()
         }
 
         pub fn get_name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {

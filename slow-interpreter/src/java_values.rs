@@ -78,6 +78,9 @@ impl<'gc> GC<'gc> {
     }
 
     pub fn allocate_object<'l>(&'gc self, jvm: &'gc JVMState<'gc>, object: UnAllocatedObject<'gc, 'l>) -> AllocatedHandle<'gc> {
+        // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter(){
+        //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype() , CClassName::class().into())
+        // }
         // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
@@ -120,7 +123,9 @@ impl<'gc> GC<'gc> {
                 }
             }
         }
-
+        // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter(){
+        //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype() , CClassName::class().into())
+        // }
         handle
     }
 

@@ -5,7 +5,7 @@ pub mod throwable {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-    use crate::{NewAsObjectOrJavaValue};
+    use crate::NewAsObjectOrJavaValue;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::jvm_state::JVMState;
@@ -95,9 +95,12 @@ pub mod stack_trace_element {
 pub mod member_name {
     use another_jit_vm_ir::WasException;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::names::{FieldName};
+    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::invoke::method_type::MethodType;
     use crate::java::lang::reflect::constructor::Constructor;
@@ -106,6 +109,8 @@ pub mod member_name {
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
     pub struct MemberName<'gc> {
@@ -118,17 +123,19 @@ pub mod member_name {
         // private Object type;
         // private int flags;
         pub fn get_name_func<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<JString<'gc>>, WasException> {
-            todo!()/*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::string().into())).cast_string())*/
+            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            let args = vec![self.normal_object.new_java_value()];
+            let desc = CMethodDescriptor::empty_args(CClassName::string().into());
+            let res = run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &desc, args)?;
+            Ok(res.unwrap().cast_string())
         }
 
         pub fn is_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<bool, WasException> {
-            todo!()/*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &CMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean() != 0)*/
+            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            let desc = CMethodDescriptor::empty_args(CPDType::BooleanType);
+            let args = vec![self.normal_object.new_java_value()];
+            let res = run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_isStatic(), &desc, args)?;
+            Ok(res.unwrap().as_njv().unwrap_int() != 0)
         }
 
         pub fn get_name_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
@@ -186,7 +193,7 @@ pub mod member_name {
             self.get_flags_or_null(jvm).unwrap()
         }
 
-        pub fn set_resolution(&self, jvm: &'gc JVMState<'gc>, new_val: NewJavaValue<'gc,'_>) {
+        pub fn set_resolution(&self, jvm: &'gc JVMState<'gc>, new_val: NewJavaValue<'gc, '_>) {
             self.normal_object.set_var_top_level(jvm, FieldName::field_resolution(), new_val);
         }
 
@@ -207,11 +214,11 @@ pub mod member_name {
         }
 
         pub fn get_field_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<JClass<'gc>>, WasException> {
-            /*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &CMethodDescriptor::empty_args(CClassName::class().into()), todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class())*/
-            todo!()
+            let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
+            let args = vec![self.normal_object.new_java_value()];
+            let desc = CMethodDescriptor::empty_args(CClassName::class().into());
+            let res = run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getFieldType(), &desc, args)?;
+            Ok(res.unwrap().cast_class())
         }
 
         pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, field: Field<'gc>) -> Result<Self, WasException> {
@@ -223,21 +230,21 @@ pub mod member_name {
         }
 
         pub fn new_from_method<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method: Method<'gc>) -> Result<Self, WasException> {
-            /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
-            let res = new_object(jvm, int_state, &member_class).to_jv();
-            run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), method.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::method().into()]))?;
-            Ok(res.cast_member_name())*/
-            todo!()
+            let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
+            let res = new_object(jvm, int_state, &member_class);
+            let desc = CMethodDescriptor::void_return(vec![CClassName::method().into()]);
+            run_constructor(jvm, int_state, member_class, vec![res.new_java_value(), method.new_java_value()], &desc)?;
+            Ok(res.cast_member_name())
         }
 
         pub fn new_from_constructor<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, constructor: Constructor<'gc>) -> Result<Self, WasException> {
-            /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
-            let res = new_object(jvm, int_state, &member_class).to_jv();
-            run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), constructor.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::constructor().into()]))?;
-            Ok(res.cast_member_name())*/
-            todo!()
+            let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
+            let res = new_object(jvm, int_state, &member_class);
+            let desc = CMethodDescriptor::void_return(vec![CClassName::constructor().into()]);
+            let args = vec![res.new_java_value(), constructor.new_java_value()];
+            run_constructor(jvm, int_state, member_class, args, &desc)?;
+            Ok(res.cast_member_name())
         }
-
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MemberName<'gc> {
@@ -277,7 +284,7 @@ pub mod class {
 
     impl<'gc> Clone for JClass<'gc> {
         fn clone(&self) -> Self {
-            JClass{ normal_object: self.normal_object.duplicate_discouraged() }
+            JClass { normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 

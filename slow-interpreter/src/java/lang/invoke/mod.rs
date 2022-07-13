@@ -27,22 +27,20 @@ pub mod method_type {
 
     impl<'gc> MethodType<'gc> {
         pub fn from_method_descriptor_string<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, str: JString<'gc>, class_loader: Option<ClassLoader<'gc>>) -> Result<MethodType<'gc>, WasException> {
-            todo!()
-            /*int_state.push_current_operand_stack(str.java_value());
-            int_state.push_current_operand_stack(class_loader.map(|x| x.java_value()).unwrap_or(JavaValue::Object(None)));
             let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            run_static_or_virtual(
+            let desc = CMethodDescriptor {
+                arg_types: vec![CClassName::string().into(), CClassName::classloader().into()],
+                return_type: CClassName::method_type().into(),
+            };
+            let res = run_static_or_virtual(
                 jvm,
                 int_state,
                 &method_type,
                 MethodName::method_fromMethodDescriptorString(),
-                &CMethodDescriptor {
-                    arg_types: vec![CClassName::string().into(), CClassName::classloader().into()],
-                    return_type: CClassName::method_type().into(),
-                },
-                todo!(),
-            )?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::method_type().into())).cast_method_type())*/
+                &desc,
+                vec![str.new_java_value(), class_loader.as_ref().map(|x| x.new_java_value()).unwrap_or(NewJavaValue::Null)],
+            )?.unwrap();
+            Ok(res.cast_method_type())
         }
 
         pub fn set_rtype(&self, jvm: &'gc JVMState<'gc>, rtype: JClass<'gc>) {
@@ -115,10 +113,10 @@ pub mod method_type {
 
         pub fn parameter_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, int: jint) -> Result<JClass<'gc>, WasException> {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            int_state.push_current_operand_stack(JavaValue::Int(int));
-            run_static_or_virtual(jvm, int_state, &method_type, MethodName::method_parameterType(), &CMethodDescriptor { arg_types: vec![CPDType::IntType], return_type: CClassName::class().into() }, todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap())
+            let desc = CMethodDescriptor { arg_types: vec![CPDType::IntType], return_type: CClassName::class().into() };
+            let args = vec![self.new_java_value(), NewJavaValue::Int(int)];
+            let res = run_static_or_virtual(jvm, int_state, &method_type, MethodName::method_parameterType(), &desc, args)?;
+            Ok(res.unwrap().cast_class().unwrap())
         }
 
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
@@ -150,11 +148,11 @@ pub mod method_type {
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodType<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -295,9 +293,10 @@ pub mod method_handle {
 
         pub fn internal_member_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<MemberName<'gc>, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
-            run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_internalMemberName(), &CMethodDescriptor::empty_args(CClassName::member_name().into()), todo!())?;
-            Ok(todo!()/*int_state.pop_current_operand_stack(Some(CClassName::method_handle().into())).cast_member_name()*/)
+            let desc = CMethodDescriptor::empty_args(CClassName::member_name().into());
+            let args = vec![self.new_java_value()];
+            let res = run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_internalMemberName(), &desc, args)?;
+            Ok(res.unwrap().cast_member_name())
         }
 
         pub fn type__(&self, jvm: &'gc JVMState<'gc>) -> MethodType<'gc> {
@@ -316,31 +315,23 @@ pub mod method_handle {
         pub fn get_form_or_null(&self, jvm: &'gc JVMState<'gc>) -> Result<Option<LambdaForm<'gc>>, WasException> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             let maybe_null = self.normal_object.get_var(jvm, &method_handle_class, FieldName::field_form());
-            todo!()
-            /*Ok(if maybe_null.try_unwrap_object().is_some() {
-                if maybe_null.unwrap_object().is_some() {
-                    maybe_null.cast_lambda_form().into()
-                } else {
-                    None
-                }
-            } else {
-                maybe_null.cast_lambda_form().into()
-            })*/
+            match maybe_null.unwrap_object() {
+                Some(maybe_null) => Ok(Some(maybe_null.cast_lambda_form())),
+                None => return Err(WasException {}),
+            }
         }
         pub fn get_form(&self, jvm: &'gc JVMState<'gc>) -> Result<LambdaForm<'gc>, WasException> {
             Ok(self.get_form_or_null(jvm)?.unwrap())
         }
-
-        // as_object_or_java_value!();
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodHandle<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }
@@ -363,7 +354,7 @@ pub mod method_handles {
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-        use crate::new_java_values::java_value_common::JavaValueCommon;
+        use crate::new_java_values::owned_casts::OwnedCastAble;
         use crate::runtime_class::static_vars;
         use crate::utils::run_static_or_virtual;
 
@@ -382,52 +373,42 @@ pub mod method_handles {
             pub fn trusted_lookup<'l>(jvm: &'gc JVMState<'gc>, _int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Self {
                 let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let static_vars = static_vars(lookup.deref(), jvm);
-                static_vars.get(FieldName::field_IMPL_LOOKUP()).to_jv().cast_lookup()
+                static_vars.get(FieldName::field_IMPL_LOOKUP()).cast_lookup()
             }
 
             //noinspection DuplicatedCode
             pub fn find_virtual<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
-                int_state.push_current_operand_stack(self.clone().java_value());
-                int_state.push_current_operand_stack(obj.java_value());
-                int_state.push_current_operand_stack(name.java_value());
-                int_state.push_current_operand_stack(mt.java_value());
+                let args = vec![self.new_java_value(), obj.new_java_value(), name.new_java_value(), mt.new_java_value()];
                 let desc = CMethodDescriptor {
                     arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into()],
                     return_type: CClassName::method_handle().into(),
                 };
-                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findVirtual(), &desc, todo!())?;
-                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
+                let res = run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findVirtual(), &desc, args)?.unwrap();
+                Ok(res.cast_method_handle())
             }
 
             //noinspection DuplicatedCode
             pub fn find_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
-                int_state.push_current_operand_stack(self.clone().java_value());
-                int_state.push_current_operand_stack(obj.java_value());
-                int_state.push_current_operand_stack(name.java_value());
-                int_state.push_current_operand_stack(mt.java_value());
                 let desc = CMethodDescriptor {
                     arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into()],
                     return_type: CClassName::method_handle().into(),
                 };
-                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findStatic(), &desc, todo!())?;
-                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
+                let args = vec![self.new_java_value(), obj.new_java_value(), name.new_java_value(), mt.new_java_value()];
+                let res = run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findStatic(), &desc, args)?;
+                Ok(res.unwrap().cast_method_handle())
             }
 
             pub fn find_special<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>, special_caller: JClass<'gc>) -> Result<MethodHandle<'gc>, WasException> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
-                int_state.push_current_operand_stack(self.clone().java_value());
-                int_state.push_current_operand_stack(obj.java_value());
-                int_state.push_current_operand_stack(name.java_value());
-                int_state.push_current_operand_stack(mt.java_value());
-                int_state.push_current_operand_stack(special_caller.java_value());
                 let desc = CMethodDescriptor {
                     arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into(), CClassName::class().into()],
                     return_type: CClassName::method_handle().into(),
                 };
-                run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findSpecial(), &desc, todo!())?;
-                Ok(int_state.pop_current_operand_stack(Some(CClassName::lookup().into())).cast_method_handle())
+                let args = vec![self.new_java_value(), obj.new_java_value(), name.new_java_value(), mt.new_java_value(), special_caller.new_java_value()];
+                let res = run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findSpecial(), &desc, args)?;
+                Ok(res.unwrap().cast_method_handle())
             }
 
             // as_object_or_java_value!();
@@ -435,22 +416,24 @@ pub mod method_handles {
 
         impl<'gc> NewAsObjectOrJavaValue<'gc> for Lookup<'gc> {
             fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-                todo!()
+                self.normal_object
             }
 
             fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-                todo!()
+                &self.normal_object
             }
         }
     }
 }
 
 pub mod lambda_form {
+    use rust_jvm_common::compressed_classfile::names::FieldName;
 
     use crate::java::lang::invoke::lambda_form::name::Name;
     use crate::java::lang::member_name::MemberName;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
 
     pub mod named_function {
         use another_jit_vm_ir::WasException;
@@ -693,7 +676,7 @@ pub mod lambda_form {
 
         //noinspection DuplicatedCode
         pub fn get_vmentry_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<MemberName<'gc>> {
-            todo!()
+            Some(self.normal_object.get_var_top_level(jvm, FieldName::field_vmentry()).unwrap_object()?.cast_member_name())
             /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_vmentry());
             if maybe_null.try_unwrap_object().is_some() {
                 if maybe_null.unwrap_object().is_some() {
@@ -722,6 +705,7 @@ pub mod call_site {
     use crate::java::lang::invoke::method_handle::MethodHandle;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::NewAsObjectOrJavaValue;
 
     #[derive(Clone)]
@@ -731,21 +715,21 @@ pub mod call_site {
 
     impl<'gc> CallSite<'gc> {
         pub fn get_target<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<MethodHandle<'gc>, WasException> {
-            let _call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
-            int_state.push_current_operand_stack(self.clone().java_value());
+            let call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
+            let args = vec![self.new_java_value()];
             let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Class(CClassName::method_handle()) };
-            invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc, todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).cast_method_handle())
+            let res = invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc, args)?;
+            Ok(res.unwrap().cast_method_handle())
         }
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for CallSite<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            &self.normal_object
         }
     }
 }

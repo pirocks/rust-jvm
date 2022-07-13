@@ -145,7 +145,7 @@ pub struct Classes<'gc> {
     pub initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>)>,
     pub(crate) class_object_pool: BiMap<ByAddressAllocatedObject<'gc>, ByAddress<Arc<RuntimeClass<'gc>>>>,
     pub anon_classes: Vec<Arc<RuntimeClass<'gc>>>,
-    pub anon_class_live_object_ldc_pool: Vec<&'gc AllocatedNormalObjectHandle<'gc>>,
+    pub anon_class_live_object_ldc_pool: Vec<AllocatedHandle<'gc>>,
     pub(crate) class_class: Arc<RuntimeClass<'gc>>,
     class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc>>,
     pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc>>,
@@ -245,8 +245,8 @@ impl<'gc> Classes<'gc> {
         })
     }
 
-    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> &'gc AllocatedNormalObjectHandle<'gc> {
-        &self.anon_class_live_object_ldc_pool[idx.0]
+    pub fn lookup_live_object_pool(&self, idx: &LiveObjectIndex) -> AllocatedHandle<'gc> {
+        self.anon_class_live_object_ldc_pool[idx.0].duplicate_discouraged()
     }
 
     pub fn get_loader_and_runtime_class(&self, cpdtype: &CPDType) -> Option<(LoaderName, Arc<RuntimeClass<'gc>>)> {
@@ -303,7 +303,7 @@ impl<'gc> JVMState<'gc> {
                 compiled_mode_active: true,
                 tracing,
                 main_class_name,
-                compile_threshold: 10,
+                compile_threshold: 100,
             },
             properties,
             native_libaries: NativeLibraries::new(libjava),
@@ -430,7 +430,7 @@ impl<'gc> JVMState<'gc> {
             (field_number, default_jv)
         }).collect::<Vec<_>>();
         let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
-        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: class.clone(), fields }));
+        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: self.classes.read().unwrap().class_class.clone(), fields }));
         let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
         let mut classes = self.classes.write().unwrap();
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(class.clone()));

@@ -14,13 +14,10 @@ use crate::java::lang::string::JString;
 use crate::rust_jni::interface::string::intern_safe;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    load_class_constant_by_type(jvm, int_state, type_)
-}
-//
-pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_class_type: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
+    let object = get_or_create_class_object(jvm, *type_, int_state)?;
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
+
 //
 // fn load_string_constant(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, s: &StringView) {
 //     let res_string = s.string();
@@ -104,7 +101,7 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
                 CompressedLdcW::LiveObject(live_object_index) => {
                     let classes_guard = jvm.classes.read().unwrap();
                     let obj = classes_guard.lookup_live_object_pool(live_object_index);
-                    int_state.current_frame_mut().push(obj.duplicate_discouraged().new_java_handle().to_interpreter_jv());
+                    int_state.current_frame_mut().push(obj.new_java_value_handle().to_interpreter_jv());
                 }
                 _ => {
                     // dbg!(cp);

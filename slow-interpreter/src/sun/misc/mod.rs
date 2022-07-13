@@ -2,23 +2,24 @@ pub mod unsafe_ {
     use std::ops::Deref;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
-    use rust_jvm_common::runtime_type::RuntimeType;
 
-    use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewAsObjectOrJavaValue};
+    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle};
     use crate::class_loading::assert_inited_or_initing_class;
     use another_jit_vm_ir::WasException;
     use crate::java::lang::reflect::field::Field;
-    use crate::java_values::{GcManagedObject, JavaValue};
+    use crate::java_values::{JavaValue};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::runtime_class::static_vars;
     use crate::utils::run_static_or_virtual;
 
     pub struct Unsafe<'gc> {
-        normal_object: GcManagedObject<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
         pub fn cast_unsafe(&self) -> Unsafe<'gc> {
-            Unsafe { normal_object: self.unwrap_object_nonnull() }
+            Unsafe { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
         }
     }
 
@@ -26,22 +27,17 @@ pub mod unsafe_ {
         pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Unsafe<'gc> {
             let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
             let static_vars = static_vars(unsafe_class.deref(),jvm);
-            static_vars.get(FieldName::field_theUnsafe()).to_jv().cast_unsafe()
+            static_vars.get(FieldName::field_theUnsafe()).cast_unsafe()
         }
 
-        pub fn object_field_offset<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field: Field<'gc>) -> Result<JavaValue<'gc>, WasException> {
-            int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
-            int_state.push_current_operand_stack(field.java_value());
-            let rc = self.normal_object.unwrap_normal_object().objinfo.class_pointer.clone();
+        pub fn object_field_offset<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, field: Field<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+            let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
             let desc = CMethodDescriptor { arg_types: vec![CClassName::field().into()], return_type: CPDType::LongType };
-            run_static_or_virtual(jvm, int_state, &rc, MethodName::method_objectFieldOffset(), &desc, todo!())?;
-            let res = int_state.pop_current_operand_stack(Some(RuntimeType::LongType));
-            dbg!(res.to_type());
-            dbg!(res.clone());
-            Ok(res)
+            let args = vec![self.normal_object.new_java_value(), field.new_java_value()];
+            let res = run_static_or_virtual(jvm, int_state, &unsafe_class, MethodName::method_objectFieldOffset(), &desc, args)?;
+            Ok(res.unwrap())
         }
 
-        //as_object_or_java_value!();
     }
 }
 

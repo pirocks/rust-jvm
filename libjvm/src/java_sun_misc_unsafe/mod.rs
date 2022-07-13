@@ -172,6 +172,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getInt__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jint {
+    Java_sun_misc_Unsafe_getIntVolatile(env, the_unsafe, obj, offset)
+}
+
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_allocateMemory(env: *mut JNIEnv, the_unsafe: jobject, len: jlong) -> jlong {
     let res: i64 = libc::malloc(len as usize) as i64;
     res

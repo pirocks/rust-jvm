@@ -146,6 +146,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
+        // real_interpreter_state.inner().set_current_pc(Some(current_offset));
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;

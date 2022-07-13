@@ -323,7 +323,7 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
                 todo!("wtf do I do here")
             }
             NewJavaValue::AllocObject(obj) => {
-                obj.unwrap_normal_object().duplicate_discouraged().new_java_handle()
+                obj.duplicate_discouraged().new_java_value_handle()
             }
             NewJavaValue::Top => {
                 todo!()

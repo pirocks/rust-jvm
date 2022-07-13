@@ -232,7 +232,12 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
 
             // todo!("and do the corresponding monitor exits")
         } else {
-            final_ir_without_labels.push((ByteCodeOffset(0), IRInstr::VMExit2 { exit_type: IRVMExitType::MonitorEnter { obj: method_frame_data.local_var_entry(ByteCodeIndex(0),0), java_pc: ByteCodeOffset(0) } }))
+            final_ir_without_labels.push((ByteCodeOffset(0), IRInstr::VMExit2 {
+                exit_type: IRVMExitType::MonitorEnter {
+                    obj: method_frame_data.local_var_entry(ByteCodeIndex(0), 0),
+                    java_pc: ByteCodeOffset(0),
+                }
+            }))
         }
     }
 

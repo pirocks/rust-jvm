@@ -25,11 +25,14 @@ pub fn invoke_special<'gc, 'l, 'k>(
     method_name: MethodName,
     parsed_descriptor: &CMethodDescriptor
 ) -> PostInstructionAction<'gc> {
+    // dbg!(method_class_name.0.to_str(&jvm.string_pool));
     let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), method_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
     };
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
+    // dbg!(final_target_class.view().name().jvm_representation(&jvm.string_pool));
+    // dbg!(final_target_class.view().method_view_i(target_m_i).name().0.to_str(&jvm.string_pool));
     let view  = final_target_class.view();
     let target_method = view.method_view_i(target_m_i);
     let mut args = vec![];
@@ -75,7 +78,10 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
     } else if target_m.is_native() {
         match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
             Ok(res) => Ok(res),
-            Err(_) => todo!(),
+            Err(WasException{}) => {
+                // int_state.debug_print_stack_trace(jvm);
+                return Err(WasException{})
+            },
         }
     } else {
         let mut args = vec![];

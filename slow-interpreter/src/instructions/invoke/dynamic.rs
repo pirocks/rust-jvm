@@ -5,6 +5,7 @@ use another_jit_vm_ir::WasException;
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
@@ -24,8 +25,8 @@ use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
-pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16) -> PostInstructionAction<'gc> {
-    match invoke_dynamic_impl(jvm, int_state, cp){
+pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {
+    match invoke_dynamic_impl(jvm, int_state, cp, current_pc){
         Ok(res) => {
             PostInstructionAction::Next {}
         }
@@ -36,7 +37,7 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
     }
 }
 
-fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16) -> Result<(), WasException> {
+fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException> {
     let method_handle_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_handle().into())?;
     let _method_type_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_type().into())?;
     let _call_site_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::call_site().into())?;
@@ -103,6 +104,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let invoke = lookup_res.iter().next().unwrap();
     //todo theres a MHN native for this upcall
     let from_legacy_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool);
+    int_state.inner().set_current_pc(Some(dbg!(current_pc)));
     let call_site = invoke_virtual_method_i(jvm, int_state.inner(), &from_legacy_desc, method_handle_class.clone(), invoke, next_invoke_virtual_args)?.unwrap();
     let call_site = call_site.cast_call_site();
     let target = call_site.get_target(jvm, int_state.inner())?;
@@ -133,7 +135,9 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }
     let main_invoke_args = main_invoke_args_owned.iter().map(|arg| arg.as_njv()).collect_vec();
-    let res = invoke_virtual_method_i(jvm, int_state.inner(), &CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() }, method_handle_class, invoke, main_invoke_args)?;
+    int_state.inner().set_current_pc(Some(dbg!(current_pc)));
+    let desc = CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() };
+    let res = invoke_virtual_method_i(jvm, int_state.inner(), &desc, method_handle_class, invoke, main_invoke_args)?;
 
     assert!(int_state.inner().throw().is_none());
 

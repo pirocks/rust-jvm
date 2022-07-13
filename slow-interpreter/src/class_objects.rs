@@ -4,6 +4,7 @@ use rust_jvm_common::loading::LoaderName;
 use crate::{InterpreterStateGuard, JVMState};
 use crate::class_loading::check_loaded_class_force_loader;
 use another_jit_vm_ir::WasException;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn get_or_create_class_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDType, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<AllocatedNormalObjectHandle<'gc>, WasException> {
@@ -12,5 +13,7 @@ pub fn get_or_create_class_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDTy
 
 pub fn get_or_create_class_object_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDType, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, loader: LoaderName) -> Result<AllocatedNormalObjectHandle<'gc>, WasException> {
     let arc = check_loaded_class_force_loader(jvm, int_state, &type_, loader)?;
-    Ok(jvm.classes.read().unwrap().get_class_obj_from_runtime_class(arc.clone()))
+    let handle = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(arc.clone());
+    assert_eq!(handle.runtime_class(jvm).cpdtype(), CClassName::class().into());
+    Ok(handle)
 }

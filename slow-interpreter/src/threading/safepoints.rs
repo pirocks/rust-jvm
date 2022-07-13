@@ -309,6 +309,7 @@ impl Monitor2 {
     pub fn lock<'l, 'gc>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
+        // dbg!(current_thread.java_tid);
         if let Some(owner) = guard.owner.as_ref() {
             if *owner == current_thread.java_tid {
                 guard.count += 1;
@@ -328,6 +329,7 @@ impl Monitor2 {
     pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
+        // dbg!(current_thread.java_tid);
         if guard.owner == current_thread.java_tid.into() {
             guard.count -= 1;
             if guard.count == 0 {

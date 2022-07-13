@@ -1,11 +1,14 @@
 use std::ops::Deref;
+
 use itertools::Either;
 use libc::c_void;
+
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::{JVMState};
+
+use crate::JVMState;
 use crate::function_instruction_count::FunctionExecutionCounter;
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::invoke::interface::invoke_interface;
@@ -45,17 +48,21 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
     // if method.classview().name().unwrap_name() == CClassName::big_integer() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
-    // if /*method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) =="com/google/common/collect/StandardTable" &&*/
-    // method.name().0.to_str(&jvm.string_pool) == "get" || method.name().0.to_str(&jvm.string_pool) == "putVal"
+    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/invoke/InnerClassLambdaMetafactory" &&
+    //     method.name().0.to_str(&jvm.string_pool) == "spinInnerClass"
     // {
     //     dump_frame(interpreter_state, method, code);
-    // interpreter_state.inner().set_current_pc(Some(current_pc));
-    // dump_frame_contents(jvm, interpreter_state.inner());
-    // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    // interpreter_state.inner().set_current_pc(None);
+    //     // interpreter_state.inner().set_current_pc(Some(current_pc));
+    //     // dump_frame_contents(jvm, interpreter_state.inner());
+    //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    //     // interpreter_state.inner().set_current_pc(None);
+    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter() {
+    //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype(), CClassName::class().into())
+    // }
 
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -205,9 +212,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor),
-        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type: _ } => {
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
             // dump_frame(interpreter_state,method,code);
-            invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor)
+            invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor, *classname_ref_type)
         }
         CInstructionInfo::ior => ior(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::irem => irem(jvm, interpreter_state.current_frame_mut()),
@@ -266,13 +273,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm,interpreter_state.inner()).unwrap();
+            monitor.lock(jvm, interpreter_state.inner()).unwrap();
             PostInstructionAction::Next {}
         }
         CInstructionInfo::monitorexit => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.unlock(jvm,interpreter_state.inner()).unwrap();
+            monitor.unlock(jvm, interpreter_state.inner()).unwrap();
             // interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
             PostInstructionAction::Next {}
         }
@@ -302,7 +309,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             PostInstructionAction::Return { res: None }
         }
         CInstructionInfo::invokedynamic(cp) => {
-            invoke_dynamic(jvm,interpreter_state,*cp)
+            invoke_dynamic(jvm, interpreter_state, *cp, current_pc)
         }
         instruct => {
             interpreter_state.inner().debug_print_stack_trace(jvm);

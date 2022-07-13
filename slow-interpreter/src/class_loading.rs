@@ -148,7 +148,8 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                             let cloneable = check_loaded_class(jvm, int_state, CClassName::cloneable().into())?;
                             let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable }));
                             let obj = create_class_object(jvm, int_state, None, loader)?.duplicate_discouraged();
-                            jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj), ByAddress(res.clone()));
+                            jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj.duplicate_discouraged()), ByAddress(res.clone()));
+                            assert_eq!(obj.runtime_class(jvm).cpdtype(), CClassName::class().into());
                             res
                         }
                         CPDType::ShortType => Arc::new(RuntimeClass::Short),
@@ -315,6 +316,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
             jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, res.clone()));
             let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), BootstrapLoader)?;
             jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.clone()), ByAddress(res.clone()));
+            assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
             (class_object, res)
         }
         CPDType::Array { base_type: sub_type, num_nested_arrs } => {
@@ -326,6 +328,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
         }
     };
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
+    assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
     Ok(runtime_class)
 }
 
@@ -367,7 +370,7 @@ pub fn assert_inited_or_initing_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDTy
     let class: Arc<RuntimeClass<'gc>> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
         ClassStatus::UNPREPARED => {
-            jvm.perf_metrics.display();
+            // jvm.perf_metrics.display();
             panic!()
         }
         ClassStatus::PREPARED => panic!(),

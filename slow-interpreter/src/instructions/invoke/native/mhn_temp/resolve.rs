@@ -121,7 +121,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
     let kind = (flags_val & (ALL_KINDS as i32)) as u32;
     match kind {
         IS_FIELD => {
-            dbg!("kind:field");
             let all_fields = get_all_fields(jvm, int_state, member_name.get_clazz(jvm).gc_lifeify().as_runtime_class(jvm), true)?;
 
             let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false));
@@ -144,7 +143,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
             member_name.set_flags(jvm,new_flags);
         }
         IS_METHOD => {
-            dbg!("kind:method");
             if ref_kind == JVM_REF_invokeVirtual {
                 let (resolve_result, method_i, class) = match resolve_invoke_virtual(jvm, int_state, member_name.clone())? {
                     Ok(ok) => ok,
@@ -157,7 +155,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 };
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else if ref_kind == JVM_REF_invokeStatic {
-                dbg!("kind:invoke static");
                 let mut synthetic = false;
                 let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic)? {
                     Ok(ok) => ok,
@@ -172,7 +169,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 jvm.resolved_method_handles.write().unwrap().insert(ByAddressAllocatedObject::Owned(member_name.clone().object()), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
-                dbg!("kind:invoke interface");
                 let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {
@@ -184,7 +180,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 };
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else if ref_kind == JVM_REF_invokeSpecial {
-                dbg!("kind:invoke special");
                 let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, int_state, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {

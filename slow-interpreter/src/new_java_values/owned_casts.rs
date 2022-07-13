@@ -2,6 +2,8 @@ use crate::{AllocatedHandle, NewJavaValueHandle};
 use crate::java::lang::invoke::call_site::CallSite;
 use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
 use crate::java::lang::invoke::lambda_form::LambdaForm;
+use crate::java::lang::invoke::method_handle::MethodHandle;
+use crate::java::lang::invoke::method_handles::lookup::Lookup;
 use crate::java::lang::invoke::method_type::MethodType;
 use crate::java::lang::invoke::method_type_form::MethodTypeForm;
 use crate::java::lang::member_name::MemberName;
@@ -18,6 +20,7 @@ use crate::java::util::concurrent::concurrent_hash_map::node::Node;
 use crate::java::util::hashtable::entry::Entry;
 use crate::java::util::properties::Properties;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::sun::misc::unsafe_::Unsafe;
 
 pub trait OwnedCastAble<'gc> where Self: Sized {
     fn normal_object(self) -> AllocatedNormalObjectHandle<'gc>;
@@ -75,7 +78,15 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     fn cast_method_type_form(self) -> MethodTypeForm<'gc> {
         MethodTypeForm { normal_object: self.normal_object() }
     }
-
+    fn cast_unsafe(self) -> Unsafe<'gc> {
+        Unsafe { normal_object: self.normal_object() }
+    }
+    fn cast_method_handle(self) -> MethodHandle<'gc> {
+        MethodHandle { normal_object: self.normal_object() }
+    }
+    fn cast_lookup(self) -> Lookup<'gc> {
+        Lookup { normal_object: self.normal_object() }
+    }
 }
 
 impl<'gc> OwnedCastAble<'gc> for AllocatedHandle<'gc> {

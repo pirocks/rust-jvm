@@ -147,7 +147,7 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     //todo dup
     pub fn runtime_class(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
         let allocated_obj_type = jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(self.ptr).clone();
-        assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
+        assert_loaded_class(jvm, allocated_obj_type.as_cpdtype())
     }
 
     pub fn new_java_value<'l>(&'l self) -> NewJavaValue<'gc, 'l> {
@@ -351,6 +351,27 @@ impl<'gc, 'l> AllocatedObject<'gc, 'l> {
             }
             AllocatedObject::NormalObject(normal_obj) => normal_obj,
             AllocatedObject::ArrayObject(_) => panic!()
+        }
+    }
+
+    pub fn duplicate_discouraged(&self) -> AllocatedHandle<'gc>{
+        match self {
+            AllocatedObject::Handle(handle) => {
+                match handle {
+                    AllocatedHandle::NormalObject(normal_obj) => {
+                        normal_obj.jvm.gc.register_root_reentrant(normal_obj.jvm, normal_obj.ptr)
+                    }
+                    AllocatedHandle::Array(array_object) => {
+                        array_object.jvm.gc.register_root_reentrant(array_object.jvm, array_object.ptr)
+                    }
+                }
+            }
+            AllocatedObject::NormalObject(normal_obj) => {
+                normal_obj.jvm.gc.register_root_reentrant(normal_obj.jvm, normal_obj.ptr)
+            }
+            AllocatedObject::ArrayObject(array_object) => {
+                array_object.jvm.gc.register_root_reentrant(array_object.jvm, array_object.ptr)
+            }
         }
     }
 

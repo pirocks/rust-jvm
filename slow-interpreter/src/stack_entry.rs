@@ -634,12 +634,14 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
     }
 
     pub fn len(&self) -> u16 {
-        match self {
+        let types_len = self.types().len();
+        /*match self {
             /*OperandStackRef::LegacyInterpreter { .. } => todo!(),*/
             OperandStackRef::Jit { frame_view, jvm, pc } => {
-                todo!()
+
             }
-        }
+        }*/
+        types_len as u16
     }
 
     pub fn last(&self) -> Option<&JavaValue<'gc>> {

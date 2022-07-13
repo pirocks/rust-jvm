@@ -102,6 +102,7 @@ impl<'gc> MethodResolverImpl<'gc> {
         *match rc.method_numbers.get(&method_shape) {
             Some(x) => x,
             None => {
+                dbg!(rc.class_view.name().jvm_representation(&self.jvm.string_pool));
                 dbg!(method_shape.name.0.to_str(&self.jvm.string_pool));
                 dbg!(method_shape.desc.jvm_representation(&self.jvm.string_pool));
                 panic!()

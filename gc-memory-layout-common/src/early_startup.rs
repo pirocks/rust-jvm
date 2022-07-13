@@ -111,6 +111,7 @@ pub fn region_pointer_to_region(ptr: u64) -> Region {
     if shifted == EXTRA_LARGE_REGION_BASE as u64 {
         return Region::ExtraLarge;
     }
+    eprintln!("{:X}",ptr);
     panic!()
 }
 

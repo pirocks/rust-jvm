@@ -9,6 +9,7 @@ use std::sync::atomic::Ordering;
 use std::sync::atomic::Ordering::AcqRel;
 
 use by_address::ByAddress;
+use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm_ir::WasException;
@@ -27,10 +28,12 @@ use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::rust_jni::interface::define_class_safe;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
 use verification::{VerifierContext, verify};
 
@@ -40,23 +43,27 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    int_state.debug_print_stack_trace(jvm);
     let mut args = vec![];
-    args.push(JavaValue::Object(from_object(jvm, the_unsafe)));
-    args.push(JavaValue::Object(from_object(jvm, parent_class)));
-    args.push(JavaValue::Object(from_object(jvm, byte_array)));
-    args.push(JavaValue::Object(from_object(jvm, patches)));
+    args.push(from_object_new(jvm, the_unsafe).unwrap().new_java_value_handle());
+    args.push(from_object_new(jvm, parent_class).unwrap().new_java_value_handle());
+    args.push(from_object_new(jvm, byte_array).unwrap().new_java_value_handle());
+    args.push(match from_object_new(jvm, patches) {
+        Some(x) => x.new_java_value_handle(),
+        None => NewJavaValueHandle::Null,
+    });
 
 
-    to_object(defineAnonymousClass(jvm, int_state, &mut args).unwrap_object())
+    to_object_new(Some(defineAnonymousClass(jvm, int_state, &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
     //todo local ref
 }
 
-pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, mut args: &mut Vec<JavaValue<'gc>>) -> JavaValue<'gc> {
-    let _parent_class = &args[1]; //todo idk what this is for which is potentially problematic
-    let byte_array: Vec<u8> = args[2].unwrap_array().unwrap_byte_array(jvm).iter().map(|b| *b as u8).collect();
+pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, args: &mut Vec<NewJavaValueHandle<'gc>>) -> NewJavaValueHandle<'gc> {
+    let _parent_class = args[1].as_njv().to_handle_discouraged(); //todo idk what this is for which is potentially problematic
+    let byte_array: Vec<u8> = args[2].as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|b| b.unwrap_int() as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
-    if args[3].unwrap_object().is_some() {
-        patch_all(jvm, int_state.current_frame(), &mut args, &mut unpatched);
+    if args[3].as_njv().to_handle_discouraged().unwrap_object().is_some() {
+        patch_all(jvm, int_state.current_frame(), args, &mut unpatched);
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
@@ -64,18 +71,21 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut
 
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
-        File::create(PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        let class_name_representation = PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation();
+        File::create(format!("{}.class",class_name_representation)).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
-        Ok(res) => res.to_jv(),
+        Ok(res) => res,
         Err(_) => todo!(),
     }
 }
 
-fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<JavaValue<'gc>>, unpatched: &mut Classfile) {
-    let cp_entry_patches = args[3].unwrap_array().unwrap_object_array(jvm);
+fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<NewJavaValueHandle<'gc>>, unpatched: &mut Classfile) {
+    let array = args[3].as_njv().to_handle_discouraged().unwrap_object().unwrap();
+    let array = array.unwrap_array();
+    let cp_entry_patches = array.array_iterator().map(|obj|obj.unwrap_object()).collect_vec();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
-    cp_entry_patches.iter().enumerate().for_each(|(i, maybe_patch)| match maybe_patch {
+    cp_entry_patches.into_iter().enumerate().for_each(|(i, maybe_patch)| match maybe_patch {
         None => {}
         Some(patch) => {
             patch_single(patch, jvm, &frame, unpatched, i);
@@ -90,8 +100,8 @@ fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<
     unpatched.this_class = (unpatched.constant_pool.len() - 1) as u16;
 }
 
-fn patch_single<'gc>(patch: &GcManagedObject<'gc>, state: &JVMState<'gc>, _frame: &StackEntryRef, unpatched: &mut Classfile, i: usize) {
-    let class_name = JavaValue::Object(patch.clone().into()).to_type();
+fn patch_single<'gc>(patch: AllocatedHandle<'gc>, jvm: &'gc JVMState<'gc>, _frame: &StackEntryRef, unpatched: &mut Classfile, i: usize) {
+    let class_name = patch.runtime_class(jvm).cpdtype();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang
     // Utf8: a string (must have suitable syntax if used as signature or name)
@@ -101,10 +111,10 @@ fn patch_single<'gc>(patch: &GcManagedObject<'gc>, state: &JVMState<'gc>, _frame
     let _kind = if class_name == CClassName::string().into() {
         unimplemented!()
     } else {
-        let mut classes_guard = state.classes.write().unwrap();
+        let mut classes_guard = jvm.classes.write().unwrap();
         let mut anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
         let live_object_i = anon_class_write_guard.len();
-        anon_class_write_guard.push(todo!()/*patch.clone()*/);
+        anon_class_write_guard.push(patch);
         unpatched.constant_pool[i] = ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
     };
 }
