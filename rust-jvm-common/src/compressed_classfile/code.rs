@@ -417,7 +417,7 @@ impl CompressedInstructionInfo {
                 format!("instanceof:{}",type_.jvm_representation(string_pool))
             }
             CompressedInstructionInfo::invokedynamic(_) => {
-                todo!()
+                format!("invokedynamic")
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
                 format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool),count)

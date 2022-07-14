@@ -43,7 +43,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
     let mut args = vec![];
     args.push(from_object_new(jvm, the_unsafe).unwrap().new_java_value_handle());
     args.push(from_object_new(jvm, parent_class).unwrap().new_java_value_handle());

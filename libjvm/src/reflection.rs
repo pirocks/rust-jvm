@@ -24,6 +24,7 @@ use slow_interpreter::java::lang::float::Float;
 use slow_interpreter::java::lang::integer::Integer;
 use slow_interpreter::java::lang::long::Long;
 use slow_interpreter::java::lang::short::Short;
+use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
@@ -48,7 +49,6 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm: &'gc JVMState<'gc> = get_state(env);
-    // assert_eq!(obj, std::ptr::null_mut()); //non-static methods not supported atm.
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
@@ -119,7 +119,43 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
     };
 
-    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), int_state)
+    let res = match res {
+        NewJavaValueHandle::Long(long) => {
+            Some(Long::new(jvm,int_state, long).unwrap().full_object())
+        }
+        NewJavaValueHandle::Int(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Short(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Byte(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Boolean(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Char(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Float(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Double(_) => {
+            todo!()
+        }
+        NewJavaValueHandle::Null => {
+            None
+        }
+        NewJavaValueHandle::Object(obj) => {
+            Some(obj)
+        }
+        NewJavaValueHandle::Top => {
+            panic!()
+        }
+    };
+
+    new_local_ref_public_new(res.as_ref().map(|obj|obj.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

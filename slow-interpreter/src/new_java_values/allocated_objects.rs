@@ -15,7 +15,7 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class};
+use crate::class_loading::{assert_loaded_class};
 use crate::java_values::{GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
@@ -378,7 +378,7 @@ impl<'gc, 'l> AllocatedObject<'gc, 'l> {
     //todo dup
     pub fn runtime_class(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
         let allocated_obj_type = jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(self.ptr()).clone();
-        assert_inited_or_initing_class(jvm, allocated_obj_type.as_cpdtype())
+        assert_loaded_class(jvm, allocated_obj_type.as_cpdtype())
     }
 }
 

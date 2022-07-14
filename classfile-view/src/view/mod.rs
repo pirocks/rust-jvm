@@ -364,8 +364,7 @@ impl ClassView for ArrayView {
     }
 
     fn type_(&self) -> CPDType {
-        todo!()
-        /*CompressedParsedDescriptorType::Ref(CPRefType::Array(box self.sub.type_()))*/
+        CompressedParsedDescriptorType::array(self.sub.type_())
     }
 
     /// this is doing the heavy lifting to get all the desired methods here

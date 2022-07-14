@@ -48,8 +48,8 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
     // if method.classview().name().unwrap_name() == CClassName::big_integer() || method.name().0.to_str(&jvm.string_pool) == "getProperty" {
-    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/invoke/InnerClassLambdaMetafactory" &&
-    //     method.name().0.to_str(&jvm.string_pool) == "spinInnerClass"
+    // if (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/UNIXProcess" &&
+    //     (method.name().0.to_str(&jvm.string_pool) == "lambda$new$2" || method.name().0.to_str(&jvm.string_pool) == "<init>" )) || method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/Object$$Lambda$6"
     // {
     //     dump_frame(interpreter_state, method, code);
     //     // interpreter_state.inner().set_current_pc(Some(current_pc));

@@ -23,7 +23,6 @@ pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpre
     //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
     // and return a brand new object
     let member_name = args[0].to_handle_discouraged().cast_member_name();
-    dbg!(member_name.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
     resolve_impl(jvm, int_state, member_name)
 }
 

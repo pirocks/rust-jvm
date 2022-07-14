@@ -94,8 +94,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 todo!()
             }
             CPDType::IntType => {
-                // array.set_i(jvm, i, JavaValue::Int((carray as *const jint).offset(i as isize).read()));
-                todo!()
+                array.set_i(i, NewJavaValue::Int((carray as *const jint).offset(i as isize).read()));
             }
             CPDType::LongType => {
                 // array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));

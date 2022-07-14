@@ -364,7 +364,7 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
                 todo!()
             }
             NewJavaValue::AllocObject(obj) => {
-                RuntimeType::Ref(obj.unwrap_normal_object().runtime_class(jvm).view().name().to_runtime_type())
+                RuntimeType::Ref(obj.runtime_class(jvm).view().name().to_runtime_type())
             }
             NewJavaValue::Top => {
                 RuntimeType::TopType

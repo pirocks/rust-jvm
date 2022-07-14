@@ -370,6 +370,7 @@ pub fn assert_inited_or_initing_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDTy
     let class: Arc<RuntimeClass<'gc>> = assert_loaded_class(jvm, ptype.clone());
     match class.status() {
         ClassStatus::UNPREPARED => {
+            dbg!(ptype.jvm_representation(&jvm.string_pool));
             // jvm.perf_metrics.display();
             panic!()
         }

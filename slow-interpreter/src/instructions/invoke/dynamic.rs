@@ -9,6 +9,7 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValueHandle};
 use crate::class_loading::check_initing_or_inited_class;
@@ -26,13 +27,13 @@ use crate::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {
-    match invoke_dynamic_impl(jvm, int_state, cp, current_pc){
+    match invoke_dynamic_impl(jvm, int_state, cp, current_pc) {
         Ok(res) => {
             PostInstructionAction::Next {}
         }
-        Err(WasException{}) => {
+        Err(WasException {}) => {
             panic!();
-            PostInstructionAction::Exception { exception: WasException{} }
+            PostInstructionAction::Exception { exception: WasException {} }
         }
     }
 }
@@ -110,15 +111,15 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let target = call_site.get_target(jvm, int_state.inner())?;
     let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact()); //todo need safe java wrapper way of doing this
     let invoke = lookup_res.iter().next().unwrap();
-    let (num_args, args) = if int_state.current_frame_mut().operand_stack_depth() == 0 {
-        (0u16, vec![])
+    let (num_args, args, is_static) = if int_state.current_frame_mut().operand_stack_depth() == 0 {
+        (0u16, vec![], true)
     } else {
         let method_type = target.type__(jvm);
         let args = method_type.get_ptypes_as_types(jvm);
         let form: LambdaForm<'gc> = target.get_form(jvm)?;
         let member_name: MemberName<'gc> = form.get_vmentry(jvm);
         let static_: bool = member_name.is_static(jvm, int_state.inner())?;
-        (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args)
+        (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args, static_)
     }; //todo also sketch
     // let operand_stack_len = int_state.current_frame_mut().operand_stack(jvm).len();
     // dbg!(operand_stack_len - num_args);
@@ -127,13 +128,18 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     // int_state.current_frame_mut().operand_stack_mut().insert((operand_stack_len - num_args) as usize, target.java_value());
     //todo not passing final call args?
     // int_state.print_stack_trace();
-    dbg!(&args);
     let mut main_invoke_args_owned = vec![target.new_java_value_handle()];
+    if !is_static {
+        let arg = int_state.current_frame_mut().pop(RuntimeType::object());
+        main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
+    }
     for cpd_type in args.iter() {
         //todo is the order correct here
         let arg = int_state.current_frame_mut().pop(cpd_type.to_runtime_type().unwrap());
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }
+    main_invoke_args_owned[(1 + if is_static { 0 } else { 1 })..].reverse();
+    dbg!(main_invoke_args_owned.iter().map(|handle| handle.as_njv().rtype(jvm)).collect_vec());
     let main_invoke_args = main_invoke_args_owned.iter().map(|arg| arg.as_njv()).collect_vec();
     int_state.inner().set_current_pc(Some(dbg!(current_pc)));
     let desc = CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() };

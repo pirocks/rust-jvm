@@ -6,6 +6,7 @@ use crate::java::lang::invoke::method_handle::MethodHandle;
 use crate::java::lang::invoke::method_handles::lookup::Lookup;
 use crate::java::lang::invoke::method_type::MethodType;
 use crate::java::lang::invoke::method_type_form::MethodTypeForm;
+use crate::java::lang::long::Long;
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::constructor::Constructor;
 use crate::java::lang::reflect::field::Field;
@@ -86,6 +87,9 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     }
     fn cast_lookup(self) -> Lookup<'gc> {
         Lookup { normal_object: self.normal_object() }
+    }
+    fn cast_long(self) -> Long<'gc> {
+        Long { normal_object: self.normal_object() }
     }
 }
 

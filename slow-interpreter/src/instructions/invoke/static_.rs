@@ -52,9 +52,6 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
             }
             // args.push(int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm));
             args[1..].reverse();
-            for arg in args.iter(){
-                dbg!(arg.as_njv().rtype(jvm).try_back_to_cpdtype().unwrap().jvm_representation(&jvm.string_pool));
-            }
             invoke_static_impl(
                 jvm,
                 int_state.inner(),
@@ -123,7 +120,7 @@ pub fn invoke_static_impl<'l, 'gc>(
             // let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();
             // assert_eq!(member_name.clone().java_value().to_type(), CClassName::member_name().into());
             // interpreter_state.pop_current_operand_stack(Some(CClassName::object().into())); //todo am I sure this is an object
-            dbg!(args[0].to_handle_discouraged().unwrap_object().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+            // dbg!(args[0].to_handle_discouraged().unwrap_object().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
             assert_eq!(args[0].to_handle_discouraged().unwrap_object().unwrap().runtime_class(jvm).cpdtype(), CClassName::member_name().into());
             let member_name = args[0].to_handle_discouraged().unwrap_object_nonnull().cast_member_name();
             args.remove(0);

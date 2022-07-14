@@ -57,8 +57,6 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
     let base_object_class = args[0].as_njv().unwrap_object_alloc().unwrap().runtime_class(jvm);
-    // dbg!(args[0].to_interpreter_jv().to_new_java_handle(jvm).unwrap_object_nonnull().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
-    // dbg!(base_object_class.cpdtype().jvm_representation(&jvm.string_pool));
     let current_loader = int_state.inner().current_frame().loader(jvm);
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
     let view = resolved_rc.view();
