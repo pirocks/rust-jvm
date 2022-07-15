@@ -17,7 +17,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorExit, MultiAllocateArray, NewClass, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -380,6 +380,14 @@ impl RuntimeVMExitInput {
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(NewClass::JAVA_PC) as u16),
                 }
             }
+            RawVMExitType::NewClassRegister => {
+                RuntimeVMExitInput::NewClassRegister {
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(NewClassRegister::RESTART_IP) as *const c_void,
+                    res: NewClassRegister::RES,
+                    type_: CPDTypeID(register_state.saved_registers_without_ip.get_register(NewClassRegister::CPDTYPE_ID) as u32),
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(NewClassRegister::JAVA_PC) as u16),
+                }
+            }
             RawVMExitType::InvokeVirtualResolve => {
                 let native_method_res = register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void;
                 assert_ne!(native_method_res, null_mut());
@@ -405,6 +413,20 @@ impl RuntimeVMExitInput {
                     obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::OBJ_ADDR) as *const c_void,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorExit::RESTART_IP) as *const c_void,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(MonitorExit::JAVA_PC) as u16),
+                }
+            }
+            RawVMExitType::MonitorEnterRegister => {
+                RuntimeVMExitInput::MonitorEnterRegister {
+                    obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::OBJ) as *const c_void,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::RESTART_IP) as *const c_void,
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::JAVA_PC) as u16),
+                }
+            }
+            RawVMExitType::MonitorExitRegister => {
+                RuntimeVMExitInput::MonitorExitRegister {
+                    obj_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::OBJ) as *const c_void,
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::RESTART_IP) as *const c_void,
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(MonitorEnterRegister::JAVA_PC) as u16),
                 }
             }
             RawVMExitType::Throw => {
@@ -510,15 +532,6 @@ impl RuntimeVMExitInput {
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(AssertInstanceOf::JAVA_PC) as u16),
                     expected: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::FAST_INSTANCE_OF_RES) as u64 != 0,
                 }
-            }
-            RawVMExitType::NewClassRegister => {
-                todo!()
-            }
-            RawVMExitType::MonitorEnterRegister => {
-                todo!()
-            }
-            RawVMExitType::MonitorExitRegister => {
-                todo!()
             }
         }
     }

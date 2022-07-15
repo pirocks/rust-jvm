@@ -480,7 +480,7 @@ impl MonitorEnterRegister {
 
 impl ExitRegisterStruct for MonitorEnterRegister {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), MonitorEnter::RESTART_IP, MonitorEnter::OBJ_ADDR, Self::JAVA_PC])
+        HashSet::from([Register(0), Self::RESTART_IP, Self::OBJ, Self::JAVA_PC])
     }
 }
 
@@ -496,6 +496,20 @@ impl MonitorExit {
 impl ExitRegisterStruct for MonitorExit {
     fn all_registers() -> HashSet<Register> {
         HashSet::from([Register(0), MonitorExit::RESTART_IP, MonitorExit::OBJ_ADDR, Self::JAVA_PC])
+    }
+}
+
+pub struct MonitorExitRegister;
+
+impl MonitorExitRegister {
+    pub const OBJ: Register = Register(1);
+    pub const RESTART_IP: Register = Register(3);
+    pub const JAVA_PC: Register = Register(4);
+}
+
+impl ExitRegisterStruct for MonitorExitRegister {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::RESTART_IP, Self::OBJ, Self::JAVA_PC])
     }
 }
 
