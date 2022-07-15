@@ -105,7 +105,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let invoke = lookup_res.iter().next().unwrap();
     //todo theres a MHN native for this upcall
     let from_legacy_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool);
-    int_state.inner().set_current_pc(Some(dbg!(current_pc)));
+    int_state.inner().set_current_pc(Some(current_pc));
     let call_site = invoke_virtual_method_i(jvm, int_state.inner(), &from_legacy_desc, method_handle_class.clone(), invoke, next_invoke_virtual_args)?.unwrap();
     let call_site = call_site.cast_call_site();
     let target = call_site.get_target(jvm, int_state.inner())?;
@@ -124,7 +124,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     // let operand_stack_len = int_state.current_frame_mut().operand_stack(jvm).len();
     // dbg!(operand_stack_len - num_args);
     // dbg!(operand_stack_len);
-    dbg!(num_args);
+    // dbg!(num_args);
     // int_state.current_frame_mut().operand_stack_mut().insert((operand_stack_len - num_args) as usize, target.java_value());
     //todo not passing final call args?
     // int_state.print_stack_trace();
@@ -139,9 +139,9 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }
     main_invoke_args_owned[(1 + if is_static { 0 } else { 1 })..].reverse();
-    dbg!(main_invoke_args_owned.iter().map(|handle| handle.as_njv().rtype(jvm)).collect_vec());
+    // dbg!(main_invoke_args_owned.iter().map(|handle| handle.as_njv().rtype(jvm)).collect_vec());
     let main_invoke_args = main_invoke_args_owned.iter().map(|arg| arg.as_njv()).collect_vec();
-    int_state.inner().set_current_pc(Some(dbg!(current_pc)));
+    int_state.inner().set_current_pc(Some(current_pc));
     let desc = CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() };
     let res = invoke_virtual_method_i(jvm, int_state.inner(), &desc, method_handle_class, invoke, main_invoke_args)?;
 

@@ -120,7 +120,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     // eprintln!("{}",Backtrace::force_capture().to_string());
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
-    let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
+    let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
     // eprintln!("Interpreted:{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool));
@@ -133,15 +133,18 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let should_sync = if method.is_synchronized(){
         if method.is_static(){
             //todo
-            false
+            let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc);
+            let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
+            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            Some(monitor)
         }else {
             let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
             monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
-            true
+            Some(monitor)
         }
     }else {
-        false
+        None
     };
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
@@ -153,9 +156,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
-                if should_sync{
-                    let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
-                    let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+                if let Some(monitor) = should_sync{
                     monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
                 return Ok(res);
@@ -188,6 +189,9 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                             continue 'outer;
                         }
                     }
+                }
+                if let Some(monitor) = should_sync{
+                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
                 return Err(WasException {});
             }

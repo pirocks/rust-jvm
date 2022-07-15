@@ -98,7 +98,6 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let was_exception = int_state.throw().is_some();
     int_state.pop_frame(jvm, native_call_frame, was_exception);
     if was_exception {
-        dbg!("exception");
         Err(WasException)
     } else {
         Ok(result)

@@ -1,3 +1,4 @@
+use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
@@ -50,7 +51,7 @@ use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
-use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
+use crate::{AllocatedHandle, JavaValueCommon,  UnAllocatedObject};
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
@@ -135,7 +136,8 @@ pub struct JVMState<'gc> {
     pub class_ids: ClassIDs,
     pub inheritance_tree: InheritanceTree,
     pub bit_vec_paths: RwLock<BitVecPaths>,
-    pub interface_arrays: RwLock<InterfaceArrays>
+    pub interface_arrays: RwLock<InterfaceArrays>,
+    pub local_var_array: OnceCell<AllocatedHandle<'gc>>
 }
 
 
@@ -352,7 +354,8 @@ impl<'gc> JVMState<'gc> {
             class_ids,
             inheritance_tree,
             bit_vec_paths: bt_vec_paths,
-            interface_arrays: RwLock::new(InterfaceArrays::new())
+            interface_arrays: RwLock::new(InterfaceArrays::new()),
+            local_var_array: Default::default()
         };
         (args, jvm)
     }

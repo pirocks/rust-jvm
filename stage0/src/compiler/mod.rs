@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
+use std::iter::repeat;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use itertools::Either;
@@ -7,6 +8,7 @@ use itertools::Either;
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
@@ -219,6 +221,9 @@ pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodI
 
 pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
+    let class_cpdtype = resolver.using_method_view_impl(method_frame_data.current_method_id,|method_view|{
+        method_view.classview().type_()
+    });
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0), IRInstr::IRStart {
         temp_register: Register(1),
         ir_method_id: reserved_ir_method_id,
@@ -227,10 +232,23 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         num_locals: method_frame_data.layout.max_locals as usize,
     })];
 
+    let mut compiler_labeler = CompilerLabeler {
+        labeler,
+        labels_vec: vec![],
+        label_to_index: Default::default(),
+        index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
+    };
+    let mut restart_point_generator = RestartPointGenerator::new();
+    let mut prev_offset: Option<ByteCodeOffset> = None;
+
     if method_frame_data.should_synchronize {
         if method_frame_data.is_static {
-
-            // todo!("and do the corresponding monitor exits")
+            final_ir_without_labels.extend(repeat(ByteCodeOffset(0)).zip(monitor_enter_static(resolver, method_frame_data, &CurrentInstructionCompilerData {
+                current_index: ByteCodeIndex(0),
+                next_index: ByteCodeIndex(1),
+                current_offset : ByteCodeOffset(0),
+                compiler_labeler: &mut compiler_labeler,
+            }, recompile_conditions, &mut restart_point_generator, class_cpdtype)))
         } else {
             final_ir_without_labels.push((ByteCodeOffset(0), IRInstr::VMExit2 {
                 exit_type: IRVMExitType::MonitorEnter {
@@ -241,14 +259,6 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         }
     }
 
-    let mut compiler_labeler = CompilerLabeler {
-        labeler,
-        labels_vec: vec![],
-        label_to_index: Default::default(),
-        index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
-    };
-    let mut restart_point_generator = RestartPointGenerator::new();
-    let mut prev_offset: Option<ByteCodeOffset> = None;
     for (i, compressed_instruction) in cinstructions.iter().enumerate() {
         let current_offset = compressed_instruction.offset;
         let current_index = ByteCodeIndex(i as u16);
@@ -273,15 +283,15 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(invokestatic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, classname_ref_type));
             }
             CompressedInstructionInfo::return_ => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(return_void(method_frame_data));
             }
             CompressedInstructionInfo::ireturn => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(ireturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::freturn => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(freturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::aload_0 => {
@@ -452,15 +462,15 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(athrow(method_frame_data, &current_instr_data));
             }
             CompressedInstructionInfo::areturn => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(areturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::lreturn => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(lreturn(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::dreturn => {
-                synchronize_exit(method_frame_data, &mut this_function_ir);
+                synchronize_exit(resolver, method_frame_data, &current_instr_data, recompile_conditions, &mut restart_point_generator, class_cpdtype, &mut this_function_ir);
                 this_function_ir.extend(dreturn(method_frame_data, current_instr_data));
             }
             CompressedInstructionInfo::iload_1 => {
@@ -923,10 +933,93 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
     final_ir
 }
 
-fn synchronize_exit(method_frame_data: &JavaCompilerMethodAndFrameData, this_function_ir: &mut Vec<IRInstr>) {
+fn monitor_enter_static<'gc>(
+    resolver: &impl MethodResolver<'gc>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: &CurrentInstructionCompilerData,
+    recompile_conditions: &mut MethodRecompileConditions,
+    restart_point_generator: &mut RestartPointGenerator,
+    type_: CPDType,
+) -> impl Iterator<Item=IRInstr> {
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let to_load_cpdtype = type_.clone();
+    let cpd_type_id = resolver.get_cpdtype_id(to_load_cpdtype);
+    //todo we could do this in the exit and cut down on recompilations
+    match resolver.lookup_type_inited_initing(&to_load_cpdtype) {
+        None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: to_load_cpdtype });
+            Either::Right(array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: cpd_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id,
+                    java_pc: current_instr_data.current_offset,
+                }
+            }]))
+        }
+        Some((_loaded_class, _loader)) => {
+            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::NewClassRegister {
+                    res: Register(1),
+                    type_: cpd_type_id,
+                    java_pc: current_instr_data.current_offset,
+                }
+            }, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::MonitorEnterRegister { obj: Register(1), java_pc: ByteCodeOffset(0) }
+            }]))
+        }
+    }
+}
+
+fn monitor_exit_static<'gc>(
+    resolver: &impl MethodResolver<'gc>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: &CurrentInstructionCompilerData,
+    recompile_conditions: &mut MethodRecompileConditions,
+    restart_point_generator: &mut RestartPointGenerator,
+    type_: CPDType,
+) -> impl Iterator<Item=IRInstr> {
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+    let to_load_cpdtype = type_.clone();
+    let cpd_type_id = resolver.get_cpdtype_id(to_load_cpdtype);
+    //todo we could do this in the exit and cut down on recompilations
+    match resolver.lookup_type_inited_initing(&to_load_cpdtype) {
+        None => {
+            recompile_conditions.add_condition(NeedsRecompileIf::ClassLoaded { class: to_load_cpdtype });
+            Either::Right(array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InitClassAndRecompile {
+                    class: cpd_type_id,
+                    this_method_id: method_frame_data.current_method_id,
+                    restart_point_id,
+                    java_pc: current_instr_data.current_offset,
+                }
+            }]))
+        }
+        Some((_loaded_class, _loader)) => {
+            Either::Left(array_into_iter([restart_point, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::NewClassRegister {
+                    res: Register(1),
+                    type_: cpd_type_id,
+                    java_pc: current_instr_data.current_offset,
+                }
+            }, IRInstr::VMExit2 {
+                exit_type: IRVMExitType::MonitorExitRegister { obj: Register(1), java_pc: ByteCodeOffset(0) }
+            }]))
+        }
+    }
+}
+
+fn synchronize_exit<'gc>(resolver: &impl MethodResolver<'gc>,
+                         method_frame_data: &JavaCompilerMethodAndFrameData,
+                         current_instr_data: &CurrentInstructionCompilerData,
+                         recompile_conditions: &mut MethodRecompileConditions,
+                         restart_point_generator: &mut RestartPointGenerator,
+                         type_: CPDType, this_function_ir: &mut Vec<IRInstr>) {
     if method_frame_data.should_synchronize {
         if method_frame_data.is_static {
-            // todo
+            this_function_ir.extend(monitor_exit_static(resolver, method_frame_data, current_instr_data, recompile_conditions, restart_point_generator, type_));
         } else {
             this_function_ir.push(IRInstr::VMExit2 { exit_type: IRVMExitType::MonitorExit { obj: method_frame_data.local_var_entry(ByteCodeIndex(0), 0), java_pc: ByteCodeOffset(0) } });
         }

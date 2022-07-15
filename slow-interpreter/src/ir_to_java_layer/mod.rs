@@ -120,14 +120,23 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr, pc: _ } => {
                 exit_impls::new_class(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
             }
+            RuntimeVMExitInput::NewClassRegister { return_to_ptr, res, type_, pc } => {
+                exit_impls::new_class_register(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
+            }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, method_number, native_method_restart_point, native_method_res, pc: _ } => {
                 exit_impls::invoke_virtual_resolve(jvm, int_state.unwrap(), *return_to_ptr, *object_ref_ptr, *method_shape_id, MethodNumber(*method_number), *native_method_restart_point, *native_method_res)
             }
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr, pc: _ } => {
-                exit_impls::monitor_enter(jvm, int_state.unwrap(), obj_ptr, return_to_ptr)
+                exit_impls::monitor_enter(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr, pc: _ } => {
-                exit_impls::monitor_exit(jvm, int_state.unwrap(), obj_ptr, return_to_ptr)
+                exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
+            }
+            RuntimeVMExitInput::MonitorEnterRegister { obj_ptr, return_to_ptr, pc } => {
+                exit_impls::monitor_enter(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
+            }
+            RuntimeVMExitInput::MonitorExitRegister { obj_ptr, return_to_ptr, pc } => {
+                exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_name, cpdtype_id, return_to_ptr, pc: _ } => {
                 exit_impls::get_static(jvm, int_state.unwrap(), *value_ptr, *field_name, *cpdtype_id, *return_to_ptr)

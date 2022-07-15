@@ -5,6 +5,7 @@ use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 use add_only_static_vec::AddOnlyId;
+use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -45,6 +46,9 @@ pub enum RawVMExitType {
     Throw,
     InstanceOf,
     AssertInstanceOf,
+    NewClassRegister,
+    MonitorEnterRegister,
+    MonitorExitRegister,
     CheckCast,
     RunNativeVirtual,
     RunNativeSpecial,
@@ -169,6 +173,12 @@ pub enum RuntimeVMExitInput {
         type_: CPDTypeID,
         pc: ByteCodeOffset,
     },
+    NewClassRegister {
+        return_to_ptr: *const c_void,
+        res: Register,
+        type_: CPDTypeID,
+        pc: ByteCodeOffset,
+    },
     InvokeVirtualResolve {
         return_to_ptr: *const c_void,
         object_ref_ptr: *const c_void,
@@ -193,7 +203,17 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         pc: ByteCodeOffset,
     },
+    MonitorEnterRegister {
+        obj_ptr: *const c_void,
+        return_to_ptr: *const c_void,
+        pc: ByteCodeOffset,
+    },
     MonitorExit {
+        obj_ptr: *const c_void,
+        return_to_ptr: *const c_void,
+        pc: ByteCodeOffset,
+    },
+    MonitorExitRegister {
         obj_ptr: *const c_void,
         return_to_ptr: *const c_void,
         pc: ByteCodeOffset,
@@ -491,6 +511,15 @@ impl RuntimeVMExitInput {
                     expected: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::FAST_INSTANCE_OF_RES) as u64 != 0,
                 }
             }
+            RawVMExitType::NewClassRegister => {
+                todo!()
+            }
+            RawVMExitType::MonitorEnterRegister => {
+                todo!()
+            }
+            RawVMExitType::MonitorExitRegister => {
+                todo!()
+            }
         }
     }
 
@@ -526,7 +555,10 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::RunNativeSpecialNew { .. } => None,
             RuntimeVMExitInput::RunNativeStaticNew { .. } => None,
             RuntimeVMExitInput::RunInterpreted { .. } => None,
-            RuntimeVMExitInput::AssertInstanceOf { pc, .. } => Some(*pc)
+            RuntimeVMExitInput::AssertInstanceOf { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::NewClassRegister { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::MonitorEnterRegister { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::MonitorExitRegister { pc, .. } => Some(*pc),
         }
     }
 }

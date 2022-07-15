@@ -105,6 +105,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id,false);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
     let local_var_array = setup_program_args(&jvm, int_state, args);
+    jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
     let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
     let main_frame_guard = int_state.push_frame(stack_entry);

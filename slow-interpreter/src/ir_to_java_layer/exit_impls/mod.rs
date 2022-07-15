@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 
 use libc::memset;
+use another_jit_vm::Register;
 
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::{IRVMExitAction, WasException};
@@ -238,23 +239,23 @@ pub fn get_static<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 }
 
 #[inline(never)]
-pub fn monitor_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: &*const c_void, return_to_ptr: &*const c_void) -> IRVMExitAction {
+pub fn monitor_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("MonitorExit");
     }
-    let monitor = jvm.monitor_for(*obj_ptr);
+    let monitor = jvm.monitor_for(obj_ptr);
     monitor.unlock(jvm, int_state).unwrap();
-    IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+    IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 #[inline(never)]
-pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: &*const c_void, return_to_ptr: &*const c_void) -> IRVMExitAction {
+pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("MonitorEnter");
     }
-    let monitor = jvm.monitor_for(*obj_ptr);
+    let monitor = jvm.monitor_for(obj_ptr);
     monitor.lock(jvm, int_state).unwrap();
-    IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
+    IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 #[inline(never)]
@@ -374,19 +375,38 @@ fn invoke_virtual_full<'gc>(
     resolved_vtable_entry.resolved().unwrap()
 }
 
+fn new_class_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc,'_>, type_: CPDTypeID) -> NewJavaValueHandle<'gc> {
+    let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(type_).clone();
+    let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
+    jclass.new_java_value_handle()
+}
+
 #[inline(never)]
 pub fn new_class<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID, res: *mut c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("NewClass");
     }
-    let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(type_).clone();
-    let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
-    let jv_new_handle = jclass.new_java_value_handle();
+    let jv_new_handle = new_class_impl(jvm, int_state, type_);
     unsafe {
         let raw_64 = jv_new_handle.as_njv().to_native().as_u64;
         (res as *mut u64).write(raw_64);
     };
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
+}
+
+#[inline(never)]
+pub fn new_class_register<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID, res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
+    if jvm.exit_trace_options.tracing_enabled() {
+        eprintln!("NewClassRegister");
+    }
+    let jv_new_handle = new_class_impl(jvm, int_state, type_);
+    let mut diff = SavedRegistersWithIPDiff::no_change();
+    unsafe {
+        let raw_64 = jv_new_handle.as_njv().to_native().as_u64;
+        diff.saved_registers_without_ip.rbx = Some(raw_64 as *const c_void);
+    };
+    diff.rip = Some(return_to_ptr);
+    IRVMExitAction::RestartWithRegisterState { diff }
 }
 
 #[inline(never)]
@@ -654,7 +674,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                     }
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
-                    eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
+                    // eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
                     let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
                     let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);

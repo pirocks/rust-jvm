@@ -316,6 +316,21 @@ impl ExitRegisterStruct for NewClass {
     }
 }
 
+pub struct NewClassRegister;
+
+impl NewClassRegister {
+    pub const RES: Register = Register(1);
+    pub const CPDTYPE_ID: Register = Register(2);
+    pub const RESTART_IP: Register = Register(4);
+    pub const JAVA_PC: Register = Register(5);
+}
+
+impl ExitRegisterStruct for NewClassRegister {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), NewClassRegister::RES, NewClassRegister::CPDTYPE_ID, NewClassRegister::RESTART_IP, Self::JAVA_PC])
+    }
+}
+
 pub struct InstanceOf;
 
 impl InstanceOf {
@@ -454,6 +469,21 @@ impl ExitRegisterStruct for MonitorEnter {
         HashSet::from([Register(0), MonitorEnter::RESTART_IP, MonitorEnter::OBJ_ADDR, Self::JAVA_PC])
     }
 }
+
+pub struct MonitorEnterRegister;
+
+impl MonitorEnterRegister {
+    pub const OBJ: Register = Register(1);
+    pub const RESTART_IP: Register = Register(3);
+    pub const JAVA_PC: Register = Register(4);
+}
+
+impl ExitRegisterStruct for MonitorEnterRegister {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), MonitorEnter::RESTART_IP, MonitorEnter::OBJ_ADDR, Self::JAVA_PC])
+    }
+}
+
 
 pub struct MonitorExit;
 

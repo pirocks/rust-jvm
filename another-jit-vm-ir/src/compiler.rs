@@ -294,6 +294,9 @@ impl IRInstr {
                     }
                     IRVMExitType::RunInterpreted { .. } => { "RunInterpreted" }
                     IRVMExitType::AssertInstanceOf { .. } => { "AssertInstanceOf" }
+                    IRVMExitType::NewClassRegister { .. } => { "NewClassRegister" }
+                    IRVMExitType::MonitorEnterRegister { .. } => { "MonitorEnterRegister" }
+                    IRVMExitType::MonitorExitRegister { .. } => { "MonitorExitRegister" }
                 })
             }
             IRInstr::NPECheck { .. } => {

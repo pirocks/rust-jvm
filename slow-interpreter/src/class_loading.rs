@@ -184,10 +184,10 @@ impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
         Ok(match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
             Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
             Err(err) => {
-                eprintln!("WARN: CLASS NOT FOUND WHILE VERIFYING:");
-                dbg!(vf_context.current_class.0.to_str(&vf_context.string_pool));
-                dbg!(&err);
-                dbg!(class.0.to_str(&self.jvm.string_pool));
+                // eprintln!("WARN: CLASS NOT FOUND WHILE VERIFYING:");
+                // dbg!(vf_context.current_class.0.to_str(&vf_context.string_pool));
+                // dbg!(&err);
+                // dbg!(class.0.to_str(&self.jvm.string_pool));
                 return Err(err);
             }
         })
@@ -231,7 +231,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
 
                     let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.full_object();
                     let throwable = exception.cast_throwable();
-                    throwable.print_stack_trace(jvm,int_state).unwrap();
+                    // throwable.print_stack_trace(jvm,int_state).unwrap();
                     int_state.set_throw(Some(throwable.full_object()));
                     return Err(WasException {});
                 }
@@ -272,7 +272,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
                     let jstring = JString::from_rust(jvm,int_state, Wtf8Buf::from_string(class_name.get_referred_name().clone())).unwrap();
                     let exception = ClassNotFoundException::new(jvm, int_state, jstring)?.full_object();
                     let throwable = exception.cast_throwable();
-                    throwable.print_stack_trace(jvm,int_state).unwrap();
+                    // throwable.print_stack_trace(jvm,int_state).unwrap();
                     int_state.set_throw(Some(throwable.full_object()));
                     return Err(WasException{});
                 }

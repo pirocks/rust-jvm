@@ -281,8 +281,10 @@ impl<'gc> AllocatedHandle<'gc> {
 
     pub fn duplicate_discouraged(&self) -> Self {
         match self {
-            AllocatedHandle::Array(_arr) => {
-                todo!()
+            AllocatedHandle::Array(arr) => {
+                let fix_this = arr.jvm.gc.register_root_reentrant(arr.jvm, arr.ptr);
+                std::mem::forget(fix_this);
+                AllocatedHandle::Array(AllocatedArrayObjectHandle{ jvm: arr.jvm, ptr: arr.ptr })
             }
             AllocatedHandle::NormalObject(handle) => {
                 AllocatedHandle::NormalObject(handle.duplicate_discouraged())
