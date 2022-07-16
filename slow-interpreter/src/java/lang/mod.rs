@@ -264,7 +264,7 @@ pub mod class {
     use another_jit_vm_ir::WasException;
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::class_loading::check_initing_or_inited_class;
@@ -277,6 +277,7 @@ pub mod class {
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::utils::run_static_or_virtual;
 
     pub struct JClass<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -365,6 +366,14 @@ pub mod class {
             let result_popped_from_operand_stack: JavaValue<'gc> = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
             Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))*/
             todo!()
+        }
+
+        pub fn get_generic_interfaces<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+            let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
+            let args = vec![self.new_java_value()];
+            let desc = CMethodDescriptor::empty_args(CPDType::array(CClassName::type_().into()).into());
+            let res = run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getGenericInterfaces(), &desc, args)?.unwrap();
+            Ok(res)
         }
 
         pub fn set_name_(&self, jvm: &'gc JVMState<'gc>, name: JString<'gc>) {

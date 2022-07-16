@@ -48,6 +48,7 @@ use slow_interpreter::utils::throw_npe;
 
 pub mod constant_pool;
 pub mod is_x;
+pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
@@ -154,6 +155,9 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
     let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
 
+    dbg!(rc.cpdtype().jvm_representation(&jvm.string_pool));
+    dbg!(rc.view().signature_attr().unwrap().to_string_lossy());
+
     let signature = match rc.view().signature_attr() {
         Some(x) => x,
         None => todo!(),
@@ -164,8 +168,6 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
         Err(WasException) => null_mut(),
     }
 }
-
-pub mod get_methods;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass) -> jint {

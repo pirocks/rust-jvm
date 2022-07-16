@@ -97,6 +97,10 @@ impl PType {
         }
         res
     }
+
+    pub fn from_class(class: ClassName) -> PType{
+        PType::Ref(ReferenceType::Class(class))
+    }
 }
 
 impl Clone for PType {

@@ -1173,7 +1173,7 @@ impl Classfile{
 
 pub type Interface = u16;
 
-impl std::cmp::PartialEq for Classfile {
+impl PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {
         self.magic == other.magic && self.minor_version == other.minor_version && self.major_version == other.major_version && self.constant_pool == other.constant_pool && self.access_flags == other.access_flags && self.this_class == other.this_class && self.super_class == other.super_class && self.interfaces == other.interfaces && self.fields == other.fields && self.methods == other.methods && self.attributes == other.attributes
     }

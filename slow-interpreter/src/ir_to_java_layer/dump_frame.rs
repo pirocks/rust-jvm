@@ -118,12 +118,7 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGu
             eprint!("#{}: {:?}(biginteger:{})\t", i, ptr, as_string);
         }*/ else {
             let ptr = obj.ptr();
-            let save = IN_TO_STRING;
-            IN_TO_STRING = true;
-            if !save {
                 eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), "");
-            }
-            IN_TO_STRING = save;
         }
     }
 }

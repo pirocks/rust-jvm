@@ -462,6 +462,7 @@ enum PredefinedStrings {
     method_start,
     method_toString,
     method_initializeSystemClass,
+    method_getGenericInterfaces,
     method_putIfAbsent,
     method_get,
     method_destructiveMulAdd,
@@ -644,7 +645,8 @@ impl PredefinedStrings {
             field_signum => "signum".to_string(),
             field_mag => "mag".to_string(),
             method_destructiveMulAdd => "destructiveMulAdd".to_string(),
-            INVALID => "__rust_jvm_invalid".to_string()
+            INVALID => "__rust_jvm_invalid".to_string(),
+            method_getGenericInterfaces => "getGenericInterfaces".to_string()
         }
     }
 }
@@ -1044,6 +1046,9 @@ impl MethodName {
     }
     pub fn method_initializeSystemClass() -> Self {
         Self::from_raw_id(method_initializeSystemClass)
+    }
+    pub fn method_getGenericInterfaces() -> Self {
+        Self::from_raw_id(method_getGenericInterfaces)
     }
     pub fn method_parameterType() -> Self {
         Self::from_raw_id(field_and_method_parameterType)

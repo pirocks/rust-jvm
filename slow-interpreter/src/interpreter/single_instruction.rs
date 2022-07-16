@@ -51,15 +51,15 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rd" && method.name().0.to_str(&jvm.string_pool) == "a") ||
         // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "up" && method.name().0.to_str(&jvm.string_pool) == "c")
         // {
-    // if method.name().0.to_str(&jvm.string_pool) == "getGenericSupertype"
+    // if method.name().0.to_str(&jvm.string_pool) == "reifyTypeArguments"
     //     (method.name().0.to_str(&jvm.string_pool) == "lambda$new$2" || method.name().0.to_str(&jvm.string_pool) == "<init>" )) || method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/Object$$Lambda$6"
     // {
     //     dump_frame(interpreter_state, method, code);
-    //     // interpreter_state.inner().set_current_pc(Some(current_pc));
-    //     // dump_frame_contents(jvm, interpreter_state.inner());
-    //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    //     // interpreter_state.inner().set_current_pc(None);
     //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+        //     // interpreter_state.inner().set_current_pc(Some(current_pc));
+        //     dump_frame_contents(jvm, interpreter_state.inner());
+        //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+        //     // interpreter_state.inner().set_current_pc(None);
     // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));

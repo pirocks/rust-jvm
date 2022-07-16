@@ -1,12 +1,13 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
+use std::iter::FromIterator;
 
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;
 
 use crate::JVMState;
 use crate::loading::Classpath;
-use crate::options::InstructionTraceOptions::{TraceNone};
+use crate::options::InstructionTraceOptions::{TraceAll, TraceNone};
 
 pub struct SharedLibraryPaths {
     pub(crate) libjava: OsString,
@@ -98,32 +99,32 @@ impl JVMOptions {
         unittest_mode: bool,
         store_generated_classes: bool,
         debug_print_exceptions: bool,
-        assertions_enabled: bool
+        assertions_enabled: bool,
     ) -> Self {
-       // let trace_set = HashSet::from_iter(vec![
-       //     /* MethodToTrace {
-       //          combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
-       //      },*/
-       //      /*MethodToTrace {
-       //          combined: "com/google/common/collect/StandardTable/put".to_string(),
-       //      },*/
-       //    /* MethodToTrace {
-       //         combined: "java/util/AbstractMap/hashCode".to_string(),
-       //     },
-       //     MethodToTrace {
-       //         combined: "java/util/HashMap/hash".to_string(),
-       //     },*/
-       //     // MethodToTrace {
-       //     //     combined: "java/math/BigInteger/oddModPow".to_string(),
-       //     // },
-       //      // MethodToTrace {
-       //      //     combined: "java/math/MutableBigInteger/divideKnuth".to_string(),
-       //      // },
-       //     MethodToTrace {
-       //         combined: "java/lang/ClassLoader/loadClass".to_string(),
-       //     }
-       //  ].into_iter());
-        let trace_options = TraceNone;
+        let trace_set = HashSet::from_iter(vec![
+            //     /* MethodToTrace {
+            //          combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
+            //      },*/
+            //      /*MethodToTrace {
+            //          combined: "com/google/common/collect/StandardTable/put".to_string(),
+            //      },*/
+            //    /* MethodToTrace {
+            //         combined: "java/util/AbstractMap/hashCode".to_string(),
+            //     },
+            //     MethodToTrace {
+            //         combined: "java/util/HashMap/hash".to_string(),
+            //     },*/
+            MethodToTrace {
+                combined: "sun/reflect/generics/visitor/Reifier/reifyTypeArguments".to_string(),
+            },
+            MethodToTrace {
+                combined: "sun/reflect/generics/reflectiveObjects/ParameterizedTypeImpl/<init>".to_string(),
+            },
+            // MethodToTrace {
+            //     combined: "com/google/gson/internal/$Gson$Types/resolve".to_string(),
+            // },
+        ].into_iter());
+        let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {
             main_class_name,
             classpath,

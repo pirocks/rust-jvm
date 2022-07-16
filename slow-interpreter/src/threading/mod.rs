@@ -20,11 +20,15 @@ use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::{JavaThreadId};
+use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::ptype::PType;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
+use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::{InterpreterState};
 use crate::interpreter_util::{ new_object_full};
@@ -128,7 +132,18 @@ impl<'gc> ThreadState<'gc> {
     }
 
     pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, loader_obj: ClassLoader<'gc>){
+        // for _ in 0..100{
+        //     let list_cpdtype = CPDType::from_ptype(&PType::from_class(ClassName::Str("java/util/ArrayList".to_string())), &jvm.string_pool);
+        //     let list_class_object = get_or_create_class_object(jvm,list_cpdtype,int_state).unwrap();
+        //     let list_class = list_class_object.cast_class();
+        //     let array_types = list_class.get_generic_interfaces(jvm,int_state).unwrap();
+        //     for array_elem in array_types.unwrap_object_nonnull().unwrap_array().array_iterator() {
+        //         assert!(array_elem.unwrap_object().is_some());
+        //         // array_elem.unwrap_object_nonnull();
+        //     }
+        // }
 
+        // let list_class = check_initing_or_inited_class(jvm, int_state, list_cpdtype).unwrap();
         // let input = vec![0,2328,1316134912];
         // let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{
         //     whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::IntType)).unwrap(),
