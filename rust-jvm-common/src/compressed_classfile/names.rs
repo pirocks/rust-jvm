@@ -502,7 +502,7 @@ impl PredefinedStrings {
             JAVA_LANG_REFLECT_CONSTRUCTOR => ClassName::constructor().get_referred_name().to_string(),
             JAVA_LANG_CLASSLOADER => ClassName::classloader().get_referred_name().to_string(),
             JAVA_LANG_STACK_TRACE_ELEMENT => ClassName::stack_trace_element().get_referred_name().to_string(),
-            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => "java/lang/ArrayOutOfBoundsException".to_string(),
+            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => "java/lang/ArrayIndexOutOfBoundsException".to_string(),
             JAVA_LANG_NULL_POINTER_EXCEPTION => "java/lang/NullPointerException".to_string(),
             JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION => "java/lang/IllegalArgumentException".to_string(),
             JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION => "java/lang/ClassNotFoundException".to_string(),

@@ -17,7 +17,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -31,6 +31,7 @@ pub enum RawVMExitType {
     TopLevelReturn,
     CompileFunctionAndRecompileCurrent,
     NPE,
+    ArrayOutOfBounds,
     PutStatic,
     GetStatic,
     LogFramePointerOffsetValue,
@@ -111,6 +112,9 @@ pub enum RuntimeVMExitInput {
         pc: ByteCodeOffset,
     },
     NPE {
+        pc: ByteCodeOffset
+    },
+    ArrayOutOfBounds {
         pc: ByteCodeOffset
     },
     TopLevelReturn {
@@ -533,6 +537,11 @@ impl RuntimeVMExitInput {
                     expected: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::FAST_INSTANCE_OF_RES) as u64 != 0,
                 }
             }
+            RawVMExitType::ArrayOutOfBounds => {
+                RuntimeVMExitInput::ArrayOutOfBounds {
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::JAVA_PC) as u16)
+                }
+            }
         }
     }
 
@@ -572,6 +581,7 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::NewClassRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorEnterRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorExitRegister { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::ArrayOutOfBounds { pc, .. } => Some(*pc)
         }
     }
 }

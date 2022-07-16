@@ -145,6 +145,8 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         //todo this is incorrect and should be implemented properly.
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
         Some(NewJavaValueHandle::Int(4096)) //todo actually get page size
+    } else if &mangled == "Java_sun_misc_Unsafe_putLong__Ljava_lang_Object_2JJ" {
+        todo!()
     } else {
         int_state.debug_print_stack_trace(jvm);
         dbg!(mangled);

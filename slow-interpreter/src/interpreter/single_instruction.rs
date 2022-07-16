@@ -2,7 +2,6 @@ use std::ops::Deref;
 
 use itertools::Either;
 use libc::c_void;
-use classfile_view::view::ClassView;
 
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
@@ -48,8 +47,11 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     function_counter.increment();
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
-    if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rc" && method.name().0.to_str(&jvm.string_pool) == "a" {
-    // if (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/UNIXProcess" &&
+    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "io/netty/util/concurrent/SingleThreadEventExecutor" && method.name().0.to_str(&jvm.string_pool) == "startThread"
+        // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rd" && method.name().0.to_str(&jvm.string_pool) == "a") ||
+        // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "up" && method.name().0.to_str(&jvm.string_pool) == "c")
+        // {
+    // if method.name().0.to_str(&jvm.string_pool) == "getGenericSupertype"
     //     (method.name().0.to_str(&jvm.string_pool) == "lambda$new$2" || method.name().0.to_str(&jvm.string_pool) == "<init>" )) || method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/Object$$Lambda$6"
     // {
     //     dump_frame(interpreter_state, method, code);
@@ -57,8 +59,8 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //     // dump_frame_contents(jvm, interpreter_state.inner());
     //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     //     // interpreter_state.inner().set_current_pc(None);
-        eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    }
+    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
     // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter() {

@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
+use wtf8::Wtf8Buf;
 
 use classfile_parser::attribute_infos::{runtime_annotations_to_bytes};
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
@@ -71,6 +72,7 @@ pub trait ClassView: HasAccessFlags {
     fn num_interfaces(&self) -> usize;
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView>;
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
+    fn signature_attr(&self) -> Option<Wtf8Buf>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
     fn annotations(&self) -> Option<Vec<u8>>;
@@ -179,6 +181,24 @@ impl ClassView for ClassBackedView {
             .next()?;
         Some(SourceFileView { backing_class: self, i })
     }
+
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
+        let signature_index = self
+            .underlying_class
+            .attributes
+            .iter()
+            .find(|attr| matches!(attr.attribute_type, AttributeType::Signature(_)))
+            .map(|attr| match &attr.attribute_type{
+                AttributeType::Signature(signature) => {
+                    signature.signature_index
+                }
+                _ => {
+                    panic!()
+                }
+            })?;
+        Some(self.underlying_class.constant_pool[signature_index as usize].extract_string_from_utf8())
+    }
+
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.underlying_class.attributes.iter().enumerate().find(|(_i, attr)| matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))).map(|(i, _)| EnclosingMethodView { backing_class: self, i })
     }
@@ -320,6 +340,10 @@ impl ClassView for PrimitiveView {
         None
     }
 
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
+        None
+    }
+
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         None
     }
@@ -418,6 +442,10 @@ impl ClassView for ArrayView {
     }
 
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
+        None
+    }
+
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
         None
     }
 

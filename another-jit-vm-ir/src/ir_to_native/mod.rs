@@ -155,8 +155,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::ShiftRight { res, a, cl_aka_register_2, size, signed } => {
             shift_right(assembler, *res, *a, *cl_aka_register_2, *size, *signed)
         }
-        IRInstr::BoundsCheck { length, index, size } => {
-            bounds_check(assembler, *length, *index, *size);
+        IRInstr::BoundsCheck { length, index, size, exit } => {
+            bounds_check(assembler, *length, *index, *size, exit);
         }
         IRInstr::MulConst { res, a, size, signed } => {
             mul_const(assembler, *res, a, *size, signed);

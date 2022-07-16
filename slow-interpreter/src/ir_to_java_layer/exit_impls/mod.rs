@@ -34,6 +34,7 @@ use crate::instructions::invoke::virtual_::virtual_method_lookup;
 use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::java::lang::class::JClass;
 use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
@@ -45,6 +46,16 @@ use crate::utils::lookup_method_parsed;
 pub mod multi_allocate_array;
 pub mod new_run_native;
 
+#[inline(never)]
+pub fn array_out_of_bounds<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> IRVMExitAction {
+    if jvm.exit_trace_options.tracing_enabled() {
+        eprintln!("ArrayOutOfBounds");
+    }
+    assert!(int_state.throw().is_none());
+    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, int_state).unwrap();
+    let throwable = array_out_of_bounds.object().cast_throwable();
+    throw_impl(&jvm, int_state, throwable.new_java_value_handle())
+}
 
 #[inline(never)]
 pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_ptr: *const c_void) -> IRVMExitAction {

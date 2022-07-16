@@ -64,7 +64,7 @@ fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_
         IRInstr::Const64bit { to: native_jv_size_register, const_: native_jv_size as u64 },
         IRInstr::Load { to: length, from_address: array_ref, size: Size::int() },
         IRInstr::Add { res: array_ref, a: native_jv_size_register, size: Size::pointer() },
-        IRInstr::BoundsCheck { length, index, size: Size::int() },
+        IRInstr::BoundsCheck { length, index, size: Size::int(), exit: IRVMExitType::ArrayOutOfBounds { java_pc: current_instr_data.current_offset } },
         IRInstr::MulConst { res: index, a: native_jv_size as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
         IRInstr::Store { from: value, to_address: array_ref, size: elem_register_size }

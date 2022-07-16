@@ -109,7 +109,7 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
         permissive_types_workaround: false,
     };
     let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
-    res as jboolean
+    dbg!(res as jboolean)
 }
 
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {

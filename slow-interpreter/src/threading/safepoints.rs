@@ -271,6 +271,7 @@ impl<'gc> SafePoint<'gc> {
 
             guard.waiting_monitor_notify = None;
             if should_reacquire {
+                int_state.debug_print_stack_trace(jvm);
                 let monitors_gaurd = jvm.thread_state.monitors.read().unwrap();
                 let monitor = &monitors_gaurd[monitor].clone();
                 drop(guard);

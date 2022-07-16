@@ -342,8 +342,8 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
             }
         }
     };
-    dbg!(matching_method.unwrap().class.class_name.0.to_str(&vf.string_pool));
-    dbg!(matching_method.unwrap().method_index);
+    // dbg!(matching_method.unwrap().class.class_name.0.to_str(&vf.string_pool));
+    // dbg!(matching_method.unwrap().method_index);
     // Result::Err(unknown_error_verifying!())
     Ok(())//todo this should be an error
 }

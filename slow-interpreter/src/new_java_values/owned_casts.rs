@@ -1,4 +1,5 @@
 use crate::{AllocatedHandle, NewJavaValueHandle};
+use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::java::lang::invoke::call_site::CallSite;
 use crate::java::lang::invoke::lambda_form::basic_type::BasicType;
 use crate::java::lang::invoke::lambda_form::LambdaForm;
@@ -90,6 +91,9 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     }
     fn cast_long(self) -> Long<'gc> {
         Long { normal_object: self.normal_object() }
+    }
+    fn cast_array_out_of_bounds_exception(self) -> ArrayOutOfBoundsException<'gc> {
+        ArrayOutOfBoundsException { normal_object: self.normal_object() }
     }
 }
 

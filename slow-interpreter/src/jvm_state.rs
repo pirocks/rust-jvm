@@ -740,9 +740,16 @@ impl<'gc> JVMState<'gc> {
     pub fn monitor_for(&self, obj_ptr: *const c_void) -> Arc<Monitor2> {
         assert!(obj_ptr != null_mut());
         let mut monitors_guard = self.object_monitors.write().unwrap();
-        let next_id = monitors_guard.len();
-        let monitor = monitors_guard.entry(obj_ptr).or_insert_with(|| Arc::new(Monitor2::new(next_id)));
-        monitor.clone()
+        match monitors_guard.get(&obj_ptr){
+            None => {
+                let new_monitor = self.thread_state.new_monitor("".to_string());
+                monitors_guard.insert(obj_ptr, new_monitor.clone());
+                new_monitor
+            }
+            Some(monitor) => {
+                monitor.clone()
+            }
+        }
     }
 }
 

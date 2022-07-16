@@ -53,7 +53,8 @@ pub mod is_x;
 unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let interface_vec = match from_jclass(jvm, cls)
+    let j_class = from_jclass(jvm, cls);
+    let interface_vec = match j_class
         .as_runtime_class(jvm)
         .view()
         .interfaces()
@@ -151,9 +152,15 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let ptype = from_jclass(jvm, cls).as_runtime_class(jvm).cpdtype();
-    match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(PTypeView::from_compressed(ptype, &jvm.string_pool).jvm_representation())) {
-        Ok(jstring) => new_local_ref_public(todo!()/*jstring.object().into()*/, int_state),
+    let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
+
+    let signature = match rc.view().signature_attr() {
+        Some(x) => x,
+        None => todo!(),
+    };
+
+    match JString::from_rust(jvm, int_state, signature) {
+        Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
         Err(WasException) => null_mut(),
     }
 }

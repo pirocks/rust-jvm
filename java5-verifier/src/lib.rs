@@ -773,7 +773,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::lcmp => {
-            todo!()
+            two_two_word_in_one_word_out(method_frames,current_index)
         }
         CompressedInstructionInfo::lconst_0 => {
             two_word_const(method_frames, current_index)
@@ -937,7 +937,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_const(method_frames, current_index);
         }
         CompressedInstructionInfo::newarray(_) => {
-            todo!()
+            one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::nop => {
             todo!()

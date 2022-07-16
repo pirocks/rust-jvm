@@ -18,7 +18,6 @@
 #![feature(ptr_const_cast)]
 
 
-extern crate core;
 
 use std::error::Error;
 use std::sync::Arc;

@@ -15,17 +15,18 @@ pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exi
     assembler.set_label(&mut after_exit_label).unwrap();
 }
 
-pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Register, size: Size) {
-    let mut not_out_of_bounds = assembler.create_label();
+pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Register, size: Size, on_bounds_fail: &IRVMExitType) {
+    let mut after_exit_label = assembler.create_label();
     match size {
         Size::Byte => assembler.cmp(index.to_native_8(), length.to_native_8()).unwrap(),
         Size::X86Word => assembler.cmp(index.to_native_16(), length.to_native_16()).unwrap(),
         Size::X86DWord => assembler.cmp(index.to_native_32(), length.to_native_32()).unwrap(),
         Size::X86QWord => assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap(),
     }
-    assembler.jl(not_out_of_bounds.clone()).unwrap();
-    assembler.int3().unwrap();//todo
-    assembler.set_label(&mut not_out_of_bounds).unwrap();
+    assembler.jl(after_exit_label.clone()).unwrap();
+    gen_vm_exit(assembler, on_bounds_fail);
+    assembler.nop_1(rax).unwrap();
+    assembler.set_label(&mut after_exit_label).unwrap();
     assembler.nop().unwrap();
 }
 

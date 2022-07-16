@@ -119,7 +119,7 @@ pub enum IRInstr {
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName, size: Size },
     BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
     BranchEqualVal { a: Register, const_: u32, label: LabelName, size: Size },
-    BoundsCheck { length: Register, index: Register, size: Size },
+    BoundsCheck { length: Register, index: Register, size: Size , exit: IRVMExitType},
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
     RestartPoint(RestartPointID),
     VTableLookupOrExit {
@@ -297,6 +297,7 @@ impl IRInstr {
                     IRVMExitType::NewClassRegister { .. } => { "NewClassRegister" }
                     IRVMExitType::MonitorEnterRegister { .. } => { "MonitorEnterRegister" }
                     IRVMExitType::MonitorExitRegister { .. } => { "MonitorExitRegister" }
+                    IRVMExitType::ArrayOutOfBounds { .. } => { "ArrayOutOfBounds" }
                 })
             }
             IRInstr::NPECheck { .. } => {
