@@ -43,7 +43,7 @@ pub fn main_<'l>() {
     let mut enable_tracing = false;
     let mut enable_jvmti = false;
     let mut unittest_mode = false;
-    let mut store_generated_options = true;
+    let mut store_generated_options = false;
     let mut debug_print_exceptions = false;
     let mut assertions_enabled: bool = false;
     let mut libjdwp: OsString = OsString::from_str("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64/libjdwp.so").unwrap();
