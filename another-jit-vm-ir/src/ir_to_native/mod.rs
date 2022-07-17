@@ -273,18 +273,20 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::ITableLookupOrExit { resolve_exit } => {
             match resolve_exit {
                 IRVMExitType::InvokeInterfaceResolve { object_ref, interface_id, method_number, .. } => {
+                    let mut resolver_exit_label = assembler.create_label();
                     let obj_ptr = Register(0);
                     assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
-                    let vtable_ptr_register = Register(3);
-                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register.clone());
+                    let itable_ptr_register = Register(3);
+                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), itable_ptr_register.clone(),resolver_exit_label.clone());
                     let address_register = InvokeInterfaceResolve::ADDRESS_RES;// register 4
                     // assembler.int3().unwrap();
                     assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
-                    generate_itable_access(assembler, *method_number, *interface_id, vtable_ptr_register, Register(5), Register(6), Register(7), address_register);
+                    generate_itable_access(assembler, *method_number, *interface_id, itable_ptr_register, Register(5), Register(6), Register(7), address_register);
                     assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
                     let mut fast_resolve_worked = assembler.create_label();
                     assembler.jnz(fast_resolve_worked.clone()).unwrap();
                     let registers = resolve_exit.registers_to_save();
+                    assembler.set_label(&mut resolver_exit_label).unwrap();
                     resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
                     let mut before_exit_label = assembler.create_label();
                     VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);

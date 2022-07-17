@@ -114,14 +114,14 @@ impl JVMOptions {
             //     MethodToTrace {
             //         combined: "java/util/HashMap/hash".to_string(),
             //     },*/
-            MethodToTrace {
-                combined: "java/lang/Class/getGenericSuperclass".to_string(),
-            },
+            // MethodToTrace {
+            //     combined: "java/lang/Class/getGenericSuperclass".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "com/google/gson/internal/$Gson$Types/getGenericSupertype".to_string(),
+            // },
             MethodToTrace {
                 combined: "com/google/gson/internal/$Gson$Types/getGenericSupertype".to_string(),
-            },
-            MethodToTrace {
-                combined: "java/lang/StringBuilder/append".to_string(),
             },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

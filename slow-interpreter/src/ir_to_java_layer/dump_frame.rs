@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use gc_memory_layout_common::memory_regions::{MemoryRegions, RegionHeader};
+use gc_memory_layout_common::memory_regions::{MemoryRegions};
 
 
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};

@@ -5,7 +5,7 @@ use std::ptr::{NonNull, null, null_mut};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
-use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
+use iced_x86::code_asm::{cl, CodeAssembler, CodeLabel, ecx, rcx};
 use memoffset::offset_of;
 
 use another_jit_vm::Register;
@@ -416,8 +416,10 @@ impl MemoryRegions {
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,vtable_ptr)).unwrap();
     }
 
-    pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
+    pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register, fail_label: CodeLabel) {
         Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
+        assembler.test(out.to_native_64(), out.to_native_64()).unwrap();
+        assembler.jz(fail_label).unwrap();
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,itable_ptr)).unwrap();
     }
 

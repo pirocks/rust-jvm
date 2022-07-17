@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crossbeam::thread::Scope;
 use libloading::Symbol;
-use num::Integer;
+use num_integer::Integer;
 use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IRStackMut;
 use another_jit_vm_ir::WasException;
