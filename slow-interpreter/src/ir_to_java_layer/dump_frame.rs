@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use gc_memory_layout_common::memory_regions::{MemoryRegions, RegionHeader};
 
 
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -117,6 +118,13 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGu
             let as_string = big_integer.to_string(jvm, _int_state).unwrap().unwrap().to_rust_string(jvm);
             eprint!("#{}: {:?}(biginteger:{})\t", i, ptr, as_string);
         }*/ else {
+            if obj_type.short_representation(&jvm.string_pool).as_str() == "StringBuilder"{
+                let region_header = MemoryRegions::find_object_region_header(obj.ptr());
+                // dbg!("");
+                // dbg!(region_header as *mut RegionHeader);
+                // dbg!(region_header.vtable_ptr);
+                // dbg!(region_header.itable_ptr);
+            }
             let ptr = obj.ptr();
                 eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), "");
         }

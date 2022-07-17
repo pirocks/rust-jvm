@@ -20,15 +20,11 @@ use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::{JavaThreadId};
-use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::ptype::PType;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
-use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::{InterpreterState};
 use crate::interpreter_util::{ new_object_full};

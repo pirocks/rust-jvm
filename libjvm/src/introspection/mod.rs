@@ -155,9 +155,6 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
     let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
 
-    dbg!(rc.cpdtype().jvm_representation(&jvm.string_pool));
-    dbg!(rc.view().signature_attr().unwrap().to_string_lossy());
-
     let signature = match rc.view().signature_attr() {
         Some(x) => x,
         None => todo!(),

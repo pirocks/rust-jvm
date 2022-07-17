@@ -269,7 +269,8 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
 
 pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_name_str = method_name.0.to_str(env.vf.string_pool);
-    if method_name_str.contains("arrayOf") || method_name_str.contains('[') || method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
+    if method_name_str.contains('[') || method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
+        dbg!(method_name_str);
         unimplemented!();
     }
     let operand_arg_list: Vec<_> = parsed_descriptor.arg_types.iter().map(|x| x.to_verification_type(env.class_loader)).collect();

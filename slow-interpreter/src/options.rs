@@ -115,14 +115,14 @@ impl JVMOptions {
             //         combined: "java/util/HashMap/hash".to_string(),
             //     },*/
             MethodToTrace {
-                combined: "sun/reflect/generics/visitor/Reifier/reifyTypeArguments".to_string(),
+                combined: "java/lang/Class/getGenericSuperclass".to_string(),
             },
             MethodToTrace {
-                combined: "sun/reflect/generics/reflectiveObjects/ParameterizedTypeImpl/<init>".to_string(),
+                combined: "com/google/gson/internal/$Gson$Types/getGenericSupertype".to_string(),
             },
-            // MethodToTrace {
-            //     combined: "com/google/gson/internal/$Gson$Types/resolve".to_string(),
-            // },
+            MethodToTrace {
+                combined: "java/lang/StringBuilder/append".to_string(),
+            },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {
