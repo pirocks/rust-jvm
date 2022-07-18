@@ -11,3 +11,5 @@ edition = "2018"
 [dependencies]
 [build-dependencies]
 bindgen = "0.53.2"
+xtask = { path = "../xtask" }
+anyhow = "1"

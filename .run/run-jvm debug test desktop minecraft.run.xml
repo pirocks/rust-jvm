@@ -10,10 +10,6 @@
     <option name="buildTarget" value="REMOTE" />
     <option name="backtrace" value="FULL" />
     <envs>
-      <env name="JNI_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/" />
-      <env name="JNI_MD_H" value="$USER_HOME$/Desktop/jdk8u232-b09/include/linux/" />
-      <env name="JVM_H" value="$USER_HOME$/build/openjdk-jdk8u/jdk/src/share/javavm/export/" />
-      <env name="JVM_MD_H" value="$PROJECT_DIR$/jvmti-jni-bindings/" />
       <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/" />
       <env name="RUSTFLAGS" value="-Clink-arg=-Wl,--allow-multiple-definition" />
       <env name="JAVA_HOME" value="$USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/" />

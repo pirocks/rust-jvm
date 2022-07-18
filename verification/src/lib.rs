@@ -1,5 +1,3 @@
-extern crate elapsed;
-
 use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::sync::{Arc, Mutex};

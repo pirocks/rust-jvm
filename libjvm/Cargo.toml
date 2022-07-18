@@ -12,7 +12,6 @@ crate-type = ["cdylib"]
 rust-jvm-common = { path = "../rust-jvm-common" }
 slow-interpreter = { path = "../slow-interpreter" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
-jmm-bindings = { path = "../jmm-bindings" }
 classfile-parser = { path = "../classfile-parser" }
 classfile-view = { path = "../classfile-view" }
 verification = { path = "../verification" }

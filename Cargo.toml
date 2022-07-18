@@ -28,7 +28,6 @@ members = [
     "type-safe-proc-macro-utils",
     "sketch-jvm-version-of-utf8",
     "add-only-static-vec",
-    "jmm-bindings",
     "method-table",
     "another-jit-vm",
     "classfile-writer",

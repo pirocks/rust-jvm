@@ -8,5 +8,6 @@
 #include <jni.h>
 #include <jvmti.h>
 #include <jvm.h>
+#include <jmm.h>
 
 #endif //RUST_JVM_WRAPPER_H
