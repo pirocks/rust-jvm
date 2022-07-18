@@ -42,5 +42,6 @@ members = [
     "stage0",
     "inheritance-tree",
     "native-vec",
-    "jvm-args"
+    "jvm-args",
+    "xtask"
 ]
