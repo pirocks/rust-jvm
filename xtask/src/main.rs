@@ -59,6 +59,7 @@ fn deps() -> anyhow::Result<()> {
     cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\" ").run()?;
     cmd!(sh,"make clean").run()?;
     cmd!(sh,"make DISABLE_HOTSPOT_OS_VERSION_CHECK=ok jdk").run()?;
+    Ok(())
 }
 
 #[derive(Serialize,Deserialize)]
