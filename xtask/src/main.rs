@@ -1,7 +1,10 @@
-use std::env;
+use std::{env, fs};
+use std::ffi::OsStr;
 use std::path::PathBuf;
+use anyhow::anyhow;
 
 use clap::Parser;
+use xshell::{cmd, Shell};
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config};
 
 #[derive(Parser)]
@@ -22,6 +25,8 @@ pub enum OptsInner {
     },
     #[clap(about = "cleans deps dir")]
     Clean {},
+    #[clap(about = "create dist")]
+    Dist {}
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,7 +51,35 @@ fn main() -> anyhow::Result<()> {
             config.dep_dir = dep_dir;
             write_xtask_config(workspace_dir,config)?;
         }
+        OptsInner::Dist {  } => {
+            let config = load_or_create_xtask_config(workspace_dir)?;
+            let release_target_dir = workspace_dir.join("target/release");
+            let libjvm_so = release_target_dir.join("deps/libjvm.so");
+            let java_executable = release_target_dir.join("java");
+            if !java_executable.exists(){
+                return Err(anyhow!("Need to build java"))
+            }
+            if !libjvm_so.exists(){
+                return Err(anyhow!("Need to build libjvm.so"))
+            }
+            let dep_dir = config.dep_dir.clone();
+            let jdk_dir = dep_dir.join("jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk");
+            let copied_jdk_dir = dep_dir.join("dist");
+            fs::create_dir_all(&copied_jdk_dir)?;
+            fs::create_dir_all(&copied_jdk_dir.join("bin"))?;
+            let sh = Shell::new()?;
+            generic_copy(&sh, jdk_dir.join("classes"), copied_jdk_dir.join("classes"))?;
+            generic_copy(&sh, jdk_dir.join("classes_security"), copied_jdk_dir.join("classes_security"))?;
+            generic_copy(&sh, jdk_dir.join("lib"), copied_jdk_dir.join("lib"))?;
+            generic_copy(&sh, &java_executable, copied_jdk_dir.join("bin").join("java"))?;
+            generic_copy(&sh, &libjvm_so, copied_jdk_dir.join("bin").join("libjvm.so"))?;
+        }
     }
+    Ok(())
+}
+
+fn generic_copy<From: AsRef<OsStr>, To: AsRef<OsStr>>(sh: &Shell, from: From, to: To) -> anyhow::Result<()>{
+    cmd!(sh, "cp -rf {from} {to}").run()?;
     Ok(())
 }
 
