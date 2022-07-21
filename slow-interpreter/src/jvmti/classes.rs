@@ -149,8 +149,9 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
         libc::strcpy(allocated_jvm_repr, jvm_repr_ptr);
     }
     if !generic_ptr.is_null() {
+        todo!();
         let java_repr = CString::new(PTypeView::from_compressed(type_, &jvm.string_pool).java_source_representation()).unwrap();
-        let java_repr_ptr = java_repr.into_raw();
+        let java_repr_ptr = dbg!(java_repr).into_raw();
         let allocated_java_repr = libc::malloc(libc::strlen(java_repr_ptr) + 1) as *mut ::std::os::raw::c_char;
         generic_ptr.write(allocated_java_repr);
         libc::strcpy(allocated_java_repr, java_repr_ptr);

@@ -160,7 +160,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
         None => todo!(),
     };
 
-    match JString::from_rust(jvm, int_state, signature) {
+    match JString::from_rust(jvm, int_state, dbg!(signature)) {
         Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
         Err(WasException) => null_mut(),
     }

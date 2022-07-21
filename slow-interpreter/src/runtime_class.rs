@@ -6,6 +6,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
+use rust_jvm_common::NativeJavaValue;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
 use crate::instructions::ldc::from_constant_pool_entry;
@@ -128,13 +129,19 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
         self.try_get(name).unwrap()
     }
 
-    pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
-        self.try_set(&name, elem).unwrap()
+    pub fn set_raw(&mut self, name: FieldName, native: NativeJavaValue<'gc>) -> Option<()>{
+        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
+        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().write(native); }
+        Some(())
     }
 
-    fn try_set(&mut self, name: &FieldName, elem: NewJavaValueHandle<'gc>) -> Option<()> {
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name).unwrap();
-        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().write(elem.to_native()); }
+    pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
+        self.try_set(name, elem).unwrap()
+    }
+
+    fn try_set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) -> Option<()> {
+        let native_jv = elem.to_native();
+        self.set_raw(name, elem.to_native())?;
         Some(())
     }
 }
