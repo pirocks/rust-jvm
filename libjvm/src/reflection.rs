@@ -13,6 +13,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedD
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
+use rust_jvm_common::ptype::PType;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
@@ -30,6 +31,7 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
@@ -67,10 +69,10 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         Some(method_name) => method_name.cast_string().to_rust_string(jvm),
     };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
-    let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
-        None => return throw_npe(jvm, int_state),
-        Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
-    };
+    // let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
+    //     None => return throw_npe(jvm, int_state),
+    //     Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
+    // };
     let clazz_java_val = method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
@@ -83,11 +85,14 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         Err(WasException {}) => return null_mut(),
     };
 
+    let method = method_obj.cast_method();
+    let parameter_types = method.parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
+    let return_types = method.get_return_type(jvm).as_type(jvm);
     //todo this arg array setup is almost certainly wrong.
-    let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
+    // let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
     let parsed_md = CMethodDescriptor {
-        arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
-        return_type: CPDType::from_ptype(&return_type, &jvm.string_pool),
+        arg_types: parameter_types,
+        return_type: return_types,
     };
     let invoke_virtual_obj = NewJavaValueHandle::from_optional_object(from_object_new(jvm, obj));
     let mut res_args = if obj == null_mut() {
@@ -168,7 +173,6 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    let signature_str_obj = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature());
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
         Some(x) => x,
@@ -179,15 +183,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
     if let Err(WasException {}) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
         return null_mut();
     };
-    let signature_object = match signature_str_obj.unwrap_object() {
-        None => return throw_npe(jvm, int_state),
-        Some(signature) => signature,
-    };
-    let mut signature_str = string_obj_to_string(
-        jvm,
-        signature_object.unwrap_normal_object_ref(),
-    );
-    let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(signature_str.as_str()).unwrap();
+    let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
     let args = if args0.is_null() {
         vec![]
     } else {
@@ -201,9 +197,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         elems_refcell
             .array_iterator()
             .zip(parameter_types.iter())
-            .map(|(arg, ptype)| {
+            .map(|(arg, cpdtype)| {
                 //todo dupe with standard method invoke
-                match CPDType::from_ptype(ptype, &jvm.string_pool) {
+                match cpdtype {
                     CompressedParsedDescriptorType::BooleanType => NewJavaValueHandle::Boolean(arg.cast_boolean().inner_value(jvm)),
                     CompressedParsedDescriptorType::ByteType => NewJavaValueHandle::Byte(arg.cast_byte().inner_value(jvm)),
                     CompressedParsedDescriptorType::ShortType => NewJavaValueHandle::Short(arg.cast_short().inner_value(jvm)),
@@ -218,13 +214,12 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             .collect::<Vec<_>>()
     };
     let signature = CMethodDescriptor {
-        arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, &jvm.string_pool)).collect_vec(),
-        return_type: CPDType::from_ptype(&return_type, &jvm.string_pool), //todo use from_leaacy instead
+        arg_types: parameter_types,
+        return_type: CPDType::VoidType, //todo use from_leaacy instead
     };
     let obj = new_object(jvm, int_state, &clazz);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
-    // dbg!(&full_args);
     run_constructor(jvm, int_state, clazz, full_args, &signature);
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }

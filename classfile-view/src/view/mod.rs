@@ -204,10 +204,9 @@ impl ClassView for ClassBackedView {
     }
 
     fn inner_classes_view(&self) -> Option<InnerClassesView> {
-        /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+        self.underlying_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::InnerClasses(_))
-        }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
-        todo!()
+        }).map(|(i, _)| { InnerClassesView { backing_class: self, i } })
     }
 
     fn annotations(&self) -> Option<Vec<u8>> {

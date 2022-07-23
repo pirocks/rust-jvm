@@ -124,22 +124,27 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     let class = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let res_array = match class.view().inner_classes_view() {
         None => vec![],
-        Some(inner_classes) => inner_classes.classes().flat_map(|inner_class| Some(PTypeView::Ref(inner_class.inner_name()?))).collect::<Vec<_>>(),
+        Some(inner_classes) => inner_classes
+            .classes()
+            .filter(|inner_class| inner_class.outer_name(&jvm.string_pool) == class.unwrap_class_class().class_view.name().unwrap_name())
+            .flat_map(|inner_class| Some(CPDType::Class(inner_class.complete_name(&jvm.string_pool)?)))
+            .collect::<Vec<_>>(),
     }
         .into_iter()
         .map(|ptype| {
-            Ok(JavaValue::Object(todo!() /*get_or_create_class_object(jvm, ptype, int_state)?.into()*/))
+            Ok(get_or_create_class_object(jvm, ptype, int_state)?.new_java_handle())
         })
         .collect::<Result<Vec<_>, _>>();
+    let obj_array = match res_array {
+        Ok(obj_array) => obj_array,
+        Err(WasException {}) => return null_mut(),
+    };
     let res_jv = JavaValue::new_vec_from_vec(
         jvm,
-        match res_array {
-            Ok(obj_array) => todo!()/*obj_array*/,
-            Err(WasException {}) => return null_mut(),
-        },
+        obj_array.iter().map(|njvh| njvh.as_njv()).collect_vec(),
         CClassName::class().into(),
     );
-    new_local_ref_public(todo!()/*res_jv.unwrap_object()*/, int_state)
+    new_local_ref_public_new(Some(res_jv.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -160,7 +165,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
         None => todo!(),
     };
 
-    match JString::from_rust(jvm, int_state, dbg!(signature)) {
+    match JString::from_rust(jvm, int_state, signature) {
         Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
         Err(WasException) => null_mut(),
     }

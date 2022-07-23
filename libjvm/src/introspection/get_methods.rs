@@ -72,7 +72,6 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     for method_owned in methods_owned.iter() {
         object_array.push(method_owned.new_java_value());
     }
-    /*object_array(jvm, int_state, object_array, method_class.view().type_())?*/
     let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::method().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
         UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array }));

@@ -44,7 +44,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             let declaring_class_view = declaring_class.view();
             let method_view = declaring_class_view.method_view_i(stack_entry.method_i(jvm));
             let file = match declaring_class_view.sourcefile_attr() {
-                None => "unknown_source".to_string(),
+                None => Wtf8Buf::from_string("unknown_source".to_string()),
                 Some(sourcefile) => sourcefile.file(),
             };
             let line_number = match method_view.line_number_table() {
@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             };
             let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
             let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
-            let source_file_name_wtf8 = Wtf8Buf::from_string(file);
+            let source_file_name_wtf8 = file;
             Ok(Some(OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
         .collect::<Result<Vec<Option<_>>, WasException>>()

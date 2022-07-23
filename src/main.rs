@@ -1,8 +1,8 @@
-use std::env::VarError;
 use std::path::PathBuf;
 use libloading::Library;
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
+#[allow(unused)]
 fn libjvm_path_from_java_home() -> anyhow::Result<Option<PathBuf>>{
     match std::env::var("JAVA_HOME"){
         Ok(java_home) => {

@@ -24,7 +24,8 @@ pub unsafe extern "C" fn get_source_file_name(env: *mut jvmtiEnv, klass: jclass,
     let class_view = runtime_class.view();
     let sourcefile = class_view.sourcefile_attr();
     if let Some(file) = sourcefile {
-        source_name_ptr.write(CString::new(file.file()).unwrap().into_raw());
+        let wtf8buf = file.file();
+        source_name_ptr.write(todo!());
         jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
     } else {
         //todo this should validate if info actualy missing in accordance with doc comment

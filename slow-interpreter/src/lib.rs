@@ -45,6 +45,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
@@ -120,6 +121,10 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
             // panic!();
         }
         Err(WasException {}) => {
+            let throwable = int_state.throw().unwrap().duplicate_discouraged().cast_throwable();
+            int_state.set_throw(None);
+            throwable.print_stack_trace(jvm, int_state).unwrap();
+            dbg!(throwable.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
             int_state.debug_print_stack_trace(jvm);
             todo!()
         }
