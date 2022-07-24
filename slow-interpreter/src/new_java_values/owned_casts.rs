@@ -23,6 +23,7 @@ use crate::java::util::hashtable::entry::Entry;
 use crate::java::util::properties::Properties;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::sun::misc::unsafe_::Unsafe;
+use crate::sun::reflect::generics::tree::class_signature::ClassSignature;
 
 pub trait OwnedCastAble<'gc> where Self: Sized {
     fn normal_object(self) -> AllocatedNormalObjectHandle<'gc>;
@@ -94,6 +95,9 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     }
     fn cast_array_out_of_bounds_exception(self) -> ArrayOutOfBoundsException<'gc> {
         ArrayOutOfBoundsException { normal_object: self.normal_object() }
+    }
+    fn cast_class_signature(self) -> ClassSignature<'gc>{
+        ClassSignature { normal_object: self.normal_object() }
     }
 }
 

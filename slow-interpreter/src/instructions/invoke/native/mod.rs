@@ -50,6 +50,11 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let view = &class.view();
     assert_inited_or_initing_class(jvm, view.type_());
     let method = view.method_view_i(method_i);
+    // if mangling::mangle(&jvm.string_pool, &method).as_str() != "Java_java_lang_System_arraycopy" &&
+    //     mangling::mangle(&jvm.string_pool, &method).as_str() != "Java_java_lang_String_intern"{
+    //     dbg!(mangling::mangle(&jvm.string_pool, &method));
+    // }
+
     assert!(method.is_native());
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
     let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, correct_args(args.as_slice())));

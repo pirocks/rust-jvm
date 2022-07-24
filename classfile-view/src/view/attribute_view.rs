@@ -147,6 +147,12 @@ pub struct InnerClassView<'l> {
 }
 
 impl InnerClassView<'_> {
+    pub fn inner_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
+        let inner_name_index = self.class.inner_name_index as usize;
+        let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();
+        CompressedClassName(class_pool.add_name(inner_class_name.into_string().unwrap(),false))
+    }
+
     pub fn outer_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
         let outer_class_name_index = self.backing_class.underlying_class.extract_class_from_constant_pool(self.class.outer_class_info_index).name_index;
         let outer_class_name = self.backing_class.underlying_class.constant_pool[outer_class_name_index as usize].extract_string_from_utf8();

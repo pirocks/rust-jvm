@@ -39,7 +39,7 @@ use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, 
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
@@ -149,8 +149,29 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclass) -> jclass {
-    //todo unimplemented for now
-    std::ptr::null_mut()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(jvm, ofClass).as_runtime_class(jvm);
+    if rc.cpdtype().is_primitive(){
+        return null_mut()
+    }
+    let class_name = rc.unwrap_class_class().class_view.name().unwrap_name();
+    let view = rc.view();
+    let inner_classes = match view.inner_classes_view() {
+        Some(x) => x,
+        None => return null_mut(),
+    };
+    for inner_class in inner_classes.classes() {
+        // dbg!(inner_class.complete_name(&jvm.string_pool).unwrap().0.to_str(&jvm.string_pool));
+        // dbg!(class_name.0.to_str(&jvm.string_pool));
+        if inner_class.complete_name(&jvm.string_pool) == Some(class_name){
+            let target_class_name = inner_class.outer_name(&jvm.string_pool);
+            // dbg!(target_class_name.0.to_str(&jvm.string_pool));
+            let class = get_or_create_class_object(jvm,target_class_name.into(),int_state).unwrap();
+            return to_object_new(Some(class.as_allocated_obj()));
+        }
+    }
+    return null_mut()
 }
 
 #[no_mangle]

@@ -314,7 +314,14 @@ pub fn invoke_virtual<'gc, 'l>(
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
     let target_method = &final_class_view.method_view_i(new_i);
-    invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args)
+    match invoke_virtual_method_i(jvm, int_state, md, final_target_class.clone(), target_method, args) {
+        Ok(res) => {
+            return Ok(res)
+        }
+        Err(WasException{}) => {
+            return dbg!(Err(WasException {}));
+        }
+    }
 }
 
 pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException> {

@@ -71,16 +71,17 @@ pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mu
     if let Err(_) = check_resolved_class(jvm, int_state.inner(), type_) {
         return todo!();
     };
+    let mut elem_type = type_;
     let mut dimensions = vec![];
     for _ in 0..dims {
+        elem_type = elem_type.unwrap_array_type();
         dimensions.push(int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int());
     }
     dimensions.reverse();
     let array_type = type_;
-    let elem_type = type_.unwrap_ref_type().recursively_unwrap_array_type();
     let rc = check_initing_or_inited_class(jvm, int_state.inner(), array_type).unwrap();
-    let default = default_value(elem_type.to_cpdtype());
-    let res = multi_new_array_impl(jvm, rc.cpdtype(),dimensions.as_slice() ,default.as_njv());
+    let default = default_value(elem_type);
+    let res = multi_new_array_impl(jvm, array_type,dimensions.as_slice() ,default.as_njv());
     int_state.current_frame_mut().push(res.to_interpreter_jv());
     PostInstructionAction::Next {}
 }

@@ -77,6 +77,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
         }
+        let method_id = frame_to_run_on.frame_view.downgrade().ir_ref.method_id().unwrap();
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
         let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()) {
             Ok(res) => {
@@ -86,7 +87,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             Err(err_obj) => {
                 let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
                 int_state.set_throw(Some(obj));
-                return Err(WasException {});
+                eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                return Err(dbg!(WasException {}));
             }
         };
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);

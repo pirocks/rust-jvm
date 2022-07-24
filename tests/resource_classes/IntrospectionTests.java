@@ -1,4 +1,9 @@
+import sun.reflect.generics.factory.CoreReflectionFactory;
+import sun.reflect.generics.repository.ClassRepository;
+import sun.reflect.generics.scope.ClassScope;
+
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.*;
 
 public class IntrospectionTests {
@@ -23,10 +28,26 @@ public class IntrospectionTests {
         if(!Arrays.toString(AbstractMap.SimpleEntry.class.getDeclaredFields()).equals("[private static final long java.util.AbstractMap$SimpleEntry.serialVersionUID, private final java.lang.Object java.util.AbstractMap$SimpleEntry.key, private java.lang.Object java.util.AbstractMap$SimpleEntry.value]")){
             throw new AssertionError("6");
         }
-        final String field = AbstractMap.SimpleEntry.class.getDeclaredFields()[2].toGenericString();
-        System.out.println(field);
-        if(!field.equals("private V java.util.AbstractMap$SimpleEntry.value")){
+        if(!AbstractMap.SimpleEntry.class.getDeclaredFields()[2].toGenericString().equals("private V java.util.AbstractMap$SimpleEntry.value")){
             throw new AssertionError("7");
+        }
+
+        for (Class<?> declaredClass : HashMap.class.getDeclaredClasses()) {
+            if(declaredClass.getName().equals("java.util.HashMap$Values")){
+                final ClassRepository classRepository = ClassRepository.make("Ljava/util/AbstractCollection<TV;>;", CoreReflectionFactory.make(declaredClass, ClassScope.make(declaredClass)));
+                System.out.println(classRepository);
+                System.out.println(Arrays.toString(classRepository.getSuperInterfaces()));
+                System.out.println(classRepository.getSuperclass());
+                System.out.println(declaredClass);
+                final Type genericSuperclass = declaredClass.getGenericSuperclass();
+                System.out.println(genericSuperclass.getClass());
+                if(!genericSuperclass.toString().equals("java.util.AbstractCollection<V>")){
+                    throw new AssertionError("8");
+                }
+            }
+        }
+        if(!HashMap.class.getGenericSuperclass().toString().equals("java.util.AbstractMap<K, V>")){
+            throw new AssertionError("9");
         }
     }
 }

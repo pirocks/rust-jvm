@@ -14,7 +14,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
 use iced_x86::{BlockEncoder, BlockEncoderOptions, ConstantOffsets, InstructionBlock};
-use iced_x86::code_asm::{CodeAssembler};
+use iced_x86::code_asm::CodeAssembler;
 use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, IRMethodID, MethodImplementationID, NativeInstructionLocation, VMExitEvent, VMState};
@@ -22,7 +22,7 @@ use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRu
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
-use ir_stack::{OPAQUE_FRAME_SIZE};
+use ir_stack::OPAQUE_FRAME_SIZE;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
@@ -133,7 +133,7 @@ pub enum IRVMExitAction {
     },
     Exception {
         throwable: NonNull<c_void>//todo gc handle this
-    }
+    },
 }
 
 impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
@@ -200,13 +200,13 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
-        let current_implementation = *inner_read_guard.current_implementation.get(&method_id).unwrap();
+        let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
         unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr); }
-        assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), method_id);
+        assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), ir_method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
         initial_registers.rbp = ir_stack_frame.ptr;
         initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
@@ -245,10 +245,10 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                 IRVMExitAction::RestartWithRegisterState { diff } => {
                     launched_vm.return_to(vm_exit_event, diff)
                 }
-                IRVMExitAction::Exception{ throwable } => {
+                IRVMExitAction::Exception { throwable } => {
                     let mut vm_exit_event = vm_exit_event;
                     vm_exit_event.indicate_okay_to_drop();
-                    return Err(throwable)
+                    return Err(dbg!(throwable));
                 }
             }
         }

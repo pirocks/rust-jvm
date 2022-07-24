@@ -35,7 +35,13 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
     let mut args = vec![];
     args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
-    let res = invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor, args).unwrap().unwrap().unwrap_object();
+    let res = match invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor, args) {
+        Ok(x) => x,
+        Err(WasException{}) => {
+            int_state.debug_print_stack_trace(jvm);
+            return null_mut();
+        },
+    }.unwrap().unwrap_object();
     if int_state.throw().is_some() {
         return null_mut();
     }

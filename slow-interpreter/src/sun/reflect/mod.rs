@@ -1,3 +1,5 @@
+pub mod generics;
+
 pub mod reflection {
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};

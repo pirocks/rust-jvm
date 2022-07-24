@@ -254,9 +254,13 @@ pub mod method {
         }
 
         pub fn parameter_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<JClass<'gc>> {
-            todo!()
-            /*self.normal_object.lookup_field(jvm, FieldName::field_parameterTypes()).unwrap_array().array_iterator(jvm).map(|value| value.to_new().cast_class().unwrap()).collect()*/
-            //todo unwrap
+            self.normal_object.get_var_top_level(jvm, FieldName::field_parameterTypes())
+                .unwrap_object()
+                .unwrap()
+                .unwrap_array()
+                .array_iterator()
+                .map(|value| value.cast_class().unwrap())
+                .collect()
         }
 
         pub fn get_slot_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
@@ -278,20 +282,9 @@ pub mod method {
         }
         pub fn get_return_type_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
             self.normal_object.get_var_top_level(jvm, FieldName::field_returnType()).cast_class()
-            /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_returnType());
-            if maybe_null.try_unwrap_object().is_some() {
-                if maybe_null.unwrap_object().is_some() {
-                    maybe_null.to_new().cast_class().into()
-                } else {
-                    None
-                }
-            } else {
-                maybe_null.to_new().cast_class().into()
-            }*/
         }
         pub fn get_return_type(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
-            todo!()
-            /*self.get_return_type_or_null(jvm).unwrap()*/
+            self.get_return_type_or_null(jvm).unwrap()
         }
 
         // as_object_or_java_value!();

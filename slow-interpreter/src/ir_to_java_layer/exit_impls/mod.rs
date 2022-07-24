@@ -67,6 +67,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, CClassName::object().into(), jvm);
     let throwable = exception_obj_handle.cast_throwable();
     // throwable.print_stack_trace(jvm, int_state).unwrap();
+    assert!(int_state.current_pc().is_some());
     throw_impl(&jvm, int_state, throwable.new_java_value_handle())
 }
 
@@ -685,7 +686,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                     }
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
-                    // eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
+                    eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
                     let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
                     let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);

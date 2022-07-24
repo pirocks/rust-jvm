@@ -113,14 +113,23 @@ impl JVMOptions {
             //     MethodToTrace {
             //         combined: "java/util/HashMap/hash".to_string(),
             //     },*/
-            MethodToTrace {
-                combined: "sun/reflect/generics/visitor/Reifier/reifyTypeArguments".to_string(),
-            },
             // MethodToTrace {
-            //     combined: "sun/reflect/generics/reflectiveObjects/ParameterizedTypeImpl/toString".to_string(),
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parseZeroOrMoreFormalTypeParameters".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "com/google/gson/internal/$Gson$Types/getGenericSupertype".to_string(),
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parseClassTypeSignature".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parsePackageNameAndSimpleClassTypeSignature".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArguments".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArgument".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "sun/reflect/generics/parser/SignatureParser/parseClassSignature".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

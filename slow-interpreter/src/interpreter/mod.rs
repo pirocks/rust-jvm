@@ -162,7 +162,6 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
-                //todo unlock monitor
                 assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,

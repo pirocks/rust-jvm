@@ -276,6 +276,10 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_LANG_DEPRECATED as AddOnlyVecIDType)
     }
 
+    pub const fn class_signature() -> Self {
+        Self::from_raw_id(SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE as AddOnlyVecIDType)
+    }
+
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -425,6 +429,7 @@ enum PredefinedStrings {
     field_slotToArgTable,
     field_signum,
     field_mag,
+    field_formalTypeParams,
     constructor_init,
     constructor_clinit,
     method_clone,
@@ -466,6 +471,7 @@ enum PredefinedStrings {
     method_putIfAbsent,
     method_get,
     method_destructiveMulAdd,
+    SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE
 }
 
 impl PredefinedStrings {
@@ -646,7 +652,9 @@ impl PredefinedStrings {
             field_mag => "mag".to_string(),
             method_destructiveMulAdd => "destructiveMulAdd".to_string(),
             INVALID => "__rust_jvm_invalid".to_string(),
-            method_getGenericInterfaces => "getGenericInterfaces".to_string()
+            method_getGenericInterfaces => "getGenericInterfaces".to_string(),
+            SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE => "sun/reflect/generics/tree/ClassSignature".to_string(),
+            field_formalTypeParams => "formalTypeParams".to_string()
         }
     }
 }
@@ -889,6 +897,9 @@ impl FieldName {
     }
     pub fn field_mag() -> Self {
         Self::from_raw_id(field_mag)
+    }
+    pub fn field_formalTypeParams() -> Self {
+        Self::from_raw_id(field_formalTypeParams)
     }
 }
 

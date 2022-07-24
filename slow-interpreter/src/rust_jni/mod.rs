@@ -67,7 +67,15 @@ pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
     })
 }
 
-pub fn call_impl<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, mut args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor, raw: &unsafe extern "C" fn(), suppress_runtime_class: bool) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn call_impl<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    classfile: Arc<RuntimeClass<'gc>>,
+    mut args: Vec<NewJavaValue<'gc, 'k>>,
+    md: CMethodDescriptor,
+    raw: &unsafe extern "C" fn(),
+    suppress_runtime_class: bool
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     args.retain(|arg|!matches!(arg,NewJavaValue::Top));
     assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));
     assert!(int_state.current_frame().is_native_method());

@@ -37,6 +37,7 @@ use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_util::new_object;
 use crate::java::lang::class::JClass;
+use crate::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::java::lang::reflect::field::Field;
 use crate::java::lang::reflect::method::Method;
 use crate::java::lang::string::JString;
@@ -717,9 +718,9 @@ pub fn define_class_safe<'gc, 'l>(
             jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
         }
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
-            dbg!(class_name);
-            let class = todo!()/*JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?*/;
-            let to_throw = todo!()/*ClassNotFoundException::new(jvm, int_state, class)?.object().into()*/;
+            dbg!(&class_name);
+            let class = JString::from_rust(jvm, int_state, Wtf8Buf::from_str(class_name.get_referred_name()))?;
+            let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().new_java_handle().unwrap_object().unwrap();
             int_state.set_throw(Some(to_throw));
             return Err(WasException {});
         }
