@@ -20,6 +20,14 @@ pub fn l2f(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
     ])
 }
 
+pub fn l2d(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: Register(1), size: Size::int() },
+        IRInstr::LongToDoubleConvert { to: DoubleRegister(1), from: Register(1) },
+        IRInstr::StoreFPRelativeDouble { from: DoubleRegister(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
 
 pub fn f2i(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_into_iter([
@@ -59,6 +67,14 @@ pub fn f2d(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: FloatRegister(1) },
         IRInstr::FloatToDoubleConvert { from: FloatRegister(1), to: DoubleRegister(2) },
         IRInstr::StoreFPRelativeDouble { from: DoubleRegister(2), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn d2f(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: DoubleRegister(1) },
+        IRInstr::DoubleToFloatConvert { from: DoubleRegister(1), to: FloatRegister(2) },
+        IRInstr::StoreFPRelativeFloat { from: FloatRegister(2), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 

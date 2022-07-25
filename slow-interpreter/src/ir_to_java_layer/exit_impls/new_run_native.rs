@@ -3,14 +3,14 @@ use std::ptr::null_mut;
 use itertools::Itertools;
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
-use another_jit_vm_ir::{IRVMExitAction, WasException};
+use another_jit_vm_ir::{IRVMExitAction};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState};
-use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
 
@@ -39,10 +39,12 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
     }
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(WasException{}) => {
+        Err(NativeMethodWasException{ prev_rip }) => {
+            // let current_pc = jvm.java_vm_state.lookup_ip(prev_rip).unwrap().1;
+            // int_state.set_current_pc(Some(current_pc));
             let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
             int_state.set_throw(None);//todo should move this into throw impl
-            return throw_impl(jvm, int_state, throw_obj);
+            return throw_impl(jvm, int_state, throw_obj, true);
         },
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
@@ -77,10 +79,21 @@ pub fn run_native_static_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mu
     }
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(WasException{}) => {
-            let expception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
+        Err(NativeMethodWasException{ prev_rip }) => {
+            // match jvm.java_vm_state.lookup_ip(prev_rip) {
+            //     Some((_method_id, current_pc)) => {
+            //         int_state.set_current_pc(Some(current_pc));
+            //     },
+            //     None => {
+            //         int_state.debug_print_stack_trace(jvm);
+            //         dbg!(method_view.name().0.to_str(&jvm.string_pool));
+            //         eprintln!("{}", Backtrace::force_capture());
+            //         return IRVMExitAction::Exception { throwable: int_state.throw().unwrap().ptr };
+            //     },
+            // };
+            let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             int_state.set_throw(None);
-            return throw_impl(jvm, int_state, expception_obj_handle.new_java_handle());
+            return throw_impl(jvm, int_state, exception_obj_handle.new_java_handle(), true);
         },
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();

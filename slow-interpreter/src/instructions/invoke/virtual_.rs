@@ -319,7 +319,7 @@ pub fn invoke_virtual<'gc, 'l>(
             return Ok(res)
         }
         Err(WasException{}) => {
-            return dbg!(Err(WasException {}));
+            return Err(WasException {});
         }
     }
 }

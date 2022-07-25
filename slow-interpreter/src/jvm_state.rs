@@ -305,7 +305,7 @@ impl<'gc> JVMState<'gc> {
                 compiled_mode_active: true,
                 tracing,
                 main_class_name,
-                compile_threshold: 100,
+                compile_threshold: 1000,
             },
             properties,
             native_libaries: NativeLibraries::new(libjava),

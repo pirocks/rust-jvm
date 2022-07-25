@@ -442,14 +442,16 @@ impl IRVMExitType {
                 assembler.lea(MultiAllocateArray::RESTART_IP.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
                 assembler.mov(MultiAllocateArray::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::RunStaticNativeNew { method_id } => {
+            IRVMExitType::RunStaticNativeNew { method_id} => {
                 assembler.mov(rax, RawVMExitType::RunStaticNativeNew as u64).unwrap();
                 assembler.mov(RunStaticNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
+                // assembler.mov(RunStaticNativeNew::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
                 assembler.lea(RunStaticNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::RunSpecialNativeNew { method_id } => {
                 assembler.mov(rax, RawVMExitType::RunSpecialNativeNew as u64).unwrap();
                 assembler.mov(RunSpecialNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
+                // assembler.mov(RunSpecialNativeNew::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
                 assembler.lea(RunSpecialNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(after_exit_label.clone())).unwrap();
             }
             IRVMExitType::RunInterpreted { method_id } => {

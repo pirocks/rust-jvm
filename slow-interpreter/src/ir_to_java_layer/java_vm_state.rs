@@ -87,8 +87,9 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             Err(err_obj) => {
                 let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
                 int_state.set_throw(Some(obj));
+                int_state.debug_print_stack_trace(jvm);
                 eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                return Err(dbg!(WasException {}));
+                return Err(WasException {});
             }
         };
         int_state.saved_assert_frame_from(assert_data, current_frame_pointer);

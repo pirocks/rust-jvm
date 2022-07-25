@@ -76,9 +76,10 @@ pub enum IRInstr {
     DoubleToIntegerConvert { from: DoubleRegister, temp: MMRegister, to: Register },
     DoubleToLongConvert { from: DoubleRegister, to: Register },
     FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
+    DoubleToFloatConvert { from: DoubleRegister, to: FloatRegister },
     IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
     LongToFloatConvert { to: FloatRegister, from: Register },
-    LongToDoubleConvert { to: FloatRegister, from: Register },
+    LongToDoubleConvert { to: DoubleRegister, from: Register },
     IntegerToDoubleConvert { to: DoubleRegister, temp: MMRegister, from: Register },
     Load { to: Register, from_address: Register, size: Size },
     Store { to_address: Register, from: Register, size: Size },
@@ -92,6 +93,7 @@ pub enum IRInstr {
     Sub { res: Register, to_subtract: Register, size: Size },
     Div { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     DivFloat { res: FloatRegister, divisor: FloatRegister },
+    DivDouble { res: DoubleRegister, divisor: DoubleRegister },
     Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     MulFloat { res: FloatRegister, a: FloatRegister },
@@ -105,6 +107,8 @@ pub enum IRInstr {
     Const16bit { to: Register, const_: u16 },
     Const32bit { to: Register, const_: u32 },
     Const64bit { to: Register, const_: u64 },
+    ConstFloat { to: FloatRegister, temp: Register, const_: f32 },
+    ConstDouble { to: DoubleRegister, temp: Register, const_: f64 },
     SignExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     ZeroExtend { from: Register, to: Register, from_size: Size, to_size: Size },
     BranchToLabel { label: LabelName },
@@ -440,6 +444,18 @@ impl IRInstr {
             }
             IRInstr::GetClassOrExit { .. } => {
                 "GetClassOrExit".to_string()
+            }
+            IRInstr::DivDouble { .. } => {
+                "DivDouble".to_string()
+            }
+            IRInstr::ConstFloat { .. } => {
+                "ConstFloat".to_string()
+            }
+            IRInstr::ConstDouble { .. } => {
+                "ConstDouble".to_string()
+            }
+            IRInstr::DoubleToFloatConvert { .. } => {
+                "DoubleToFloatConvert".to_string()
             }
         }
     }

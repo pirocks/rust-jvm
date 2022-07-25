@@ -123,7 +123,6 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
-    // eprintln!("Interpreted:{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool));
     let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, true);
@@ -150,18 +149,28 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
         // real_interpreter_state.inner().set_current_pc(Some(current_offset));
+        if method.name().0.to_str(&jvm.string_pool) == "a" && view.name().unwrap_name().0.to_str(&jvm.string_pool) == "aqr"{
+            eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
+            // println!("{}", Backtrace::force_capture());
+        }
+        assert!(real_interpreter_state.inner().throw().is_none());
+        real_interpreter_state.inner().set_current_pc(None);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
+                assert!(real_interpreter_state.inner().throw().is_none());
                 if let Some(monitor) = should_sync{
                     monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
                 return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
+                real_interpreter_state.inner().set_current_pc(None);
+                dbg!("interpreted handle");
+                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,

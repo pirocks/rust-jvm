@@ -9,7 +9,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
-use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
 use crate::instructions::invoke::virtual_::{setup_virtual_args2};
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::new_java_values::NewJavaValueHandle;
@@ -78,9 +78,9 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
     } else if target_m.is_native() {
         match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
             Ok(res) => Ok(res),
-            Err(WasException{}) => {
-                // int_state.debug_print_stack_trace(jvm);
-                return Err(WasException{})
+            Err(NativeMethodWasException{ prev_rip }) => {
+                todo!()
+                /*return Err(WasException{})*/
             },
         }
     } else {

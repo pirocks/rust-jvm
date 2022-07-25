@@ -17,7 +17,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::compiler::allocate::{anewarray, multianewarray, new, newarray};
 use crate::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
-use crate::compiler::array_load::{aaload, baload, caload, iaload, laload, saload};
+use crate::compiler::array_load::{aaload, baload, caload, iaload, laload, saload, daload, faload};
 use crate::compiler::array_store::{aastore, bastore, castore, dastore, fastore, iastore, lastore, sastore};
 use crate::compiler::arrays::arraylength;
 use crate::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
@@ -25,8 +25,8 @@ use crate::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_nu
 use crate::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::compiler::fields::{getfield, putfield};
-use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, dmul, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fsub};
-use crate::compiler::float_convert::{d2i, d2l, f2d, f2i, i2d, i2f, l2f};
+use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, ddiv, dmul, dneg, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fneg, fsub};
+use crate::compiler::float_convert::{d2f, d2i, d2l, f2d, f2i, i2d, i2f, l2d, l2f};
 use crate::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
 use crate::compiler::intrinsics::gen_intrinsic_ir;
@@ -639,6 +639,12 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::laload => {
                 this_function_ir.extend(laload(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::daload => {
+                this_function_ir.extend(daload(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::faload => {
+                this_function_ir.extend(faload(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::castore => {
                 this_function_ir.extend(castore(method_frame_data, current_instr_data))
             }
@@ -774,6 +780,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::l2f => {
                 this_function_ir.extend(l2f(method_frame_data, current_instr_data))
             }
+            CompressedInstructionInfo::l2d => {
+                this_function_ir.extend(l2d(method_frame_data, current_instr_data))
+            }
             CompressedInstructionInfo::i2d => {
                 this_function_ir.extend(i2d(method_frame_data, current_instr_data))
             }
@@ -785,6 +794,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             }
             CompressedInstructionInfo::f2d => {
                 this_function_ir.extend(f2d(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::d2f => {
+                this_function_ir.extend(d2f(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::fmul => {
                 this_function_ir.extend(fmul(method_frame_data, &current_instr_data))
@@ -806,6 +818,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             }
             CompressedInstructionInfo::fdiv => {
                 this_function_ir.extend(fdiv(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::ddiv => {
+                this_function_ir.extend(ddiv(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::f2i => {
                 this_function_ir.extend(f2i(method_frame_data, current_instr_data))
@@ -836,6 +851,12 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             }
             CompressedInstructionInfo::lneg => {
                 this_function_ir.extend(lneg(method_frame_data, current_instr_data))
+            }
+            CompressedInstructionInfo::fneg => {
+                this_function_ir.extend(fneg(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::dneg => {
+                this_function_ir.extend(dneg(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::lstore_0 => {
                 this_function_ir.extend(lstore_n(method_frame_data, &current_instr_data, 0))

@@ -99,6 +99,18 @@ pub fn fdiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     ])
 }
 
+
+pub fn ddiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = DoubleRegister(0);
+    let value1 = DoubleRegister(1);
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::DivDouble { res: value1, divisor: value2 },
+        IRInstr::StoreFPRelativeDouble { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
 pub fn fadd(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     let value2 = FloatRegister(0);
     let value1 = FloatRegister(1);
@@ -118,6 +130,28 @@ pub fn fsub(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
         IRInstr::SubFloat { res: value1, a: value2 },
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn fneg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = FloatRegister(0);
+    let zero = FloatRegister(1);
+    array_into_iter([
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::ConstFloat { to: zero, temp: Register(1), const_: 0.0 },
+        IRInstr::SubFloat { res: zero, a: value2 },
+        IRInstr::StoreFPRelativeFloat { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn dneg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = DoubleRegister(0);
+    let zero = DoubleRegister(1);
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::ConstDouble { to: zero, temp: Register(1), const_: 0.0 },
+        IRInstr::SubDouble { res: zero, a: value2 },
+        IRInstr::StoreFPRelativeDouble { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 

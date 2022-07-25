@@ -177,6 +177,11 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         self.inner.read().unwrap().top_level_return_function_id.unwrap()
     }
 
+    pub fn get_top_level_return_ir_pointer(&self) -> NonNull<c_void> {
+        let top_level_ir_method_id = self.inner.read().unwrap().top_level_return_function_id.unwrap();
+        self.lookup_ir_method_id_pointer(top_level_ir_method_id)
+    }
+
     pub fn init_top_level_exit_id(&self, ir_method_id: IRMethodID) {
         let mut guard = self.inner.write().unwrap();
         assert!(guard.top_level_return_function_id.is_none());
@@ -248,7 +253,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                 IRVMExitAction::Exception { throwable } => {
                     let mut vm_exit_event = vm_exit_event;
                     vm_exit_event.indicate_okay_to_drop();
-                    return Err(dbg!(throwable));
+                    return Err(throwable);
                 }
             }
         }

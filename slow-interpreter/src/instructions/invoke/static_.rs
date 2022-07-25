@@ -13,7 +13,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
-use crate::instructions::invoke::native::run_native_method;
+use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
 use crate::instructions::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
@@ -152,7 +152,7 @@ pub fn invoke_static_impl<'l, 'gc>(
             Ok(res) => {
                 Ok(res)
             }
-            Err(WasException {}) => {
+            Err(NativeMethodWasException { prev_rip }) => {
                 assert!(interpreter_state.throw().is_some());
                 Err(WasException {})
             }

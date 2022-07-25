@@ -379,7 +379,9 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 if method_view.is_native() {
                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
                 } else {
-                    println!("{:?}.{} {} {} {} {} {:?}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, stack_entry.loader(jvm), stack_entry.pc.map(|offset| offset.0 as i32).unwrap_or(-1), stack_entry.frame_view.ir_ref.frame_ptr());
+                    let loader_name = stack_entry.loader(jvm);
+                    let program_counter = stack_entry.pc.map(|offset| offset.0 as i32).unwrap_or(-1);
+                    println!("{:?}.{} {} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, loader_name, program_counter);
                     if full {
                         // if stack_entry.pc.is_some() {
                         // dump_frame_contents_impl(jvm, self);

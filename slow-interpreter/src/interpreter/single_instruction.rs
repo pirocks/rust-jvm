@@ -20,7 +20,7 @@ use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, f
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
-use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2f, l2i};
+use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
 use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::interpreter::fields::{get_field, get_static, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
@@ -236,7 +236,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::ixor => ixor(jvm, interpreter_state.current_frame_mut()),
         // CInstructionInfo::jsr(target) => jsr(interpreter_state, *target as i32),
         // CInstructionInfo::jsr_w(target) => jsr(interpreter_state, *target),
-        // CInstructionInfo::l2d => l2d(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::l2d => l2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::l2f => l2f(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::l2i => l2i(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::ladd => ladd(jvm, interpreter_state.current_frame_mut()),
@@ -309,6 +309,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {
+            assert!(interpreter_state.inner().throw().is_none());
             PostInstructionAction::Return { res: None }
         }
         CInstructionInfo::invokedynamic(cp) => {

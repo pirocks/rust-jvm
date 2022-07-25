@@ -33,6 +33,14 @@ pub fn laload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     array_load_impl(method_frame_data, current_instr_data, CPDType::LongType)
 }
 
+pub fn daload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_load_impl(method_frame_data, current_instr_data, CPDType::DoubleType)
+}
+
+pub fn faload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_load_impl(method_frame_data, current_instr_data, CPDType::FloatType)
+}
+
 pub fn saload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_load_impl(method_frame_data, current_instr_data, CPDType::ShortType)
 }

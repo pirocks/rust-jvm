@@ -14,7 +14,6 @@ use crate::{InterpreterStateGuard, JavaValue, JVMState};
 use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
-use crate::ir_to_java_layer::exit_impls::throw_impl;
 
 pub mod java_stack;
 pub mod vm_exit_abi;
@@ -74,7 +73,8 @@ impl JavaVMStateWrapperInner {
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr, pc: _ } => {
-                return exit_impls::run_static_native(jvm, int_state.unwrap(), *method_id, *arg_start, *num_args, *res_ptr, *return_to_ptr);
+                todo!()
+                // return exit_impls::run_static_native(jvm, int_state.unwrap(), *method_id, *arg_start, *num_args, *res_ptr, *return_to_ptr);
             }
             RuntimeVMExitInput::RunNativeVirtual { res_ptr, arg_start, method_id, return_to_ptr, pc: _ } => {
                 todo!()
@@ -149,7 +149,8 @@ impl JavaVMStateWrapperInner {
                 exit_impls::check_cast(&jvm, int_state.unwrap(), value, cpdtype_id, return_to_ptr)
             }
             RuntimeVMExitInput::RunNativeSpecial { res_ptr, arg_start, method_id, return_to_ptr, pc: _ } => {
-                exit_impls::run_native_special(jvm, int_state.unwrap(), *res_ptr, *arg_start, *method_id, *return_to_ptr)
+                todo!()
+                // exit_impls::run_native_special(jvm, int_state.unwrap(), *res_ptr, *arg_start, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, method_shape_id, method_number, interface_id, pc: _ } => {
                 exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id, *interface_id, *method_number)
@@ -194,8 +195,10 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::AssertInstanceOf { res, value, cpdtype_id, return_to_ptr, pc, expected } => {
                 exit_impls::assert_instance_of(jvm, int_state.unwrap(), res, value, cpdtype_id, return_to_ptr, *expected)
             }
-            RuntimeVMExitInput::ArrayOutOfBounds { .. } => {
+            RuntimeVMExitInput::ArrayOutOfBounds { pc } => {
+                let pc = Some(*pc);
                 let int_state = int_state.unwrap();
+                int_state.set_current_pc(pc);
                 exit_impls::array_out_of_bounds(&jvm, int_state)
             }
         }

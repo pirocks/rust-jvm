@@ -553,8 +553,8 @@ impl CompressedInstructionInfo {
                     CompressedLdcW::Class { type_ } => {
                         format!("ldc:class:\"{}\"", type_.jvm_representation(string_pool))
                     }
-                    CompressedLdcW::Float { .. } => {
-                        todo!()
+                    CompressedLdcW::Float { float } => {
+                        format!("ldc:class:\"{}\"", float)
                     }
                     CompressedLdcW::Integer { integer } => {
                         format!("ldc_w:integer:\"{}\"", *integer)
@@ -727,7 +727,7 @@ impl CompressedInstructionInfo {
                         todo!()
                     }
                     Wide::IInc(_) => {
-                        todo!()
+                        format!("{:?}", self)
                     }
                 }
             }

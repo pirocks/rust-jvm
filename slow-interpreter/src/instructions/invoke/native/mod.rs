@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use by_address::ByAddress;
+use libc::c_void;
 use another_jit_vm_ir::WasException;
 
 use classfile_view::view::HasAccessFlags;
@@ -40,13 +41,17 @@ pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc,'l>]) -> Vec<NewJavaVal
     res
 }
 
+pub struct NativeMethodWasException{
+    pub prev_rip: *const c_void
+}
+
 pub fn run_native_method<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
     class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
     args: Vec<NewJavaValue<'gc,'k>>
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, NativeMethodWasException> {
     let view = &class.view();
     assert_inited_or_initing_class(jvm, view.type_());
     let method = view.method_view_i(method_i);
@@ -63,7 +68,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     if let Some(m) = monitor.as_ref() {
         m.lock(jvm, int_state).unwrap();
     }
-
+    let prev_rip = int_state.current_frame().frame_view.ir_ref.prev_rip();
     let result = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
         //todo dup
         let res_fn = {
@@ -74,9 +79,10 @@ pub fn run_native_method<'gc, 'l, 'k>(
         match call_impl(jvm, int_state, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
+                dbg!(mangling::mangle(&jvm.string_pool, &method));
                 assert!(int_state.throw().is_some());
                 int_state.pop_frame(jvm, native_call_frame, true);
-                return Err(WasException);
+                return Err(NativeMethodWasException{ prev_rip });
             }
         }
     } else {
@@ -84,9 +90,10 @@ pub fn run_native_method<'gc, 'l, 'k>(
         let first_call = match call(jvm, int_state, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
             Ok(call_res) => call_res,
             Err(WasException {}) => {
+                dbg!(mangling::mangle(&jvm.string_pool, &method));
                 int_state.pop_frame(jvm, native_call_frame, true);
                 assert!(int_state.throw().is_some());
-                return Err(WasException)
+                return Err(NativeMethodWasException{ prev_rip })
             }
         };
         match first_call {
@@ -101,12 +108,14 @@ pub fn run_native_method<'gc, 'l, 'k>(
         m.unlock(jvm, int_state).unwrap();
     }
     let was_exception = int_state.throw().is_some();
-    int_state.pop_frame(jvm, native_call_frame, was_exception);
-    if was_exception {
-        Err(WasException)
+    let res = if was_exception {
+        dbg!(mangling::mangle(&jvm.string_pool, &method));
+        Err(NativeMethodWasException{ prev_rip })
     } else {
         Ok(result)
-    }
+    };
+    int_state.pop_frame(jvm, native_call_frame, was_exception);
+    res
 }
 
 fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc,'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {

@@ -217,6 +217,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::DivFloat { res, divisor } => {
             assembler.divss(res.to_xmm(), divisor.to_xmm()).unwrap();
         }
+        IRInstr::DivDouble { res, divisor } => {
+            assembler.divpd(res.to_xmm(), divisor.to_xmm()).unwrap();
+        }
         IRInstr::AddFloat { res, a } => {
             assembler.addss(res.to_xmm(), a.to_xmm()).unwrap();
         }
@@ -231,6 +234,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::FloatToDoubleConvert { from, to } => {
             assembler.cvtps2pd(to.to_xmm(), from.to_xmm()).unwrap();
+        }
+        IRInstr::DoubleToFloatConvert { from, to } => {
+            assembler.cvtpd2ps(to.to_xmm(), from.to_xmm()).unwrap();
         }
         IRInstr::MulDouble { res, a } => {
             assembler.mulpd(res.to_xmm(), a.to_xmm()).unwrap();
@@ -468,6 +474,16 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 }
             }
             assembler.nop().unwrap();
+        }
+        IRInstr::ConstFloat { to, const_, temp } => {
+            assembler.sub(temp.to_native_64(), temp.to_native_64()).unwrap();
+            assembler.mov(temp.to_native_32(), const_.to_bits() as i32).unwrap();
+            assembler.vmovd(to.to_xmm(),temp.to_native_32()).unwrap();
+        }
+        IRInstr::ConstDouble { to, temp, const_ } => {
+            assembler.sub(temp.to_native_64(), temp.to_native_64()).unwrap();
+            assembler.mov(temp.to_native_64(), const_.to_bits() as i64).unwrap();
+            assembler.vmovq(to.to_xmm(),temp.to_native_64()).unwrap();
         }
     }
     None

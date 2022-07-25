@@ -34,6 +34,12 @@ pub fn l2i<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpre
     PostInstructionAction::Next {}
 }
 
+pub fn l2d<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    let val = current_frame.pop(RuntimeType::LongType).unwrap_long();
+    current_frame.push(InterpreterJavaValue::Double(val as f64));
+    PostInstructionAction::Next {}
+}
+
 pub fn i2d<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let int = current_frame.pop(RuntimeType::IntType).unwrap_int();
     current_frame.push(InterpreterJavaValue::Double(int as f64));

@@ -263,6 +263,7 @@ pub enum RuntimeVMExitInput {
     },
     RunNativeStaticNew {
         method_id: MethodId,
+        // pc: ByteCodeOffset,
         return_to_ptr: *const c_void,
     },
     RunInterpreted {
@@ -513,6 +514,7 @@ impl RuntimeVMExitInput {
                 RuntimeVMExitInput::RunNativeStaticNew {
                     method_id: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::METHOD_ID) as MethodId,
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RETURN_TO_PTR) as *const c_void,
+                    // pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::JAVA_PC) as u16),
                 }
             }
             RawVMExitType::RunSpecialNativeNew => {
@@ -575,7 +577,7 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::RunNativeVirtual { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeSpecial { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeSpecialNew { .. } => None,
-            RuntimeVMExitInput::RunNativeStaticNew { .. } => None,
+            RuntimeVMExitInput::RunNativeStaticNew {  .. } => None,
             RuntimeVMExitInput::RunInterpreted { .. } => None,
             RuntimeVMExitInput::AssertInstanceOf { pc, .. } => Some(*pc),
             RuntimeVMExitInput::NewClassRegister { pc, .. } => Some(*pc),
