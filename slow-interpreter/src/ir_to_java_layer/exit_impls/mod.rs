@@ -574,7 +574,6 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
 }
 
 pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_handle: NewJavaValueHandle<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
-    eprintln!("throw_impl");
     // assert!(int_state.current_pc().is_some() || ignore_this_frame);
     int_state.set_throw(None);
     let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
@@ -590,7 +589,6 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         }
         let rc = match current_frame.try_class_pointer(jvm) {
             None => {
-                dbg!("went through opaque frame");
                 continue;
             }
             Some(rc) => rc
@@ -598,12 +596,9 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         let view = rc.view();
         let method_i = current_frame.method_i(jvm);
         let method_view = view.method_view_i(method_i);
-        dbg!(method_view.name().0.to_str(&jvm.string_pool));
-        dbg!(view.name().jvm_representation(&jvm.string_pool));
         if let Some(code) = method_view.code_attribute() {
             let current_pc = match current_frame.try_pc(jvm) {
                 None => {
-                    dbg!("no pc");
                     return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
                 }
                 Some(current_pc) => current_pc

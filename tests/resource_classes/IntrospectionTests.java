@@ -49,5 +49,7 @@ public class IntrospectionTests {
         if(!HashMap.class.getGenericSuperclass().toString().equals("java.util.AbstractMap<K, V>")){
             throw new AssertionError("9");
         }
+        final int a = (int)Math.pow(17.0, 2.0);
+        System.out.println("a" + a);
     }
 }

@@ -169,8 +169,6 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
             }
             PostInstructionAction::Exception { .. } => {
                 real_interpreter_state.inner().set_current_pc(None);
-                dbg!("interpreted handle");
-                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,

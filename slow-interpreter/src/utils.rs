@@ -12,6 +12,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::{invoke_virtual};
 use crate::interpreter_state::InterpreterStateGuard;
+use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::java::lang::boolean::Boolean;
 use crate::java::lang::byte::Byte;
 use crate::java::lang::char::Char;
@@ -102,7 +103,7 @@ pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMS
 }
 
 pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, index: jint) -> T {
-    /*let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
+    let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException {}) => {
             eprintln!("Warning error encountered creating Array out of bounds");
@@ -110,10 +111,9 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
         }
     }
         .object()
-        .into();
+        .new_java_handle().unwrap_object_nonnull();
     int_state.set_throw(Some(bounds_object));
-    T::invalid_default()*/
-    todo!()
+    T::invalid_default()
 }
 
 pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<T, WasException> {

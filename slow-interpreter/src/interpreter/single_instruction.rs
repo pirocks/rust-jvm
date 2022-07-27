@@ -8,7 +8,6 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::JVMState;
 use crate::function_instruction_count::FunctionExecutionCounter;
 use crate::instructions::invoke::dynamic::invoke_dynamic;
 use crate::instructions::invoke::interface::invoke_interface;
@@ -34,6 +33,7 @@ use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dsto
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
 use crate::interpreter::wide::wide;
+use crate::JVMState;
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -48,18 +48,16 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
     // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
     // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "io/netty/util/concurrent/SingleThreadEventExecutor" && method.name().0.to_str(&jvm.string_pool) == "startThread"
-        // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rd" && method.name().0.to_str(&jvm.string_pool) == "a") ||
-        // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "up" && method.name().0.to_str(&jvm.string_pool) == "c")
-        // {
-    // if method.name().0.to_str(&jvm.string_pool) == "reifyTypeArguments"
-    //     (method.name().0.to_str(&jvm.string_pool) == "lambda$new$2" || method.name().0.to_str(&jvm.string_pool) == "<init>" )) || method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "java/lang/Object$$Lambda$6"
+    // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rd" && method.name().0.to_str(&jvm.string_pool) == "a") ||
+    // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "up" && method.name().0.to_str(&jvm.string_pool) == "c")
     // {
+    // if/* method.name().0.to_str(&jvm.string_pool) == "<clinit>" ||*/method.name().0.to_str(&jvm.string_pool) == "main" {
     //     dump_frame(interpreter_state, method, code);
     //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-        //     // interpreter_state.inner().set_current_pc(Some(current_pc));
-        //     dump_frame_contents(jvm, interpreter_state.inner());
-        //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-        //     // interpreter_state.inner().set_current_pc(None);
+    //     // interpreter_state.inner().set_current_pc(Some(current_pc));
+    //     dump_frame_contents(jvm, interpreter_state.inner());
+    //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
+    //     // interpreter_state.inner().set_current_pc(None);
     // }
     // }
     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));

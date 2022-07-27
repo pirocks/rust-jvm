@@ -18,7 +18,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
@@ -108,7 +108,19 @@ pub fn call_impl<'gc, 'l, 'k>(
             c_args.push(to_native(env, (*j).clone(), &t));
         }
     }
-    let cif = Cif::new(args_type.into_iter(), Type::usize());
+    let cif = Cif::new(args_type.into_iter(), match &md.return_type{
+        CompressedParsedDescriptorType::BooleanType => Type::u8(),
+        CompressedParsedDescriptorType::ByteType => Type::i8(),
+        CompressedParsedDescriptorType::ShortType => Type::i16(),
+        CompressedParsedDescriptorType::CharType => Type::u16(),
+        CompressedParsedDescriptorType::IntType => Type::i32(),
+        CompressedParsedDescriptorType::LongType => Type::i64(),
+        CompressedParsedDescriptorType::FloatType => Type::f32(),
+        CompressedParsedDescriptorType::DoubleType => Type::f64(),
+        CompressedParsedDescriptorType::VoidType => Type::void(),
+        CompressedParsedDescriptorType::Class(_) => Type::pointer(),
+        CompressedParsedDescriptorType::Array { .. } => Type::pointer()
+    });
     let fn_ptr = CodePtr::from_fun(*raw);
     unsafe { assert!(jvm.get_int_state().registered()); }
     assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));

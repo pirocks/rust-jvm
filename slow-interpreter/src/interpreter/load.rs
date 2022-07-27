@@ -1,3 +1,4 @@
+use another_jit_vm_ir::WasException;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -6,6 +7,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 use crate::JVMState;
+use crate::utils::{throw_array_out_of_bounds_res};
 
 pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let ref_: InterpreterJavaValue = current_frame.local_get(n, RuntimeType::object());
@@ -75,8 +77,8 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(jvm: &'gc JVMState<'gc>, mu
     unsafe {
         if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
             current_frame.inner().inner().debug_print_stack_trace(jvm);
-            todo!()
-            /*return throw_array_out_of_bounds(jvm, int_state, index);*/
+            throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err();
+            return PostInstructionAction::Exception { exception: WasException{} }
         }
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
