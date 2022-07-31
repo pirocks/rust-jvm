@@ -62,9 +62,9 @@ pub fn gen_intrinsic_ir<'vm>(
             }
         ]);
     }
-    // if method_name == MethodName::method_arraycopy() && desc == CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]) {
-    //     return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, _labeler);
-    // }
+    if method_name == MethodName::method_arraycopy() && desc == CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]) {
+        return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, _labeler);
+    }
     None
 }
 

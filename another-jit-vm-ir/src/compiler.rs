@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 use std::sync::atomic::AtomicPtr;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use gc_memory_layout_common::memory_regions::RegionHeader;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
@@ -192,6 +193,10 @@ pub enum IRInstr {
         frame_size: usize,
         num_locals: usize,
     },
+    CallIntrinsicHelper {
+        intrinsic_helper_type: IntrinsicHelperType,
+        integer_args: Vec<Register>
+    },
     NOP,
     DebuggerBreakpoint,
     Label(IRLabel),
@@ -302,7 +307,7 @@ impl IRInstr {
                     IRVMExitType::MonitorExit { .. } => { "MonitorExit" }
                     IRVMExitType::Throw { .. } => { "Throw" }
                     IRVMExitType::GetStatic { .. } => { "GetStatic" }
-                    IRVMExitType::Todo => { "Todo" }
+                    IRVMExitType::Todo { .. } => { "Todo" }
                     IRVMExitType::InstanceOf { .. } => { "InstanceOf" }
                     IRVMExitType::CheckCast { .. } => { "CheckCast" }
                     IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
@@ -489,6 +494,9 @@ impl IRInstr {
             }
             IRInstr::AssertEqual { .. } => {
                 "AssertEqual".to_string()
+            }
+            IRInstr::CallIntrinsicHelper { .. } => {
+                "CallIntrinsicHelper".to_string()
             }
         }
     }

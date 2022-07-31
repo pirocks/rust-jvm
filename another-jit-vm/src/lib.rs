@@ -3,6 +3,7 @@
 #![feature(trait_alias)]
 #![feature(generic_associated_types)]
 #![feature(core_intrinsics)]
+#![feature(const_ptr_offset_from)]
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
 // have another layer above this which gets rid of native points and does everytthing in terms of IR
@@ -21,8 +22,9 @@ use iced_x86::code_asm::{al, AsmRegister16, AsmRegister32, AsmRegister64, AsmReg
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
 use rangemap::RangeMap;
-use crate::code_modification::CodeModificationHandle;
 
+use crate::code_modification::CodeModificationHandle;
+use crate::intrinsic_helpers::IntrinsicHelpers;
 use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use crate::stack::OwnedNativeStack;
 
@@ -41,6 +43,7 @@ pub const MAGIC_2_EXPECTED: u64 = 0xDEADCAFEDEADDEAD;
 pub mod stack;
 pub mod saved_registers_utils;
 pub mod code_modification;
+pub mod intrinsic_helpers;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Register(pub u8);
@@ -260,6 +263,7 @@ pub enum VMExitAction<T: Sized> {
 struct JITContext {
     guest_registers: SavedRegistersWithIP,
     vm_native_saved_registers: SavedRegistersWithIP,
+    intrinsic_helpers: IntrinsicHelpers,
 }
 
 trait ExitHandlerType<'vm, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm;
@@ -419,6 +423,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
                     xsave_area: [0; 64],
                 },
             },
+            intrinsic_helpers: IntrinsicHelpers::new()
         };
         let self_: &'l VMState<'vm, T, ExtraData> = self;
         let iterator: LaunchedVM<'vm, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, extra, pending_exit: false };
@@ -447,7 +452,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
             //save all registers to avoid breaking stuff
             "mov r15, {0}",
             // "mov [r15 + {__rust_jvm_rax_native_offset_const}], rax",
-            "mov [r15 + {__rust_jvm_rbx_native_offset_const}], rbx",
+            "mov [r15 + {__rust_jvm_rbx_native_offset_const}], rbx",// llvm doesn't like out rb for some reason
             // "mov [r15 + {__rust_jvm_rcx_native_offset_const}], rcx",
             // "mov [r15 + {__rust_jvm_rdx_native_offset_const}], rdx",
             // "mov [r15 + {__rust_jvm_rsi_native_offset_const}], rsi",

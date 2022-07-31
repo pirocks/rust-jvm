@@ -145,6 +145,20 @@ impl ExitRegisterStruct for RunNativeSpecial {
     }
 }
 
+pub struct Todo;
+
+impl Todo{
+    pub const JAVA_PC: Register = Register(6);
+}
+
+impl ExitRegisterStruct for Todo {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0),
+            Self::JAVA_PC
+        ])
+    }
+}
+
 pub struct TopLevelReturn;
 
 impl TopLevelReturn {

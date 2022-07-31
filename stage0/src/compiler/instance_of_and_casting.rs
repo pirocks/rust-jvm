@@ -84,7 +84,7 @@ pub fn checkcast_impl<'vm>(
                             label: checkcast_succeeds,
                             size: Size::int(),
                         },
-                        IRInstr::VMExit2 { exit_type: IRVMExitType::Todo {} }
+                        IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset } }
                     ]));
                 }
             } else if rc.view().is_interface() {
@@ -100,7 +100,7 @@ pub fn checkcast_impl<'vm>(
                         label: checkcast_succeeds,
                         size: Size::int(),
                     },
-                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo {} }
+                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset } }
                 ]))
             } else {
                 res.push(restart_point);

@@ -129,7 +129,7 @@ impl JVMOptions {
             //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArgument".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "sun/util/locale/BaseLocale$Key/<init>".to_string(),
+            //     combined: "java/text/DigitList/set".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

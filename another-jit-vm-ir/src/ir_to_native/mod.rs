@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, rax, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
 use another_jit_vm::{Register, VMState};
 use another_jit_vm::code_modification::AssemblerFunctionCallTarget;
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use gc_memory_layout_common::memory_regions::RegionHeader;
 use inheritance_tree::ClassID;
@@ -558,6 +559,24 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.int3().unwrap();
             assembler.set_label(&mut after).unwrap();
             assembler.nop().unwrap();
+        }
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args } => {
+            match intrinsic_helper_type {
+                IntrinsicHelperType::Memmove => {
+                    let first_arg = rdi;
+                    let second_arg = rsi;
+                    let third_arg = rdx;
+                    assert_eq!(integer_args.len(), 3);
+                    let args = vec![first_arg, second_arg,third_arg];
+                    assert!(!integer_args.iter().any(|reg|args.contains(&reg.to_native_64())));
+                    assert!(integer_args.len() <= args.len());
+                    for (from_arg, to_arg) in integer_args.iter().zip(args.iter()){
+                        assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
+                    }
+                    assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                },
+                IntrinsicHelperType::InstanceOf => todo!(),
+            }
         }
     }
     None

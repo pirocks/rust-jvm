@@ -1,10 +1,11 @@
 use std::mem::size_of;
 
-use another_jit_vm::{FloatRegister, IRMethodID, Register};
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
+use another_jit_vm::{IRMethodID, Register};
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, NativeStackframeMemoryLayout};
-use rust_jvm_common::{MethodId, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
@@ -31,6 +32,7 @@ pub fn intrinsic_array_copy<'gc>(
         frame_size: layout.full_frame_size(),
         num_locals: resolver.num_locals(method_id) as usize,
     });
+    // res.push(IRInstr::DebuggerBreakpoint);
     let zero = Register(7);
     res.push(IRInstr::BinaryBitXor {
         res: zero,
@@ -73,12 +75,6 @@ pub fn intrinsic_array_copy<'gc>(
         b: zero,
         label: todo_label,
         size: Size::pointer(),
-    });
-    res.push(IRInstr::BranchEqual {
-        a: src,
-        b: dst,
-        label: todo_label,
-        size: Size::pointer()
     });
     res.push(IRInstr::BranchAGreaterB {
         a: zero,
@@ -153,6 +149,12 @@ pub fn intrinsic_array_copy<'gc>(
         to: src_address_register,
     });
     res.push(IRInstr::AddConst { res: src_address_register, a: 8 });
+    res.push(IRInstr::MulConst {
+        res: src_pos,
+        a: array_layout.elem_size() as i32,
+        size: Size::pointer(),
+        signed: Signed::Signed
+    });
     res.push(IRInstr::Add {
         res: src_address_register,
         a: src_pos,
@@ -168,29 +170,38 @@ pub fn intrinsic_array_copy<'gc>(
         to: dst_address_register,
     });
     res.push(IRInstr::AddConst { res: dst_address_register, a: 8 });
+    res.push(IRInstr::MulConst {
+        res: dst_pos,
+        a: array_layout.elem_size() as i32,
+        size: Size::pointer(),
+        signed: Signed::Signed
+    });
     res.push(IRInstr::Add {
         res: dst_address_register,
-        a: src_pos,
+        a: dst_pos,
         size: Size::pointer(),
+    });
+
+    res.push(IRInstr::MulConst {
+        res: length,
+        a: array_layout.elem_size() as i32,
+        size: Size::pointer(),
+        signed: Signed::Signed //todo this should probe be not this
     });
 
     let copy_label = labeler.local_label();
     res.push(IRInstr::BranchToLabel { label: copy_label });
     res.push(IRInstr::Label(IRLabel { name: todo_label }));
-    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo {} });
-    res.push(IRInstr::Label(IRLabel { name: copy_label }));
     // res.push(IRInstr::DebuggerBreakpoint);
-    res.push(IRInstr::MemCopyForward {
-        src_base_addr: src_address_register,
-        dst_base_addr: dst_address_register,
-        len: length,
-        temp_register_1: Register(1),
-        temp_register_2: Register(2),
-        temp_register_3: Register(3),
-        vector_temp_register: FloatRegister(1),
+    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: ByteCodeOffset(0) } });
+    res.push(IRInstr::Label(IRLabel { name: copy_label }));
+    // pub fn memmove(dest: *mut c_void, src: *const c_void, n: size_t) -> *mut c_void;
+    res.push(IRInstr::CallIntrinsicHelper {
+        intrinsic_helper_type: IntrinsicHelperType::Memmove,
+        integer_args: vec![dst_address_register, src_address_register, length],
     });
     res.push(IRInstr::Return {
-        return_val: Some(Register(0)),
+        return_val: None,
         temp_register_1: Register(1),
         temp_register_2: Register(2),
         temp_register_3: Register(3),

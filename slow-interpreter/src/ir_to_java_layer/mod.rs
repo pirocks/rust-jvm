@@ -201,6 +201,10 @@ impl JavaVMStateWrapperInner {
                 int_state.set_current_pc(pc);
                 exit_impls::array_out_of_bounds(&jvm, int_state)
             }
+            RuntimeVMExitInput::Todo { pc } => {
+                int_state.unwrap().debug_print_stack_trace(jvm);
+                todo!()
+            }
         }
     }
 }
