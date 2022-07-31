@@ -149,10 +149,10 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
         // real_interpreter_state.inner().set_current_pc(Some(current_offset));
-        if method.name().0.to_str(&jvm.string_pool) == "a" && view.name().unwrap_name().0.to_str(&jvm.string_pool) == "aqr"{
-            eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
-            // println!("{}", Backtrace::force_capture());
-        }
+        // if method.name().0.to_str(&jvm.string_pool) == "a" && view.name().unwrap_name().0.to_str(&jvm.string_pool) == "aqr"{
+        //     eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
+        //     // println!("{}", Backtrace::force_capture());
+        // }
         assert!(real_interpreter_state.inner().throw().is_none());
         real_interpreter_state.inner().set_current_pc(None);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {

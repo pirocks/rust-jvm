@@ -79,6 +79,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
             Ok(res) => Ok(res),
             Err(NativeMethodWasException{ prev_rip }) => {
+                int_state.debug_print_stack_trace(jvm);
                 todo!()
                 /*return Err(WasException{})*/
             },

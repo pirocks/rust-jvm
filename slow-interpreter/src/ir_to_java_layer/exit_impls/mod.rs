@@ -1,5 +1,5 @@
 use std::ffi::c_void;
-use std::mem::{size_of};
+use std::mem::size_of;
 use std::ops::Deref;
 use std::ptr::NonNull;
 
@@ -7,9 +7,9 @@ use libc::memset;
 
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
-use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::ir_stack::read_frame_ir_header;
+use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use interface_vtable::{InterfaceVTableEntry, ITable, ResolvedInterfaceVTableEntry};
@@ -216,8 +216,15 @@ pub fn get_static<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let static_var = get_static_impl(jvm, int_state, name, field_name).unwrap().unwrap();
     // let static_var = static_vars_guard.get(field_name);
     // todo doesn't handle interfaces and the like
-    // int_state.debug_print_stack_trace(jvm);
-    unsafe { (value_ptr).cast::<NativeJavaValue>().write(static_var.as_njv().to_native()); }
+    unsafe {
+        if libc::rand() < 1_000 {
+            int_state.debug_print_stack_trace(jvm);
+        }
+    }
+    unsafe {
+        let native_java_value = static_var.as_njv().to_native();
+        value_ptr.cast::<NativeJavaValue>().write(native_java_value);
+    }
     drop(get_static);
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }

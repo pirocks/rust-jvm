@@ -439,6 +439,9 @@ enum PredefinedStrings {
     method_findVirtual,
     method_fromMethodDescriptorString,
     method_getClass,
+    method_arraycopy,
+    method_compareAndSwapLong,
+    method_identityHashCode,
     method_getClassLoader,
     method_getExtClassLoader,
     method_getFieldType,
@@ -654,7 +657,10 @@ impl PredefinedStrings {
             INVALID => "__rust_jvm_invalid".to_string(),
             method_getGenericInterfaces => "getGenericInterfaces".to_string(),
             SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE => "sun/reflect/generics/tree/ClassSignature".to_string(),
-            field_formalTypeParams => "formalTypeParams".to_string()
+            field_formalTypeParams => "formalTypeParams".to_string(),
+            method_arraycopy => "arraycopy".to_string(),
+            method_compareAndSwapLong => "compareAndSwapLong".to_string(),
+            method_identityHashCode => "identityHashCode".to_string()
         }
     }
 }
@@ -946,6 +952,15 @@ impl MethodName {
     }
     pub fn method_getClass() -> Self {
         Self::from_raw_id(method_getClass)
+    }
+    pub fn method_arraycopy() -> Self {
+        Self::from_raw_id(method_arraycopy)
+    }
+    pub fn method_compareAndSwapLong() -> Self {
+        Self::from_raw_id(method_compareAndSwapLong)
+    }
+    pub fn method_identityHashCode() -> Self {
+        Self::from_raw_id(method_identityHashCode)
     }
     pub fn method_getClassLoader() -> Self {
         Self::from_raw_id(method_getClassLoader)

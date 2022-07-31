@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{byte_ptr, CodeAssembler, CodeLabel, dword_ptr, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, rax, rbp, rbx, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
 use another_jit_vm::{Register, VMState};
@@ -46,7 +46,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::Store { from, to_address, size } => {
             ir_store(assembler, *from, *to_address, *size)
         }
-        IRInstr::CopyRegister { .. } => todo!(),
+        IRInstr::CopyRegister { from, to } => {
+            assembler.mov(to.to_native_64(), from.to_native_64()).unwrap();
+        },
         IRInstr::Add { res, a, size } => {
             ir_add(assembler, *res, *a, *size)
         }
@@ -77,6 +79,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::BranchToLabel { label } => {
             let code_label = labels.entry(*label).or_insert_with(|| assembler.create_label());
             assembler.jmp(*code_label).unwrap();
+            assembler.nop().unwrap();
         }
         IRInstr::LoadLabel { .. } => todo!(),
         IRInstr::LoadRBP { .. } => todo!(),
@@ -253,7 +256,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::VTableLookupOrExit { resolve_exit, java_pc } => {
             vtable_lookup_or_exit(assembler, resolve_exit, *java_pc)
         }
-        IRInstr::GetClassOrExit {  object_ref, res, get_class_exit } => {
+        IRInstr::GetClassOrExit { object_ref, res, get_class_exit } => {
             let mut after_exit_label = assembler.create_label();
             let obj_ptr = Register(0);
             // assembler.int3().unwrap();
@@ -283,7 +286,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let obj_ptr = Register(0);
                     assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
                     let itable_ptr_register = Register(3);
-                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), itable_ptr_register.clone(),resolver_exit_label.clone());
+                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), itable_ptr_register.clone(), resolver_exit_label.clone());
                     let address_register = InvokeInterfaceResolve::ADDRESS_RES;// register 4
                     // assembler.int3().unwrap();
                     assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
@@ -442,7 +445,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.mov(current_index.to_native_64(), 1 as u64).unwrap();
             assembler.lock().xadd(region_header.to_native_64() + offset_of!(RegionHeader,num_current_elements), current_index.to_native_64()).unwrap();
             let max_elements = Register(7);
-            assembler.mov(max_elements.to_native_64(),region_header.to_native_64() + offset_of!(RegionHeader, region_max_elements)).unwrap();
+            assembler.mov(max_elements.to_native_64(), region_header.to_native_64() + offset_of!(RegionHeader, region_max_elements)).unwrap();
             assembler.cmp(current_index.to_native_64(), max_elements.to_native_64()).unwrap();
             assembler.jge(skip_to_exit_label.clone()).unwrap();
             let region_elem_size = Register(8);
@@ -459,7 +462,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.cmp(region_elem_size.to_native_64(), 0).unwrap();
             assembler.jne(zero_loop_start).unwrap();
             assembler.mov(rbp - res_offset.0, res_ptr.to_native_64()).unwrap();
-            assembler.jmp( after_exit_label.clone()).unwrap();
+            assembler.jmp(after_exit_label.clone()).unwrap();
             match allocate_exit {
                 IRVMExitType::AllocateObject { .. } => {
                     assembler.set_label(&mut skip_to_exit_label).unwrap();
@@ -478,12 +481,83 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::ConstFloat { to, const_, temp } => {
             assembler.sub(temp.to_native_64(), temp.to_native_64()).unwrap();
             assembler.mov(temp.to_native_32(), const_.to_bits() as i32).unwrap();
-            assembler.vmovd(to.to_xmm(),temp.to_native_32()).unwrap();
+            assembler.vmovd(to.to_xmm(), temp.to_native_32()).unwrap();
         }
         IRInstr::ConstDouble { to, temp, const_ } => {
             assembler.sub(temp.to_native_64(), temp.to_native_64()).unwrap();
             assembler.mov(temp.to_native_64(), const_.to_bits() as i64).unwrap();
-            assembler.vmovq(to.to_xmm(),temp.to_native_64()).unwrap();
+            assembler.vmovq(to.to_xmm(), temp.to_native_64()).unwrap();
+        }
+        IRInstr::MemCopyForward {
+            src_base_addr,
+            dst_base_addr,
+            len,
+            temp_register_1,
+            temp_register_2:_,
+            temp_register_3,
+            vector_temp_register:_
+        } => {
+            let i = temp_register_1.clone();
+            let temp = temp_register_3.to_native_64();
+            let mut loop_start = assembler.create_label();
+            let mut loop_end = assembler.create_label();
+            assembler.xor(i.to_native_64(), i.to_native_64()).unwrap();
+            assembler.set_label(&mut loop_start).unwrap();
+            assembler.cmp(len.to_native_64(),i.to_native_64()).unwrap();
+            assembler.je(loop_end.clone()).unwrap();
+            assembler.mov(temp, src_base_addr.to_native_64() + 8*i.to_native_64()).unwrap();
+            assembler.mov(dst_base_addr.to_native_64() + 8*i.to_native_64(), temp).unwrap();
+            assembler.add(i.to_native_64(),1).unwrap();
+            assembler.jmp(loop_start).unwrap();
+            assembler.set_label(&mut loop_end).unwrap();
+            assembler.nop().unwrap();
+        }
+        IRInstr::AddConst { res, a } => {
+            assembler.add(res.to_native_64(), *a).unwrap();
+        }
+        IRInstr::CompareAndSwapAtomic { ptr, old, new, res, rax: should_be_rax, size } => {
+            assert_eq!(should_be_rax.0, 0);
+            match *size {
+                Size::Byte => {
+                    assembler.mov(al, old.to_native_8()).unwrap();
+                    todo!()
+                    // assembler.lock().cmpxchg(todo!()/*ptr.to_native_8() + 0*/, new.to_native_8()).unwrap();
+                }
+                Size::X86Word => {
+                    assembler.mov(ax, old.to_native_16()).unwrap();
+                    assembler.lock().cmpxchg(ptr.to_native_16() + 0, new.to_native_16()).unwrap();
+                }
+                Size::X86DWord => {
+                    assembler.mov(eax, old.to_native_32()).unwrap();
+                    assembler.lock().cmpxchg(ptr.to_native_32() + 0, new.to_native_32()).unwrap();
+                }
+                Size::X86QWord => {
+                    assembler.mov(rax, old.to_native_64()).unwrap();
+                    assembler.lock().cmpxchg(ptr.to_native_64() + 0, new.to_native_64()).unwrap();
+                }
+            }
+            assembler.setz(res.to_native_8()).unwrap();
+        }
+        IRInstr::AssertEqual { a, b, size } => {
+            match size {
+                Size::Byte => {
+                    assembler.cmp(a.to_native_8(),b.to_native_8()).unwrap();
+                }
+                Size::X86Word => {
+                    assembler.cmp(a.to_native_16(),b.to_native_16()).unwrap();
+                }
+                Size::X86DWord => {
+                    assembler.cmp(a.to_native_32(),b.to_native_32()).unwrap();
+                }
+                Size::X86QWord => {
+                    assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+                }
+            }
+            let mut after = assembler.create_label();
+            assembler.je(after).unwrap();
+            assembler.int3().unwrap();
+            assembler.set_label(&mut after).unwrap();
+            assembler.nop().unwrap();
         }
     }
     None

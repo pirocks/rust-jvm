@@ -3,7 +3,7 @@ use std::ptr::NonNull;
 use std::sync::atomic::AtomicPtr;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
-use gc_memory_layout_common::memory_regions::{RegionHeader};
+use gc_memory_layout_common::memory_regions::RegionHeader;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -50,6 +50,15 @@ impl Size {
     pub const fn long() -> Self {
         Self::X86QWord
     }
+
+    pub fn lengthen_runtime_type(&self) -> Self{
+        match self {
+            Size::Byte => Self::X86DWord,
+            Size::X86Word => Self::X86DWord,
+            Size::X86DWord => Self::X86DWord,
+            Size::X86QWord => Self::X86QWord,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -85,6 +94,8 @@ pub enum IRInstr {
     Store { to_address: Register, from: Register, size: Size },
     CopyRegister { from: Register, to: Register },
     Add { res: Register, a: Register, size: Size },
+    CompareAndSwapAtomic { ptr: Register, old: Register, new: Register, res: Register, rax: Register, size: Size },
+    AddConst { res: Register, a: i32 },
     IntCompare { res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register, size: Size },
     AddFloat { res: FloatRegister, a: FloatRegister },
     SubFloat { res: FloatRegister, a: FloatRegister },
@@ -119,32 +130,42 @@ pub enum IRInstr {
     DoubleCompare { value1: DoubleRegister, value2: DoubleRegister, res: Register, temp1: Register, temp2: Register, temp3: Register, compare_mode: FloatCompareMode },
     BranchEqual { a: Register, b: Register, label: LabelName, size: Size },
     BranchNotEqual { a: Register, b: Register, label: LabelName, size: Size },
+    AssertEqual { a: Register, b: Register, size: Size },
     BranchAGreaterB { a: Register, b: Register, label: LabelName, size: Size },
     BranchAGreaterEqualB { a: Register, b: Register, label: LabelName, size: Size },
     BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
     BranchEqualVal { a: Register, const_: u32, label: LabelName, size: Size },
-    BoundsCheck { length: Register, index: Register, size: Size , exit: IRVMExitType},
+    BoundsCheck { length: Register, index: Register, size: Size, exit: IRVMExitType },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
+    MemCopyForward {
+        src_base_addr: Register,
+        dst_base_addr: Register,
+        len: Register,
+        temp_register_1: Register,
+        temp_register_2: Register,
+        temp_register_3: Register,
+        vector_temp_register: FloatRegister,
+    },
     RestartPoint(RestartPointID),
     VTableLookupOrExit {
         resolve_exit: IRVMExitType,
-        java_pc: ByteCodeOffset
+        java_pc: ByteCodeOffset,
     },
     ITableLookupOrExit {
         resolve_exit: IRVMExitType
     },
-    GetClassOrExit{
+    GetClassOrExit {
         object_ref: FramePointerOffset,
         res: Register,
-        get_class_exit: IRVMExitType
+        get_class_exit: IRVMExitType,
     },
-    InstanceOfClass{
+    InstanceOfClass {
         inheritance_path: NonNull<BitPath256>,
         object_ref: FramePointerOffset,
         return_val: Register,
-        instance_of_exit: IRVMExitType
+        instance_of_exit: IRVMExitType,
     },
-    InstanceOfInterface{
+    InstanceOfInterface {
         target_interface_id: ClassID,
         object_ref: FramePointerOffset,
         return_val: Register,
@@ -153,7 +174,7 @@ pub enum IRInstr {
     Allocate {
         region_header_ptr: *const AtomicPtr<RegionHeader>,
         res_offset: FramePointerOffset,
-        allocate_exit: IRVMExitType
+        allocate_exit: IRVMExitType,
     },
     NPECheck { possibly_null: Register, temp_register: Register, npe_exit_type: IRVMExitType },
     IRCall {
@@ -456,6 +477,18 @@ impl IRInstr {
             }
             IRInstr::DoubleToFloatConvert { .. } => {
                 "DoubleToFloatConvert".to_string()
+            }
+            IRInstr::MemCopyForward { .. } => {
+                "MemCopy".to_string()
+            }
+            IRInstr::AddConst { .. } => {
+                "AddConst".to_string()
+            }
+            IRInstr::CompareAndSwapAtomic { .. } => {
+                "CompareAndSwap".to_string()
+            }
+            IRInstr::AssertEqual { .. } => {
+                "AssertEqual".to_string()
             }
         }
     }

@@ -29,18 +29,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
-    /*let jvm = get_state(env);
-    let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-        Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
-        Err(WasException {}) => return jboolean::MAX,
-    };
-    let curval = notnull.as_allocated_obj().get_var(jvm, &rc, field_name);
-    (if curval.as_njv().unwrap_int() == old {
-        notnull.as_allocated_obj().set_var(&rc, field_name, NewJavaValue::Int(new));
-        1
-    } else {
-        0
-    }) as jboolean*/
 }
 
 #[no_mangle]
@@ -49,20 +37,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
         todo!()
     }
     atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jlong, old, new).1 as jboolean
-    /*let jvm = get_state(env);
-    let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-        Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
-        Err(WasException {}) => return jboolean::MAX,
-    };
-    let jv = notnull;
-    let normal_obj = jv.as_allocated_obj();
-    let curval = normal_obj.get_var_top_level(jvm, field_name);
-    (if curval.as_njv().unwrap_long_strict() == old {
-        normal_obj.set_var(&rc, field_name, NewJavaValue::Long(new));
-        1
-    } else {
-        0
-    }) as jboolean*/
 }
 
 

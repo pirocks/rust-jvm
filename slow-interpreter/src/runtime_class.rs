@@ -121,7 +121,7 @@ pub struct StaticVarGuard<'gc, 'l> {
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
-        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().read() };
+        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).read() };
         Some(native_to_new_java_value(native, cpd_type.cpdtype, self.jvm))
     }
 
@@ -131,7 +131,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
 
     pub fn set_raw(&mut self, name: FieldName, native: NativeJavaValue<'gc>) -> Option<()>{
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
-        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number.0 as usize).unwrap().get().write(native); }
+        unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).write(native); }
         Some(())
     }
 

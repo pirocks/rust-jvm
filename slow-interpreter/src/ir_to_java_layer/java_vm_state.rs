@@ -87,8 +87,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             Err(err_obj) => {
                 let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
                 int_state.set_throw(Some(obj));
-                int_state.debug_print_stack_trace(jvm);
-                eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                // int_state.debug_print_stack_trace(jvm);
+                // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 return Err(WasException {});
             }
         };
@@ -183,7 +183,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             let is_native = jvm.is_native_by_method_id(method_id);
             let reserved_method_id = self.ir.reserve_method_id();
             let (ir_instructions, full_frame_size, byte_code_ir_mapping) = if is_native {
-                let ir_instr = native_to_ir(resolver, method_id, reserved_method_id);
+                let ir_instr = native_to_ir(resolver, &self.labeler,method_id, reserved_method_id);
                 (ir_instr, NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(method_id) }.full_frame_size(), None)
             } else {
                 let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();

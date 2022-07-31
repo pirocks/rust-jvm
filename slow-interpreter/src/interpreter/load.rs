@@ -76,7 +76,7 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(jvm: &'gc JVMState<'gc>, mu
     let array_ptr = temp.unwrap_object().unwrap();
     unsafe {
         if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
-            current_frame.inner().inner().debug_print_stack_trace(jvm);
+            // current_frame.inner().inner().debug_print_stack_trace(jvm);
             throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err();
             return PostInstructionAction::Exception { exception: WasException{} }
         }

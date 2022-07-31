@@ -17,7 +17,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::compiler::allocate::{anewarray, multianewarray, new, newarray};
 use crate::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
-use crate::compiler::array_load::{aaload, baload, caload, iaload, laload, saload, daload, faload};
+use crate::compiler::array_load::{aaload, baload, caload, daload, faload, iaload, laload, saload};
 use crate::compiler::array_store::{aastore, bastore, castore, dastore, fastore, iastore, lastore, sastore};
 use crate::compiler::arrays::arraylength;
 use crate::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
@@ -180,10 +180,17 @@ impl NeedsRecompileIf {
     }
 }
 
-pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<IRInstr> {
+pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<IRInstr> {
     //todo handle synchronized
+    let empty = HashMap::new();
+    let mut compiler_labeler = CompilerLabeler {
+        labeler: labeler,
+        labels_vec: vec![],
+        label_to_index: Default::default(),
+        index_by_bytecode_offset: &empty,
+    };
     let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
-    if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, method_id, ir_method_id) {
+    if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, method_id, ir_method_id, &mut compiler_labeler) {
         return intrinsic_ir;
     }
 
@@ -221,7 +228,7 @@ pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_id: MethodI
 
 pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler, method_frame_data: &JavaCompilerMethodAndFrameData, recompile_conditions: &mut MethodRecompileConditions, reserved_ir_method_id: IRMethodID) -> Vec<(ByteCodeOffset, IRInstr)> {
     let cinstructions = method_frame_data.layout.code_by_index.as_slice();
-    let class_cpdtype = resolver.using_method_view_impl(method_frame_data.current_method_id,|method_view|{
+    let class_cpdtype = resolver.using_method_view_impl(method_frame_data.current_method_id, |method_view| {
         method_view.classview().type_()
     });
     let mut final_ir_without_labels: Vec<(ByteCodeOffset, IRInstr)> = vec![(ByteCodeOffset(0), IRInstr::IRStart {
@@ -246,7 +253,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             final_ir_without_labels.extend(repeat(ByteCodeOffset(0)).zip(monitor_enter_static(resolver, method_frame_data, &CurrentInstructionCompilerData {
                 current_index: ByteCodeIndex(0),
                 next_index: ByteCodeIndex(1),
-                current_offset : ByteCodeOffset(0),
+                current_offset: ByteCodeOffset(0),
                 compiler_labeler: &mut compiler_labeler,
             }, recompile_conditions, &mut restart_point_generator, class_cpdtype)))
         } else {

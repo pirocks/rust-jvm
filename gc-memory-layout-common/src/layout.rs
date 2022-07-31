@@ -32,7 +32,7 @@ impl ObjectMemoryLayout {
 }
 
 pub struct ArrayMemoryLayout {
-    sub_type: CPDType,
+    sub_type:Option<CPDType>,
 }
 
 impl ArrayMemoryLayout {
@@ -40,7 +40,12 @@ impl ArrayMemoryLayout {
         assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
 
         Self {
-            sub_type
+            sub_type: Some(sub_type)
+        }
+    }
+    pub fn from_unknown_cpdtype() -> Self{
+        Self{
+            sub_type: None
         }
     }
 

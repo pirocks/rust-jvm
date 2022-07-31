@@ -6,7 +6,6 @@
 
 use std::cell::OnceCell;
 use std::collections::{Bound, BTreeMap, HashMap, HashSet};
-use std::collections::Bound::{Included, Unbounded};
 use std::ffi::c_void;
 use std::iter::Step;
 use std::ops::{Deref, Range, RangeBounds};
@@ -161,7 +160,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         let guard = self.inner.read().unwrap();
         let ir_method_id = *guard.implementation_id_to_ir_method_id.get(&implementation_id).unwrap();
         let native_offsets_to_index = guard.method_ir_offsets_range.get(&ir_method_id).unwrap();
-        let ir_instruct_index = *native_offsets_to_index.range(Unbounded..Included(native_offset)).last().unwrap().1;
+        let ir_instruct_index = *native_offsets_to_index.range(Bound::Unbounded..Bound::Included(native_offset)).last().unwrap().1;
         (ir_method_id, ir_instruct_index)
     }
 
