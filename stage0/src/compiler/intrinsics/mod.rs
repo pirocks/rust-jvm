@@ -7,6 +7,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::MethodId;
 
 use crate::compiler::CompilerLabeler;
+use crate::compiler::intrinsics::array_copy::intrinsic_array_copy;
 use crate::compiler::intrinsics::compare_and_swap::intrinsic_compare_and_swap_long;
 use crate::compiler::intrinsics::get_class::intrinsic_get_class;
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
@@ -62,7 +63,7 @@ pub fn gen_intrinsic_ir<'vm>(
         ]);
     }
     // if method_name == MethodName::method_arraycopy() && desc == CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]) {
-    //     return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, labeler);
+    //     return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, _labeler);
     // }
     None
 }
