@@ -100,7 +100,6 @@ pub enum RuntimeVMExitInput {
         class_type: CPDTypeID,
         current_method_id: MethodId,
         restart_point: RestartPointID,
-        rbp: *const c_void,
         pc: ByteCodeOffset,
     },
     RunStaticNative {
@@ -330,7 +329,6 @@ impl RuntimeVMExitInput {
                     class_type: CPDTypeID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::CPDTYPE_ID) as u32),
                     current_method_id: register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::TO_RECOMPILE) as MethodId,
                     restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::RESTART_POINT_ID)),
-                    rbp: register_state.saved_registers_without_ip.rbp,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InitClassAndRecompile::JAVA_PC) as u16),
                 }
             }

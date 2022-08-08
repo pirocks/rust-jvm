@@ -116,7 +116,7 @@ pub fn invoke_interface_resolve<'gc>(
     };
     let InterfaceVTableEntry { address } = res;
     let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.unwrap().as_ptr() as *mut c_void);
+    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.unwrap().as_ptr() as u64);
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
@@ -301,7 +301,7 @@ pub fn invoke_virtual_resolve<'gc>(
     } = res;
 
     let mut start_diff = SavedRegistersWithoutIPDiff::no_change();
-    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr());
+    start_diff.add_change(InvokeVirtualResolve::ADDRESS_RES, address.as_ptr() as u64);
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
@@ -394,7 +394,7 @@ pub fn new_class_register<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     let mut diff = SavedRegistersWithIPDiff::no_change();
     unsafe {
         let raw_64 = jv_new_handle.as_njv().to_native().as_u64;
-        diff.saved_registers_without_ip.rbx = Some(raw_64 as *const c_void);
+        diff.saved_registers_without_ip.rbx = Some(raw_64);
     };
     diff.rip = Some(return_to_ptr);
     IRVMExitAction::RestartWithRegisterState { diff }
@@ -629,16 +629,17 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
                     let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
                     let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
-                    let handler_rsp = unsafe { handler_rbp.sub(frame_size) };
+                    let handler_rsp = unsafe { handler_rbp.as_ptr().sub(frame_size) };
                     let method_resolver = MethodResolverImpl { jvm, loader: current_frame.loader(jvm) };
                     let frame_layout = method_resolver.lookup_method_layout(method_id);
                     let to_write_offset = frame_layout.operand_stack_start();
-                    unsafe { handler_rbp.sub(to_write_offset.0).as_mut().cast::<NativeJavaValue>().write(throwable.new_java_value().to_native()); }
+                    todo!();
+                    unsafe { (handler_rbp.as_ptr().sub(to_write_offset.0) as *mut NativeJavaValue).cast::<NativeJavaValue>().write(throwable.new_java_value().to_native()); }
                     unsafe { read_frame_ir_header(handler_rbp); }
                     //todo need to set caught exception in stack
                     let mut start_diff = SavedRegistersWithIPDiff::no_change();
-                    start_diff.saved_registers_without_ip.rbp = Some(handler_rbp);
-                    start_diff.saved_registers_without_ip.rsp = Some(handler_rsp);
+                    start_diff.saved_registers_without_ip.rbp = Some(handler_rbp.as_ptr() as u64);
+                    start_diff.saved_registers_without_ip.rsp = Some(handler_rsp as u64);
                     start_diff.rip = Some(handler_address);
                     return IRVMExitAction::RestartWithRegisterState {
                         diff: start_diff

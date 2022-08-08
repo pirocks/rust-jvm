@@ -16,7 +16,10 @@ use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java_values::native_to_new_java_value_rtype;
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[cfg(test)]
+pub mod test;
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct FramePointer(pub NonNull<c_void>);
 
 impl FramePointer {
@@ -39,17 +42,34 @@ pub struct StackDepth(u16);
 //needs to be fast
 // one per java thread, needs to be
 // maybe built on top of ir stack
+//todo needs to be interruptable and viewable once interrupted
+// todo if in guest then can send stack pointer.
+// need a in guest/not in guest atomic, per thread atomic.
 pub struct JavaStack<'gc> {
     jvm: &'gc JVMState<'gc>,
     owned_ir_stack: OwnedIRStack,
     interpreter_frame_operand_stack_depths: Vec<(FramePointer, StackDepth)>,
-    // current_frame_pointers: Vec<*mut c_void>,
-    //frame pointer and depth
-    // vm_exit_stack_depth: Option<StackDepth>,
     throw: Option<AllocatedHandle<'gc>>,//todo this should probably be in some kind of thread state thing
 }
 
 impl<'gc> JavaStack<'gc> {
+    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack) -> Self {
+        Self {
+            jvm,
+            owned_ir_stack,
+            interpreter_frame_operand_stack_depths: vec![],
+            throw: None,
+        }
+    }
+
+    pub fn mmaped_top(&self) -> FramePointer{
+        FramePointer(self.owned_ir_stack.native.mmaped_top)
+    }
+
+    fn assert_interpreter_frame_operand_stack_depths_sorted(&self) {
+        assert!(self.interpreter_frame_operand_stack_depths.iter().map(|(frame_ptr, _)| *frame_ptr).collect_vec().is_sorted());
+    }
+
     pub fn new_interpreter_frame<'l>(&'l mut self, frame_pointer: FramePointer) -> JavaInterpreterFrame<'gc, 'l> {
         JavaInterpreterFrame::from_frame_pointer_interpreter(self, frame_pointer)
     }
@@ -117,14 +137,14 @@ pub trait HasFrame<'gc> {
 impl<'gc, 'l> HasFrame<'gc> for JavaExitFrame<'gc, 'l> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
-            ptr: self.frame_pointer.as_ptr(),
+            ptr: self.frame_pointer.0.into(),
             _ir_stack: &self.java_stack.owned_ir_stack,
         }
     }
 
     fn frame_mut(&mut self) -> IRFrameMut {
         IRFrameMut {
-            ptr: self.frame_pointer.as_ptr(),
+            ptr: self.frame_pointer.0,
             ir_stack: &mut self.java_stack.owned_ir_stack,
         }
     }
@@ -157,14 +177,14 @@ pub struct JavaInterpreterFrame<'gc, 'l> {
 impl<'gc, 'l> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'l> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
-            ptr: self.frame_ptr.as_ptr(),
+            ptr: self.frame_ptr.0.into(),
             _ir_stack: &self.java_stack.owned_ir_stack,
         }
     }
 
     fn frame_mut(&mut self) -> IRFrameMut {
         IRFrameMut {
-            ptr: self.frame_ptr.as_ptr(),
+            ptr: self.frame_ptr.0,
             ir_stack: &mut self.java_stack.owned_ir_stack,
         }
     }
@@ -237,15 +257,15 @@ impl<'gc, 'l> JavaInterpreterFrame<'gc, 'l> {
                 let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                 unsafe {
                     self.java_stack.owned_ir_stack.write_frame(
-                        next_frame_pointer.as_ptr(),
+                        next_frame_pointer.0,
                         top_level_exit_ptr.as_ptr(),
                         current_frame_pointer.as_ptr(),
                         ir_method_id,
                         wrapped_method_id.to_native(),
-                        data.as_slice()
+                        data.as_slice(),
                     );
                 }
-                let (rc, method_i)= jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+                let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
                 let view = rc.view();
                 let method_view = view.method_view_i(method_i);
                 let code = method_view.code_attribute().unwrap();
@@ -277,12 +297,12 @@ impl<'gc, 'l> JavaInterpreterFrame<'gc, 'l> {
                 data.push(raw_frame_info_pointer as *const c_void as usize as u64);
                 unsafe {
                     self.java_stack.owned_ir_stack.write_frame(
-                        next_frame_pointer.as_ptr(),
+                        next_frame_pointer.0,
                         top_level_exit_ptr.as_ptr(),
                         current_frame_pointer.as_ptr(),
                         Some(ir_method_id),
                         wrapped_method_id.to_native(),
-                        data.as_slice()
+                        data.as_slice(),
                     );
                 }
                 panic!()
@@ -294,12 +314,12 @@ impl<'gc, 'l> JavaInterpreterFrame<'gc, 'l> {
                 let data = [raw_frame_info_pointer as *const c_void as usize as u64];
                 unsafe {
                     self.java_stack.owned_ir_stack.write_frame(
-                        next_frame_pointer.as_ptr(),
+                        next_frame_pointer.0,
                         top_level_exit_ptr.as_ptr(),
                         current_frame_pointer.as_ptr(),
                         None,
                         wrapped_opaque_id.to_native(),
-                        data.as_slice()
+                        data.as_slice(),
                     );
                 }
                 panic!()

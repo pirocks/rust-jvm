@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 use another_jit_vm::code_modification::GlobalCodeEditingLock;
 use another_jit_vm::{IRMethodID, Register};
@@ -289,9 +290,9 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         };
         let old_intstate = int_state.register_interpreter_state_guard(jvm);
         unsafe {
-            let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp;
-            let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp;
-            if exiting_stack_pointer != mmaped_top {
+            let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
+            let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
+            if NonNull::new(exiting_stack_pointer).unwrap() != mmaped_top {
                 let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
                 let frame_ref = int_state.current_frame().frame_view.ir_ref;
                 if let Some(expected_current_frame_size) = frame_ref.try_frame_size(&jvm.java_vm_state.ir) {

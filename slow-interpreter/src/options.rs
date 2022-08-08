@@ -149,4 +149,23 @@ impl JVMOptions {
             exit_trace_options: ExitTracingOptions::TraceNone,
         }
     }
+
+    #[cfg(test)]
+    pub fn test_options() -> JVMOptions{
+        JVMOptions{
+            main_class_name: ClassName::Str("Main".to_string()),
+            classpath: Classpath::from_dirs(vec![]),
+            args: vec![],
+            shared_libs: SharedLibraryPaths { libjava: Default::default(), libjdwp: Default::default() },
+            enable_tracing: false,
+            enable_jvmti: false,
+            properties: vec![],
+            unittest_mode: false,
+            store_generated_classes: false,
+            debug_print_exceptions: false,
+            assertions_enabled: false,
+            instruction_trace_options: InstructionTraceOptions::TraceNone,
+            exit_trace_options: ExitTracingOptions::TraceNone
+        }
+    }
 }

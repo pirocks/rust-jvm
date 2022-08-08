@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::ptr::null_mut;
 
 use crate::Register;
 
@@ -85,42 +84,42 @@ impl SavedRegistersWithIP {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct SavedRegistersWithoutIP {
-    pub rax: *const c_void,
-    pub rbx: *const c_void,
-    pub rcx: *const c_void,
-    pub rdx: *const c_void,
-    pub rsi: *const c_void,
-    pub rdi: *const c_void,
-    pub rbp: *const c_void,
-    pub rsp: *const c_void,
-    pub r8: *const c_void,
-    pub r9: *const c_void,
-    pub r10: *const c_void,
-    pub r11: *const c_void,
-    pub r12: *const c_void,
-    pub r13: *const c_void,
-    pub r14: *const c_void,
+    pub rax: u64,
+    pub rbx: u64,
+    pub rcx: u64,
+    pub rdx: u64,
+    pub rsi: u64,
+    pub rdi: u64,
+    pub rbp: u64,
+    pub rsp: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
     pub xsave_area: [u64; 64],
 }
 
 impl SavedRegistersWithoutIP {
     pub fn new_with_all_zero() -> Self {
         Self {
-            rax: null_mut(),
-            rbx: null_mut(),
-            rcx: null_mut(),
-            rdx: null_mut(),
-            rsi: null_mut(),
-            rdi: null_mut(),
-            rbp: null_mut(),
-            rsp: null_mut(),
-            r8: null_mut(),
-            r9: null_mut(),
-            r10: null_mut(),
-            r11: null_mut(),
-            r12: null_mut(),
-            r13: null_mut(),
-            r14: null_mut(),
+            rax: 0,
+            rbx: 0,
+            rcx: 0,
+            rdx: 0,
+            rsi: 0,
+            rdi: 0,
+            rbp: 0,
+            rsp: 0,
+            r8: 0,
+            r9: 0,
+            r10: 0,
+            r11: 0,
+            r12: 0,
+            r13: 0,
+            r14: 0,
             xsave_area: [0; 64],
         }
     }
@@ -160,21 +159,21 @@ impl SavedRegistersWithIPDiff {
 
 #[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithoutIPDiff {
-    pub rax: Option<*const c_void>,
-    pub rbx: Option<*const c_void>,
-    pub rcx: Option<*const c_void>,
-    pub rdx: Option<*const c_void>,
-    pub rsi: Option<*const c_void>,
-    pub rdi: Option<*const c_void>,
-    pub rbp: Option<*const c_void>,
-    pub rsp: Option<*const c_void>,
-    pub r8: Option<*const c_void>,
-    pub r9: Option<*const c_void>,
-    pub r10: Option<*const c_void>,
-    pub r11: Option<*const c_void>,
-    pub r12: Option<*const c_void>,
-    pub r13: Option<*const c_void>,
-    pub r14: Option<*const c_void>,
+    pub rax: Option<u64>,
+    pub rbx: Option<u64>,
+    pub rcx: Option<u64>,
+    pub rdx: Option<u64>,
+    pub rsi: Option<u64>,
+    pub rdi: Option<u64>,
+    pub rbp: Option<u64>,
+    pub rsp: Option<u64>,
+    pub r8: Option<u64>,
+    pub r9: Option<u64>,
+    pub r10: Option<u64>,
+    pub r11: Option<u64>,
+    pub r12: Option<u64>,
+    pub r13: Option<u64>,
+    pub r14: Option<u64>,
     pub xsave_area: Option<[u64; 64]>,
 }
 
@@ -201,7 +200,7 @@ impl SavedRegistersWithoutIPDiff {
     }
 
     //todo keep in sync with other get_registers
-    pub fn get_register_mut(&mut self, register: Register) -> &mut Option<*const c_void> {
+    pub fn get_register_mut(&mut self, register: Register) -> &mut Option<u64> {
         match register.0 {
             0 => &mut self.rax,
             1 => &mut self.rbx,
@@ -218,7 +217,7 @@ impl SavedRegistersWithoutIPDiff {
         }
     }
 
-    pub fn add_change(&mut self, register: Register, new_val: *mut c_void) {
+    pub fn add_change(&mut self, register: Register, new_val: u64) {
         let register = self.get_register_mut(register);
         assert!(register.is_none());
         *register = Some(new_val);

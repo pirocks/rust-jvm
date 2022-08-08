@@ -1,6 +1,9 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::ptr::NonNull;
+use nonnull_const::NonNullConst;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
+use another_jit_vm::stack::CannotAllocateStack;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use rust_jvm_common::{MethodId, NativeJavaValue};
@@ -75,26 +78,27 @@ impl OpaqueFrameIdOrMethodID {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum JavaStackPosition {
     Frame {
-        frame_pointer: *const c_void
+        frame_pointer: NonNull<c_void>
     },
     Top,
 }
 
 impl JavaStackPosition {
-    pub fn get_frame_pointer(&self) -> *const c_void {
+    pub fn get_frame_pointer(&self) -> NonNullConst<c_void> {
         match self {
-            JavaStackPosition::Frame { frame_pointer } => *frame_pointer,
+            JavaStackPosition::Frame { frame_pointer } => (*frame_pointer).into(),
             JavaStackPosition::Top => panic!()
         }
     }
 }
 
 impl<'vm> OwnedJavaStack<'vm> {
-    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>) -> Self {
-        Self {
+    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>) -> Result<Self,CannotAllocateStack> {
+        let inner = OwnedIRStack::new()?;
+        Ok(Self {
             java_vm_state,
-            inner: OwnedIRStack::new(),
-        }
+            inner,
+        })
     }
     pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm JVMState<'vm>) -> RuntimeJavaStackFrameRef<'_, 'vm> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };

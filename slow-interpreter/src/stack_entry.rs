@@ -933,7 +933,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     pub fn ir_stack_entry_debug_print(&self) {
         let ir_ref = &self.frame_view.ir_ref;
         for i in 0..10 {
-            unsafe { eprintln!("{:?}:{:?}", ir_ref.frame_ptr().sub(i * size_of::<u64>()), ir_ref.data(i as usize) as *const c_void); }
+            unsafe { eprintln!("{:?}:{:?}", ir_ref.frame_ptr().as_ptr().sub(i * size_of::<u64>()), ir_ref.data(i as usize) as *const c_void); }
         }
         // dbg!(ir_ref.method_id());
         // dbg!(ir_ref.frame_ptr());

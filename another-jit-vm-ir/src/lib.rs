@@ -209,11 +209,11 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr); }
+        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr.into()); }
         assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), ir_method_id);
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
-        initial_registers.rbp = ir_stack_frame.ptr;
-        initial_registers.rsp = unsafe { ir_stack_frame.ptr.sub(ir_stack_frame.downgrade().frame_size(self)) };
+        initial_registers.rbp = ir_stack_frame.ptr.as_ptr() as u64;
+        initial_registers.rsp = unsafe { ir_stack_frame.ptr.as_ptr().sub(ir_stack_frame.downgrade().frame_size(self)) } as u64;
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = &mut ir_stack_frame.ir_stack;
@@ -226,7 +226,11 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
                 inner: &vm_exit_event,
                 exit_type: exit_input,
             };
-            let ir_stack_mut = IRStackMut::new(ir_stack, exiting_frame_position_rbp as *mut c_void, exiting_stack_pointer as *mut c_void);
+            let ir_stack_mut = IRStackMut::new(
+                ir_stack,
+                NonNull::new(exiting_frame_position_rbp as *mut c_void).unwrap(),
+                NonNull::new(exiting_stack_pointer as *mut c_void).unwrap()
+            );
             let read_guard = self.inner.read().unwrap();
 
             let handler = read_guard.handler.get().unwrap().clone();

@@ -61,31 +61,31 @@ pub unsafe fn to_native<'gc>(env: *mut JNIEnv, j: NewJavaValue<'gc, '_>, t: &CPD
 pub unsafe fn free_native<'gc, 'l>(j: NewJavaValue<'gc, 'l>, t: &CPDType, to_free: &mut Arg) {
     match t {
         CPDType::ByteType => {
-            Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);
+            drop(Box::<jbyte>::from_raw(to_free.0 as *mut jbyte))
         }
         CPDType::CharType => {
-            Box::<jchar>::from_raw(to_free.0 as *mut jchar);
+            drop(Box::<jchar>::from_raw(to_free.0 as *mut jchar))
         }
         CPDType::DoubleType => {
-            Box::<jdouble>::from_raw(to_free.0 as *mut jdouble);
+            drop(Box::<jdouble>::from_raw(to_free.0 as *mut jdouble))
         }
         CPDType::FloatType => {
-            Box::<jfloat>::from_raw(to_free.0 as *mut jfloat);
+            drop(Box::<jfloat>::from_raw(to_free.0 as *mut jfloat))
         }
         CPDType::IntType => {
-            Box::<jint>::from_raw(to_free.0 as *mut jint);
+            drop(Box::<jint>::from_raw(to_free.0 as *mut jint))
         }
         CPDType::LongType => {
-            Box::<jlong>::from_raw(to_free.0 as *mut jlong);
+            drop(Box::<jlong>::from_raw(to_free.0 as *mut jlong))
         }
         CPDType::Class(_) | CPDType::Array { .. } => {
-            Box::<jobject>::from_raw(to_free.0 as *mut jobject);
+            drop(Box::<jobject>::from_raw(to_free.0 as *mut jobject))
         }
         CPDType::ShortType => {
-            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
+            drop(Box::<jshort>::from_raw(to_free.0 as *mut jshort))
         }
         CPDType::BooleanType => {
-            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
+            drop(Box::<jshort>::from_raw(to_free.0 as *mut jshort))
         }
         _ => panic!(),
     }

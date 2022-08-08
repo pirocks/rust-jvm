@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::ptr::null_mut;
 use itertools::Itertools;
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -48,7 +47,7 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
         },
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
-    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().object }).unwrap_or(null_mut()));
+    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
@@ -97,7 +96,7 @@ pub fn run_native_static_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mu
         },
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
-    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().object }).unwrap_or(null_mut()));
+    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),

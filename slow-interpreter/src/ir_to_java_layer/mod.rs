@@ -92,7 +92,7 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::put_static(jvm, field_id, value_ptr, return_to_ptr)
             }
-            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, rbp, pc: _ } => {
+            RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, pc: _ } => {
                 exit_impls::init_class_and_recompile(jvm, int_state.unwrap(), *class_type, *current_method_id, *restart_point)
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
@@ -181,7 +181,7 @@ impl JavaVMStateWrapperInner {
                 match run_function_interpreted(jvm, int_state) {
                     Ok(res) => {
                         let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
-                        saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw() as *const c_void);
+                        saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
                         let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
                         IRVMExitAction::RestartWithRegisterState { diff }
                     }

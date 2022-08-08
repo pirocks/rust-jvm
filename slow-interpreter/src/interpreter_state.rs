@@ -2,10 +2,12 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::ffi::c_void;
 use std::mem::{size_of, transmute};
-use std::ptr::slice_from_raw_parts;
+use std::ptr::{NonNull, slice_from_raw_parts};
 use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
+use nonnull_const::NonNullConst;
+use another_jit_vm::stack::CannotAllocateStack;
 
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -30,12 +32,12 @@ pub struct InterpreterState<'gc> {
 }
 
 impl<'gc> InterpreterState<'gc> {
-    pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Self {
-        InterpreterState {
-            call_stack: OwnedJavaStack::new(&jvm.java_vm_state),
+    pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Result<Self,CannotAllocateStack> {
+        Ok(InterpreterState {
+            call_stack: OwnedJavaStack::new(&jvm.java_vm_state)?,
             jvm,
             current_stack_position: JavaStackPosition::Top,
-        }
+        })
     }
 }
 
@@ -410,14 +412,14 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }).collect_vec()
     }
 
-    pub fn frame_state_assert_save_from(&self, from_inclusive: *const c_void) -> SavedAssertState {
+    pub fn frame_state_assert_save_from(&self, from_inclusive: NonNullConst<c_void>) -> SavedAssertState {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, thread, registered, jvm, current_exited_pc, .. } => {
                 let mmaped_top = int_state.owned_ir_stack.native.mmaped_top;
                 let curent_rsp = int_state.current_rsp;
                 let curent_rbp = int_state.current_rbp;
-                let slice = unsafe { slice_from_raw_parts(from_inclusive as *const u64, mmaped_top.offset_from(from_inclusive).abs() as usize / size_of::<u64>() + 1) };
+                let slice = unsafe { slice_from_raw_parts(from_inclusive.as_ptr() as *const u64, mmaped_top.as_ptr().offset_from(from_inclusive.as_ptr()).abs() as usize / size_of::<u64>() + 1) };
                 let data = unsafe { slice.as_ref() }.unwrap().iter().cloned().map(|elem| elem as usize as *const c_void).collect();
                 SavedAssertState {
                     frame_pointer: curent_rbp,
@@ -428,7 +430,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         }
     }
 
-    pub fn saved_assert_frame_from(&self, previous: SavedAssertState, from_inclusive: *const c_void) {
+    pub fn saved_assert_frame_from(&self, previous: SavedAssertState, from_inclusive: NonNullConst<c_void>) {
         let current = self.frame_state_assert_save_from(from_inclusive);
         // dbg!(&current.data);
         // dbg!(&previous.data);
@@ -439,8 +441,8 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, .. } => {
-                let from = unsafe { int_state.current_rsp.add(size_of::<u64>()) };
-                self.saved_assert_frame_from(previous, from)
+                let from = unsafe { int_state.current_rsp.as_ptr().add(size_of::<u64>()) };
+                self.saved_assert_frame_from(previous, NonNullConst::new(from).unwrap())
             }
         }
     }
@@ -449,8 +451,8 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
 #[must_use]
 #[derive(Eq, PartialEq, Debug)]
 pub struct SavedAssertState {
-    frame_pointer: *const c_void,
-    stack_pointer: *const c_void,
+    frame_pointer: NonNull<c_void>,
+    stack_pointer: NonNull<c_void>,
     data: Vec<*const c_void>,
 }
 

@@ -15,7 +15,7 @@ use std::ffi::c_void;
 use std::intrinsics::copy_nonoverlapping;
 use std::marker::PhantomData;
 use std::ops::Range;
-use std::ptr::null_mut;
+use std::ptr::{NonNull, null_mut};
 use std::sync::RwLock;
 
 use iced_x86::code_asm::{al, AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, eax, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10b, r10d, r10w, r11, r11b, r11d, r11w, r12, r12b, r12d, r12w, r13, r13b, r13d, r13w, r14, r14b, r14d, r14w, r15, r8, r8b, r8d, r8w, r9, r9b, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
@@ -271,8 +271,8 @@ trait ExitHandlerType<'vm, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStac
 pub struct LaunchedVM<'vm, 'extra_data_life, 'l, T, ExtraData: 'vm> {
     vm_state: &'l VMState<'vm, T, ExtraData>,
     jit_context: JITContext,
-    stack_top: *const c_void,
-    stack_bottom: *const c_void,
+    stack_top: NonNull<c_void>,
+    stack_bottom: NonNull<c_void>,
     pub extra: &'extra_data_life mut ExtraData,
     pending_exit: bool,
 }
@@ -282,11 +282,11 @@ impl<'vm, 'extra_data_life, T, ExtraData: 'vm> Iterator for LaunchedVM<'vm, 'ext
 
     fn next(&mut self) -> Option<Self::Item> {
         assert!(!self.pending_exit);
-        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp);
-        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp as *mut c_void);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp as *mut c_void);
         let vm_exit_event = self.vm_state.run_method_impl(&mut self.jit_context);
-        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp);
-        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rbp as *mut c_void);
+        self.validate_stack_ptr(self.jit_context.guest_registers.saved_registers_without_ip.rsp as *mut c_void);
         self.pending_exit = true;
         Some(vm_exit_event)
     }
@@ -300,7 +300,8 @@ impl<'vm, 'extra_data_life, T, ExtraData: 'vm> LaunchedVM<'vm, 'extra_data_life,
         self.jit_context.guest_registers.apply_diff(return_register_state);
     }
 
-    fn validate_stack_ptr(&self, ptr: *const c_void) {
+    fn validate_stack_ptr(&self, ptr: *mut c_void) {
+        let ptr = NonNull::new(ptr).unwrap();
         assert!((self.stack_top >= ptr && self.stack_bottom <= ptr));
     }
 }
@@ -405,21 +406,21 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
             vm_native_saved_registers: SavedRegistersWithIP {
                 rip: null_mut(),
                 saved_registers_without_ip: SavedRegistersWithoutIP {
-                    rax: null_mut(),
-                    rbx: null_mut(),
-                    rcx: null_mut(),
-                    rdx: null_mut(),
-                    rsi: null_mut(),
-                    rdi: null_mut(),
-                    rbp: null_mut(),
-                    rsp: null_mut(),
-                    r8: null_mut(),
-                    r9: null_mut(),
-                    r10: null_mut(),
-                    r11: null_mut(),
-                    r12: null_mut(),
-                    r13: null_mut(),
-                    r14: null_mut(),
+                    rax: 0,
+                    rbx: 0,
+                    rcx: 0,
+                    rdx: 0,
+                    rsi: 0,
+                    rdi: 0,
+                    rbp: 0,
+                    rsp: 0,
+                    r8: 0,
+                    r9: 0,
+                    r10: 0,
+                    r11: 0,
+                    r12: 0,
+                    r13: 0,
+                    r14: 0,
                     xsave_area: [0; 64],
                 },
             },

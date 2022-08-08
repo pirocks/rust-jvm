@@ -4,7 +4,6 @@ use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
-
 fn default_deps_dir(workspace_dir: &Path) -> PathBuf {
     workspace_dir.join("deps")
 }
@@ -45,7 +44,7 @@ pub fn deps(dep_dir: PathBuf) -> anyhow::Result<()> {
     sh.change_dir("jdk8u");
     cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\" ").run()?;
     cmd!(sh,"make clean").run()?;
-    cmd!(sh,"make DISABLE_HOTSPOT_OS_VERSION_CHECK=ok jdk").run()?;
+    cmd!(sh,"make DISABLE_HOTSPOT_OS_VERSION_CHECK=ok images").run()?;
     Ok(())
 }
 
@@ -78,7 +77,7 @@ pub fn load_or_create_xtask_config(workspace_dir: &Path) -> anyhow::Result<XTask
             let xtask_config_path = xtask_config_path(workspace_dir);
             std::fs::write(&xtask_config_path, ron::to_string(&XTaskConfig {
                 dep_dir: default_deps_dir(workspace_dir),
-                build_jdk_dir: None
+                bootstrap_jdk_dir: None,
             })?)?;
             return Ok(load_xtask_config(workspace_dir)?.unwrap());
         }
@@ -88,7 +87,7 @@ pub fn load_or_create_xtask_config(workspace_dir: &Path) -> anyhow::Result<XTask
     }
 }
 
-pub fn write_xtask_config(workspace_dir: &Path,config: XTaskConfig) -> anyhow::Result<()> {
+pub fn write_xtask_config(workspace_dir: &Path, config: XTaskConfig) -> anyhow::Result<()> {
     let xtask_config_path = xtask_config_path(workspace_dir);
     std::fs::write(&xtask_config_path, ron::to_string(&config)?)?;
     Ok(())
@@ -97,5 +96,15 @@ pub fn write_xtask_config(workspace_dir: &Path,config: XTaskConfig) -> anyhow::R
 #[derive(Clone, Serialize, Deserialize)]
 pub struct XTaskConfig {
     pub dep_dir: PathBuf,
-    pub build_jdk_dir: Option<PathBuf>
+    pub bootstrap_jdk_dir: Option<PathBuf>,
+}
+
+impl XTaskConfig {
+    pub fn rt_jar(&self) -> PathBuf {
+        self.dep_dir.join("build/linux-x86_64-normal-server-fastdebug/images/j2sdk-image/jre/lib/rt.jar")
+    }
+
+    pub fn classes(&self) -> PathBuf {
+        self.dep_dir.join("jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes/")
+    }
 }
