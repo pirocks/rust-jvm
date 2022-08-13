@@ -19,6 +19,8 @@
 #![feature(is_sorted)]
 
 
+extern crate core;
+
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;

@@ -42,6 +42,7 @@ use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
+    // threads_locals: RwLock<HashMap<ThreadId, Arc<FastPerThreadData>>>,
     main_thread: RwLock<Option<Arc<JavaThread<'gc>>>>,
     pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread<'gc>>>>,
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,

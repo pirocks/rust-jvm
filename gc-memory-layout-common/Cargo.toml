@@ -14,7 +14,7 @@ vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 inheritance-tree = { path = "../inheritance-tree" }
 
-nix = "0.23"
+nix = "0.25"
 libc = "0.2"
 itertools = "0.10"
 static_assertions = "1"

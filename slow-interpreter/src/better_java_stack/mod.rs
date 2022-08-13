@@ -1,16 +1,18 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 use itertools::Itertools;
-use libc::c_void;
+use libc::{c_void};
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::NativeJavaValue;
+use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, StackEntryPush};
+use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -18,6 +20,7 @@ use crate::java_values::native_to_new_java_value_rtype;
 
 #[cfg(test)]
 pub mod test;
+pub mod thread_remote_read_mechanism;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct FramePointer(pub NonNull<c_void>);
@@ -32,7 +35,7 @@ impl FramePointer {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct StackDepth(u16);
 
 //needs to keep track of operand stack for interpreter
@@ -48,8 +51,15 @@ pub struct StackDepth(u16);
 pub struct JavaStack<'gc> {
     jvm: &'gc JVMState<'gc>,
     owned_ir_stack: OwnedIRStack,
-    interpreter_frame_operand_stack_depths: Vec<(FramePointer, StackDepth)>,
+    interpreter_frame_operand_stack_depths: Vec<(FramePointer, InterpreterFrameState)>,
     throw: Option<AllocatedHandle<'gc>>,//todo this should probably be in some kind of thread state thing
+    thread_stack_data: Arc<SignalAccessibleJavaStackData>,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct InterpreterFrameState{
+    stack_depth: StackDepth,
+    current_pc: ByteCodeOffset
 }
 
 impl<'gc> JavaStack<'gc> {
@@ -59,6 +69,7 @@ impl<'gc> JavaStack<'gc> {
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
             throw: None,
+            thread_stack_data: todo!()
         }
     }
 
@@ -71,11 +82,17 @@ impl<'gc> JavaStack<'gc> {
     }
 
     pub fn new_interpreter_frame<'l>(&'l mut self, frame_pointer: FramePointer) -> JavaInterpreterFrame<'gc, 'l> {
+        //todo should take an fn
         JavaInterpreterFrame::from_frame_pointer_interpreter(self, frame_pointer)
     }
 
     pub fn exit_frame<'l>(&'l mut self, frame_pointer: FramePointer, stack_depth: Option<StackDepth>) -> JavaExitFrame<'gc, 'l> {
         JavaExitFrame { java_stack: self, frame_pointer, num_locals: todo!(), max_stack: todo!(), stack_depth }
+    }
+
+    pub fn push_frame(&mut self, frame_to_write: StackEntryPush) {
+        //todo should take an fn
+        todo!()
     }
 }
 
@@ -343,5 +360,12 @@ impl<'gc, 'l> JavaInterpreterFrame<'gc, 'l> {
     }
 }
 
+
+pub struct RemoteFrame {
+    frame_ptr: FramePointer,
+    num_locals: u16,
+    max_stack: u16,
+    current_operand_stack_depth: u16,
+}
 // don't have the function call vec thing
 

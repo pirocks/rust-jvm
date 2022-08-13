@@ -27,7 +27,7 @@ num_cpus = "1"
 regex = "1"
 lock_api = "0.4"
 parking_lot = "0.12"
-nix = "0.23"
+nix = "0.25"
 by_address = "1"
 crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 itertools = "0.10"

@@ -9,7 +9,7 @@ use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use xtask::{load_xtask_config, XTaskConfig};
 
-use crate::better_java_stack::JavaStack;
+use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::java_values::GC;
 use crate::JVMState;
 use crate::loading::Classpath;
@@ -44,7 +44,8 @@ pub fn test() {
         let mut new_stack = JavaStack::new(jvm, OwnedIRStack::new().unwrap());
         new_stack.assert_interpreter_frame_operand_stack_depths_sorted();
         assert!(new_stack.throw.is_none());
-        let interpreter_frame = new_stack.new_interpreter_frame(todo!());
+        let frame_pointer = FramePointer(new_stack.owned_ir_stack.native.mmaped_top);
+        let interpreter_frame = new_stack.new_interpreter_frame(frame_pointer);
     })
 }
 
