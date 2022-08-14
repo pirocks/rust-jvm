@@ -6,8 +6,8 @@ fn main() {
 
     let ucontext = bindgen::Builder::default().header("ucontext-wrapper.h").parse_callbacks(Box::new(bindgen::CargoCallbacks)).derive_debug(true).rustfmt_bindings(true).generate().unwrap();
 
-    println!("cargo:rerun-if-changed={}", "signals-wrapper.h");
-    println!("cargo:rerun-if-changed={}", "ucontext-wrapper.h");
+    println!("cargo:rerun-if-changed=signals-wrapper.h");
+    println!("cargo:rerun-if-changed=ucontext-wrapper.h");
 
     let gen_dir = PathBuf::from("gen");
     if !gen_dir.exists() {

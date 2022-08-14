@@ -28,6 +28,10 @@ impl<T> AddOnlyVec<T> {
         self.inner.read().unwrap().len()
     }
 
+    pub fn is_empty(&self) -> usize {
+        self.inner.read().unwrap().is_empty()
+    }
+
     pub fn new() -> Self {
         Self { inner: RwLock::new(vec![]) }
     }

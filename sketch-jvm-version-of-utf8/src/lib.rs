@@ -17,7 +17,7 @@ impl JVMString {
             .chars()
             .flat_map(|char_| {
                 let char_ = char_ as u32;
-                if char_ >= 0x1 && char_ <= 0x7F {
+                if (0x1..=0x7F).contains(&char_) {
                     vec![char_ as u8]
                 } else if char_ >= 0x80 && char_ <= 0x7FF {
                     let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
