@@ -3,8 +3,6 @@ use std::iter;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 
-#[allow(unreachable_code)]
-#[allow(dead_code)]
 use itertools::{Either, Itertools};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};

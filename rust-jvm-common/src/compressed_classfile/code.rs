@@ -1386,7 +1386,7 @@ impl CInstructionInfo {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq)]
 pub struct LiveObjectIndex(pub usize);
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1398,6 +1398,55 @@ pub enum CompressedLdcW {
     MethodType {},
     MethodHandle {},
     LiveObject(LiveObjectIndex),
+}
+
+impl PartialEq for CompressedLdcW{
+    fn eq(&self, other: &Self) -> bool {
+        match self {
+            CompressedLdcW::String { str } => {
+                if let CompressedLdcW::String { str: other_str } = other{
+                    return str == other_str
+                }
+                false
+            }
+            CompressedLdcW::Class { type_ } => {
+                if let CompressedLdcW::Class { type_: other_type } = other{
+                    return type_ == other_type
+                }
+                false
+            }
+            CompressedLdcW::Float { float } => {
+                if let CompressedLdcW::Float { float: other_float } = other{
+                    return float == other_float
+                }
+                false
+            }
+            CompressedLdcW::Integer { integer } => {
+                if let CompressedLdcW::Integer { integer: other_integer } = other{
+                    return integer == other_integer
+                }
+                false
+            }
+            CompressedLdcW::MethodType {} => {
+                if let CompressedLdcW::MethodType {} = other{
+                    return true
+                }
+                false
+            }
+            CompressedLdcW::MethodHandle {} => {
+                if let CompressedLdcW::MethodHandle {} = other{
+                    return true
+                }
+                false
+            }
+            CompressedLdcW::LiveObject(LiveObjectIndex(index)) => {
+                if let CompressedLdcW::LiveObject(LiveObjectIndex(other_index)) = other{
+                    return index == other_index
+                }
+                false
+            }
+        }
+    }
 }
 
 impl Hash for CompressedLdcW {
