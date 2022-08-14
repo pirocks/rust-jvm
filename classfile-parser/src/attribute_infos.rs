@@ -189,56 +189,56 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
     let mut res = vec![];
     match element_value {
         ElementValue::Byte(cp_index) => {
-            res.push('B' as u8);
+            res.push(b'B');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Char(cp_index) => {
-            res.push('C' as u8);
+            res.push(b'C');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Double(cp_index) => {
-            res.push('D' as u8);
+            res.push(b'D');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Float(cp_index) => {
-            res.push('F' as u8);
+            res.push(b'F');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Int(cp_index) => {
-            res.push('I' as u8);
+            res.push(b'I');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Long(cp_index) => {
-            res.push('J' as u8);
+            res.push(b'J');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Short(cp_index) => {
-            res.push('S' as u8);
+            res.push(b'S');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Boolean(cp_index) => {
-            res.push('Z' as u8);
+            res.push(b'Z');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::String(cp_index) => {
-            res.push('s' as u8);
+            res.push(b's');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
-            res.push('e' as u8);
+            res.push(b'e');
             res.extend_from_slice(&type_name_index.to_be_bytes());
             res.extend_from_slice(&const_name_index.to_be_bytes());
         }
         ElementValue::Class(ClassInfoIndex { class_info_index }) => {
-            res.push('c' as u8);
+            res.push(b'c');
             res.extend_from_slice(&class_info_index.to_be_bytes());
         }
         ElementValue::AnnotationType(AnnotationValue { annotation }) => {
-            res.push('@' as u8);
+            res.push(b'@');
             res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
         }
         ElementValue::ArrayType(ArrayValue { values }) => {
-            res.push('[' as u8);
+            res.push(b'[');
             let num_bytes = values.len() as u16;
             res.extend_from_slice(&num_bytes.to_be_bytes());
             for value in values {

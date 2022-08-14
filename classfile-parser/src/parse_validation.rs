@@ -186,7 +186,7 @@ impl ValidatorSettings {
                 // I completely agree with the spec on this:
                 //In retrospect, making 8-byte constants take two constant pool entries was a poor choice.
             }
-            ConstantKind::Class(class_info) => self.validate_class_info_impl(&c, &class_info)?,
+            ConstantKind::Class(class_info) => self.validate_class_info_impl(c, class_info)?,
             ConstantKind::String(string) => self.validate_string(c, string)?,
             ConstantKind::Fieldref(fr) => self.validate_field_ref(c, fr)?,
             ConstantKind::Methodref(mr) => self.validate_method_ref(c, mr)?,
@@ -295,8 +295,8 @@ impl ValidatorSettings {
 
     pub fn validate_class_info(&self, c: &Classfile, i: u16) -> Result<(), ClassfileError> {
         match &c.constant_pool[i as usize].kind {
-            ConstantKind::Class(class_info) => self.validate_class_info_impl(&c, &class_info),
-            _ => return Err(ExpectedClassEntry),
+            ConstantKind::Class(class_info) => self.validate_class_info_impl(c, class_info),
+            _ => Err(ExpectedClassEntry),
         }
     }
 
@@ -310,7 +310,7 @@ impl ValidatorSettings {
         match &c.constant_pool[class_info.name_index as usize].kind {
             ConstantKind::Utf8(utf8) => {
                 let name_string = &utf8.string.clone().into_string()?;
-                self.validate_class_name(&name_string)?;
+                self.validate_class_name(name_string)?;
             }
             _ => return Result::Err(ClassfileError::ExpectedUtf8CPEntry),
         }
@@ -456,7 +456,7 @@ impl ValidatorSettings {
                 attribute_validation_context.has_been_inner_class = true;
             }
             AttributeType::EnclosingMethod(encm) => {
-                self.validate_enclosing_method(attribute_validation_context, &c, attr, &encm)?;
+                self.validate_enclosing_method(attribute_validation_context, c, attr, encm)?;
             }
             AttributeType::BootstrapMethods(BootstrapMethods { bootstrap_methods }) => {
                 match attr {
@@ -488,10 +488,10 @@ impl ValidatorSettings {
                 ValidatorSettings::validate_constant_value(attribute_validation_context)?;
             }
             AttributeType::Code(code) => {
-                self.validate_code(attribute_validation_context, &c, attr, &code)?;
+                self.validate_code(attribute_validation_context, c, attr, code)?;
             }
             AttributeType::Exceptions(exc) => {
-                self.validate_exceptions(attribute_validation_context, &c, attr, exc)?;
+                self.validate_exceptions(attribute_validation_context, c, attr, exc)?;
             }
             AttributeType::RuntimeVisibleParameterAnnotations(annotations) => {
                 match attr {
@@ -499,7 +499,7 @@ impl ValidatorSettings {
                     _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 for annotation in annotations.parameter_annotations.iter().flat_map(|param| param.iter()) {
-                    self.validate_annotation(&c, annotation)?;
+                    self.validate_annotation(c, annotation)?;
                 }
                 if attribute_validation_context.has_been_runtime_visible_parameter_annotations {
                     return Err(TooManyOfSameAttribute);
@@ -512,7 +512,7 @@ impl ValidatorSettings {
                     _ => return Err(ClassfileError::AttributeOnWrongType),
                 }
                 for annotation in annotations.parameter_annotations.iter().flat_map(|param| param.iter()) {
-                    self.validate_annotation(&c, annotation)?;
+                    self.validate_annotation(c, annotation)?;
                 }
                 if attribute_validation_context.has_been_runtime_invisible_parameter_annotations {
                     return Err(TooManyOfSameAttribute);
@@ -548,7 +548,7 @@ impl ValidatorSettings {
             }
             AttributeType::Signature(sig) => {
                 let index = sig.signature_index;
-                self.validate_utf8(&c, index)?;
+                self.validate_utf8(c, index)?;
             }
             AttributeType::RuntimeVisibleAnnotations(annotations) => {
                 match attr {
@@ -556,7 +556,7 @@ impl ValidatorSettings {
                     _ => {}
                 }
                 for annotation in &annotations.annotations {
-                    self.validate_annotation(&c, annotation)?;
+                    self.validate_annotation(c, annotation)?;
                 }
             }
             AttributeType::RuntimeInvisibleAnnotations(annotations) => {
@@ -565,7 +565,7 @@ impl ValidatorSettings {
                     _ => {}
                 }
                 for annotation in &annotations.annotations {
-                    self.validate_annotation(&c, annotation)?;
+                    self.validate_annotation(c, annotation)?;
                 }
             }
             AttributeType::StackMapTable(_) => {
@@ -694,7 +694,7 @@ impl ValidatorSettings {
             ElementValue::Class(ClassInfoIndex { class_info_index }) => {
                 self.validate_class_info(c, *class_info_index)?;
             }
-            ElementValue::AnnotationType(AnnotationValue { annotation }) => self.validate_annotation(c, &annotation)?,
+            ElementValue::AnnotationType(AnnotationValue { annotation }) => self.validate_annotation(c, annotation)?,
             ElementValue::ArrayType(ArrayValue { values }) => {
                 for value in values {
                     self.validate_element_value(c, value)?;
@@ -807,7 +807,7 @@ impl ValidatorSettings {
         }
         attribute_validation_context.has_been_code = true;
         let Code { attributes, code_raw, exception_table, .. } = code;
-        if code_raw.len() == 0 {
+        if code_raw.is_empty() {
             return Result::Err(ClassfileError::EmptyCode);
         }
         for exception in exception_table {

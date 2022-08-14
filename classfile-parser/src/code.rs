@@ -45,7 +45,7 @@ fn read_multi_new_array(c: &mut CodeParserContext) -> Result<MultiNewArray, Clas
 
 fn read_atype(c: &mut CodeParserContext) -> Result<Atype, ClassfileParsingError> {
     let num = read_u8(c)?;
-    Ok(FromPrimitive::from_u8(num).ok_or(ClassfileParsingError::ATypeWrong)?)
+    FromPrimitive::from_u8(num).ok_or(ClassfileParsingError::ATypeWrong)
 }
 
 fn read_table_switch(c: &mut CodeParserContext) -> Result<TableSwitch, ClassfileParsingError> {
