@@ -585,13 +585,12 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
         // }
         // Some(method_implementation) => {
         // let method_implementation = *method_implementation;
-        let vm_exit_event = VMExitEvent {
+        VMExitEvent {
             // method: method_implementation,
             // method_base_address: inner_read_guard.code_regions.get(&method_implementation).unwrap().start,
             saved_guest_registers: guest_registers,
             correctly_exited: false,
-        };
-        vm_exit_event
+        }
         // }
         // }
     }
@@ -603,7 +602,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
         }
         assembler.mov(r15 + RBP_GUEST_OFFSET_CONST, rbp).unwrap();
         assembler.mov(r15 + RSP_GUEST_OFFSET_CONST, rsp).unwrap();
-        assembler.lea(r10, qword_ptr(before_exit_label.clone())).unwrap();//safe to clober r10 b/c it was saved
+        assembler.lea(r10, qword_ptr(*before_exit_label)).unwrap();//safe to clober r10 b/c it was saved
         assembler.mov(r15 + RIP_GUEST_OFFSET_CONST, r10).unwrap();
         assembler.jmp(qword_ptr(r15 + RIP_NATIVE_OFFSET_CONST)).unwrap();
         assembler.set_label(after_exit_label).unwrap();
@@ -621,7 +620,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
         assert_eq!(base_address.0, new_method_base);
         let code_len = code.len();
         let end_of_new_method = unsafe {
-            new_method_base.offset(code_len as isize)
+            new_method_base.add(code_len)
         };
         let method_range = (new_method_base as *const c_void)..(end_of_new_method as *const c_void);
         inner_guard.code_regions.insert(current_method_id, method_range.clone());
@@ -648,6 +647,7 @@ pub struct Method {
 
 
 pub const RIP_GUEST_OFFSET_CONST: usize = 0;
+#[allow(clippy::identity_op)]
 pub const RAX_GUEST_OFFSET_CONST: usize = 0 + 8;
 pub const RBX_GUEST_OFFSET_CONST: usize = 8 + 8;
 pub const RCX_GUEST_OFFSET_CONST: usize = 16 + 8;
@@ -667,7 +667,9 @@ pub const XSAVE_AREA_GUEST_OFFSET_CONST: usize = 120 + 8;
 
 pub const XSAVE_SIZE: usize = 64 * 8;
 
+#[allow(clippy::identity_op)]
 pub const RIP_NATIVE_OFFSET_CONST: usize = 0 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 0;
+#[allow(clippy::identity_op)]
 pub const RAX_NATIVE_OFFSET_CONST: usize = 0 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
 pub const RBX_NATIVE_OFFSET_CONST: usize = 8 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
 pub const RCX_NATIVE_OFFSET_CONST: usize = 16 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;

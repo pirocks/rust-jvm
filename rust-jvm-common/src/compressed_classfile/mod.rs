@@ -438,17 +438,11 @@ impl CompressedParsedDescriptorType {
     }
 
     pub fn is_array(&self) -> bool {
-        match self {
-            CompressedParsedDescriptorType::Array { .. } => true,
-            _ => false,
-        }
+        matches!(self, CompressedParsedDescriptorType::Array { .. })
     }
 
     pub fn is_void(&self) -> bool {
-        match self {
-            CompressedParsedDescriptorType::VoidType => true,
-            _ => false,
-        }
+        matches!(self, CompressedParsedDescriptorType::VoidType)
     }
 
     pub fn array(sub_type: Self) -> Self {
@@ -911,7 +905,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn convert_stack_map_table_entries(pool: &CompressedClassfileStringPool, entries: &Vec<StackMapFrame>) -> Option<Vec<CompressedStackMapFrame>> {
+    fn convert_stack_map_table_entries(pool: &CompressedClassfileStringPool, entries: &[StackMapFrame]) -> Option<Vec<CompressedStackMapFrame>> {
         Some(
             entries
                 .iter()
@@ -950,7 +944,7 @@ impl CompressedClassfile {
         )
     }
 
-    fn compressed_instruction_from_instruction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, instruction: &Instruction) -> CompressedInstructionInfo {
+    fn compressed_instruction_from_instruction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], instruction: &Instruction) -> CompressedInstructionInfo {
         match &instruction.instruction {
             InstructionInfo::aaload => CInstructionInfo::aaload,
             InstructionInfo::aastore => CInstructionInfo::aastore,
@@ -1197,7 +1191,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn constant_value(pool: &CompressedClassfileStringPool, constant_pool: &Vec<ConstantInfo>, cp: u16) -> Either<CompressedLdcW, CompressedLdc2W> {
+    fn constant_value(pool: &CompressedClassfileStringPool, constant_pool: &[ConstantInfo], cp: u16) -> Either<CompressedLdcW, CompressedLdc2W> {
         match constant_pool[cp as usize].kind {
             ConstantKind::Utf8(_) => todo!(),
             ConstantKind::Integer(Integer { bytes }) => Either::Left(CompressedLdcW::Integer { integer: bytes as i32 }),
@@ -1228,7 +1222,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn field_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, cp: u16) -> (CompressedClassName, String, CompressedFieldDescriptor) {
+    fn field_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], cp: u16) -> (CompressedClassName, String, CompressedFieldDescriptor) {
         match &constant_pool[cp as usize].kind {
             ConstantKind::Fieldref(Fieldref { class_index, name_and_type_index }) => {
                 let target_class = CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*class_index)), pool).unwrap_class_type();
@@ -1240,7 +1234,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn method_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, index: &u16) -> (CPRefType, CompressedMethodDescriptor, MethodName) {
+    fn method_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], index: &u16) -> (CPRefType, CompressedMethodDescriptor, MethodName) {
         let (class_index, nt_index) = match constant_pool[*index as usize].kind {
             ConstantKind::Methodref(Methodref { class_index, name_and_type_index }) => (class_index, name_and_type_index),
             ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index, nt_index }) => (class_index, nt_index),

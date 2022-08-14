@@ -322,10 +322,8 @@ impl ValidatorSettings {
         //Method names are further constrained so that, with the exception of the special
         // method names <init> and <clinit> (§2.9), they must not contain the ASCII
         // characters < or > (that is, left angle bracket or right angle bracket).
-        if name.contains('<') || name.contains('>') {
-            if !(name == "<clinit>" || name == "<init>") {
-                return Result::Err(ClassfileError::BadNameInCP);
-            }
+        if (name.contains('<') || name.contains('>')) && !(name == "<clinit>" || name == "<init>") {
+            return Result::Err(ClassfileError::BadNameInCP);
         }
         //from the spec:
         // An array type descriptor is valid only if it represents 255 or fewer dimensions.
@@ -380,10 +378,8 @@ impl ValidatorSettings {
         for attr in &m.attributes {
             self.validate_attribute(&mut attribute_validation_context, attr, c, &AttributeEnclosingType::Method(m))?;
         }
-        if !m.is_native() && !m.is_abstract() {
-            if !attribute_validation_context.has_been_code {
-                return Err(ClassfileError::MissingCodeAttribute);
-            }
+        if !m.is_native() && !m.is_abstract() && !attribute_validation_context.has_been_code {
+            return Err(ClassfileError::MissingCodeAttribute);
         }
         Result::Ok(())
     }
@@ -604,10 +600,8 @@ impl ValidatorSettings {
         match target_type {
             TargetInfo::TypeParameterTarget { .. } => {}
             TargetInfo::SuperTypeTarget { supertype_index } => {
-                if *supertype_index != 65535u16 {
-                    if *supertype_index as usize >= c.interfaces.len() {
-                        return Err(ClassfileError::BadIndex);
-                    }
+                if *supertype_index != 65535u16 && *supertype_index as usize >= c.interfaces.len() {
+                    return Err(ClassfileError::BadIndex);
                 }
             }
             TargetInfo::TypeParameterBoundTarget { .. } => {}
