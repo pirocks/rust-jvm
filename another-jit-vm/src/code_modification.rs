@@ -15,9 +15,7 @@ pub struct GlobalCodeEditingLock(Mutex<()>);
 
 impl GlobalCodeEditingLock{
     pub fn new() -> Self{
-        Self{
-            0: Mutex::new(())
-        }
+        Self(Mutex::new(()))
     }
 
     pub fn acquire(&self) -> CodeModificationHandle{
@@ -26,8 +24,8 @@ impl GlobalCodeEditingLock{
 }
 
 impl CodeModificationHandle<'_>{
-    pub fn edit_code_at(&self, location: *mut u64, new_val: u64) {
-        unsafe { location.write(new_val); }
+    pub unsafe fn edit_code_at(&self, location: *mut u64, new_val: u64) {
+        location.write(new_val);
         //todo still needs to be xchg b/c self modifying code
         // unsafe { atomic_xchg(location, new_val); }
     }

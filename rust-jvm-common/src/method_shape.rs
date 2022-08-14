@@ -11,7 +11,7 @@ pub struct MethodShape {
     pub desc: CMethodDescriptor,
 }
 
-impl MethodShape{
+impl MethodShape {
     pub fn to_jvm_representation(&self, string_pool: &CompressedClassfileStringPool) -> String {
         format!("{}/{}", self.name.0.to_str(string_pool), self.desc.jvm_representation(string_pool))
     }
@@ -73,13 +73,13 @@ pub struct ShapeOrderWrapper<'l>(pub &'l MethodShape);
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ShapeOrderWrapperOwned(pub MethodShape);
 
-impl PartialOrd for ShapeOrderWrapperOwned{
+impl PartialOrd for ShapeOrderWrapperOwned {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for ShapeOrderWrapperOwned{
+impl Ord for ShapeOrderWrapperOwned {
     fn cmp(&self, other: &Self) -> Ordering {
         ShapeOrderWrapper(&self.0).cmp(&ShapeOrderWrapper(&other.0))
     }
@@ -98,14 +98,12 @@ impl Ord for ShapeOrderWrapper<'_> {
         if this_name == other_name {
             if this_desc == other_desc {
                 Ordering::Equal
+            } else if this_desc.arg_types.len() == other_desc.arg_types.len() {
+                this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).map(|(this, other)| {
+                    CPDTypeOrderWrapper(*this).partial_cmp(&CPDTypeOrderWrapper(*other))
+                }).flatten().find(|ordering| !matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
             } else {
-                if this_desc.arg_types.len() == other_desc.arg_types.len(){
-                    this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).map(|(this,other)|{
-                        CPDTypeOrderWrapper(*this).partial_cmp(&CPDTypeOrderWrapper(*other))
-                    }).flatten().find(|ordering|!matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
-                }else {
-                    this_desc.arg_types.len().cmp(&other_desc.arg_types.len())
-                }
+                this_desc.arg_types.len().cmp(&other_desc.arg_types.len())
             }
         } else {
             this_name.0.cmp(&other_name.0)

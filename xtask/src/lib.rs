@@ -34,16 +34,16 @@ pub fn deps(xtask_config: XTaskConfig) -> anyhow::Result<()> {
     let sh = Shell::new()?;
     sh.change_dir(&deps_dir);
     //todo add deps on libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev
-    if let Err(_) = cmd!(sh, "git --version").run() {
+    if cmd!(sh, "git --version").run().is_err() {
         return Err(anyhow!("git needs to be installed"));
     }
-    if let Err(_) = cmd!(sh, "make -v").run() {
+    if cmd!(sh, "make -v").run().is_err() {
         return Err(anyhow!("make needs to be installed"));
     }
-    if let Err(_) = cmd!(sh, "g++ -v").run() {
+    if cmd!(sh, "g++ -v").run().is_err() {
         return Err(anyhow!("g++ needs to be installed"));
     }
-    if let Err(_) = cmd!(sh, "gcc -v").run() {
+    if cmd!(sh, "gcc -v").run().is_err() {
         return Err(anyhow!("gcc needs to be installed"));
     }
 
@@ -79,7 +79,7 @@ fn validate_or_download_jdk(deps_dir: PathBuf, sh: &Shell, bootstrap_jdk_dir: Op
         if !is_okay_bootstrap_jdk {
             eprintln!("Default Java does not exist or is not java 7 or java 8.");
             eprintln!("Downloading JDK");
-            if let Err(_) = cmd!(sh, "wget --version").run() {
+            if cmd!(sh, "wget --version").run().is_err() {
                 return Err(anyhow!("wget needs to be installed"));
             }
             cmd!(sh, "wget {OPENJDK_8_DOWNLOAD_URL}").run()?;
@@ -125,7 +125,7 @@ pub fn load_xtask_config(workspace_dir: &Path) -> anyhow::Result<Option<XTaskCon
         let xtask_config_string = std::fs::read_to_string(&xtask_config_path)?;
         return Ok(Some(ron::from_str(xtask_config_string.as_str())?));
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn xtask_config_path(workspace_dir: &Path) -> PathBuf {
@@ -140,10 +140,10 @@ pub fn load_or_create_xtask_config(workspace_dir: &Path) -> anyhow::Result<XTask
                 dep_dir: default_deps_dir(workspace_dir),
                 bootstrap_jdk_dir: None,
             })?)?;
-            return Ok(load_xtask_config(workspace_dir)?.unwrap());
+            Ok(load_xtask_config(workspace_dir)?.unwrap())
         }
         Some(config) => {
-            return Ok(config);
+            Ok(config)
         }
     }
 }

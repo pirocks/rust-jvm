@@ -44,7 +44,7 @@ fn main() -> anyhow::Result<()> {
         .clang_arg(format!("-I/{}/", jvm_md_include_path))
         .clang_arg(format!("-I/{}/", jni_include_path))
         .clang_arg(format!("-I/{}/", jni_md_include_path))
-        .clang_arg(format!("-I."))
+        .clang_arg("-I.".to_string())
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
         .rustfmt_bindings(true)
