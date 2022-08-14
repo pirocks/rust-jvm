@@ -29,6 +29,7 @@ pub struct CompressedClassfileStringPool {
 static mut ONLY_ONE: bool = false;
 
 impl CompressedClassfileStringPool {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         unsafe {
             if ONLY_ONE {

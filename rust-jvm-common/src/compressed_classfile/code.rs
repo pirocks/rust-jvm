@@ -1462,7 +1462,7 @@ impl Hash for CompressedLdcW {
             CompressedLdcW::MethodHandle {} => {
                 state.write_usize(0);
             }
-            CompressedLdcW::LiveObject(LiveObjectIndex(_0)) => state.write_usize(*_0),
+            CompressedLdcW::LiveObject(LiveObjectIndex(index)) => state.write_usize(*index),
         }
     }
 }

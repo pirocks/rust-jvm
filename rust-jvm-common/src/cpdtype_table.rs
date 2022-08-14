@@ -33,7 +33,7 @@ impl CPDTypeTable {
         &self.table[id.0 as usize]
     }
 
-
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { table: vec![], index: HashMap::new() }
     }

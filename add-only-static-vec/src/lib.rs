@@ -32,6 +32,7 @@ impl<T> AddOnlyVec<T> {
         self.inner.read().unwrap().is_empty()
     }
 
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { inner: RwLock::new(vec![]) }
     }
@@ -115,6 +116,7 @@ impl<T> AddOnlyIdMap<T>
         unsafe { transmute::<&T, &'l T>(res) } //this is safe b/c we never free any boxes until self goes out of scope
     }
 
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self { inner: RwLock::new(AddOnlyIdMapInner { map: Default::default(), owner: AddOnlyVec::new() }) }
     }

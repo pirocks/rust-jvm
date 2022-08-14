@@ -293,6 +293,7 @@ impl From<CompressedClassName> for CompressedParsedRefType {
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(non_snake_case)]
+#[allow(clippy::upper_case_acronyms)]
 enum PredefinedStrings {
     INVALID,
     JAVA_LANG_OBJECT,
@@ -799,6 +800,7 @@ impl FieldName {
     pub fn field_modifiers() -> Self {
         Self::from_raw_id(field_modifiers)
     }
+    #[allow(clippy::self_named_constructors)]
     pub fn field_name() -> Self {
         Self::from_raw_id(field_and_method_name)
     }
@@ -1058,6 +1060,7 @@ impl MethodName {
     pub fn method_value() -> Self {
         Self::from_raw_id(field_and_method_value)
     }
+    #[allow(clippy::self_named_constructors)]
     pub fn method_name() -> Self {
         Self::from_raw_id(field_and_method_name)
     }

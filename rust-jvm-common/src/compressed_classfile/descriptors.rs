@@ -6,6 +6,7 @@ pub struct CompressedMethodDescriptorsPool {
     pool: AddOnlyIdMap<CMethodDescriptor>,
 }
 
+#[allow(clippy::new_without_default)]
 impl CompressedMethodDescriptorsPool {
     pub fn new() -> Self {
         Self { pool: AddOnlyIdMap::new() }

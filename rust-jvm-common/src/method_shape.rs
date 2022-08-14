@@ -30,6 +30,7 @@ pub struct MethodShapeIDs {
 }
 
 impl MethodShapeIDs {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             inner: RwLock::new(MethodShapeIDsInner {
