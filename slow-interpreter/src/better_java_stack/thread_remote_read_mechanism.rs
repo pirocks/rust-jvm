@@ -90,7 +90,7 @@ unsafe fn handler_impl(info: *mut nix::libc::siginfo_t, ucontext: *mut c_void) {
                 *answer = RemoteQueryAnswerInternal::GetGuestFrameStackInstructionPointer {
                     rbp: frame_pointer as u64,
                     rsp: stack_pointer as u64,
-                    rip: instruction_pointer as u64
+                    rip: instruction_pointer as u64,
                 };
             }
             RemoteQuery::GC => {
@@ -104,18 +104,11 @@ unsafe fn handler_impl(info: *mut nix::libc::siginfo_t, ucontext: *mut c_void) {
             None => {
                 eprintln!("unable to forward panic in signal");
                 libc::abort();
-            },
+            }
         };
         *answer = RemoteQueryAnswerInternal::Panic(err);
     }
     si_value.signal_handling_done.store(true, Ordering::SeqCst);
-}
-
-pub fn sigaction_setup() {
-    let mut signal_set = SigSet::empty();
-    signal_set.add(THREAD_PAUSE_SIGNAL);
-    let sig_handler = SigHandler::SigAction(handler);
-    let old_sigaction = unsafe { sigaction(THREAD_PAUSE_SIGNAL, &SigAction::new(sig_handler, SaFlags::SA_SIGINFO, signal_set)).unwrap() };
 }
 
 pub fn perform_remote_query(tid: Pthread, mut remote_query: RemoteQuery, signal_data: &SignalAccessibleJavaStackData) -> RemoteQueryAnswer {
@@ -156,6 +149,16 @@ pub fn perform_remote_query(tid: Pthread, mut remote_query: RemoteQuery, signal_
             todo!("handle unhandled signals")
         }
     }
+}
+
+pub struct ThreadSignalBasedInterrupter {}
+
+pub fn sigaction_setup() -> ThreadSignalBasedInterrupter {
+    let mut signal_set = SigSet::empty();
+    signal_set.add(THREAD_PAUSE_SIGNAL);
+    let sig_handler = SigHandler::SigAction(handler);
+    let _old_sigaction = unsafe { sigaction(THREAD_PAUSE_SIGNAL, &SigAction::new(sig_handler, SaFlags::SA_SIGINFO, signal_set)).unwrap() };
+    ThreadSignalBasedInterrupter {}
 }
 
 #[cfg(test)]

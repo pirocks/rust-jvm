@@ -24,6 +24,7 @@ use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
+use crate::better_java_stack::thread_remote_read_mechanism::{sigaction_setup, SignalAccessibleJavaStackData, ThreadSignalBasedInterrupter};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::{InterpreterState};
@@ -42,6 +43,7 @@ use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
+    interrupter: ThreadSignalBasedInterrupter,
     // threads_locals: RwLock<HashMap<ThreadId, Arc<FastPerThreadData>>>,
     main_thread: RwLock<Option<Arc<JavaThread<'gc>>>>,
     pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread<'gc>>>>,
@@ -68,6 +70,7 @@ impl<'gc> ThreadState<'gc> {
     pub fn new(scope: Scope<'gc>) -> Self {
         Self {
             threads: Threads::new(scope),
+            interrupter: sigaction_setup(),
             main_thread: RwLock::new(None),
             all_java_threads: RwLock::new(HashMap::new()),
             current_java_thread: &CURRENT_JAVA_THREAD,
@@ -271,6 +274,7 @@ impl<'gc> ThreadState<'gc> {
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
+            stack_signal_safe_data: Arc::new(SignalAccessibleJavaStackData::new()),
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
             interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),
@@ -455,6 +459,7 @@ thread_local! {
 
 pub struct JavaThread<'vm> {
     pub java_tid: JavaThreadId,
+    stack_signal_safe_data: Arc<SignalAccessibleJavaStackData>,
     underlying_thread: Thread<'vm>,
     thread_object: RwLock<Option<JThread<'vm>>>,
     pub interpreter_state: Mutex<InterpreterState<'vm>>,
@@ -473,6 +478,7 @@ impl<'gc> JavaThread<'gc> {
     pub fn new(jvm: &'gc JVMState<'gc>, thread_obj: JThread<'gc>, underlying: Thread<'gc>, invisible_to_java: bool) -> Arc<JavaThread<'gc>> {
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(jvm),
+            stack_signal_safe_data: Arc::new(SignalAccessibleJavaStackData::new()),
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj.into()),
             interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),

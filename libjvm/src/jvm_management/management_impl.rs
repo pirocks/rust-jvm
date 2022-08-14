@@ -10,7 +10,7 @@ unsafe extern "C" fn get_version(env: *mut JNIEnv) -> jint {
 }
 
 unsafe extern "C" fn GetOptionalSupport(env: *mut JNIEnv, support_ptr: *mut jmmOptionalSupport) -> jint {
-    support_ptr.write(jmmOptionalSupport { _bitfield_1: Default::default() });
+    support_ptr.write(jmmOptionalSupport { _bitfield_align_1: [], _bitfield_1: Default::default() });
     JNI_OK as i32
 }
 

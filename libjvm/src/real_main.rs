@@ -79,6 +79,12 @@ pub fn main_<'l>() {
 }
 
 fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
+    scope.builder().name("Watcher Thread".to_string()).spawn(|_|{
+        loop {
+            std::hint::spin_loop();
+        }
+    });
+
     let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope, gc, CompressedClassfileStringPool::new());
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);

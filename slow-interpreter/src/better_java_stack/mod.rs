@@ -69,7 +69,7 @@ impl<'gc> JavaStack<'gc> {
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
             throw: None,
-            thread_stack_data: todo!()
+            thread_stack_data: Arc::new(SignalAccessibleJavaStackData::new())
         }
     }
 
