@@ -28,7 +28,7 @@ impl<T> AddOnlyVec<T> {
         self.inner.read().unwrap().len()
     }
 
-    pub fn is_empty(&self) -> usize {
+    pub fn is_empty(&self) -> bool {
         self.inner.read().unwrap().is_empty()
     }
 
