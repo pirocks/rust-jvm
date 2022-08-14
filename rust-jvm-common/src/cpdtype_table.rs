@@ -19,8 +19,8 @@ impl CPDTypeTable {
         match self.index.get(&cpdtype) {
             None => {
                 let new_id = self.table.len();
-                self.table.push(cpdtype.clone());
-                self.index.insert(cpdtype.clone(), CPDTypeID(new_id as u32));
+                self.table.push(cpdtype);
+                self.index.insert(cpdtype, CPDTypeID(new_id as u32));
                 CPDTypeID(new_id as u32)
             }
             Some(cpdtype_id) => {

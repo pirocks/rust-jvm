@@ -417,19 +417,19 @@ impl CompressedInstructionInfo {
                 format!("instanceof:{}",type_.jvm_representation(string_pool))
             }
             CompressedInstructionInfo::invokedynamic(_) => {
-                format!("invokedynamic")
+                "invokedynamic".to_string()
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool),count)
+                format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool),count)
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
-                format!("invokespecial:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+                format!("invokespecial:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => {
-                format!("invokestatic:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(&string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+                format!("invokestatic:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                format!("invokevirtual:{}/{}/{}", classname_ref_type.try_unwrap_name().map(|name|name.0.to_str(&string_pool)).unwrap_or("array".to_string()), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+                format!("invokevirtual:{}/{}/{}", classname_ref_type.try_unwrap_name().map(|name|name.0.to_str(string_pool)).unwrap_or("array".to_string()), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::ior => {
                 format!("{:?}", self)
@@ -511,7 +511,7 @@ impl CompressedInstructionInfo {
                     Either::Left(ldc_type) => {
                         match ldc_type {
                             CompressedLdcW::String { str } => {
-                                format!("ldc:string:\"{}\"", str.to_string_lossy().to_string())
+                                format!("ldc:string:\"{}\"", str.to_string_lossy())
                             }
                             CompressedLdcW::Class { type_ } => {
                                 format!("ldc:class:{}", type_.jvm_representation(string_pool))
@@ -548,7 +548,7 @@ impl CompressedInstructionInfo {
             CompressedInstructionInfo::ldc_w(ldc_type) => {
                 match ldc_type {
                     CompressedLdcW::String { str } => {
-                        format!("ldc:string:\"{}\"", str.to_string_lossy().to_string())
+                        format!("ldc:string:\"{}\"", str.to_string_lossy())
                     }
                     CompressedLdcW::Class { type_ } => {
                         format!("ldc:class:\"{}\"", type_.jvm_representation(string_pool))
@@ -1476,7 +1476,7 @@ pub enum CompressedLdc2W {
 }
 
 impl PartialEq for CompressedLdc2W {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }

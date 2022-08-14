@@ -22,7 +22,7 @@ pub type CClassName = CompressedClassName;
 
 impl CompressedClassName {
     const fn from_raw_id(raw_id: AddOnlyVecIDType) -> Self {
-        Self { 0: CompressedClassfileString { id: AddOnlyId(raw_id) } }
+        Self(CompressedClassfileString { id: AddOnlyId(raw_id) })
     }
 
     pub fn object() -> Self {

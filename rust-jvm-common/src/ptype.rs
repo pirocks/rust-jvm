@@ -117,7 +117,7 @@ impl Clone for PType {
             PType::VoidType => PType::VoidType,
             PType::TopType => PType::TopType,
             PType::NullType => PType::NullType,
-            PType::Uninitialized(uvi) => PType::Uninitialized(uvi.clone()),
+            PType::Uninitialized(uvi) => PType::Uninitialized(*uvi),
             PType::UninitializedThis => PType::UninitializedThis,
             PType::UninitializedThisOrClass(t) => PType::UninitializedThisOrClass(t.clone()),
             PType::Ref(r) => PType::Ref(r.clone()),

@@ -99,9 +99,9 @@ impl Ord for ShapeOrderWrapper<'_> {
             if this_desc == other_desc {
                 Ordering::Equal
             } else if this_desc.arg_types.len() == other_desc.arg_types.len() {
-                this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).map(|(this, other)| {
+                this_desc.arg_types.iter().zip(other_desc.arg_types.iter()).filter_map(|(this, other)| {
                     CPDTypeOrderWrapper(*this).partial_cmp(&CPDTypeOrderWrapper(*other))
-                }).flatten().find(|ordering| !matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
+                }).find(|ordering| !matches!(ordering, Ordering::Equal)).unwrap_or(Ordering::Equal)
             } else {
                 this_desc.arg_types.len().cmp(&other_desc.arg_types.len())
             }

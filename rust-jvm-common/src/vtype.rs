@@ -53,7 +53,7 @@ impl VType {
             PType::VoidType => VType::VoidType,
             PType::TopType => VType::TopType,
             PType::NullType => VType::NullType,
-            PType::Uninitialized(uninitvarinfo) => VType::Uninitialized(uninitvarinfo.clone()),
+            PType::Uninitialized(uninitvarinfo) => VType::Uninitialized(*uninitvarinfo),
             PType::UninitializedThis => VType::UninitializedThis,
             PType::UninitializedThisOrClass(ptype) => VType::UninitializedThisOrClass(CPDType::from_ptype(ptype.deref(), pool)),
         }
@@ -66,7 +66,7 @@ impl VType {
             VType::IntType => RuntimeType::IntType,
             VType::LongType => RuntimeType::LongType,
             VType::Class(c) => RuntimeType::Ref(RuntimeRefType::Class(c.class_name)),
-            VType::ArrayReferenceType(array_ref) => RuntimeType::Ref(RuntimeRefType::Array(array_ref.clone())),
+            VType::ArrayReferenceType(array_ref) => RuntimeType::Ref(RuntimeRefType::Array(*array_ref)),
             VType::VoidType => panic!(),
             VType::TopType => RuntimeType::TopType,
             VType::NullType => RuntimeType::Ref(RuntimeRefType::NullType),
