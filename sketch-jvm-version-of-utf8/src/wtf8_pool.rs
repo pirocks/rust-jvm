@@ -21,6 +21,7 @@ pub struct Wtf8Pool {
     inner: RwLock<Wtf8PoolInner>,
 }
 
+#[allow(clippy::new_without_default)]
 impl Wtf8Pool {
     pub fn new() -> Self {
         Self {

@@ -19,11 +19,11 @@ impl JVMString {
                 let char_ = char_ as u32;
                 if (0x1..=0x7F).contains(&char_) {
                     vec![char_ as u8]
-                } else if char_ >= 0x80 && char_ <= 0x7FF {
+                } else if (0x80..=0x7FF).contains(&char_) {
                     let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
                     let y = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
                     vec![x, y]
-                } else if char_ >= 0x800 && char_ <= 0xFFFF {
+                } else if (0x800..=0xFFFF).contains(&char_) {
                     let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));
                     let y = 0b1000_0000 | (0b0011_1111 & ((char_ >> 6) as u8));
                     let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
