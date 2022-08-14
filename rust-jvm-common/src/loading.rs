@@ -89,26 +89,10 @@ impl std::error::Error for ClassLoadingError {}
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct LoaderIndex(pub u32);
 
-#[derive(Debug, Eq, Clone, Hash, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub enum LoaderName {
     UserDefinedLoader(LoaderIndex),
     BootstrapLoader,
-}
-
-impl PartialEq for LoaderName {
-    fn eq(&self, other: &LoaderName) -> bool {
-        match self {
-            LoaderName::BootstrapLoader => match other {
-                LoaderName::BootstrapLoader => true,
-                LoaderName::UserDefinedLoader(_) => false,
-            },
-
-            LoaderName::UserDefinedLoader(idx) => match other {
-                LoaderName::UserDefinedLoader(other_idx) => other_idx == idx,
-                LoaderName::BootstrapLoader => false,
-            },
-        }
-    }
 }
 
 impl Display for LoaderName {

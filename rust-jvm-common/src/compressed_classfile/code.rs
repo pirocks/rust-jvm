@@ -1386,10 +1386,10 @@ impl CInstructionInfo {
 }
 
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct LiveObjectIndex(pub usize);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum CompressedLdcW {
     String { str: Wtf8Buf },
     Class { type_: CPDType },
@@ -1469,10 +1469,16 @@ impl Hash for CompressedLdcW {
 
 impl Eq for CompressedLdcW {}
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum CompressedLdc2W {
     Long(i64),
     Double(f64),
+}
+
+impl PartialEq for CompressedLdc2W {
+    fn eq(&self, other: &Self) -> bool {
+        todo!()
+    }
 }
 
 impl Hash for CompressedLdc2W {
