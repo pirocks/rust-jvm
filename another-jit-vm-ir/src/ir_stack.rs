@@ -290,7 +290,7 @@ impl IRFrameRef<'_> {
     pub fn frame_size<ExtraData>(&self, ir_vm_state: &IRVMState<ExtraData>) -> usize {
         match self.try_frame_size(ir_vm_state) {
             None => {
-                return DEFAULT_FRAME_SIZE;
+                DEFAULT_FRAME_SIZE
             }
             Some(res) => {
                 res
@@ -315,6 +315,7 @@ impl IRFrameRef<'_> {
 
 //todo this is scuffed
 //frame header size + one data pointer for native frame data
+#[allow(clippy::identity_op)]
 pub const DEFAULT_FRAME_SIZE: usize = FRAME_HEADER_END_OFFSET + 1 * size_of::<*const c_void>();
 
 // has ref b/c not valid to access this after top level stack has been modified

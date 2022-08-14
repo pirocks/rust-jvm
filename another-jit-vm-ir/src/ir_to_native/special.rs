@@ -23,7 +23,7 @@ pub fn bounds_check(assembler: &mut CodeAssembler, length: Register, index: Regi
         Size::X86DWord => assembler.cmp(index.to_native_32(), length.to_native_32()).unwrap(),
         Size::X86QWord => assembler.cmp(index.to_native_64(), length.to_native_64()).unwrap(),
     }
-    assembler.jl(after_exit_label.clone()).unwrap();
+    assembler.jl(after_exit_label).unwrap();
     gen_vm_exit(assembler, on_bounds_fail);
     assembler.nop_1(rax).unwrap();
     assembler.set_label(&mut after_exit_label).unwrap();
@@ -56,7 +56,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             generate_vtable_access(assembler, *method_number, vtable_ptr_register, Register(1), address_register);
             assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
             let mut fast_resolve_worked = assembler.create_label();
-            assembler.jnz(fast_resolve_worked.clone()).unwrap();
+            assembler.jnz(fast_resolve_worked).unwrap();
             let registers = resolve_exit.registers_to_save();
             resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
             let mut before_exit_label = assembler.create_label();

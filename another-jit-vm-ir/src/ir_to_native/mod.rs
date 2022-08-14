@@ -287,14 +287,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let obj_ptr = Register(0);
                     assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
                     let itable_ptr_register = Register(3);
-                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), itable_ptr_register.clone(), resolver_exit_label.clone());
+                    MemoryRegions::generate_find_itable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), itable_ptr_register, resolver_exit_label);
                     let address_register = InvokeInterfaceResolve::ADDRESS_RES;// register 4
                     // assembler.int3().unwrap();
                     assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
                     generate_itable_access(assembler, *method_number, *interface_id, itable_ptr_register, Register(5), Register(6), Register(7), address_register);
                     assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
                     let mut fast_resolve_worked = assembler.create_label();
-                    assembler.jnz(fast_resolve_worked.clone()).unwrap();
+                    assembler.jnz(fast_resolve_worked).unwrap();
                     let registers = resolve_exit.registers_to_save();
                     assembler.set_label(&mut resolver_exit_label).unwrap();
                     resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
@@ -321,7 +321,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.cmp(obj_ptr.to_native_64(), 0).unwrap();
             assembler.je(instance_of_fail).unwrap();
             let object_inheritance_path_pointer = Register(3);
-            MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), object_inheritance_path_pointer.clone());
+            MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), object_inheritance_path_pointer);
             assembler.mov(object_inheritance_path_pointer.to_native_64(), object_inheritance_path_pointer.to_native_64() + offset_of!(RegionHeader,inheritance_bit_path_ptr)).unwrap();
             assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
             assembler.je(instance_of_exit_label).unwrap();
@@ -350,8 +350,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             let xored = ymm4;
             assembler.vpxor(xored, instance_of_bit_path, object_inheritance_bit_path).unwrap();
             assembler.vptest(xored, mask_register).unwrap();// ands xored and mask and cmp whole res with zero
-            assembler.je(instance_of_succeed.clone()).unwrap();
-            assembler.jmp(instance_of_fail.clone()).unwrap();
+            assembler.je(instance_of_succeed).unwrap();
+            assembler.jmp(instance_of_fail).unwrap();
             let mut done = assembler.create_label();
             assembler.set_label(&mut instance_of_succeed).unwrap();
             assembler.mov(return_val.to_native_64(), 1u64).unwrap();
@@ -441,14 +441,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.mov(region_header.to_native_64(), *region_header_ptr as u64).unwrap();
             assembler.mov(region_header.to_native_64(), region_header.to_native_64() + 0).unwrap();
             assembler.cmp(region_header.to_native_64(), zero.to_native_64()).unwrap();
-            assembler.je(skip_to_exit_label.clone()).unwrap();
+            assembler.je(skip_to_exit_label).unwrap();
             let current_index = Register(6);
             assembler.mov(current_index.to_native_64(), 1 as u64).unwrap();
             assembler.lock().xadd(region_header.to_native_64() + offset_of!(RegionHeader,num_current_elements), current_index.to_native_64()).unwrap();
             let max_elements = Register(7);
             assembler.mov(max_elements.to_native_64(), region_header.to_native_64() + offset_of!(RegionHeader, region_max_elements)).unwrap();
             assembler.cmp(current_index.to_native_64(), max_elements.to_native_64()).unwrap();
-            assembler.jge(skip_to_exit_label.clone()).unwrap();
+            assembler.jge(skip_to_exit_label).unwrap();
             let region_elem_size = Register(8);
             assembler.mov(region_elem_size.to_native_64(), region_header.to_native_64() + offset_of!(RegionHeader, region_elem_size)).unwrap();
             let res_ptr = Register(0);
@@ -463,7 +463,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.cmp(region_elem_size.to_native_64(), 0).unwrap();
             assembler.jne(zero_loop_start).unwrap();
             assembler.mov(rbp - res_offset.0, res_ptr.to_native_64()).unwrap();
-            assembler.jmp(after_exit_label.clone()).unwrap();
+            assembler.jmp(after_exit_label).unwrap();
             match allocate_exit {
                 IRVMExitType::AllocateObject { .. } => {
                     assembler.set_label(&mut skip_to_exit_label).unwrap();
