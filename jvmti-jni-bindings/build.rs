@@ -20,6 +20,7 @@ fn workspace_dir() -> PathBuf {
 // }
 
 fn main() -> anyhow::Result<()> {
+    eprintln!("If you see failures here make sure you have run `cargo xtask deps`");
     let workspace_dir: PathBuf = workspace_dir();
     let xtask = load_xtask_config(&workspace_dir)?.expect("No xtask config found.");
     let dep_dir: PathBuf = xtask.dep_dir;

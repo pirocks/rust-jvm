@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
@@ -23,10 +24,16 @@ fn make_deps_dir(dir: PathBuf) -> anyhow::Result<PathBuf> {
     Ok(dir)
 }
 
-pub fn deps(dep_dir: PathBuf) -> anyhow::Result<()> {
-    let deps_dir = make_deps_dir(dep_dir)?;
+const OPENJDK_8_DOWNLOAD_URL: &str = "https://github.com/adoptium/temurin8-binaries/releases/download/jdk8u345-b01/OpenJDK8U-jdk_x64_linux_hotspot_8u345b01.tar.gz";
+const DOWNLOADED_FILE_NAME: &str = "OpenJDK8U-jdk_x64_linux_hotspot_8u345b01.tar.gz";
+const EXTRACTED_JDK_DIR_NAME: &str = "jdk8u345-b01";
+
+pub fn deps(xtask_config: XTaskConfig) -> anyhow::Result<()> {
+    let deps_dir = xtask_config.dep_dir;
+    let deps_dir = make_deps_dir(deps_dir)?;
     let sh = Shell::new()?;
-    sh.change_dir(deps_dir);
+    sh.change_dir(&deps_dir);
+    //todo add deps on libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev
     if let Err(_) = cmd!(sh, "git --version").run() {
         return Err(anyhow!("git needs to be installed"));
     }
@@ -39,13 +46,67 @@ pub fn deps(dep_dir: PathBuf) -> anyhow::Result<()> {
     if let Err(_) = cmd!(sh, "gcc -v").run() {
         return Err(anyhow!("gcc needs to be installed"));
     }
+
+    let bootstrap_jdk_dir = xtask_config.bootstrap_jdk_dir;
+    let bootstrap_jdk = validate_or_download_jdk(deps_dir, &sh, bootstrap_jdk_dir)?;
+    //
     //todo keep track of if we have already successfully cloned and make this idempotent
+    //todo make a ci idempotent tester
     cmd!(sh, "git clone --branch master --depth 1 https://github.com/pirocks/jdk8u.git").run()?;
     sh.change_dir("jdk8u");
-    cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\" ").run()?;
+    match bootstrap_jdk {
+        None => {
+            cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\"").run()?;
+        }
+        Some(bootstrap_jdk) => {
+            cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\" --with-boot-jdk={bootstrap_jdk}").run()?;
+        }
+    }
     cmd!(sh,"make clean").run()?;
     cmd!(sh,"make DISABLE_HOTSPOT_OS_VERSION_CHECK=ok images").run()?;
     Ok(())
+}
+
+fn validate_or_download_jdk(deps_dir: PathBuf, sh: &Shell, bootstrap_jdk_dir: Option<PathBuf>) -> anyhow::Result<Option<PathBuf>> {
+    if let Some(bootstrap_jdk) = bootstrap_jdk_dir {
+        let java_bin_path = bootstrap_jdk.join("bin/java");
+        if !validate_java_version(sh, java_bin_path.as_path()) {
+            return Err(anyhow!("Default Java does not exist or is not java 7 or java 8."));
+        }
+        Ok(Some(bootstrap_jdk))
+    } else {
+        let is_okay_bootstrap_jdk = validate_java_version(sh, Path::new("java"));
+        if !is_okay_bootstrap_jdk {
+            eprintln!("Default Java does not exist or is not java 7 or java 8.");
+            eprintln!("Downloading JDK");
+            if let Err(_) = cmd!(sh, "wget --version").run() {
+                return Err(anyhow!("wget needs to be installed"));
+            }
+            cmd!(sh, "wget {OPENJDK_8_DOWNLOAD_URL}").run()?;
+            cmd!(sh, "tar xvf {DOWNLOADED_FILE_NAME}").run()?;
+            return Ok(Some(deps_dir.join(EXTRACTED_JDK_DIR_NAME)))
+        }
+        Ok(None)
+    }
+}
+
+fn validate_java_version(sh: &Shell, java_path: &Path) -> bool {
+    match cmd!(sh, "{java_path} -version").read() {
+        Err(_) => {
+            false
+        }
+        Ok(output) => {
+            match output.lines().next() {
+                None => {
+                    false
+                }
+                Some(openjdk_version_line) => {
+                    let version_regex = Regex::new("\"1\\.([78])\\.[0-9_]+\"").unwrap();
+                    version_regex.find(openjdk_version_line).is_some()
+                }
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
