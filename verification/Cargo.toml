@@ -16,6 +16,6 @@ perf-metrics = {path = "../perf-metrics"}
 itertools = "0.10"
 
 [dev-dependencies]
-ntest_timeout = "0.3.0"
-timebomb = "0.1.2"
+#ntest_timeout = "0.3.0"
+#timebomb = "0.1.2"
 jar-manipulation = { path = "../jar-manipulation" }

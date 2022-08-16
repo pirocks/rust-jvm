@@ -1,14 +1,14 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use std::sync::Arc;
+use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
-use libc::{c_void};
+use libc::c_void;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, StackEntryPush};
@@ -39,6 +39,7 @@ impl FramePointer {
 pub struct StackDepth(u16);
 
 //needs to keep track of operand stack for interpreter
+//      needs to be viewable by other threads
 //needs to have same underlying for interpreter and not-interpreter
 //      follows that there needs to be a mechanism for non-interpreter frames in exits to know
 //      operand stack depth
@@ -52,28 +53,35 @@ pub struct JavaStack<'gc> {
     jvm: &'gc JVMState<'gc>,
     owned_ir_stack: OwnedIRStack,
     interpreter_frame_operand_stack_depths: Vec<(FramePointer, InterpreterFrameState)>,
-    throw: Option<AllocatedHandle<'gc>>,//todo this should probably be in some kind of thread state thing
+    throw: Option<AllocatedHandle<'gc>>,
+    //todo this should probably be in some kind of thread state thing
     thread_stack_data: Arc<SignalAccessibleJavaStackData>,
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct InterpreterFrameState{
+pub struct InterpreterFrameState {
     stack_depth: StackDepth,
-    current_pc: ByteCodeOffset
+    current_pc: ByteCodeOffset,
 }
 
 impl<'gc> JavaStack<'gc> {
-    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack) -> Self {
+    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
         Self {
             jvm,
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
             throw: None,
-            thread_stack_data: Arc::new(SignalAccessibleJavaStackData::new())
+            thread_stack_data,
         }
     }
+}
 
-    pub fn mmaped_top(&self) -> FramePointer{
+pub struct JavaStackGuard<'vm, 'l> {
+    guard: MutexGuard<'l, JavaStack<'vm>>,
+}
+
+impl <'vm, 'l> JavaStackGuard<'vm, 'l> {
+    pub fn mmaped_top(&self) -> FramePointer {
         FramePointer(self.owned_ir_stack.native.mmaped_top)
     }
 
@@ -98,8 +106,8 @@ impl<'gc> JavaStack<'gc> {
 
 //need enter and exit native functions, enter taking an operand stack depth?
 
-pub struct JavaExitFrame<'gc, 'l> {
-    java_stack: &'l mut JavaStack<'gc>,
+pub struct JavaExitFrame<'gc, 'l, 'k> {
+    java_stack: &'k mut JavaStackGuard<'gc, 'l>,
     frame_pointer: FramePointer,
     num_locals: u16,
     max_stack: u16,
@@ -151,7 +159,7 @@ pub trait HasFrame<'gc> {
     }
 }
 
-impl<'gc, 'l> HasFrame<'gc> for JavaExitFrame<'gc, 'l> {
+impl<'gc, 'l, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'l, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.frame_pointer.0.into(),
@@ -180,10 +188,10 @@ impl<'gc, 'l> HasFrame<'gc> for JavaExitFrame<'gc, 'l> {
 }
 
 
-impl<'gc, 'l> JavaExitFrame<'gc, 'l> {}
+impl<'gc, 'l, 'k> JavaExitFrame<'gc, 'l, 'k> {}
 
 pub struct JavaInterpreterFrame<'gc, 'l> {
-    java_stack: &'l mut JavaStack<'gc>,
+    java_stack: &'k mut JavaStackGuard<'gc, 'l>,
     frame_ptr: FramePointer,
     num_locals: u16,
     max_stack: u16,

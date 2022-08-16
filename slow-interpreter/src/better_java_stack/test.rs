@@ -41,7 +41,7 @@ pub fn test() {
     let workspace_dir: PathBuf = workspace_dir();
     let xtask = load_xtask_config(&workspace_dir).unwrap().expect("No xtask config found.");
     with_jvm(&xtask,|jvm| {
-        let mut new_stack = JavaStack::new(jvm, OwnedIRStack::new().unwrap());
+        let mut new_stack = JavaStack::new(jvm, OwnedIRStack::new().unwrap(), );
         new_stack.assert_interpreter_frame_operand_stack_depths_sorted();
         assert!(new_stack.throw.is_none());
         let frame_pointer = FramePointer(new_stack.owned_ir_stack.native.mmaped_top);
