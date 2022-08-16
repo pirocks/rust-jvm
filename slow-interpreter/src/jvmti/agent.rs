@@ -1,6 +1,7 @@
 use std::os::raw::c_void;
 
 use thread_priority::*;
+use another_jit_vm::stack::CannotAllocateStack;
 
 use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
 use rust_jvm_common::loading::LoaderName;
@@ -28,7 +29,12 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
-    let java_thread = JavaThread::new(jvm, thread_object, todo!() /*jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string(jvm).into(),todo!())*/, true);
+    let java_thread = match JavaThread::new(jvm, thread_object, todo!() /*jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string(jvm).into(),todo!())*/, true){
+        Ok(java_thread) => java_thread,
+        Err(CannotAllocateStack{}) => {
+            todo!()
+        }
+    };
     let args = ThreadArgWrapper { proc_, arg };
     java_thread.clone().get_underlying().start_thread(
         box |_| {

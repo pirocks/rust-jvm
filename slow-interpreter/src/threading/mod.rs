@@ -273,9 +273,12 @@ impl<'gc> ThreadState<'gc> {
 
     pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>) -> Arc<JavaThread<'vm>> {
         let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
+        let stack_signal_safe_data = Arc::new(SignalAccessibleJavaStackData::new());
+        let java_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new().expect("todo"), stack_signal_safe_data.clone()));
         let bootstrap_thread = Arc::new(JavaThread {
             java_tid: 0,
-            stack_signal_safe_data: Arc::new(SignalAccessibleJavaStackData::new()),
+            java_stack,
+            stack_signal_safe_data,
             underlying_thread: bootstrap_underlying_thread,
             thread_object: RwLock::new(None),
             interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),
@@ -321,7 +324,7 @@ impl<'gc> ThreadState<'gc> {
         let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
         new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
         bootstrap_thread.notify_terminated(jvm);
-        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false)
+        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false).expect("todo")
     }
 
     pub fn get_current_thread_name(&self, jvm: &'gc JVMState<'gc>) -> String {
@@ -376,7 +379,7 @@ impl<'gc> ThreadState<'gc> {
         let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
 
         let (send, recv) = channel();
-        let java_thread: Arc<JavaThread<'gc>> = JavaThread::new(jvm, obj, underlying, invisible_to_java);
+        let java_thread: Arc<JavaThread<'gc>> = JavaThread::new(jvm, obj, underlying, invisible_to_java).expect("todo");
         let loader_name = java_thread.thread_object.read().unwrap().as_ref().unwrap().get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(
             box move |_data| {
@@ -479,7 +482,7 @@ impl<'gc> JavaThread<'gc> {
 
     pub fn new(jvm: &'gc JVMState<'gc>, thread_obj: JThread<'gc>, underlying: Thread<'gc>, invisible_to_java: bool) -> Result<Arc<JavaThread<'gc>>,CannotAllocateStack> {
         let stack_signal_safe_data = Arc::new(SignalAccessibleJavaStackData::new());
-        let java_stack = JavaStack::new(jvm, OwnedIRStack::new()?, stack_signal_safe_data.clone());
+        let java_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new()?, stack_signal_safe_data.clone()));
         let res = Arc::new(JavaThread {
             java_tid: thread_obj.tid(jvm),
             java_stack,
