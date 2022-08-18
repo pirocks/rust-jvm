@@ -9,10 +9,8 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
-use std::thread::LocalKey;
+use std::thread::{Builder, LocalKey, Scope, ScopedJoinHandle};
 
-use crossbeam::thread::Scope;
-use crossbeam::thread::ScopedJoinHandle;
 use nix::sys::signal::{sigaction, SigAction, SigHandler, SigSet};
 use nix::sys::signal::Signal;
 
@@ -23,7 +21,7 @@ use crate::signal::{pthread_self, pthread_t, SI_QUEUE, siginfo_t};
 
 pub struct Threads<'vm> {
     this_thread: &'static LocalKey<RefCell<Option<Arc<Thread<'static>>>>>,
-    scope: Scope<'vm>,
+    scope: &'vm Scope<'vm, 'vm>,
 }
 
 static mut THERE_CAN_ONLY_BE_ONE_THREADS: bool = false;
@@ -37,7 +35,7 @@ impl<'vm> Threads<'vm> {
         self.this_thread.with(|thread| unsafe { transmute(thread.borrow().as_ref().unwrap().clone()) })
     }
 
-    pub fn new(scope: Scope<'vm>) -> Threads<'vm> {
+    pub fn new(scope: &'vm Scope<'vm, 'vm>) -> Threads<'vm> {
         unsafe {
             if THERE_CAN_ONLY_BE_ONE_THREADS {
                 panic!()
@@ -67,14 +65,14 @@ impl<'vm> Threads<'vm> {
         };
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
-        let mut builder = self.scope.builder();
+        let mut builder = Builder::new();
         builder = match name {
             None => builder,
             Some(name) => builder.name(name),
         };
         let join_handle = builder
             .stack_size(1024 * 1024 * 256) // verifier makes heavy use of recursion.
-            .spawn(move |_| unsafe {
+            .spawn_scoped(self.scope, move || unsafe {
                 join_status.write().unwrap().alive.store(true, Ordering::SeqCst);
                 thread_info_channel_send.send(pthread_self()).unwrap();
                 let ThreadStartInfo { func, data } = thread_start_channel_recv.recv().unwrap();

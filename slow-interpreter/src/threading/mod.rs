@@ -7,10 +7,9 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Sender};
-use std::thread::LocalKey;
+use std::thread::{LocalKey, Scope};
 use std::time::Duration;
 
-use crossbeam::thread::Scope;
 use libloading::Symbol;
 use num_integer::Integer;
 use wtf8::Wtf8Buf;
@@ -69,7 +68,7 @@ pub struct MainThreadStartInfo {
 }
 
 impl<'gc> ThreadState<'gc> {
-    pub fn new(scope: Scope<'gc>) -> Self {
+    pub fn new(scope: &'gc Scope<'gc,'gc>) -> Self {
         Self {
             threads: Threads::new(scope),
             interrupter: sigaction_setup(),

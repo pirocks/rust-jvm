@@ -3,9 +3,9 @@ use std::mem::transmute;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::thread::Scope;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
-use crossbeam::thread::Scope;
 use raw_cpuid::CpuId;
 
 use gc_memory_layout_common::early_startup::get_regions;
@@ -32,7 +32,7 @@ fn avx_check() {
     }
 }
 
-pub fn main_<'l>() {
+pub fn main_<'l, 'env>() {
     let mut verbose = false;
     let mut debug = false;
     let mut main_class_name = "".to_string();
@@ -71,20 +71,15 @@ pub fn main_<'l>() {
     let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
     let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
     let gc: GC<'l> = GC::new(get_regions());
-    crossbeam::scope(|scope: Scope<'l>| {
+    std::thread::scope::<'env>(|scope: &Scope<'_, 'env>| {
         let gc_ref: &'l GC = unsafe { transmute(&gc) };//todo why do I need this?
-        within_thread_scope(scope, jvm_options, gc_ref);
-    })
-        .expect("idk why this would happen")
+        let scope_ref: &'l Scope<'l, 'l> = unsafe { transmute(scope) };
+        within_thread_scope(scope_ref, jvm_options, gc_ref);
+    });
+    panic!();
 }
 
-fn within_thread_scope<'l>(scope: Scope<'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
-    scope.builder().name("Watcher Thread".to_string()).spawn(|_|{
-        loop {
-            std::hint::spin_loop();
-        }
-    });
-
+fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
     let (args, jvm): (Vec<String>, JVMState<'l>) = JVMState::new(jvm_options, scope, gc, CompressedClassfileStringPool::new());
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);

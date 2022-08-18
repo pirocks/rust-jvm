@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 nix = "0.25"
 libc = "0.2.66"
-crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 
 [build-dependencies]
 bindgen = "0.60"

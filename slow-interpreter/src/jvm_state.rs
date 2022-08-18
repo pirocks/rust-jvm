@@ -10,11 +10,11 @@ use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::thread::Scope;
 use std::time::Instant;
 
 use bimap::BiMap;
 use by_address::ByAddress;
-use crossbeam::thread::Scope;
 use itertools::Itertools;
 use libloading::{Error, Library, Symbol};
 use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
@@ -258,7 +258,7 @@ impl<'gc> Classes<'gc> {
 
 
 impl<'gc> JVMState<'gc> {
-    pub fn new(jvm_options: JVMOptions, scope: Scope<'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
+    pub fn new(jvm_options: JVMOptions, scope: &'gc Scope<'gc,'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
         let JVMOptions {
             main_class_name,
             classpath,

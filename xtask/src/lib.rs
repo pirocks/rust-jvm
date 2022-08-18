@@ -91,7 +91,7 @@ fn validate_or_download_jdk(deps_dir: PathBuf, sh: &Shell, bootstrap_jdk_dir: Op
 }
 
 fn validate_java_version(sh: &Shell, java_path: &Path) -> bool {
-    match cmd!(sh, "{java_path} -version").read() {
+    match cmd!(sh, "{java_path} -version").read_stderr() {
         Err(_) => {
             false
         }

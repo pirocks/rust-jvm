@@ -24,7 +24,6 @@ java5-verifier = { path = "../java5-verifier" }
 stage0 = { path = "../stage0" }
 libffi = { git = 'https://github.com/pirocks/libffi-rs.git', branch = "updated", features = ["system"] }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
-crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
 rangemap = { git = "https://github.com/pirocks/rangemap.git" }
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
 runtime-class-stuff = { path = "../runtime-class-stuff" }

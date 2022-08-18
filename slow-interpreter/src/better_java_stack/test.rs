@@ -1,8 +1,8 @@
 use std::env;
 use std::mem::transmute;
 use std::path::PathBuf;
+use std::thread::Scope;
 
-use crossbeam::thread::Scope;
 
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use gc_memory_layout_common::early_startup::get_regions;
@@ -18,7 +18,7 @@ use crate::options::JVMOptions;
 pub fn with_jvm<'gc>(xtask: &XTaskConfig, func: impl FnOnce(&'gc JVMState<'gc>)) {
     let gc: GC<'gc> = GC::new(get_regions());
     let string_pool = CompressedClassfileStringPool::new();
-    crossbeam::scope(|scope: Scope<'gc>| {
+    std::thread::scope(|scope: &'_ Scope<'_,'gc>| {
         let gc_ref: &'gc GC = unsafe { transmute(&gc) };//todo why do I need this?
         let mut jvm_options = JVMOptions::test_options();
         jvm_options.classpath = Classpath::from_dirs(vec![xtask.classes().into_boxed_path()]);

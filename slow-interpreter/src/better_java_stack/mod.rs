@@ -1,11 +1,12 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use std::sync::{Arc, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use itertools::Itertools;
 use libc::c_void;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
+use another_jit_vm_ir::WasException;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
@@ -77,7 +78,8 @@ impl<'gc> JavaStack<'gc> {
 }
 
 pub struct JavaStackGuard<'vm, 'l> {
-    guard: MutexGuard<'l, JavaStack<'vm>>,
+    stack: &'vm Mutex<JavaStack<'vm>>,
+    guard: Option<MutexGuard<'l, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>
 }
 
@@ -100,7 +102,7 @@ impl <'vm, 'l> JavaStackGuard<'vm, 'l> {
         JavaExitFrame { java_stack: self, frame_pointer, num_locals: todo!(), max_stack: todo!(), stack_depth }
     }
 
-    pub fn push_frame(&mut self, frame_to_write: StackEntryPush) {
+    pub fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'vm, 'l>) -> Result<T, WasException>) -> Result<T, WasException>{
         //todo should take an fn
         todo!()
     }

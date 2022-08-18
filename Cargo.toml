@@ -13,6 +13,8 @@ jvm = { path = "./libjvm" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 anyhow = "1"
 
+[profile.release]
+debug = true
 
 [workspace]
 members = [
