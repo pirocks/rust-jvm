@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 rust-jvm-common = { path = "../rust-jvm-common" }
-zip = "0.6"
+zip = { version = "0.6", features = ["zstd", "time", "bzip2", "deflate"], default-features = false }
 classfile-parser = { path = "../classfile-parser" }
 
 [dev-dependencies]
