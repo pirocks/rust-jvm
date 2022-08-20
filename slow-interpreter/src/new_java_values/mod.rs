@@ -3,6 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 use std::sync::Arc;
 use itertools::Itertools;
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CPDType};
@@ -405,6 +406,98 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
             NewJavaValue::Top => panic!()
         }
     }
+
+
+    pub fn unwrap_bool_strict_ref(&self) -> &jboolean {
+        match self {
+            NewJavaValue::Boolean(bool) => bool,
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_byte_strict_ref(&self) -> &jbyte {
+        match self {
+            NewJavaValue::Byte(byte) => {
+                byte
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_char_strict_ref(&self) -> &jchar {
+        match self {
+            NewJavaValue::Char(char) => {
+                char
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_short_strict_ref(&self) -> &jshort {
+        todo!()
+    }
+
+    pub fn unwrap_int_strict_ref(&self) -> &jint {
+        match self {
+            NewJavaValue::Int(res) => res,
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_long_strict_ref(&self) -> &jlong {
+        match self {
+            NewJavaValue::Long(long) => {
+                long
+            }
+            _ => panic!()
+        }
+    }
+
+    pub fn unwrap_float_strict_ref(&self) -> &jfloat {
+        match self {
+            NewJavaValue::Float(float) => {
+                float
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn unwrap_double_strict_ref(&self) -> &jdouble {
+        match self {
+            NewJavaValue::Double(double) => {
+                double
+            }
+            _ => {
+                panic!()
+            }
+        }
+    }
+
+    pub fn widen_int_vals(self) -> Self{
+        match self {
+            NewJavaValue::Long(long) => Self::Long(long),
+            NewJavaValue::Int(int) => Self::Int(int),
+            NewJavaValue::Short(short) => Self::Int(short as i32),
+            NewJavaValue::Byte(byte) => Self::Int(byte as i32),
+            NewJavaValue::Boolean(bool) => Self::Int(bool as i32),
+            NewJavaValue::Char(char_) => Self::Int(char_ as i32),
+            NewJavaValue::Float(float) => Self::Float(float),
+            NewJavaValue::Double(double) => Self::Double(double),
+            NewJavaValue::Null => Self::Null,
+            NewJavaValue::UnAllocObject(un_alloc_obj) => Self::UnAllocObject(un_alloc_obj),
+            NewJavaValue::AllocObject(alloc_obj) => Self::AllocObject(alloc_obj),
+            NewJavaValue::Top => Self::Top
+        }
+    }
+
 }
 
 pub enum NewJVObject<'gc, 'l> {

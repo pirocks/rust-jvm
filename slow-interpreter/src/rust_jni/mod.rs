@@ -14,6 +14,7 @@ use libffi::middle::CodePtr;
 use libffi::middle::Type;
 use libloading::Symbol;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
@@ -23,15 +24,16 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
 use crate::instructions::ldc::load_class_constant_by_type;
-use another_jit_vm_ir::WasException;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
-use crate::rust_jni::value_conversion::{free_native, to_native, to_native_type};
+use crate::rust_jni::value_conversion::{to_native, to_native_type};
 
 pub mod mangling;
 pub mod value_conversion;
+pub mod ffi_arg_holder;
 
 impl<'gc> NativeLibraries<'gc> {
     pub fn new(libjava: OsString) -> NativeLibraries<'gc> {
@@ -74,14 +76,15 @@ pub fn call_impl<'gc, 'l, 'k>(
     mut args: Vec<NewJavaValue<'gc, 'k>>,
     md: CMethodDescriptor,
     raw: &unsafe extern "C" fn(),
-    suppress_runtime_class: bool
+    suppress_runtime_class: bool,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
-    args.retain(|arg|!matches!(arg,NewJavaValue::Top));
-    assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));
+    args.retain(|arg| !matches!(arg,NewJavaValue::Top));
+    assert!(jvm.thread_state.int_state_guard_valid.with(|valid| valid.borrow().clone()));
     assert!(int_state.current_frame().is_native_method());
     unsafe { assert!(jvm.get_int_state().registered()); }
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
+    let mut arg_boxes = ArgBoxesToFree::new();
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
@@ -89,7 +92,7 @@ pub fn call_impl<'gc, 'l, 'k>(
         let class_popped_jv = load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
         assert!(int_state.current_frame().is_native_method());
         unsafe { assert!(get_interpreter_state(env).current_frame().is_native_method()); }
-        let class_constant = unsafe { to_native(env, class_popped_jv.as_njv(), &Into::<CPDType>::into(CClassName::object())) };
+        let class_constant = unsafe { to_native(env, &mut arg_boxes, class_popped_jv.as_njv(), &Into::<CPDType>::into(CClassName::object())) };
         let res = vec![Arg::new(&env), class_constant];
         res
     };
@@ -105,10 +108,10 @@ pub fn call_impl<'gc, 'l, 'k>(
     for (j, t) in args_and_type.iter() {
         args_type.push(to_native_type(&t));
         unsafe {
-            c_args.push(to_native(env, (*j).clone(), &t));
+            c_args.push(to_native(env, &mut arg_boxes, (*j).clone(), &t));
         }
     }
-    let cif = Cif::new(args_type.into_iter(), match &md.return_type{
+    let cif = Cif::new(args_type.into_iter(), match &md.return_type {
         CompressedParsedDescriptorType::BooleanType => Type::u8(),
         CompressedParsedDescriptorType::ByteType => Type::i8(),
         CompressedParsedDescriptorType::ShortType => Type::i16(),
@@ -123,7 +126,7 @@ pub fn call_impl<'gc, 'l, 'k>(
     });
     let fn_ptr = CodePtr::from_fun(*raw);
     unsafe { assert!(jvm.get_int_state().registered()); }
-    assert!(jvm.thread_state.int_state_guard_valid.with(|valid|valid.borrow().clone()));
+    assert!(jvm.thread_state.int_state_guard_valid.with(|valid| valid.borrow().clone()));
     let cif_res: *mut c_void = unsafe { cif.call(fn_ptr, c_args.as_slice()) };
     let res = match &md.return_type {
         CPDType::VoidType => None,
@@ -148,13 +151,6 @@ pub fn call_impl<'gc, 'l, 'k>(
             })
         }
     };
-    unsafe {
-        for (i, (j, t)) in args_and_type.iter().enumerate() {
-            let offset = if suppress_runtime_class { 1 } else { 2 };
-            let to_free = &mut c_args[i + offset];
-            free_native((*j).clone(), t, to_free)
-        }
-    }
     if int_state.throw().is_some() {
         return Err(WasException {});
     }

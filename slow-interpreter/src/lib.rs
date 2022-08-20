@@ -17,6 +17,7 @@
 #![feature(backtrace)]
 #![feature(ptr_const_cast)]
 #![feature(is_sorted)]
+#![feature(allocator_api)]
 
 
 extern crate core;
