@@ -1,5 +1,4 @@
 #![feature(asm_const)]
-#![feature(backtrace)]
 #![feature(trait_alias)]
 #![feature(generic_associated_types)]
 #![feature(core_intrinsics)]

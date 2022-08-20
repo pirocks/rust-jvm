@@ -14,8 +14,6 @@
 #![feature(never_type)]
 #![feature(box_patterns)]
 #![feature(once_cell)]
-#![feature(backtrace)]
-#![feature(ptr_const_cast)]
 #![feature(is_sorted)]
 #![feature(allocator_api)]
 

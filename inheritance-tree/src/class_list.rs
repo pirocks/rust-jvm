@@ -20,10 +20,10 @@ pub enum Stage {
 impl Stage {
     pub fn stage_depth(&self) -> u32 {
         match self {
-            Stage::Stage1 => STAGE_1_TARGET_CAPACITY.log2(),
-            Stage::Stage2 => STAGE_2_TARGET_CAPACITY.log2(),
-            Stage::Stage3 => STAGE_3_TARGET_CAPACITY.log2(),
-            Stage::Stage4 => STAGE_4_TARGET_CAPACITY.log2(),
+            Stage::Stage1 => STAGE_1_TARGET_CAPACITY.ilog2(),
+            Stage::Stage2 => STAGE_2_TARGET_CAPACITY.ilog2(),
+            Stage::Stage3 => STAGE_3_TARGET_CAPACITY.ilog2(),
+            Stage::Stage4 => STAGE_4_TARGET_CAPACITY.ilog2(),
         }
     }
 
