@@ -129,7 +129,6 @@ pub fn perform_remote_query(tid: Pthread, mut remote_query: RemoteQuery, signal_
     let raw_remote_query = remote_query_mut as *mut RemoteQueryAnswerInternal;
     signal_data.remote_request_answer.compare_exchange(null_mut(), raw_remote_query, Ordering::SeqCst, Ordering::SeqCst).unwrap();
     assert!(!signal_data.signal_handling_done.load(Ordering::SeqCst));
-    // signal_data.signal_handling_done.store(false, Ordering::SeqCst);
     pthread_sigqueue(tid, Some(THREAD_PAUSE_SIGNAL), SigVal::Ptr(signal_data as *const SignalAccessibleJavaStackData as *mut c_void)).unwrap();
     while signal_data.signal_handling_done.load(Ordering::SeqCst) != true {
         hint::spin_loop();
