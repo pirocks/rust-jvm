@@ -45,7 +45,7 @@ pub fn test() {
         new_stack.assert_interpreter_frame_operand_stack_depths_sorted();
         assert!(new_stack.throw.is_none());
         let frame_pointer = FramePointer(new_stack.owned_ir_stack.native.mmaped_top);
-        let interpreter_frame = new_stack.new_interpreter_frame(frame_pointer);
+        let interpreter_frame = new_stack.interpreter_frame(frame_pointer);
     })
 }
 
