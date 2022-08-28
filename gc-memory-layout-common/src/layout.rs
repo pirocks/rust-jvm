@@ -84,46 +84,8 @@ pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = offset_of!(FrameHeader,magic
 pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = offset_of!(FrameHeader,magic_part_2);
 pub const FRAME_HEADER_END_OFFSET: usize = size_of::<FrameHeader>();
 
-pub trait StackframeMemoryLayout {
-    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset;
-    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset;
-    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout;
-    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout;
-    fn full_frame_size(&self) -> usize;
-    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset;
-}
 const MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION: usize = 256 * size_of::<jlong>();
 
-pub struct FullyOpaqueFrame {
-    pub max_stack: usize,
-    pub max_frame: usize,
-}
-
-impl StackframeMemoryLayout for FullyOpaqueFrame {
-    fn local_var_entry(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
-    }
-
-    fn operand_stack_entry(&self, pc: u16, from_end: u16) -> FramePointerOffset {
-        todo!()
-    }
-
-    fn operand_stack_entry_array_layout(&self, pc: u16, from_end: u16) -> ArrayMemoryLayout {
-        todo!()
-    }
-
-    fn operand_stack_entry_object_layout(&self, pc: u16, from_end: u16) -> ObjectMemoryLayout {
-        todo!()
-    }
-
-    fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION + size_of::<jlong>()
-    }
-
-    fn safe_temp_location(&self, pc: u16, i: u16) -> FramePointerOffset {
-        todo!()
-    }
-}
 
 pub struct NativeStackframeMemoryLayout {
     pub num_locals: u16// num_locals does include top native functions, to allow same ircall mechanism

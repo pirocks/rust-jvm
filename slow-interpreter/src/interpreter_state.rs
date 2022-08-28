@@ -22,7 +22,7 @@ use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMeth
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-use crate::stack_entry::{StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};
+use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush, StackEntry, StackEntryMut, StackEntryPush, StackEntryRef};
 use crate::threading::JavaThread;
 
 pub struct InterpreterState<'gc> {
@@ -32,7 +32,7 @@ pub struct InterpreterState<'gc> {
 }
 
 impl<'gc> InterpreterState<'gc> {
-    pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Result<Self,CannotAllocateStack> {
+    pub(crate) fn new(jvm: &'gc JVMState<'gc>) -> Result<Self, CannotAllocateStack> {
         Ok(InterpreterState {
             call_stack: OwnedJavaStack::new(&jvm.java_vm_state)?,
             jvm,
@@ -118,7 +118,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
             registered: true,
             jvm,
             current_exited_pc: None,
-            throw: None
+            throw: None,
         }
     }
 
@@ -260,7 +260,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                 let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
                 let top_level_exit_ptr = ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id);
                 let ir_frame_push_guard = match frame {
-                    StackEntryPush::Java { operand_stack, local_vars, method_id } => {
+                    StackEntryPush::Java(JavaFramePush { operand_stack, local_vars, method_id }) => {
                         assert_eq!(jvm.num_local_var_slots(method_id) as usize, local_vars.len());
                         let ir_method_id = jvm.java_vm_state.try_lookup_method_ir_method_id(method_id);
                         let mut data = vec![];
@@ -276,7 +276,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), ir_method_id, wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
-                    StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
+                    StackEntryPush::Native(NativeFramePush { method_id, native_local_refs, local_vars, operand_stack }) => {
                         jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ }, method_id, false);
                         let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
                         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -296,7 +296,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
                         data.push(raw_frame_info_pointer as *const c_void as usize as u64);
                         int_state.push_frame(top_level_exit_ptr.as_ptr(), Some(ir_method_id), wrapped_method_id.to_native(), data.as_slice(), ir_vm_state)
                     }
-                    StackEntryPush::Opaque { opaque_id, native_local_refs } => {
+                    StackEntryPush::Opaque(OpaqueFramePush { opaque_id, native_local_refs }) => {
                         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
                         let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
                         let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);

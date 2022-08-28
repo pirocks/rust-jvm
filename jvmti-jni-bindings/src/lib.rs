@@ -3,6 +3,7 @@
 #![allow(non_snake_case)]
 #![allow(unused)]
 #![allow(clippy::useless_transmute)]
+#![allow(clippy::too_many_arguments)]
 
 include!(concat!("../gen", "/bindings.rs"));
 
