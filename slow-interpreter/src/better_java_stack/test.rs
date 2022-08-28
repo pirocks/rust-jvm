@@ -35,7 +35,10 @@ pub fn within<'gc>(scope: &'_ Scope<'_, 'gc>, xtask: &XTaskConfig, gc: &GC, stri
     let mut jvm_options = JVMOptions::test_options();
     jvm_options.classpath = Classpath::from_dirs(vec![xtask.classes().into_boxed_path()]);
     let (args, jvm): (Vec<String>, JVMState<'gc>) = JVMState::new(jvm_options, scope_ref, gc_ref, string_pool);
-    unsafe { func(transmute(&jvm)); }
+    unsafe {
+        let jvm: &'gc JVMState<'gc> = transmute(&jvm);
+        jvm.java_vm_state.init(jvm);
+        func(jvm); }
 }
 
 fn this_dir() -> PathBuf {
@@ -64,7 +67,7 @@ pub fn test() {
                     Ok(res)
                 }).unwrap();
                 Ok(())
-            });
+            }).unwrap();
 
         })
     }

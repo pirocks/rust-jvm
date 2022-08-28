@@ -372,16 +372,16 @@ pub struct JavaFramePush<'gc, 'k> {
 
 #[derive(Clone)]
 pub struct NativeFramePush<'gc, 'k> {
-    method_id: MethodId,
-    native_local_refs: Vec<HashSet<jobject>>,
-    local_vars: Vec<NewJavaValue<'gc, 'k>>,
-    operand_stack: Vec<NewJavaValue<'gc, 'k>>,
+    pub(crate) method_id: MethodId,
+    pub(crate) native_local_refs: Vec<HashSet<jobject>>,
+    pub(crate) local_vars: Vec<NewJavaValue<'gc, 'k>>,
+    pub(crate) operand_stack: Vec<NewJavaValue<'gc, 'k>>,
 }
 
 #[derive(Clone)]
 pub struct OpaqueFramePush{
-    opaque_id: OpaqueID,
-    native_local_refs: Vec<HashSet<jobject>>,
+    pub(crate) opaque_id: OpaqueID,
+    pub(crate) native_local_refs: Vec<HashSet<jobject>>,
 }
 
 #[derive(Clone)]

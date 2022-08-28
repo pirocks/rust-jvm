@@ -1,10 +1,16 @@
+use std::ffi::c_void;
+use std::ptr::NonNull;
 use std::sync::{Mutex, MutexGuard};
+use itertools::Itertools;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use another_jit_vm_ir::WasException;
-use crate::better_java_stack::{FramePointer, JavaStack, StackDepth};
-use crate::better_java_stack::exit_frame::JavaExitFrame;
+use rust_jvm_common::loading::LoaderName;
+use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::JVMState;
+use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
+use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
+use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaStackGuard<'vm> {
     stack: &'vm Mutex<JavaStack<'vm>>,
@@ -18,24 +24,28 @@ impl <'vm> JavaStackGuard<'vm> {
         self.guard.as_ref().unwrap().has_been_used
     }
 
+    pub(crate) fn set_has_been_used(&mut self){
+        self.guard.as_mut().unwrap().has_been_used = true
+    }
+
     pub(crate) fn ir_stack(&self) -> &OwnedIRStack{
         &self.guard.as_ref().unwrap().owned_ir_stack
     }
 
     //todo I really need an init function which just creates the mutex and everything in one place
     pub fn new_from_empty_stack(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl FnOnce(&mut OpaqueFrame) -> Result<(), WasException>) -> Result<(), WasException>{
-        let mut guard = stack.lock().unwrap();
+        let guard = stack.lock().unwrap();
         if guard.has_been_used{
             panic!()
         }
+        let mmapped_top = guard.owned_ir_stack.native.mmaped_top;
         let mut res = Self{
             stack,
             guard: Some(guard),
             jvm,
-            current_frame_pointer: FramePointer(guard.owned_ir_stack.native.mmaped_top)
+            current_frame_pointer: FramePointer(mmapped_top)
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);
-        guard.has_been_used = true;
         with_initial_opaque_frame(&mut opaque_frame)
     }
 
@@ -55,10 +65,6 @@ impl <'vm> JavaStackGuard<'vm> {
 
     fn assert_interpreter_frame_operand_stack_depths_sorted(&self) {
         self.guard.as_ref().unwrap().assert_interpreter_frame_operand_stack_depths_sorted();
-    }
-
-    pub fn exit_frame<'k>(&'k mut self, frame_pointer: FramePointer, stack_depth: Option<StackDepth>) -> JavaExitFrame<'vm, 'k> {
-        JavaExitFrame { java_stack: self, frame_pointer, num_locals: todo!(), max_stack: todo!(), stack_depth }
     }
 
     // pub fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'vm>) -> Result<T, WasException>) -> Result<T, WasException> {
@@ -88,4 +94,121 @@ impl <'vm> JavaStackGuard<'vm> {
         self.jvm
     }
 
+
+    pub fn push_java_frame<'k, T>(&'k mut self,
+                           current_frame_pointer: FramePointer,
+                           next_frame_pointer: FramePointer,
+                           java_stack_entry: JavaFramePush,
+        within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+    ) -> Result<T, WasException>{
+        let JavaFramePush { method_id, local_vars, operand_stack } = java_stack_entry;
+        let jvm = self.jvm();
+        let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
+        assert_eq!(jvm.num_local_var_slots(method_id) as usize, local_vars.len());
+        let ir_method_id = jvm.java_vm_state.try_lookup_method_ir_method_id(method_id);
+        let mut data = vec![];
+        for local_var in local_vars {
+            if let Some(Some(obj)) = local_var.try_unwrap_object_alloc() {
+                jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.ptr());
+            }
+            data.push(unsafe { local_var.to_native().as_u64 });
+        }
+        for jv in operand_stack {
+            data.push(unsafe { jv.to_native().as_u64 });
+        }
+        let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
+        unsafe {
+            self.guard.as_mut().unwrap().owned_ir_stack.write_frame(
+                next_frame_pointer.0,
+                top_level_exit_ptr.as_ptr(),
+                current_frame_pointer.as_ptr(),
+                ir_method_id,
+                wrapped_method_id.to_native(),
+                data.as_slice(),
+            );
+        }
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let code = method_view.code_attribute().unwrap();
+        todo!()
+        /*JavaInterpreterFrame {
+            java_stack: java_stack_guard,
+            frame_ptr: next_frame_pointer,
+            num_locals: code.max_locals,
+            max_stack: code.max_stack,
+            current_operand_stack_depth: 0,
+        }*/
+    }
+
+    fn push_frame_native<'k>(&'k mut self,
+                             current_frame_pointer: FramePointer,
+                             next_frame_pointer: FramePointer,
+                             stack_entry: NativeFramePush){
+        let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
+        let jvm = self.jvm();
+        let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
+        let method_resolver_impl = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ };
+        jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver_impl, method_id, false);
+        let ir_method_id = jvm.java_vm_state.lookup_method_ir_method_id(method_id);
+        let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
+        assert_eq!(jvm.num_local_vars_native(method_id) as usize, local_vars.len());
+        let native_frame_info = NativeFrameInfo {
+            method_id,
+            loader,
+            native_local_refs,
+            // local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
+            operand_stack: operand_stack.iter().map(|njv| njv.to_native()).collect(),
+        };
+        let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
+        let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
+        //todo use NativeStackframeMemoryLayout for this
+        let mut data = local_vars.iter().map(|local_var| unsafe { local_var.to_native().as_u64 }).collect_vec();
+        data.push(raw_frame_info_pointer as *const c_void as usize as u64);
+        unsafe {
+            self.guard.as_mut().unwrap().owned_ir_stack.write_frame(
+                next_frame_pointer.0,
+                top_level_exit_ptr.as_ptr(),
+                current_frame_pointer.as_ptr(),
+                Some(ir_method_id),
+                wrapped_method_id.to_native(),
+                data.as_slice(),
+            );
+        }
+        panic!()
+    }
+
+    fn push_opaque_frame<'k>(&'k mut self,
+                                current_frame_pointer : FramePointer,
+                             next_frame_pointer: FramePointer,
+                             opaque_frame: OpaqueFramePush
+    ) {
+        let OpaqueFramePush{ opaque_id, native_local_refs } = opaque_frame;
+        let jvm = self.jvm();
+        let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
+        let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
+        let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
+        let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
+        let data = [raw_frame_info_pointer as *const c_void as usize as u64];
+        unsafe {
+            self.guard.as_mut().unwrap().owned_ir_stack.write_frame(
+                next_frame_pointer.0,
+                top_level_exit_ptr.as_ptr(),
+                current_frame_pointer.as_ptr(),
+                None,
+                wrapped_opaque_id.to_native(),
+                data.as_slice(),
+            );
+        }
+        panic!()
+    }
+
+}
+
+
+fn get_top_level_exit_ptr<'vm>(jvm: &'vm JVMState<'vm>) -> NonNull<c_void> {
+    let ir_vm_state = &jvm.java_vm_state.ir;
+    let top_level_ir_method_id = ir_vm_state.get_top_level_return_ir_method_id();
+    ir_vm_state.lookup_ir_method_id_pointer(top_level_ir_method_id)
 }
