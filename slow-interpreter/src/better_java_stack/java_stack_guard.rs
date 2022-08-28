@@ -67,10 +67,6 @@ impl <'vm> JavaStackGuard<'vm> {
         self.guard.as_ref().unwrap().assert_interpreter_frame_operand_stack_depths_sorted();
     }
 
-    // pub fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'vm>) -> Result<T, WasException>) -> Result<T, WasException> {
-    //     push_interpreter(self, self.current_frame_pointer, )
-    // }
-
     fn enter_guest(&mut self) {
         todo!()
     }

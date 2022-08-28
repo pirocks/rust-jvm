@@ -1,4 +1,4 @@
-use std::intrinsics::atomic_cxchg;
+use std::intrinsics::atomic_cxchg_seqcst_seqcst;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
@@ -28,7 +28,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEn
     }
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
+    atomic_cxchg_seqcst_seqcst((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
 }
 
 #[no_mangle]
@@ -36,7 +36,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
     if target_obj == null_mut() {
         todo!()
     }
-    atomic_cxchg((target_obj as *mut c_void).offset(offset as isize) as *mut jlong, old, new).1 as jboolean
+    atomic_cxchg_seqcst_seqcst((target_obj as *mut c_void).offset(offset as isize) as *mut jlong, old, new).1 as jboolean
 }
 
 
@@ -47,7 +47,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
         todo!()
     }
     let target = (target_obj as *mut c_void).offset(offset as isize) as *mut jobject;
-    atomic_cxchg(target, expected, new).1 as jboolean
+    atomic_cxchg_seqcst_seqcst(target, expected, new).1 as jboolean
     /*let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
