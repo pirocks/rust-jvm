@@ -1,24 +1,25 @@
 use std::sync::Arc;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
-use another_jit_vm_ir::WasException;
 use crate::java_values::{default_value, JavaValue};
-use runtime_class_stuff::RuntimeClass;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 //todo jni should really live in interpreter state
 
-pub fn new_object_full<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedHandle<'gc> {
-    AllocatedHandle::NormalObject(new_object(jvm,int_state,runtime_class))
+pub fn new_object_full<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedHandle<'gc> {
+    AllocatedHandle::NormalObject(new_object(jvm, /*int_state*/todo!(), runtime_class))
 }
 
-pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
+pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_handle = JavaValue::new_object(jvm, runtime_class.clone());
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
@@ -49,11 +50,11 @@ fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: 
     }
 }
 
-pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc,'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc, 'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), full_args)?;
+    let res = invoke_special_impl(jvm, todo!()/*int_state*/, md, method_view.method_i(), target_classfile.clone(), full_args)?;
     assert!(res.is_none());
     Ok(())
 }

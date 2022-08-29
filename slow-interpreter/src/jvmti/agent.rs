@@ -29,7 +29,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
-    let java_thread = match JavaThread::new(jvm, thread_object, todo!() /*jvm.thread_state.threads.create_thread(thread_object.name(jvm).to_rust_string(jvm).into(),todo!())*/, true){
+    let java_thread = match JavaThread::new(jvm, Some(thread_object), true){
         Ok(java_thread) => java_thread,
         Err(CannotAllocateStack{}) => {
             todo!()
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
     };
     let args = ThreadArgWrapper { proc_, arg };
     java_thread.clone().get_underlying().start_thread(
-        box |_| {
+        box move |_| {
             let ThreadArgWrapper { proc_, arg } = args;
             if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
                 set_current_thread_priority(ThreadPriority::Max).unwrap();

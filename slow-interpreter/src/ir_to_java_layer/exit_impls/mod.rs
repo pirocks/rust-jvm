@@ -180,7 +180,7 @@ pub fn instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStat
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    check_initing_or_inited_class(jvm, /*int_state*/todo!(), cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -196,7 +196,7 @@ pub fn assert_instance_of<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    let initied = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    let initied = check_initing_or_inited_class(jvm, /*int_state*/todo!(), cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
     dbg!(cpdtype.jvm_representation(&jvm.string_pool));
@@ -508,7 +508,7 @@ pub fn init_class_and_recompile<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    let inited = check_initing_or_inited_class(jvm, /*int_state*/todo!(), cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);

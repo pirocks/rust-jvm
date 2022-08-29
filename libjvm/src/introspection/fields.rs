@@ -50,7 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::field().into())).unwrap();
+    let array_rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),

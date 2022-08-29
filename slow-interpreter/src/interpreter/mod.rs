@@ -11,6 +11,7 @@ use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::runtime_type::{RuntimeType};
 
 use crate::AllocatedHandle;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::special::instance_of_exit_impl_impl_impl;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
@@ -49,7 +50,7 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaStackGuard<'gc>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let rc = interpreter_state.current_frame().class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
@@ -62,7 +63,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut
     if !compile_interpreted {
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
     } else {
-        return run_function_interpreted(jvm, interpreter_state);
+        return run_function_interpreted(jvm, todo!()/*interpreter_state*/);
     }
 
     let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }) {

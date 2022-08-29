@@ -9,8 +9,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_allocateInstance(env: *mut JNIEnv
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jclass = from_jclass(jvm, cls);
-    let rc = check_initing_or_inited_class(jvm, int_state, jclass.as_type(jvm)).unwrap();
-    let obj_handle = new_object(jvm, int_state, &rc);
+    let rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), jclass.as_type(jvm)).unwrap();
+    let obj_handle = new_object(jvm, /*int_state*/todo!(), &rc);
     to_object_new(Some(obj_handle.as_allocated_obj()))
 }
 

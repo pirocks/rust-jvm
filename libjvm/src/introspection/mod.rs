@@ -311,7 +311,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
-                if let Err(WasException {}) = check_initing_or_inited_class(jvm, int_state, p_type) {
+                if let Err(WasException {}) = check_initing_or_inited_class(jvm, /*int_state*/todo!(), p_type) {
                     return null_mut();
                 };
             }

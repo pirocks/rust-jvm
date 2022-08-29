@@ -22,9 +22,9 @@ pub mod concurrent_hash_map {
 
     impl<'gc> ConcurrentHashMap<'gc> {
         pub fn new(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> Self {
-            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, int_state, CClassName::concurrent_hash_map().into()).unwrap();
-            let concurrent_hash_map = new_object_full(jvm, int_state, &concurrent_hash_map_class);
-            run_constructor(jvm, int_state, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
+            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::concurrent_hash_map().into()).unwrap();
+            let concurrent_hash_map = new_object_full(jvm, todo!()/*int_state*/, &concurrent_hash_map_class);
+            run_constructor(jvm, /*int_state*/ todo!(), concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
 

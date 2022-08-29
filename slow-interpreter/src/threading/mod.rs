@@ -13,24 +13,27 @@ use std::time::Duration;
 use libloading::Symbol;
 use num_integer::Integer;
 use wtf8::Wtf8Buf;
-use another_jit_vm::stack::CannotAllocateStack;
 
+use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::{IRStackMut, OwnedIRStack};
 use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::*;
-use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
+use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::JavaStack;
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::better_java_stack::thread_remote_read_mechanism::{sigaction_setup, SignalAccessibleJavaStackData, ThreadSignalBasedInterrupter};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::InterpreterState;
 use crate::interpreter_util::new_object_full;
-use crate::invoke_interface::get_invoke_interface;
+use crate::invoke_interface::get_invoke_interface_new;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::string::JString;
 use crate::java::lang::system::System;
@@ -68,7 +71,7 @@ pub struct MainThreadStartInfo {
 }
 
 impl<'gc> ThreadState<'gc> {
-    pub fn new(scope: &'gc Scope<'gc,'gc>) -> Self {
+    pub fn new(scope: &'gc Scope<'gc, 'gc>) -> Self {
         Self {
             threads: Threads::new(scope),
             interrupter: sigaction_setup(),
@@ -144,7 +147,7 @@ impl<'gc> ThreadState<'gc> {
         //     }
         // }
 
-        // let list_class = check_initing_or_inited_class(jvm, int_state, list_cpdtype).unwrap();
+        // let list_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), list_cpdtype).unwrap();
         // let input = vec![0,2328,1316134912];
         // let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{
         //     whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::IntType)).unwrap(),
@@ -235,7 +238,7 @@ impl<'gc> ThreadState<'gc> {
         let init_frame_guard = int_state.push_frame(initialize_system_frame);
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         let _old = int_state.register_interpreter_state_guard(jvm);
-        match run_function(&jvm, int_state) {
+        match run_function(&jvm, todo!()/*int_state*/) {
             Ok(_) => {}
             Err(_) => todo!(),
         }
@@ -271,59 +274,43 @@ impl<'gc> ThreadState<'gc> {
     }
 
     pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>) -> Arc<JavaThread<'vm>> {
-        let bootstrap_underlying_thread = threads.create_thread("Bootstrap Thread".to_string().into());
-        let stack_signal_safe_data = Arc::new(SignalAccessibleJavaStackData::new());
-        let java_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new().expect("todo"), stack_signal_safe_data.clone()));
-        let bootstrap_thread = Arc::new(JavaThread {
-            java_tid: 0,
-            java_stack,
-            stack_signal_safe_data,
-            underlying_thread: bootstrap_underlying_thread,
-            thread_object: RwLock::new(None),
-            interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),
-            invisible_to_java: true,
-            jvmti_events_enabled: Default::default(),
-            thread_local_storage: RwLock::new(null_mut()),
-            safepoint_state: SafePoint::new(),
-            thread_status: RwLock::new(ThreadStatus { terminated: false, alive: false, interrupted: false }),
-        });
-        jvm.thread_state.set_current_thread(bootstrap_thread.clone());
-        bootstrap_thread.notify_alive(jvm);
-        let mut interpreter_state_guard = bootstrap_thread.interpreter_state.lock().unwrap();
-        let mut new_int_state = InterpreterStateGuard::LocalInterpreterState {
-            int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
-            thread: jvm.thread_state.get_current_thread(),
-            registered: false,
-            jvm,
-            current_exited_pc: None,
-            throw: None,
-        };
-        let _old = new_int_state.register_interpreter_state_guard(jvm);
-        unsafe {
-            jvm.native_libaries.load(jvm, &mut new_int_state, &jvm.native_libaries.libjava_path, "java".to_string());
-            {
-                let native_libs_guard = jvm.native_libaries.native_libs.read().unwrap();
-                let libjava_native_lib = native_libs_guard.get("java").unwrap();
-                let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterface_)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
-                (*setup_hack_symbol.deref())(get_invoke_interface(jvm, &mut new_int_state))
+        let main_jthread = JavaThread::new_with_stack(jvm, None, true, move |bootstrap_thread, opaque_frame| {
+            unsafe {
+                jvm.native_libaries.load(jvm, opaque_frame, &jvm.native_libaries.libjava_path, "java".to_string());
+                {
+                    let native_libs_guard = jvm.native_libaries.native_libs.read().unwrap();
+                    let libjava_native_lib = native_libs_guard.get("java").unwrap();
+                    let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterface_)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
+                    (*setup_hack_symbol.deref())(get_invoke_interface_new(jvm, opaque_frame))
+                }
             }
-        }
-        let frame = StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");
-        let frame_for_bootstrapping = new_int_state.push_frame(frame);
-        let object_rc = check_loaded_class(jvm, &mut new_int_state, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
-        jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
-        let thread_classfile = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread().into()).expect("couldn't load thread class");
+            let frame = StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");
+            opaque_frame.push_frame(frame, |java_stack_guard| {
+                let object_rc = check_loaded_class(jvm, java_stack_guard, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
+                jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
+                let thread_classfile = check_initing_or_inited_class(jvm, java_stack_guard, CClassName::thread().into()).expect("couldn't load thread class");
 
-        let thread_object = NewJavaValueHandle::Object(new_object_full(jvm, &mut new_int_state, &thread_classfile)).cast_thread();
-        thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
-        let thread_group_class = check_initing_or_inited_class(jvm, &mut new_int_state, CClassName::thread_group().into()).expect("couldn't load thread group class");
-        let system_thread_group = JThreadGroup::init(jvm, &mut new_int_state, thread_group_class).expect("todo");
-        *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
-        let main_jthread = JThread::new(jvm, &mut new_int_state, system_thread_group, "Main".to_string()).expect("todo");
-        new_int_state.pop_frame(jvm, frame_for_bootstrapping, false);
-        bootstrap_thread.notify_terminated(jvm);
-        JavaThread::new(jvm, main_jthread, threads.create_thread("Main Java Thread".to_string().into()), false).expect("todo")
+                let thread_object = NewJavaValueHandle::Object(new_object_full(jvm, java_stack_guard, &thread_classfile)).cast_thread();
+                thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
+                *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
+                let thread_group_class = check_initing_or_inited_class(jvm, java_stack_guard, CClassName::thread_group().into()).expect("couldn't load thread group class");
+                let system_thread_group = JThreadGroup::init(jvm, java_stack_guard, thread_group_class).expect("todo");
+                *jvm.thread_state.system_thread_group.write().unwrap() = system_thread_group.clone().into();
+                let main_jthread = JThread::new(jvm, java_stack_guard, system_thread_group, "Main".to_string()).expect("todo");
+                Ok(main_jthread)
+            })
+        }).unwrap();
+        JavaThread::new(jvm, Some(main_jthread), false).expect("todo")
+        // let mut interpreter_state_guard = bootstrap_thread.interpreter_state.lock().unwrap();
+        // let mut new_int_state = InterpreterStateGuard::LocalInterpreterState {
+        //     int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
+        //     thread: jvm.thread_state.get_current_thread(),
+        //     registered: false,
+        //     jvm,
+        //     current_exited_pc: None,
+        //     throw: None,
+        // };
+        // let _old = new_int_state.register_interpreter_state_guard(jvm);
     }
 
     pub fn get_current_thread_name(&self, jvm: &'gc JVMState<'gc>) -> String {
@@ -375,10 +362,8 @@ impl<'gc> ThreadState<'gc> {
     }
 
     pub fn start_thread_from_obj<'l>(&'gc self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, obj: JThread<'gc>, invisible_to_java: bool) -> Arc<JavaThread<'gc>> {
-        let underlying = self.threads.create_thread(obj.name(jvm).to_rust_string(jvm).into());
-
         let (send, recv) = channel();
-        let java_thread: Arc<JavaThread<'gc>> = JavaThread::new(jvm, obj, underlying, invisible_to_java).expect("todo");
+        let java_thread: Arc<JavaThread<'gc>> = JavaThread::new(jvm, Some(obj), invisible_to_java).expect("todo");
         let loader_name = java_thread.thread_object.read().unwrap().as_ref().unwrap().get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         java_thread.clone().underlying_thread.start_thread(
             box move |_data| {
@@ -475,19 +460,43 @@ pub struct JavaThread<'vm> {
 }
 
 impl<'gc> JavaThread<'gc> {
+    pub fn new_with_stack<T: 'gc>(
+        jvm: &'gc JVMState<'gc>,
+        thread_obj: Option<JThread<'gc>>,
+        invisible_to_java: bool,
+        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException> + 'gc,
+    ) -> Result<T, CannotAllocateStack> {
+        let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
+        let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
+        Ok(JavaStackGuard::new_from_empty_stack(jvm, java_stack, move |opaque_frame| {
+            jvm.thread_state.set_current_thread(java_thread.clone());
+            java_thread.notify_alive(jvm);
+            let res = to_run(java_thread.clone(), opaque_frame);
+            java_thread.notify_terminated(jvm);
+            res
+        }).unwrap())
+    }
+
     pub fn is_alive(&self) -> bool {
         self.thread_status.read().unwrap().alive
     }
 
-    pub fn new(jvm: &'gc JVMState<'gc>, thread_obj: JThread<'gc>, underlying: Thread<'gc>, invisible_to_java: bool) -> Result<Arc<JavaThread<'gc>>,CannotAllocateStack> {
+    pub fn new(jvm: &'gc JVMState<'gc>, thread_obj: Option<JThread<'gc>>, invisible_to_java: bool) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack> {
         let stack_signal_safe_data = Arc::new(SignalAccessibleJavaStackData::new());
+        let (java_tid, name) = match thread_obj.as_ref() {
+            None => (0, "Bootstrap Thread".to_string()),
+            Some(thread_obj) => {
+                (thread_obj.tid(jvm), thread_obj.name(jvm).to_rust_string(jvm))
+            }
+        };
+        let underlying = jvm.thread_state.threads.create_thread(name.into());
         let java_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new()?, stack_signal_safe_data.clone()));
         let res = Arc::new(JavaThread {
-            java_tid: thread_obj.tid(jvm),
+            java_tid,
             java_stack,
             stack_signal_safe_data,
             underlying_thread: underlying,
-            thread_object: RwLock::new(thread_obj.into()),
+            thread_object: RwLock::new(thread_obj),
             interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),

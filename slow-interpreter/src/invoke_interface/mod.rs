@@ -4,6 +4,7 @@ use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, J
 use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::jvmti::get_jvmti_interface;
 use crate::rust_jni::interface::get_interface;
 
@@ -16,6 +17,29 @@ pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &'_ mut Interpre
                     reserved0: transmute(jvm),
                     reserved1: transmute(int_state),
                     reserved2: std::ptr::null_mut(),
+                    DestroyJavaVM: None,
+                    AttachCurrentThread: None,
+                    DetachCurrentThread: None,
+                    GetEnv: Some(get_env),
+                    AttachCurrentThreadAsDaemon: None,
+                }) as *const JNIInvokeInterface_
+            });
+        }
+        Some(_) => {}
+    }
+    drop(guard);
+    *jvm.native.invoke_interface.read().unwrap().as_ref().unwrap()
+}
+
+pub fn get_invoke_interface_new<'gc, 'l>(jvm: &JVMState, opaque_frame: &mut OpaqueFrame<'gc,'l>) -> *const JNIInvokeInterface_ {
+    let mut guard = jvm.native.invoke_interface.write().unwrap();
+    match guard.as_ref() {
+        None => {
+            guard.replace(unsafe {
+                Box::leak(box JNIInvokeInterface_ {
+                    reserved0: transmute(jvm),
+                    reserved1: std::ptr::null_mut(),
+                    reserved2: transmute(opaque_frame),
                     DestroyJavaVM: None,
                     AttachCurrentThread: None,
                     DetachCurrentThread: None,

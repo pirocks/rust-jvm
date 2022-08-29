@@ -168,7 +168,7 @@ unsafe fn get_static_field<'gc>(env: *mut JNIEnv, klass: jclass, field_id_raw: j
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
-    check_initing_or_inited_class(jvm, int_state, rc.cpdtype())?;
+    check_initing_or_inited_class(jvm, /*int_state*/todo!(), rc.cpdtype())?;
     let guard = static_vars(rc.deref(),jvm);
     Ok(guard.borrow().get(name))
 }

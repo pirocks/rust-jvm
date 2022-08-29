@@ -27,7 +27,7 @@ pub mod reflection {
 
     impl<'gc> Reflection<'gc> {
         pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException> {
-            let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
+            let reflection = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::reflection().into())?;
             int_state.push_current_operand_stack(class1.java_value());
             int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
             let desc = CMethodDescriptor {
@@ -66,8 +66,8 @@ pub mod constant_pool {
 
     impl<'gc> ConstantPool<'gc> {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException> {
-            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
-            let constant_pool_object = new_object_full(jvm, int_state, &constant_pool_classfile);
+            let constant_pool_classfile = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::constant_pool().into())?;
+            let constant_pool_object = new_object_full(jvm, todo!()/*int_state*/, &constant_pool_classfile);
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(jvm, class);
             Ok(res)

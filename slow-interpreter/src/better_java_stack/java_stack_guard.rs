@@ -1,13 +1,16 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::{Mutex, MutexGuard};
+
 use itertools::Itertools;
+
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use another_jit_vm_ir::WasException;
 use rust_jvm_common::loading::LoaderName;
+
+use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -16,46 +19,46 @@ pub struct JavaStackGuard<'vm> {
     stack: &'vm Mutex<JavaStack<'vm>>,
     guard: Option<MutexGuard<'vm, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>,
-    current_frame_pointer: FramePointer
+    current_frame_pointer: FramePointer,
 }
 
-impl <'vm> JavaStackGuard<'vm> {
-    pub(crate) fn has_been_used(&self) -> bool{
+impl<'vm> JavaStackGuard<'vm> {
+    pub(crate) fn has_been_used(&self) -> bool {
         self.guard.as_ref().unwrap().has_been_used
     }
 
-    pub(crate) fn set_has_been_used(&mut self){
+    pub(crate) fn set_has_been_used(&mut self) {
         self.guard.as_mut().unwrap().has_been_used = true
     }
 
-    pub(crate) fn ir_stack(&self) -> &OwnedIRStack{
+    pub(crate) fn ir_stack(&self) -> &OwnedIRStack {
         &self.guard.as_ref().unwrap().owned_ir_stack
     }
 
     //todo I really need an init function which just creates the mutex and everything in one place
-    pub fn new_from_empty_stack(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl FnOnce(&mut OpaqueFrame) -> Result<(), WasException>) -> Result<(), WasException>{
+    pub fn new_from_empty_stack<T>(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl for<'l, 'k> FnOnce(&'l mut OpaqueFrame<'vm, 'k>) -> Result<T, WasException> + 'vm) -> Result<T, WasException> {
         let guard = stack.lock().unwrap();
-        if guard.has_been_used{
+        if guard.has_been_used {
             panic!()
         }
         let mmapped_top = guard.owned_ir_stack.native.mmaped_top;
-        let mut res = Self{
+        let mut res = Self {
             stack,
             guard: Some(guard),
             jvm,
-            current_frame_pointer: FramePointer(mmapped_top)
+            current_frame_pointer: FramePointer(mmapped_top),
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);
         with_initial_opaque_frame(&mut opaque_frame)
     }
 
-    pub fn new_from_prev_with_new_frame_pointer(old: Self, new_frame_pointer: FramePointer) -> Self{
+    pub fn new_from_prev_with_new_frame_pointer(old: Self, new_frame_pointer: FramePointer) -> Self {
         let Self { stack, guard, jvm, current_frame_pointer } = old;
-        Self{
+        Self {
             stack,
             guard,
             jvm,
-            current_frame_pointer: new_frame_pointer
+            current_frame_pointer: new_frame_pointer,
         }
     }
 
@@ -82,8 +85,13 @@ impl <'vm> JavaStackGuard<'vm> {
         self.exit_guest();
     }
 
-    fn current_frame_ptr(&self) -> FramePointer{
-        self.current_frame_pointer
+    pub fn current_loader(&self, jvm: &'vm JVMState<'vm>) -> LoaderName{
+        LoaderName::BootstrapLoader
+    }
+
+    fn current_frame_ptr(&self) -> FramePointer {
+        todo!("current_frame_pointer needs updating")
+        /*self.current_frame_pointer*/
     }
 
     pub fn jvm(&self) -> &'vm JVMState<'vm> {
@@ -92,11 +100,11 @@ impl <'vm> JavaStackGuard<'vm> {
 
 
     pub fn push_java_frame<'k, T>(&'k mut self,
-                           current_frame_pointer: FramePointer,
-                           next_frame_pointer: FramePointer,
-                           java_stack_entry: JavaFramePush,
-        within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
-    ) -> Result<T, WasException>{
+                                  current_frame_pointer: FramePointer,
+                                  next_frame_pointer: FramePointer,
+                                  java_stack_entry: JavaFramePush,
+                                  within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+    ) -> Result<T, WasException> {
         let JavaFramePush { method_id, local_vars, operand_stack } = java_stack_entry;
         let jvm = self.jvm();
         let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
@@ -137,10 +145,12 @@ impl <'vm> JavaStackGuard<'vm> {
         }*/
     }
 
-    fn push_frame_native<'k>(&'k mut self,
+    fn push_frame_native<'k, T>(&'k mut self,
                              current_frame_pointer: FramePointer,
                              next_frame_pointer: FramePointer,
-                             stack_entry: NativeFramePush){
+                             stack_entry: NativeFramePush,
+                             within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+    ) -> Result<T, WasException> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
         let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
@@ -172,15 +182,16 @@ impl <'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        panic!()
+        todo!()
     }
 
-    fn push_opaque_frame<'k>(&'k mut self,
-                                current_frame_pointer : FramePointer,
-                             next_frame_pointer: FramePointer,
-                             opaque_frame: OpaqueFramePush
-    ) {
-        let OpaqueFramePush{ opaque_id, native_local_refs } = opaque_frame;
+    pub fn push_opaque_frame<'k, T>(&'k mut self,
+                                 current_frame_pointer: FramePointer,
+                                 next_frame_pointer: FramePointer,
+                                 opaque_frame: OpaqueFramePush,
+                                 within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+    ) -> Result<T, WasException> {
+        let OpaqueFramePush { opaque_id, native_local_refs } = opaque_frame;
         let jvm = self.jvm();
         let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
@@ -197,9 +208,10 @@ impl <'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        panic!()
+        let res = within_pushed(self)?;
+        //todo zero the rest
+        Ok(res)
     }
-
 }
 
 

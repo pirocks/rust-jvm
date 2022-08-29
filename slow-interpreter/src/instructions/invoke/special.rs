@@ -26,7 +26,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
     parsed_descriptor: &CMethodDescriptor
 ) -> PostInstructionAction<'gc> {
     // dbg!(method_class_name.0.to_str(&jvm.string_pool));
-    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), method_class_name.into()) {
+    let target_class = match check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, method_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
     };
@@ -93,7 +93,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         // jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         let function_call_frame = int_state.push_frame(next_entry);
-        match run_function(jvm, int_state) {
+        match run_function(jvm, /*int_state*/ todo!()) {
             Ok(res) => {
                 int_state.pop_frame(jvm, function_call_frame, false);
                 Ok(res)

@@ -52,11 +52,12 @@ use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
 use crate::{AllocatedHandle, JavaValueCommon,  UnAllocatedObject};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::invoke_interface::get_invoke_interface;
+use crate::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::stack_trace_element::StackTraceElement;
@@ -679,7 +680,14 @@ pub struct NativeLibraries<'gc> {
 }
 
 impl<'gc> NativeLibraries<'gc> {
-    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, path: &OsString, name: String) {
+    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc,'_>, path: &OsString, name: String) {
+        let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
+        let interface: *const JNIInvokeInterface_ = get_invoke_interface_new(jvm, opaque_frame);
+        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
+        //todo check return res
+    }
+
+    pub unsafe fn load_old<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());

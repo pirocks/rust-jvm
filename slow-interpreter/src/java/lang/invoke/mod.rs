@@ -8,6 +8,7 @@ pub mod method_type {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::new_object;
     use crate::java::lang::class::JClass;
@@ -119,9 +120,9 @@ pub mod method_type {
             Ok(res.unwrap().cast_class().unwrap())
         }
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
             let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-            let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, int_state, &method_type);
+            let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, /*int_state*/todo!(), &method_type);
             let res = AllocatedHandle::NormalObject(res_handle).cast_method_type();
             let ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                 // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
@@ -162,6 +163,7 @@ pub mod method_type_form {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::new_object;
@@ -210,7 +212,7 @@ pub mod method_type_form {
 
         pub fn new<'l>(
             jvm: &'gc JVMState<'gc>,
-            int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+            int_state: &mut JavaStackGuard<'gc>,
             arg_to_slot_table: NewJavaValue<'gc, '_>,
             slot_to_arg_table: NewJavaValue<'gc, '_>,
             arg_counts: jlong,
@@ -221,7 +223,7 @@ pub mod method_type_form {
             lambda_forms: NewJavaValue<'gc, '_>,
         ) -> MethodTypeForm<'gc> {
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, int_state, &method_type_form));
+            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, /*int_state*/todo!(), &method_type_form));
             let res = res_handle.cast_method_type_form();
             res.set_arg_to_slot_table(jvm, arg_to_slot_table);
             res.set_slot_to_arg_table(jvm, slot_to_arg_table);

@@ -6,6 +6,7 @@ use crate::better_java_stack::FramePointer;
 use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::java_values::native_to_new_java_value_rtype;
+use crate::stack_entry::OpaqueFramePush;
 
 pub trait HasFrame<'gc> {
     fn frame_ref(&self) -> IRFrameRef;
@@ -56,4 +57,7 @@ pub trait HasFrame<'gc> {
 pub trait PushableFrame<'gc> : HasFrame<'gc>{
     //todo maybe specialize these based on what is being pushed
     fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException>) -> Result<T, WasException>;
+    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl FnOnce() -> Result<T, WasException>) -> Result<T, WasException>{
+        self.push_frame(StackEntryPush::Opaque(opaque_frame),|java_stack_guard|{todo!()})
+    }
 }

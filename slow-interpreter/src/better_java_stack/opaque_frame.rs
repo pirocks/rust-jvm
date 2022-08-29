@@ -66,7 +66,9 @@ impl <'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k>{
                 self.java_stack.push_java_frame(self.frame_pointer,self.next_frame_pointer(),java_frame,|java_stack_guard|within_push(java_stack_guard))
             }
             StackEntryPush::Native(_) => todo!(),
-            StackEntryPush::Opaque(_) => todo!(),
+            StackEntryPush::Opaque(opaque) => {
+                self.java_stack.push_opaque_frame(self.frame_pointer, self.next_frame_pointer(), opaque,|java_stack_guard|within_push(java_stack_guard))
+            },
         }
     }
 

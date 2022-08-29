@@ -13,14 +13,12 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
 
 use crate::{InterpreterStateGuard, JavaThread, JVMState};
-use crate::class_objects::get_or_create_class_object;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::thread::JThread;
-use crate::java::NewAsObjectOrJavaValue;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use crate::rust_jni::native_util::to_object;
+use crate::rust_jni::interface::local_frame::{new_local_ref_public};
 use crate::stack_entry::{StackEntryPush};
 use crate::tracing::TracingSettings;
 
@@ -162,18 +160,19 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn class_prepare<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, class: &CClassName, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) {
+    pub fn class_prepare<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, class: &CClassName, int_state: &mut JavaStackGuard<'gc>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             unsafe {
-                let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"class_prepare"));
-                //give the other events this long thing
-                let current_thread_from_rust = jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into());
-                let thread = new_local_ref_public_new(todo!()/*current_thread_from_rust*/, int_state);
-                let klass_obj = get_or_create_class_object(jvm, class.clone().into(), int_state).unwrap();
-                let klass = to_object(klass_obj.to_gc_managed().into());
-                let event = ClassPrepareEvent { thread, klass };
-                self.ClassPrepare(jvm, int_state, event);
-                int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway
+                todo!();
+                // let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"class_prepare"));
+                // //give the other events this long thing
+                // let current_thread_from_rust = jvm.thread_state.try_get_current_thread().and_then(|t| t.try_thread_object()).and_then(|jt| jt.object().into());
+                // let thread = new_local_ref_public_new(todo!()/*current_thread_from_rust*/, int_state);
+                // let klass_obj = get_or_create_class_object(jvm, class.clone().into(), int_state).unwrap();
+                // let klass = to_object(klass_obj.to_gc_managed().into());
+                // let event = ClassPrepareEvent { thread, klass };
+                // self.ClassPrepare(jvm, int_state, event);
+                // int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway
             }
         }
     }

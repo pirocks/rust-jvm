@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
 
+use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType};
@@ -17,15 +19,13 @@ use verification::VerifierContext;
 
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
-use crate::instructions::special::{inherits_from_cpdtype};
-use another_jit_vm_ir::WasException;
+use crate::instructions::special::inherits_from_cpdtype;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
-use crate::java_values::{GcManagedObject};
+use crate::java_values::GcManagedObject;
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
-use runtime_class_stuff::RuntimeClass;
-use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
@@ -46,7 +46,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
@@ -63,7 +63,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
@@ -82,12 +82,12 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = sub_class.as_type(jvm);
     let sup_class = NewJavaValueHandle::Object(sup_not_null.into()).cast_class().unwrap();
     let sup_type = sup_class.as_type(jvm);
-    check_initing_or_inited_class(jvm,int_state,sup_type).unwrap();
-    check_initing_or_inited_class(jvm,int_state,sub_type).unwrap();
+    check_initing_or_inited_class(jvm, todo!()/*int_state*/, sup_type).unwrap();
+    check_initing_or_inited_class(jvm, todo!()/*int_state*/, sub_type).unwrap();
     if let CPDType::Class(sup_type) = sup_type {
         if let CPDType::Class(sub_type) = sub_type {
             let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), CPDType::Class(sup_type));
-            return (instance_of) as jboolean
+            return (instance_of) as jboolean;
         }
     }
 
@@ -211,13 +211,13 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
     });
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::object().into())?;
             object.view().methods().for_each(|m| {
                 res.push((object.clone(), m.method_i()));
             });
         }
         Some(super_name) => {
-            let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
+            let super_ = check_initing_or_inited_class(jvm, /*int_state*/todo!(), super_name.into())?;
             get_all_methods_impl(jvm, int_state, super_, res, include_interface)?;
         }
     }
@@ -225,7 +225,7 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
         let view = class.view();
         let interfaces = view.interfaces();
         for interface in interfaces {
-            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            let interface = check_initing_or_inited_class(jvm, /*int_state*/todo!(), interface.interface_name().into())?;
             interface.view().methods().for_each(|m| {
                 res.push((interface.clone(), m.method_i()));
             });
@@ -247,20 +247,20 @@ fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inte
 
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::object().into())?;
             object.view().fields().enumerate().for_each(|(i, _)| {
                 res.push((object.clone(), i));
             });
         }
         Some(super_name) => {
-            let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
+            let super_ = check_initing_or_inited_class(jvm, /*int_state*/todo!(), super_name.into())?;
             get_all_fields_impl(jvm, int_state, super_, res, include_interface)?
         }
     }
 
     if include_interface {
         for interface in class.view().interfaces() {
-            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            let interface = check_initing_or_inited_class(jvm, /*int_state*/todo!(), interface.interface_name().into())?;
             interface.view().fields().enumerate().for_each(|(i, _)| {
                 res.push((interface.clone(), i));
             });

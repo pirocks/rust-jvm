@@ -72,13 +72,13 @@ pub mod launcher {
 
     impl<'gc> Launcher<'gc> {
         pub fn get_launcher<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Launcher<'gc>, WasException> {
-            let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
+            let launcher = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::launcher().into())?;
             let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getLauncher(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), vec![])?.unwrap();
             Ok(res.cast_launcher())
         }
 
         pub fn get_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<ClassLoader<'gc>, WasException> {
-            let launcher = check_initing_or_inited_class(jvm, int_state, CClassName::launcher().into())?;
+            let launcher = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::launcher().into())?;
             let res = run_static_or_virtual(jvm, int_state, &launcher, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), vec![self.normal_object.new_java_value()])?.unwrap();
             Ok(res.cast_class_loader())
         }
@@ -109,7 +109,7 @@ pub mod launcher {
 
         impl<'gc> ExtClassLoader<'gc> {
             pub fn get_ext_class_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<ExtClassLoader<'gc>, WasException> {
-                let ext_class_loader = check_initing_or_inited_class(jvm, int_state, CClassName::ext_class_loader().into())?;
+                let ext_class_loader = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::ext_class_loader().into())?;
                 run_static_or_virtual(jvm, int_state, &ext_class_loader, MethodName::method_getExtClassLoader(), &CMethodDescriptor::empty_args(CClassName::launcher().into()), todo!())?;
                 Ok(int_state.pop_current_operand_stack(Some(CClassName::classloader().into())).cast_ext_class_launcher())
             }

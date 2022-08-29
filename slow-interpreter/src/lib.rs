@@ -94,9 +94,9 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
 
     ThreadState::debug_assertions(jvm,int_state, loader_obj);
 
-    let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
-    check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
+    let main = check_loaded_class_force_loader(jvm, todo!()/*int_state*/, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
+    let main = check_initing_or_inited_class(jvm, /*int_state*/todo!(), main.cpdtype()).expect("failed to load main class");
+    check_loaded_class(jvm, todo!()/*int_state*/, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);
     let main_thread = jvm.thread_state.get_main_thread();
@@ -111,7 +111,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
     let main_frame_guard = int_state.push_frame(stack_entry);
     jvm.include_name_field.store(true, Ordering::SeqCst);
-    match run_function(&jvm, int_state) {
+    match run_function(&jvm, todo!()/*int_state*/) {
         Ok(_) => {
             if !jvm.config.compiled_mode_active {
                 int_state.pop_frame(jvm, main_frame_guard, false);
@@ -140,7 +140,7 @@ fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpret
     }
     let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
     jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::string().into())).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::string().into())).unwrap(),
         elems,
     }))
 }

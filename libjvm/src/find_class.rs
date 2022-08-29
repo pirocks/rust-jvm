@@ -39,7 +39,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
+            let runtime_class = match bootstrap_load(jvm, todo!()/*int_state*/, class_name.into()) {
                 Ok(x) => x,
                 Err(WasException {}) => {
                     assert!(int_state.throw().is_some());

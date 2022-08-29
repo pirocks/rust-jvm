@@ -34,7 +34,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
-    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), ref_type.to_cpdtype()) {
+    let target_class = match check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, ref_type.to_cpdtype()) {
         Ok(x) => x,
         Err(exception) => return PostInstructionAction::Exception { exception },
     };
@@ -136,7 +136,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         let function_call_frame = interpreter_state.push_frame(next_entry);
-        match run_function(jvm, interpreter_state) {
+        match run_function(jvm, todo!()/*interpreter_state*/) {
             Ok(res) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);
                 return Ok(res);

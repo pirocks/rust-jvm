@@ -12,7 +12,7 @@ pub fn get_or_create_class_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDTy
 }
 
 pub fn get_or_create_class_object_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, type_: CPDType, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, loader: LoaderName) -> Result<AllocatedNormalObjectHandle<'gc>, WasException> {
-    let arc = check_loaded_class_force_loader(jvm, int_state, &type_, loader)?;
+    let arc = check_loaded_class_force_loader(jvm, todo!()/*int_state*/, &type_, loader)?;
     let handle = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(arc.clone());
     assert_eq!(handle.runtime_class(jvm).cpdtype(), CClassName::class().into());
     Ok(handle)

@@ -238,8 +238,8 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
 }
 
 fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<(), WasException> {
-    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
-    let object = new_object(jvm, int_state, &linkage_error);
+    let linkage_error = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::linkage_error().into())?;
+    let object = new_object(jvm, /*int_state*/todo!(), &linkage_error);
     int_state.set_throw(Some(AllocatedHandle::NormalObject(object)));
     return Err(WasException);
 }

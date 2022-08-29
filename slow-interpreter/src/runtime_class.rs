@@ -8,11 +8,12 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
+use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
-pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -26,7 +27,7 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
+                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, todo!()/*int_state*/);
                 let name = field.field_name();
                 static_vars(runtime_class.deref(), jvm).set(name, constant_value);
             }
@@ -56,11 +57,11 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
     let new_stack = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
 
     //todo these java frames may have to be converted to native?
-    let new_function_frame = int_state.push_frame(new_stack);
+    // let new_function_frame = int_state.push_frame(new_stack);
     return match run_function(jvm, int_state) {
         Ok(res) => {
             assert!(res.is_none());
-            int_state.pop_frame(jvm, new_function_frame, true);
+            // int_state.pop_frame(jvm, new_function_frame, true);
             if !jvm.config.compiled_mode_active {}
             // if int_state.function_return() {
             //     int_state.set_function_return(false);
@@ -69,13 +70,14 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
             // panic!()
         }
         Err(WasException {}) => {
-            int_state.pop_frame(jvm, new_function_frame, false);
+            todo!();
+            /*int_state.pop_frame(jvm, new_function_frame, false);*/
             Err(WasException)
         }
     };
 }
 
-pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
+pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut JavaStackGuard<'vm>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Class(cn) = classfile.type_() {
             jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)

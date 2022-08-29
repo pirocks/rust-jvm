@@ -27,7 +27,7 @@ pub fn multi_allocate_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interp
     }
     assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
     let default = default_value(elem_type.to_cpdtype());
-    let rc = check_initing_or_inited_class(jvm, int_state, array_type).unwrap();
+    let rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), array_type).unwrap();
     let res = multi_new_array_impl(jvm, rc.cpdtype(),lens.as_slice() ,default.as_njv());
     unsafe { res_address.cast::<NativeJavaValue<'gc>>().write(res.to_native()) }
     std::mem::forget(res);

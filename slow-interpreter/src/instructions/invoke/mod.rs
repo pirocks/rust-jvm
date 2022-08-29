@@ -46,7 +46,7 @@ fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpret
         _ => panic!(),
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let resolved_class = check_initing_or_inited_class(jvm, int_state, class_name_.into())?;
+    let resolved_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), class_name_.into())?;
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 

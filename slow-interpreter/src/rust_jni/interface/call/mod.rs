@@ -50,7 +50,7 @@ pub unsafe fn call_static_method_impl<'gc>(env: *mut *const JNINativeInterface_,
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
-    check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
+    check_initing_or_inited_class(jvm, /*int_state*/todo!(), class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();

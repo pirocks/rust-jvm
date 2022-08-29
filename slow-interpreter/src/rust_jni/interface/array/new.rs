@@ -1,11 +1,10 @@
-
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
-use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
 
-use crate::java_values::{default_value_njv};
-use crate::new_java_values::{NewJavaValueHandle};
-use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
+use crate::java_values::default_value_njv;
+use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
 use crate::utils::throw_npe;
 
@@ -64,7 +63,7 @@ unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
     for _ in 0..len {
         the_vec.push(default_value_njv(&elem_type))
     }
-    let rc = check_initing_or_inited_class(jvm,int_state, CPDType::array(elem_type)).unwrap();
+    let rc = check_initing_or_inited_class(jvm, todo!()/*int_state*/, CPDType::array(elem_type)).unwrap();
     let object_array = UnAllocatedObject::new_array(rc, the_vec);
     new_local_ref_public_new(
         Some(jvm.allocate_object(object_array).as_allocated_obj()),

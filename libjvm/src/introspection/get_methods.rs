@@ -55,7 +55,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
-    let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
+    let method_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::method().into())?;
     let mut object_array = vec![];
     let methods_owned = methods
         .filter(|(c, i)| {
@@ -72,7 +72,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     for method_owned in methods_owned.iter() {
         object_array.push(method_owned.new_java_value());
     }
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::method().into())).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::method().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
         UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array }));
     unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }
@@ -106,7 +106,7 @@ fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_s
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.new_java_value_handle())
     });
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::constructor().into())).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::constructor().into())).unwrap();
     let unallocated = UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array.iter().map(|handle| handle.as_njv()).collect_vec() });
     let res = jvm.allocate_object(unallocated);
     Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), int_state) })

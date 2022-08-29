@@ -80,7 +80,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
+    let target_runtime_class = match check_initing_or_inited_class(jvm, /*int_state*/todo!(), target_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return null_mut(),
     };
@@ -180,7 +180,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    if let Err(WasException {}) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
+    if let Err(WasException {}) = check_loaded_class(jvm, todo!()/*int_state*/, clazz.cpdtype()) {
         return null_mut();
     };
     let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
@@ -217,9 +217,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         arg_types: parameter_types,
         return_type: CPDType::VoidType, //todo use from_leaacy instead
     };
-    let obj = new_object(jvm, int_state, &clazz);
+    let obj = new_object(jvm, /*int_state*/todo!(), &clazz);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
-    run_constructor(jvm, int_state, clazz, full_args, &signature);
+    run_constructor(jvm, /*int_state*/ todo!(), clazz, full_args, &signature);
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }
