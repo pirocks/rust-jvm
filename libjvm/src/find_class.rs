@@ -17,6 +17,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use rust_jvm_common::ptype::PType::Ref;
 use rust_jvm_common::runtime_type::RuntimeType;
+use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::string::JString;
@@ -26,7 +27,7 @@ use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string(); //todo handle utf8 here
@@ -39,7 +40,8 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader(env: *mut JNIEnv, name: *c
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let runtime_class = match bootstrap_load(jvm, todo!()/*int_state*/, class_name.into()) {
+            let mut temp : OpaqueFrame<'gc, '_> = todo!();
+            let runtime_class = match bootstrap_load(jvm, &mut temp/*int_state*/, class_name.into()) {
                 Ok(x) => x,
                 Err(WasException {}) => {
                     assert!(int_state.throw().is_some());

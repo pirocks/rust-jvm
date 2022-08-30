@@ -2,14 +2,15 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use another_jit_vm_ir::WasException;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use another_jit_vm_ir::WasException;
 use crate::java_values::ArrayObject;
 use crate::utils::{lookup_method_parsed, throw_npe_res};
 
@@ -46,7 +47,8 @@ fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpret
         _ => panic!(),
     };
     //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
-    let resolved_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), class_name_.into())?;
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let resolved_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, class_name_.into())?;
     Ok((resolved_class, expected_method_name, expected_descriptor).into())
 }
 

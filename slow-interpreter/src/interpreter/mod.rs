@@ -11,6 +11,8 @@ use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::runtime_type::{RuntimeType};
 
 use crate::AllocatedHandle;
+use crate::better_java_stack::frames::HasFrame;
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::special::instance_of_exit_impl_impl_impl;
@@ -50,8 +52,8 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaStackGuard<'gc>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
-    let rc = interpreter_state.current_frame().class_pointer(jvm);
+pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+    let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
@@ -73,9 +75,9 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
         }
         Some(ir_method_id) => ir_method_id
     };
-    interpreter_state.current_frame_mut().frame_view.ir_mut.set_ir_method_id(ir_method_id);
-    interpreter_state.current_frame_mut().frame_view.assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_method_id(), jvm);
-    assert!((interpreter_state.current_frame().frame_view.ir_ref.method_id() == Some(method_id)));
+    interpreter_state.frame_mut().set_ir_method_id(ir_method_id);
+    interpreter_state.frame_mut().assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_pointer().as_ptr());
+    assert!((interpreter_state.frame_ref().method_id() == Some(method_id)));
 
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
@@ -87,9 +89,10 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
     }
-    if interpreter_state.throw().is_some(){
-        return Err(WasException{})
-    }
+    //todo
+    // if interpreter_state.throw().is_some(){
+    //     return Err(WasException{})
+    // }
     let return_type = &method.desc().return_type;
     Ok(match return_type {
         CompressedParsedDescriptorType::VoidType => None,

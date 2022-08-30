@@ -1,7 +1,8 @@
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::CPDType;
 
-use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
+use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, UnAllocatedObject};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java_values::default_value_njv;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
@@ -56,14 +57,15 @@ pub unsafe extern "C" fn new_double_array(env: *mut JNIEnv, len: jsize) -> jdoub
     new_array(env, len, CPDType::DoubleType)
 }
 
-unsafe fn new_array(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
-    let jvm = get_state(env);
+unsafe fn new_array<'gc, 'l>(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> jarray {
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut the_vec = vec![];
     for _ in 0..len {
         the_vec.push(default_value_njv(&elem_type))
     }
-    let rc = check_initing_or_inited_class(jvm, todo!()/*int_state*/, CPDType::array(elem_type)).unwrap();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
+    let rc = check_initing_or_inited_class(jvm, &mut temp/*int_state*/, CPDType::array(elem_type)).unwrap();
     let object_array = UnAllocatedObject::new_array(rc, the_vec);
     new_local_ref_public_new(
         Some(jvm.allocate_object(object_array).as_allocated_obj()),

@@ -140,7 +140,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let frame_for_function = interpreter_state.push_frame(next_entry);
+        let frame_for_function = interpreter_state.push_frame(StackEntryPush::Java(next_entry));
         return match run_function(jvm, todo!()/*interpreter_state*/) {
             Ok(res) => {
                 assert!(!interpreter_state.throw().is_some());

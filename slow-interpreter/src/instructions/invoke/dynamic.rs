@@ -12,6 +12,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValueHandle};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
@@ -39,9 +40,10 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
 }
 
 fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException> {
-    let method_handle_class = check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, CClassName::method_handle().into())?;
-    let _method_type_class = check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, CClassName::method_type().into())?;
-    let _call_site_class = check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, CClassName::call_site().into())?;
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let method_handle_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_handle().into())?;
+    let _method_type_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_type().into())?;
+    let _call_site_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::call_site().into())?;
     let class_pointer_view = int_state.inner().current_class_view(jvm).clone();
     let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
         ConstantInfoView::InvokeDynamic(id) => id,

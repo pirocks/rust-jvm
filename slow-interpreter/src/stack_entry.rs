@@ -403,7 +403,7 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
         })
     }
 
-    pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> Self {
+    pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> JavaFramePush<'gc,'k> {
         let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
         assert_eq!(args.len(), max_locals as usize);
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
@@ -415,21 +415,21 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
         let method_view = class_view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         let operand_stack = (0..code.max_stack).map(|_| NewJavaValue::Top).collect_vec();
-        Self::Java(JavaFramePush{
+        JavaFramePush{
             method_id,
             local_vars: args,
             operand_stack,
-        })
+        }
     }
 
-    pub fn new_completely_opaque_frame(jvm: &'gc JVMState<'gc>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc>>, debug_str: &'static str) -> Self {
+    pub fn new_completely_opaque_frame(jvm: &'gc JVMState<'gc>, loader: LoaderName, operand_stack: Vec<JavaValue<'gc>>, debug_str: &'static str) -> OpaqueFramePush {
         //need a better name here
         assert!(operand_stack.is_empty());
         assert_eq!(loader, LoaderName::BootstrapLoader);// loader should be set from thread loader for new threads
         let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
-        Self::Opaque(OpaqueFramePush{
+        OpaqueFramePush{
             opaque_id, native_local_refs: vec![]
-        })
+        }
     }
 }
 

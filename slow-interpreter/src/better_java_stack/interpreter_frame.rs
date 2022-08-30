@@ -1,11 +1,14 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use another_jit_vm_ir::WasException;
+use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use jvmti_jni_bindings::JavaPrimitiveType;
-use rust_jvm_common::NativeJavaValue;
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::{MethodI, MethodId, NativeJavaValue};
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::better_java_stack::{FramePointer, JavaStack, JavaStackGuard};
 use crate::better_java_stack::frames::HasFrame;
@@ -60,6 +63,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
     }
+
 }
 
 impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
@@ -98,6 +102,26 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.current_operand_stack_depth -= 1;
         let current_depth = self.current_operand_stack_depth;
         self.os_get_from_start(current_depth, expected_type).to_interpreter_jv()
+    }
+
+    pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>>{
+        let method_id = self.frame_ref().method_id().unwrap();
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        rc
+    }
+
+    pub fn current_class_view(&self, jvm: &'gc JVMState<'gc>) -> Arc<dyn ClassView> {
+        self.class_pointer(jvm).view()
+    }
+
+    pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> MethodI{
+        let method_id = self.frame_ref().method_id().unwrap();
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        method_i
+    }
+
+    pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName{
+        LoaderName::BootstrapLoader //todo
     }
 }
 

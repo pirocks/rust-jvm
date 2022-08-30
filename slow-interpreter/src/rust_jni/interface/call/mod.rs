@@ -16,6 +16,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::JavaValueCommon;
 use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state};
@@ -45,12 +46,13 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
     return Ok(res);
 }
 
-pub unsafe fn call_static_method_impl<'gc>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
-    let jvm = get_state(env);
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
-    check_initing_or_inited_class(jvm, /*int_state*/todo!(), class.cpdtype())?;
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    check_initing_or_inited_class(jvm, /*int_state*/&mut temp, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();

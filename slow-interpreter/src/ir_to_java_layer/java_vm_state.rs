@@ -16,6 +16,9 @@ use crate::{InterpreterStateGuard, JVMState, MethodResolverImpl};
 use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use crate::better_java_stack::frames::HasFrame;
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
@@ -62,7 +65,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &'_ mut InterpreterStateGuard<'vm, 'l>, method_id: MethodId) -> Result<u64, WasException> {
+    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &mut JavaInterpreterFrame<'vm, 'l>, method_id: MethodId) -> Result<u64, WasException> {
         // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         // let view = rc.view();
         // let method_view = view.method_view_i(method_i);
@@ -70,30 +73,32 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         // let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
         // eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
-        let current_frame_pointer = int_state.current_frame().frame_view.ir_ref.frame_ptr();
-        let assert_data = int_state.frame_state_assert_save_from(current_frame_pointer);
-        let mut frame_to_run_on = int_state.current_frame_mut();
-        let frame_ir_method_id = frame_to_run_on.frame_view.ir_mut.downgrade().ir_method_id().unwrap();
+        let current_frame_pointer = int_state.frame_ref().frame_ptr();
+        // let assert_data = int_state.frame_state_assert_save_from(current_frame_pointer);
+        let mut frame_to_run_on = int_state.frame_mut();
+        let frame_ir_method_id = frame_to_run_on.downgrade().ir_method_id().unwrap();
         assert_eq!(self.inner.read().unwrap().associated_method_id(ir_method_id), method_id);
         if frame_ir_method_id != ir_method_id {
-            frame_to_run_on.frame_view.ir_mut.set_ir_method_id(ir_method_id);
+            frame_to_run_on.set_ir_method_id(ir_method_id);
         }
-        let method_id = frame_to_run_on.frame_view.downgrade().ir_ref.method_id().unwrap();
+        let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on.frame_view.ir_mut, &mut ()) {
+        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on, &mut ()) {
             Ok(res) => {
                 // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 res
             }
             Err(err_obj) => {
                 let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
-                int_state.set_throw(Some(obj));
+                todo!();
+                // int_state.set_throw(Some(obj));
                 // int_state.debug_print_stack_trace(jvm);
                 // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 return Err(WasException {});
             }
         };
-        int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
+        // int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
+        int_state.debug_assert();
         // eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         Ok(res)
     }

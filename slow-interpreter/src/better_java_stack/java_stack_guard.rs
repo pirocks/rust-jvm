@@ -10,6 +10,7 @@ use rust_jvm_common::loading::LoaderName;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, JavaStack};
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -85,7 +86,7 @@ impl<'vm> JavaStackGuard<'vm> {
         self.exit_guest();
     }
 
-    pub fn current_loader(&self, jvm: &'vm JVMState<'vm>) -> LoaderName{
+    pub fn current_loader(&self, jvm: &'vm JVMState<'vm>) -> LoaderName {
         LoaderName::BootstrapLoader
     }
 
@@ -103,7 +104,7 @@ impl<'vm> JavaStackGuard<'vm> {
                                   current_frame_pointer: FramePointer,
                                   next_frame_pointer: FramePointer,
                                   java_stack_entry: JavaFramePush,
-                                  within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+                                  within_pushed: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'vm, 'l>) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let JavaFramePush { method_id, local_vars, operand_stack } = java_stack_entry;
         let jvm = self.jvm();
@@ -146,10 +147,10 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     fn push_frame_native<'k, T>(&'k mut self,
-                             current_frame_pointer: FramePointer,
-                             next_frame_pointer: FramePointer,
-                             stack_entry: NativeFramePush,
-                             within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+                                current_frame_pointer: FramePointer,
+                                next_frame_pointer: FramePointer,
+                                stack_entry: NativeFramePush,
+                                within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
@@ -186,10 +187,10 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     pub fn push_opaque_frame<'k, T>(&'k mut self,
-                                 current_frame_pointer: FramePointer,
-                                 next_frame_pointer: FramePointer,
-                                 opaque_frame: OpaqueFramePush,
-                                 within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>
+                                    current_frame_pointer: FramePointer,
+                                    next_frame_pointer: FramePointer,
+                                    opaque_frame: OpaqueFramePush,
+                                    within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let OpaqueFramePush { opaque_id, native_local_refs } = opaque_frame;
         let jvm = self.jvm();

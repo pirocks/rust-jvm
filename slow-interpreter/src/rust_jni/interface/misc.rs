@@ -17,6 +17,7 @@ use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
 
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::instructions::special::inherits_from_cpdtype;
@@ -66,8 +67,8 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
-pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
-    let jvm = get_state(env);
+pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let sub_not_null = match from_object_new(jvm, sub) {
         Some(x) => x,
@@ -82,8 +83,9 @@ pub unsafe extern "C" fn is_assignable_from(env: *mut JNIEnv, sub: jclass, sup: 
     let sub_type = sub_class.as_type(jvm);
     let sup_class = NewJavaValueHandle::Object(sup_not_null.into()).cast_class().unwrap();
     let sup_type = sup_class.as_type(jvm);
-    check_initing_or_inited_class(jvm, todo!()/*int_state*/, sup_type).unwrap();
-    check_initing_or_inited_class(jvm, todo!()/*int_state*/, sub_type).unwrap();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
+    check_initing_or_inited_class(jvm, &mut temp/*int_state*/, sup_type).unwrap();
+    check_initing_or_inited_class(jvm, &mut temp/*int_state*/, sub_type).unwrap();
     if let CPDType::Class(sup_type) = sup_type {
         if let CPDType::Class(sub_type) = sub_type {
             let instance_of = inherits_from_cpdtype(jvm, &sub_class.as_runtime_class(jvm), CPDType::Class(sup_type));
@@ -209,15 +211,17 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::object().into())?;
+
+            let object = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::object().into())?;
             object.view().methods().for_each(|m| {
                 res.push((object.clone(), m.method_i()));
             });
         }
         Some(super_name) => {
-            let super_ = check_initing_or_inited_class(jvm, /*int_state*/todo!(), super_name.into())?;
+            let super_ = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, super_name.into())?;
             get_all_methods_impl(jvm, int_state, super_, res, include_interface)?;
         }
     }
@@ -225,7 +229,7 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
         let view = class.view();
         let interfaces = view.interfaces();
         for interface in interfaces {
-            let interface = check_initing_or_inited_class(jvm, /*int_state*/todo!(), interface.interface_name().into())?;
+            let interface = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, interface.interface_name().into())?;
             interface.view().methods().for_each(|m| {
                 res.push((interface.clone(), m.method_i()));
             });
@@ -244,23 +248,24 @@ fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inte
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
 
     match class.view().super_name() {
         None => {
-            let object = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::object().into())?;
             object.view().fields().enumerate().for_each(|(i, _)| {
                 res.push((object.clone(), i));
             });
         }
         Some(super_name) => {
-            let super_ = check_initing_or_inited_class(jvm, /*int_state*/todo!(), super_name.into())?;
+            let super_ = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, super_name.into())?;
             get_all_fields_impl(jvm, int_state, super_, res, include_interface)?
         }
     }
 
     if include_interface {
         for interface in class.view().interfaces() {
-            let interface = check_initing_or_inited_class(jvm, /*int_state*/todo!(), interface.interface_name().into())?;
+            let interface = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, interface.interface_name().into())?;
             interface.view().fields().enumerate().for_each(|(i, _)| {
                 res.push((interface.clone(), i));
             });

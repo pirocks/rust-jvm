@@ -32,6 +32,7 @@ use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::instructions::ldc::load_class_constant_by_type;
@@ -444,10 +445,11 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
 // InstantiationException: if the class is an interface or an abstract class.
 //
 // OutOfMemoryError: if the system runs out of memory.
-unsafe extern "C" fn alloc_object(env: *mut JNIEnv, clazz: jclass) -> jobject {
-    let jvm = get_state(env);
+unsafe extern "C" fn alloc_object<'gc, 'l>(env: *mut JNIEnv, clazz: jclass) -> jobject {
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
-    let res_object = new_object(jvm, /*int_state*/todo!(), &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let res_object = new_object(jvm, /*int_state*/&mut temp, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
     to_object(res_object)
 }
 
@@ -692,8 +694,9 @@ pub fn define_class_safe<'gc, 'l>(
 ) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
-    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, /*int_state*/todo!(), name.into()).unwrap());
-    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, /*int_state*/todo!(), interface.interface_name().into()).unwrap()).collect_vec();
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, /*int_state*/&mut temp, name.into()).unwrap());
+    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, /*int_state*/&mut temp, interface.interface_name().into()).unwrap()).collect_vec();
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
         RuntimeClassClass::new_new(&jvm.inheritance_tree, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
@@ -748,7 +751,7 @@ pub fn define_class_safe<'gc, 'l>(
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
-    let class_object = create_class_object(jvm, todo!()/*int_state*/, None, current_loader)?;
+    let class_object = create_class_object(jvm, &mut temp/*int_state*/, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
@@ -756,10 +759,11 @@ pub fn define_class_safe<'gc, 'l>(
     classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
     drop(classes);
     assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
-    prepare_class(jvm, todo!()/*int_state*/, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
+    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+    prepare_class(jvm, &mut temp/*int_state*/, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
-    initialize_class(runtime_class.clone(), jvm, todo!()/*int_state*/)?;
+    initialize_class(runtime_class.clone(), jvm, &mut temp/*int_state*/)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
     Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().new_java_handle())
 }

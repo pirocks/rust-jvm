@@ -33,6 +33,7 @@ use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
 use crate::interpreter::{run_function};
@@ -94,9 +95,10 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
 
     ThreadState::debug_assertions(jvm,int_state, loader_obj);
 
-    let main = check_loaded_class_force_loader(jvm, todo!()/*int_state*/, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    let main = check_initing_or_inited_class(jvm, /*int_state*/todo!(), main.cpdtype()).expect("failed to load main class");
-    check_loaded_class(jvm, todo!()/*int_state*/, main.cpdtype()).expect("failed to init main class");
+    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+    let main = check_loaded_class_force_loader(jvm, &mut temp/*int_state*/, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
+    let main = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, main.cpdtype()).expect("failed to load main class");
+    check_loaded_class(jvm, &mut temp/*int_state*/, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);
     let main_thread = jvm.thread_state.get_main_thread();
@@ -109,7 +111,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
     let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
-    let main_frame_guard = int_state.push_frame(stack_entry);
+    let main_frame_guard = int_state.push_frame(StackEntryPush::Java(stack_entry));
     jvm.include_name_field.store(true, Ordering::SeqCst);
     match run_function(&jvm, todo!()/*int_state*/) {
         Ok(_) => {
@@ -133,20 +135,21 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     Ok(())
 }
 
-fn setup_program_args<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {
+fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {
     let mut arg_strings: Vec<NewJavaValueHandle<'gc>> = vec![];
     for arg_str in args {
         arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
     }
     let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
     jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::string().into())).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::string().into())).unwrap(),
         elems,
     }))
 }
 
 fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>) -> Result<(), WasException> {
-    let frame_for_properties = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame"));
+    let frame_for_properties = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame")*/);
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);
     assert_eq!(properties.len() % 2, 0);

@@ -8,6 +8,7 @@ use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETI
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{InterpreterStateGuard, JVMState, NewJavaValue};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::java::lang::member_name::MemberName;
@@ -115,7 +116,8 @@ fn method_init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterS
     } else {
         let class_ptye = clazz.as_type(jvm);
         let class_name = class_ptye.unwrap_ref_type().try_unwrap_name().unwrap_or_else(|| unimplemented!("Handle arrays?"));
-        let inited_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), class_name.into())?;
+        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+        let inited_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, class_name.into())?;
         if inited_class.view().is_interface() {
             REF_INVOKE_INTERFACE
         } else {

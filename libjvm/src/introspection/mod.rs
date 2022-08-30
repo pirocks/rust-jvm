@@ -23,6 +23,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassNa
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
+use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
@@ -297,7 +298,7 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, caller: jclass) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, caller: jclass) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
@@ -311,7 +312,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller(env: *mut JNIEnv, c_name: *con
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
-                if let Err(WasException {}) = check_initing_or_inited_class(jvm, /*int_state*/todo!(), p_type) {
+                let mut temp : OpaqueFrame<'gc, '_> = todo!();
+                if let Err(WasException {}) = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, p_type) {
                     return null_mut();
                 };
             }

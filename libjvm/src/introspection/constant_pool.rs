@@ -18,6 +18,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
+use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
@@ -107,7 +108,8 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
 
 fn get_class_from_type_maybe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc>>>, WasException> {
     Ok(if load_class {
-        Some(check_initing_or_inited_class(jvm, /*int_state*/todo!(), ptype)?)
+        let mut temp : OpaqueFrame<'gc, '_> = todo!();
+        Some(check_initing_or_inited_class(jvm, /*int_state*/&mut temp, ptype)?)
     } else {
         match jvm.classes.read().unwrap().get_class_obj(ptype, None /*todo should this be something*/) {
             None => return Ok(None),

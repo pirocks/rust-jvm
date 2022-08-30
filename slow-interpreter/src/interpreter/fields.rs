@@ -1,5 +1,6 @@
 use std::mem::size_of;
 use std::ops::Deref;
+
 use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor, CPDType};
@@ -8,9 +9,10 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 
 use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle};
-use crate::class_loading::{assert_inited_or_initing_class};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
-use crate::interpreter::{PostInstructionAction};
 use crate::runtime_class::static_vars;
 
 //
@@ -51,11 +53,12 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     };
     PostInstructionAction::Next {}
 }
+
 //
-pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) ->PostInstructionAction<'gc>  {  //todo make sure class pointer is updated correctly
-    let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name,field_descriptor.0) {
+pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {  //todo make sure class pointer is updated correctly
+    let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name, field_descriptor.0) {
         Ok(val) => val,
-        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
+        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException {} },
     } {
         None => {
             todo!()
@@ -67,15 +70,16 @@ pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealI
 }
 
 fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
-    let target_classfile = check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, field_class_name.clone().into())?;
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let target_classfile = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
-        let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone(),cpdtype)?;
+        let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone(), cpdtype)?;
         if interface_lookup_res.is_some() {
             return Ok(interface_lookup_res);
         }
     }
-    let temp = static_vars(target_classfile.deref(),jvm);
+    let temp = static_vars(target_classfile.deref(), jvm);
     let attempted_get = temp.try_get(field_name);
     let field_value = match attempted_get {
         None => {
@@ -83,7 +87,7 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
             match possible_super {
                 None => None,
                 Some(super_) => {
-                    return get_static_impl(jvm, int_state, super_, field_name,cpdtype).into();
+                    return get_static_impl(jvm, int_state, super_, field_name, cpdtype).into();
                 }
             }
         }
@@ -92,7 +96,7 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
     Ok(field_value)
 }
 
-pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc>{
+pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
     let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name).number;
     let object_ref = current_frame.pop(RuntimeType::object());

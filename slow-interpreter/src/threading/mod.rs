@@ -121,10 +121,10 @@ impl<'gc> ThreadState<'gc> {
                 if let Some(jvmti) = jvm.jvmti_state() {
                     jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
                 }
-                let push_guard = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread temp stack frame")); //todo think this is correct, check
+                let push_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread temp stack frame")*/); //todo think this is correct, check
                 //handle any exceptions from here
                 int_state.pop_frame(jvm, push_guard, false);
-                let main_frame_guard = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame"));
+                let main_frame_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame")*/);
                 run_main(args, jvm, &mut int_state).unwrap();
                 //todo handle exception exit from main
                 int_state.pop_frame(jvm, main_frame_guard, false);
@@ -235,7 +235,7 @@ impl<'gc> ThreadState<'gc> {
             locals.push(NewJavaValue::Top);
         }
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard = int_state.push_frame(initialize_system_frame);
+        let init_frame_guard = int_state.push_frame(StackEntryPush::Java(initialize_system_frame));
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         let _old = int_state.register_interpreter_state_guard(jvm);
         match run_function(&jvm, todo!()/*int_state*/) {
@@ -285,7 +285,7 @@ impl<'gc> ThreadState<'gc> {
                 }
             }
             let frame = StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");
-            opaque_frame.push_frame(frame, |java_stack_guard| {
+            opaque_frame.push_frame_opaque(frame, |java_stack_guard| {
                 let object_rc = check_loaded_class(jvm, java_stack_guard, CClassName::object().into()).expect("This should really never happen, since it is equivalent to a class not found exception on java/lang/Object");
                 jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
                 let thread_classfile = check_initing_or_inited_class(jvm, java_stack_guard, CClassName::thread().into()).expect("couldn't load thread class");
@@ -397,7 +397,7 @@ impl<'gc> ThreadState<'gc> {
         }
 
         //todo fix loader
-        let frame_for_run_call = interpreter_state_guard.push_frame(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "frame for calling run on a new thread"));
+        let frame_for_run_call = interpreter_state_guard.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "frame for calling run on a new thread")*/);
         if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
             /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
                             .cast_throwable()

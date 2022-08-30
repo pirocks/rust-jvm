@@ -11,6 +11,7 @@ use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
@@ -19,7 +20,7 @@ use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stack_entry::StackEntryPush;
+use crate::stack_entry::{JavaFramePush, StackEntryPush};
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static<'gc, 'l, 'k>(
@@ -34,7 +35,8 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
-    let target_class = match check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, ref_type.to_cpdtype()) {
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let target_class = match check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, ref_type.to_cpdtype()) {
         Ok(x) => x,
         Err(exception) => return PostInstructionAction::Exception { exception },
     };
@@ -135,7 +137,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let function_call_frame = interpreter_state.push_frame(next_entry);
+        let function_call_frame = interpreter_state.push_frame(StackEntryPush::Java(next_entry));
         match run_function(jvm, todo!()/*interpreter_state*/) {
             Ok(res) => {
                 interpreter_state.pop_frame(jvm, function_call_frame, false);

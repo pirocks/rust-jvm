@@ -8,6 +8,7 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
@@ -97,9 +98,10 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut In
     for ptype in types_iter {
         exception_table.push(JClass::from_type(jvm, int_state, ptype)?.new_java_value_handle())
     }
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
 
     Ok(NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(class_type)).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(class_type)).unwrap(),
         elems: exception_table.iter().map(|handle| handle.as_njv()).collect_vec(),
     }))))
 }
@@ -112,7 +114,9 @@ fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         res.push(JClass::from_type(jvm, int_state, param_type.clone())?.new_java_value_handle());
     }
     let not_owned_elems = res.iter().map(|handle| handle.as_njv()).collect_vec();
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(class_type)).unwrap();
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(class_type)).unwrap();
 
     let allocated_obj = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: not_owned_elems }));
     Ok(NewJavaValueHandle::Object(allocated_obj))
@@ -129,6 +133,7 @@ pub mod method {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{JavaValueCommon, NewJavaValue};
+    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_state::InterpreterStateGuard;
@@ -139,8 +144,8 @@ pub mod method {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
 
     pub struct Method<'gc> {
@@ -179,7 +184,8 @@ pub mod method {
             //todo what does slot do?
             let slot = -1;
             let signature = get_signature(jvm, int_state, &method_view)?;
-            let byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CPDType::ByteType)).unwrap();
+            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+            let byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType)).unwrap();
             let annotations = NewJavaValueHandle::from_optional_object(method_view.get_annotation_bytes().map(|param_annotations| {
                 JavaValue::byte_array(jvm, int_state, param_annotations).unwrap()
             }));
@@ -207,8 +213,9 @@ pub mod method {
             parameter_annotations: NewJavaValueHandle<'gc>,
             annotation_default: NewJavaValueHandle<'gc>,
         ) -> Result<Method<'gc>, WasException> {
-            let method_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::method().into()).unwrap();
-            let method_object = new_object_full(jvm, todo!()/*int_state*/, &method_class);
+            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+            let method_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::method().into()).unwrap();
+            let method_object = new_object_full(jvm, &mut temp/*int_state*/, &method_class);
             let full_args = vec![method_object.new_java_value(),
                                  clazz.new_java_value(),
                                  name.new_java_value(),
@@ -217,7 +224,7 @@ pub mod method {
                                  exception_types.as_njv(),
                                  NewJavaValue::Int(modifiers),
                                  NewJavaValue::Int(slot),
-                                 signature.as_ref().map(|jstring|jstring.new_java_value()).unwrap_or(NewJavaValue::Null),
+                                 signature.as_ref().map(|jstring| jstring.new_java_value()).unwrap_or(NewJavaValue::Null),
                                  annotations.as_njv(),
                                  parameter_annotations.as_njv(),
                                  annotation_default.as_njv(), ];
@@ -310,6 +317,7 @@ pub mod constructor {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{JavaValueCommon, NewJavaValue};
+    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_state::InterpreterStateGuard;
@@ -320,8 +328,8 @@ pub mod constructor {
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
 
     pub struct Constructor<'gc> {
@@ -362,11 +370,12 @@ pub mod constructor {
             slot: jint,
             signature: Option<JString<'gc>>,
         ) -> Result<Constructor<'gc>, WasException> {
-            let constructor_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::constructor().into())?;
-            let constructor_object = new_object_full(jvm, todo!()/*int_state*/, &constructor_class);
+            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+            let constructor_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::constructor().into())?;
+            let constructor_object = new_object_full(jvm, &mut temp/*int_state*/, &constructor_class);
 
             //todo impl annotations
-            let empty_byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CPDType::ByteType)).unwrap();
+            let empty_byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType)).unwrap();
             let empty_byte_array = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc);
             let full_args = vec![constructor_object.new_java_value(),
                                  clazz.new_java_value(),
@@ -374,7 +383,7 @@ pub mod constructor {
                                  exception_types,
                                  NewJavaValue::Int(modifiers),
                                  NewJavaValue::Int(slot),
-                                 signature.as_ref().map(|jstring|jstring.new_java_value()).unwrap_or(NewJavaValue::Null),
+                                 signature.as_ref().map(|jstring| jstring.new_java_value()).unwrap_or(NewJavaValue::Null),
                                  empty_byte_array.as_njv(),
                                  empty_byte_array.as_njv()];
             let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
@@ -456,6 +465,7 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
+    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
@@ -487,15 +497,16 @@ pub mod field {
             signature: Option<JString<'gc>>,
             annotations: Vec<NewJavaValue<'gc, '_>>,
         ) -> Result<Self, WasException> {
-            let field_classfile = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::field().into())?;
-            let field_object = new_object_full(jvm, todo!()/*int_state*/, &field_classfile);
+            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+            let field_classfile = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::field().into())?;
+            let field_object = new_object_full(jvm, &mut temp/*int_state*/, &field_classfile);
 
             let modifiers = NewJavaValue::Int(modifiers);
             let slot = NewJavaValue::Int(slot);
 
             //todo impl annotations.
             let allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-                whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CPDType::ByteType))?,
+                whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType))?,
                 elems: annotations,
             }));
             let annotations = allocated_object_handle.new_java_value();
@@ -510,7 +521,7 @@ pub mod field {
                      type_.new_java_value(),
                      modifiers,
                      slot,
-                     signature.as_ref().map(|signature|signature.new_java_value()).unwrap_or(NewJavaValue::Null),
+                     signature.as_ref().map(|signature| signature.new_java_value()).unwrap_or(NewJavaValue::Null),
                      annotations],
                 &CMethodDescriptor::void_return(vec![CClassName::class().into(),
                                                      CClassName::string().into(),

@@ -9,11 +9,12 @@ use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
-pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -54,30 +55,32 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
     jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id, false);
 
 
-    let new_stack = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
+    let new_frame = StackEntryPush::new_java_frame(jvm, runtime_class.clone(), method_i, locals);
 
     //todo these java frames may have to be converted to native?
     // let new_function_frame = int_state.push_frame(new_stack);
-    return match run_function(jvm, int_state) {
-        Ok(res) => {
-            assert!(res.is_none());
-            // int_state.pop_frame(jvm, new_function_frame, true);
-            if !jvm.config.compiled_mode_active {}
-            // if int_state.function_return() {
-            //     int_state.set_function_return(false);
-            Ok(runtime_class)
-            // }
-            // panic!()
+    int_state.push_frame_java(new_frame, |java_stack_gaurd|{
+        match run_function(jvm, java_stack_gaurd) {
+            Ok(res) => {
+                assert!(res.is_none());
+                // int_state.pop_frame(jvm, new_function_frame, true);
+                if !jvm.config.compiled_mode_active {}
+                // if int_state.function_return() {
+                //     int_state.set_function_return(false);
+                Ok(runtime_class)
+                // }
+                // panic!()
+            }
+            Err(WasException {}) => {
+                todo!();
+                /*int_state.pop_frame(jvm, new_function_frame, false);*/
+                Err(WasException)
+            }
         }
-        Err(WasException {}) => {
-            todo!();
-            /*int_state.pop_frame(jvm, new_function_frame, false);*/
-            Err(WasException)
-        }
-    };
+    })
 }
 
-pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut JavaStackGuard<'vm>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
+pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut impl PushableFrame<'vm>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
     if let Some(jvmti) = jvm.jvmti_state() {
         if let CPDType::Class(cn) = classfile.type_() {
             jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)

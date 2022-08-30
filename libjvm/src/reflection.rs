@@ -14,6 +14,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use rust_jvm_common::ptype::PType;
+use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
@@ -80,7 +81,8 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let target_runtime_class = match check_initing_or_inited_class(jvm, /*int_state*/todo!(), target_class_name.into()) {
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let target_runtime_class = match check_initing_or_inited_class(jvm, /*int_state*/&mut temp, target_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return null_mut(),
     };
@@ -164,7 +166,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
+unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, c: jobject, args0: jobjectArray) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let constructor_obj = match from_object_new(jvm, c) {
@@ -180,7 +182,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
             return throw_npe(jvm, int_state);
         }
     };
-    if let Err(WasException {}) = check_loaded_class(jvm, todo!()/*int_state*/, clazz.cpdtype()) {
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    if let Err(WasException {}) = check_loaded_class(jvm, &mut temp/*int_state*/, clazz.cpdtype()) {
         return null_mut();
     };
     let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
@@ -217,7 +220,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor(env: *mut JNIEnv, c: jo
         arg_types: parameter_types,
         return_type: CPDType::VoidType, //todo use from_leaacy instead
     };
-    let obj = new_object(jvm, /*int_state*/todo!(), &clazz);
+    let obj = new_object(jvm, /*int_state*/&mut temp, &clazz);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
     run_constructor(jvm, /*int_state*/ todo!(), clazz, full_args, &signature);

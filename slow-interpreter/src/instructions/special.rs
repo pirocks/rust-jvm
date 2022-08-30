@@ -10,6 +10,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CP
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class, try_assert_loaded_class};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
@@ -154,7 +155,8 @@ pub fn instance_of_impl<'gc, 'l, 'k>(
         Object(object) => {
             match instance_of_class_type {
                 CPRefType::Class(instance_of_class_name) => {
-                    let instanceof_class = check_resolved_class(jvm, todo!()/*int_state.inner()*/, instance_of_class_name.into())?; //todo check if this should be here
+                    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+                    let instanceof_class = check_resolved_class(jvm, &mut temp/*int_state.inner()*/, instance_of_class_name.into())?; //todo check if this should be here
                     let object_class = object.objinfo.class_pointer.clone();
                     if todo!()/*inherits_from(jvm, int_state, &object_class, &instanceof_class)?*/ {
                         int_state.current_frame_mut().push(InterpreterJavaValue::Int(1))

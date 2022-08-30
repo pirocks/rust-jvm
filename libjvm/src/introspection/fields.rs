@@ -12,6 +12,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
@@ -34,7 +35,7 @@ unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
+unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
     let jvm = get_state(env);
     let class_obj = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let jvm = get_state(env);
@@ -50,7 +51,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields(env: *mut JNIEnv, ofClass: 
 
         object_array.push(field_object)
     }
-    let array_rc = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CPDType::array(CClassName::field().into())).unwrap();
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),

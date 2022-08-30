@@ -2,28 +2,29 @@ use std::sync::Arc;
 
 use by_address::ByAddress;
 use libc::c_void;
-use another_jit_vm_ir::WasException;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use runtime_class_stuff::RuntimeClass;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
-use crate::interpreter::{monitor_for_function};
-use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
-use crate::new_java_values::NewJavaValueHandle;
-use runtime_class_stuff::RuntimeClass;
 use crate::instructions::invoke::native::mhn_temp::{Java_java_lang_invoke_MethodHandleNatives_getMembers, Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset, MHN_getConstant};
+use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::unsafe_temp::shouldBeInitialized;
+use crate::interpreter::monitor_for_function;
+use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
 use crate::utils::throw_npe_res;
 
-pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc,'l>]) -> Vec<NewJavaValue<'gc,'l>>{
+pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc, 'l>]) -> Vec<NewJavaValue<'gc, 'l>> {
     let mut res = vec![];
-    for arg in args{
+    for arg in args {
         res.push(arg.clone());
         match arg {
             NewJavaValue::Long(_) => {
@@ -41,16 +42,16 @@ pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc,'l>]) -> Vec<NewJavaVal
     res
 }
 
-pub struct NativeMethodWasException{
-    pub prev_rip: *const c_void
+pub struct NativeMethodWasException {
+    pub prev_rip: *const c_void,
 }
 
 pub fn run_native_method<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
     class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
-    args: Vec<NewJavaValue<'gc,'k>>
+    args: Vec<NewJavaValue<'gc, 'k>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, NativeMethodWasException> {
     let view = &class.view();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -82,7 +83,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 dbg!(mangling::mangle(&jvm.string_pool, &method));
                 assert!(int_state.throw().is_some());
                 int_state.pop_frame(jvm, native_call_frame, true);
-                return Err(NativeMethodWasException{ prev_rip });
+                return Err(NativeMethodWasException { prev_rip });
             }
         }
     } else {
@@ -93,14 +94,14 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 dbg!(mangling::mangle(&jvm.string_pool, &method));
                 int_state.pop_frame(jvm, native_call_frame, true);
                 assert!(int_state.throw().is_some());
-                return Err(NativeMethodWasException{ prev_rip })
+                return Err(NativeMethodWasException { prev_rip });
             }
         };
         match first_call {
             Some(r) => r,
             None => match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), args) {
                 Ok(res) => res,
-                Err(WasException{}) => None,
+                Err(WasException {}) => None,
             },
         }
     };
@@ -110,7 +111,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let was_exception = int_state.throw().is_some();
     let res = if was_exception {
         dbg!(mangling::mangle(&jvm.string_pool, &method));
-        Err(NativeMethodWasException{ prev_rip })
+        Err(NativeMethodWasException { prev_rip })
     } else {
         Ok(result)
     };
@@ -118,7 +119,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     res
 }
 
-fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc,'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
@@ -143,7 +144,8 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
             Some(class) => class,
         };
         let ptype = jclass.as_runtime_class(jvm).cpdtype();
-        check_initing_or_inited_class(jvm, /*int_state*/todo!(), ptype)?;
+        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+        check_initing_or_inited_class(jvm, /*int_state*/&mut temp, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
         Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()

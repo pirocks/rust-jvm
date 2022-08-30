@@ -1,23 +1,24 @@
 use itertools::Either;
 
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
-use another_jit_vm_ir::WasException;
 use crate::interpreter_util::new_object;
 use crate::java::lang::member_name::MemberName;
-use crate::java_values::{ByAddressAllocatedObject};
+use crate::java_values::ByAddressAllocatedObject;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, args: Vec<NewJavaValue<'gc,'_>>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException> {
     //so as far as I can find this is undocumented.
     //so as far as I can figure out we have a method name and a class
     //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -34,7 +35,7 @@ enum ResolveAssertionCase {
     MAKE,
     ARG_L0,
     GET_OBJECT_UNSAFE,
-    IDENTITY_L
+    IDENTITY_L,
 }
 
 /*
@@ -82,7 +83,7 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, member_name: MemberName<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
@@ -105,7 +106,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
         assert_eq!(member_name.get_flags(jvm), 83951616);
         // assert_eq!(member_name.get_type(jvm).cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
-    }else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.LambdaForm.identity_L(Object)Object/invokeStatic" {
+    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.LambdaForm.identity_L(Object)Object/invokeStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
         // assert_eq!(member_name.get_type(jvm).cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "(Object,long)Object");
         ResolveAssertionCase::IDENTITY_L.into()
@@ -124,7 +125,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
 
             let name = FieldName(jvm.string_pool.add_name(member_name.get_name(jvm).to_rust_string(jvm), false));
 
-            let typejclass = unwrap_or_npe(jvm, int_state, (||{ Some(member_name.get_type(jvm).unwrap_object()?.cast_class())})())?;
+            let typejclass = unwrap_or_npe(jvm, int_state, (|| { Some(member_name.get_type(jvm).unwrap_object()?.cast_class()) })())?;
             let target_ptype = typejclass.as_type(jvm);
             let (res_c, res_i) = all_fields
                 .iter()
@@ -139,7 +140,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
             let new_flags = ((flags_val as u32) | (correct_flags as u32)) as i32;
 
             // we don't update clazz, since the specific versio may not be assignable unlike the generic, or like if we get an inherited field stuff breaks if we update
-            member_name.set_flags(jvm,new_flags);
+            member_name.set_flags(jvm, new_flags);
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
@@ -237,9 +238,10 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
     Ok(member_name.new_java_value_handle())
 }
 
-fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<(), WasException> {
-    let linkage_error = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::linkage_error().into())?;
-    let object = new_object(jvm, /*int_state*/todo!(), &linkage_error);
+fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let linkage_error = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::linkage_error().into())?;
+    let object = new_object(jvm, /*int_state*/&mut temp, &linkage_error);
     int_state.set_throw(Some(AllocatedHandle::NormalObject(object)));
     return Err(WasException);
 }

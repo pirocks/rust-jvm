@@ -16,6 +16,7 @@ use crate::java_values::{ExceptionReturn};
 use crate::{JavaValueCommon, JVMState};
 use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::runtime_class::static_vars;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::interface::misc::get_all_fields;
@@ -160,15 +161,16 @@ pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, na
     get_field_id(env, clazz, name, sig)
 }
 
-unsafe fn get_static_field<'gc>(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    let jvm = get_state(env);
+unsafe fn get_static_field<'gc, 'l>(env: *mut JNIEnv, klass: jclass, field_id_raw: jfieldID) -> Result<NewJavaValueHandle<'gc>, WasException> {
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
-    check_initing_or_inited_class(jvm, /*int_state*/todo!(), rc.cpdtype())?;
+    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    check_initing_or_inited_class(jvm, /*int_state*/&mut temp, rc.cpdtype())?;
     let guard = static_vars(rc.deref(),jvm);
     Ok(guard.borrow().get(name))
 }

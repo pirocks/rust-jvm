@@ -26,6 +26,10 @@ impl <'gc, 'k> OpaqueFrame<'gc, 'k> {
             stack_depth: None
         }
     }
+
+    pub fn new_from_frame_pointer(java_stack: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer) -> Self{
+        todo!()
+    }
 }
 
 
@@ -63,7 +67,7 @@ impl <'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k>{
     fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException>) -> Result<T, WasException> {
         match frame_to_write {
             StackEntryPush::Java(java_frame) => {
-                self.java_stack.push_java_frame(self.frame_pointer,self.next_frame_pointer(),java_frame,|java_stack_guard|within_push(java_stack_guard))
+                self.java_stack.push_java_frame(self.frame_pointer,self.next_frame_pointer(),java_frame,|frame|within_push(todo!()/*frame*/))
             }
             StackEntryPush::Native(_) => todo!(),
             StackEntryPush::Opaque(opaque) => {

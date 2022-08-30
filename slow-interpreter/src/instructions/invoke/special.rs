@@ -1,21 +1,23 @@
 use std::sync::Arc;
-use itertools::Itertools;
-use another_jit_vm_ir::WasException;
 
+use itertools::Itertools;
+
+use another_jit_vm_ir::WasException;
 use classfile_view::view::HasAccessFlags;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
-use crate::instructions::invoke::virtual_::{setup_virtual_args2};
+use crate::instructions::invoke::virtual_::setup_virtual_args2;
 use crate::interpreter::{PostInstructionAction, run_function};
-use crate::new_java_values::NewJavaValueHandle;
-use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 
 pub fn invoke_special<'gc, 'l, 'k>(
@@ -23,20 +25,21 @@ pub fn invoke_special<'gc, 'l, 'k>(
     int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
     method_class_name: CClassName,
     method_name: MethodName,
-    parsed_descriptor: &CMethodDescriptor
+    parsed_descriptor: &CMethodDescriptor,
 ) -> PostInstructionAction<'gc> {
     // dbg!(method_class_name.0.to_str(&jvm.string_pool));
-    let target_class = match check_initing_or_inited_class(jvm, todo!()/*int_state.inner()*/, method_class_name.into()) {
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
+    let target_class = match check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, method_class_name.into()) {
         Ok(x) => x,
-        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException{} },
+        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException {} },
     };
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
     // dbg!(final_target_class.view().name().jvm_representation(&jvm.string_pool));
     // dbg!(final_target_class.view().method_view_i(target_m_i).name().0.to_str(&jvm.string_pool));
-    let view  = final_target_class.view();
+    let view = final_target_class.view();
     let target_method = view.method_view_i(target_m_i);
     let mut args = vec![];
-    for _ in 0..target_method.local_var_slots(){//todo dupe
+    for _ in 0..target_method.local_var_slots() {//todo dupe
         args.push(NewJavaValueHandle::Top)
     }
     let mut i = 1;
@@ -47,16 +50,16 @@ pub fn invoke_special<'gc, 'l, 'k>(
     }
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
-    match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh|njvh.as_njv()).collect_vec()){
+    match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh| njvh.as_njv()).collect_vec()) {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
-            return PostInstructionAction::Next {}
+            return PostInstructionAction::Next {};
         }
         Ok(None) => {
-            return PostInstructionAction::Next {}
+            return PostInstructionAction::Next {};
         }
-        Err(WasException{}) => {
-            PostInstructionAction::Exception { exception: WasException{} }
+        Err(WasException {}) => {
+            PostInstructionAction::Exception { exception: WasException {} }
         }
     }
 }
@@ -78,11 +81,11 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
     } else if target_m.is_native() {
         match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
             Ok(res) => Ok(res),
-            Err(NativeMethodWasException{ prev_rip }) => {
+            Err(NativeMethodWasException { prev_rip }) => {
                 int_state.debug_print_stack_trace(jvm);
                 todo!()
                 /*return Err(WasException{})*/
-            },
+            }
         }
     } else {
         let mut args = vec![];
@@ -92,7 +95,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
         // jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
-        let function_call_frame = int_state.push_frame(next_entry);
+        let function_call_frame = int_state.push_frame(StackEntryPush::Java(next_entry));
         match run_function(jvm, /*int_state*/ todo!()) {
             Ok(res) => {
                 int_state.pop_frame(jvm, function_call_frame, false);

@@ -3,10 +3,11 @@ pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue};
+    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::new_java_values::{NewJavaValueHandle};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
@@ -21,9 +22,11 @@ pub mod concurrent_hash_map {
     }
 
     impl<'gc> ConcurrentHashMap<'gc> {
-        pub fn new(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> Self {
-            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::concurrent_hash_map().into()).unwrap();
-            let concurrent_hash_map = new_object_full(jvm, todo!()/*int_state*/, &concurrent_hash_map_class);
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> Self {
+            let mut temp: OpaqueFrame<'gc, '_> = todo!();
+
+            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::concurrent_hash_map().into()).unwrap();
+            let concurrent_hash_map = new_object_full(jvm, &mut temp/*int_state*/, &concurrent_hash_map_class);
             run_constructor(jvm, /*int_state*/ todo!(), concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
@@ -47,7 +50,7 @@ pub mod concurrent_hash_map {
             res.unwrap()
         }
 
-        pub fn get(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, key: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc>{
+        pub fn get(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, key: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
             let desc = CMethodDescriptor {
                 arg_types: vec![CPDType::object()],
                 return_type: CPDType::object(),
@@ -83,10 +86,10 @@ pub mod concurrent_hash_map {
     pub mod node {
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-        use crate::{JVMState};
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::new_java_values::{NewJavaValueHandle};
+        use crate::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+        use crate::new_java_values::NewJavaValueHandle;
 
         pub struct Node<'gc> {
             pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -101,12 +104,12 @@ pub mod concurrent_hash_map {
         impl<'gc> Node<'gc> {
             pub fn key(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
                 let rc = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map_node().into());
-                self.normal_object.get_var(jvm, &rc,FieldName::field_key())
+                self.normal_object.get_var(jvm, &rc, FieldName::field_key())
             }
 
             pub fn value(&self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
                 let rc = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map_node().into());
-                self.normal_object.get_var(jvm, &rc,FieldName::field_val())
+                self.normal_object.get_var(jvm, &rc, FieldName::field_val())
             }
         }
     }
