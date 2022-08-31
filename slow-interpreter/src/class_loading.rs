@@ -23,7 +23,6 @@ use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
@@ -88,7 +87,6 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
     }
     match class.status() {
         ClassStatus::UNPREPARED => {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
             prepare_class(jvm, int_state, class.view(), &mut static_vars(class.deref(), jvm));
             class.set_status(ClassStatus::PREPARED);
             check_initing_or_inited_class(jvm, int_state, ptype)
@@ -358,7 +356,7 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
     }
     let class_object = match loader {
         LoaderName::UserDefinedLoader(_idx) => JClass::new(jvm, int_state, loader_object.cast_class_loader()),
-        BootstrapLoader => JClass::new_bootstrap_loader(jvm, todo!()/*int_state*/),
+        BootstrapLoader => JClass::new_bootstrap_loader(jvm, int_state),
     }?;
     if let Some(name) = name {
         if jvm.include_name_field.load(Ordering::SeqCst) {

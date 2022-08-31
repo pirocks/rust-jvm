@@ -41,7 +41,7 @@ use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::runtime_class::static_vars;
-use crate::utils::lookup_method_parsed;
+use crate::utils::{lookup_method_parsed, pushable_frame_todo};
 
 pub mod multi_allocate_array;
 pub mod new_run_native;
@@ -371,7 +371,7 @@ fn invoke_virtual_full<'gc>(
 
 fn new_class_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID) -> NewJavaValueHandle<'gc> {
     let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(type_).clone();
-    let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
+    let jclass = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
     jclass.new_java_value_handle()
 }
 

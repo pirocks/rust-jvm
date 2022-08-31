@@ -7,7 +7,7 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::{invoke_virtual};
@@ -149,6 +149,10 @@ pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
     })
 }
 
+pub fn pushable_frame_todo<'any1, 'any2, 'any3>() -> &'any3 mut OpaqueFrame<'any1,'any2>{
+    todo!()
+}
+
 pub fn run_static_or_virtual<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
@@ -164,12 +168,12 @@ pub fn run_static_or_virtual<'gc, 'l>(
         None => panic!(),
     };
     if method_view.is_static() {
-        invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view, args)
+        invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, desc, class.clone(), method_view.method_i(), &method_view, args)
     } else {
         // let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, method_name, &desc, class.clone()).unwrap();
         // let view = resolved_rc.view();
         // let method_view = view.method_view_i(method_i);
-        invoke_virtual(jvm, int_state, method_name, desc, args)
+        invoke_virtual(jvm, todo!()/*int_state*/, method_name, desc, args)
     }
 }
 

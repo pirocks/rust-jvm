@@ -45,7 +45,7 @@ use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -61,7 +61,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
         .view()
         .interfaces()
         .map(|interface| {
-            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
+            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), pushable_frame_todo())?;
             Ok(class_obj.duplicate_discouraged())
         })
         .collect::<Result<Vec<_>, WasException>>()
@@ -102,7 +102,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public_new(
-        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
+        match JClass::from_type(jvm, pushable_frame_todo(), object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException {}) => return null_mut(),
         }.full_object_ref().into(),
@@ -133,7 +133,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     }
         .into_iter()
         .map(|ptype| {
-            Ok(get_or_create_class_object(jvm, ptype, int_state)?.new_java_handle())
+            Ok(get_or_create_class_object(jvm, ptype, pushable_frame_todo())?.new_java_handle())
         })
         .collect::<Result<Vec<_>, _>>();
     let obj_array = match res_array {
@@ -168,7 +168,7 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
         if inner_class.complete_name(&jvm.string_pool) == Some(class_name){
             let target_class_name = inner_class.outer_name(&jvm.string_pool);
             // dbg!(target_class_name.0.to_str(&jvm.string_pool));
-            let class = get_or_create_class_object(jvm,target_class_name.into(),int_state).unwrap();
+            let class = get_or_create_class_object(jvm,target_class_name.into(),pushable_frame_todo()).unwrap();
             return to_object_new(Some(class.as_allocated_obj()));
         }
     }
@@ -220,7 +220,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
-        .map(|ptype| get_or_create_class_object(jvm, ptype, int_state)
+        .map(|ptype| get_or_create_class_object(jvm, ptype, pushable_frame_todo())
             .map(|elem| elem.new_java_handle())
         )
         .collect::<Result<Vec<_>, WasException>>() {
@@ -283,7 +283,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    let jclass = load_class_constant_by_type(jvm, int_state, type_).unwrap();
+    let jclass = load_class_constant_by_type(jvm, pushable_frame_todo(), type_).unwrap();
     new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
@@ -308,7 +308,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
         .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
         .unwrap_or(LoaderName::BootstrapLoader);
 
-    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, int_state, loader_name);
+    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, pushable_frame_todo(), loader_name);
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {

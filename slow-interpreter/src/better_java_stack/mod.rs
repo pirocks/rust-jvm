@@ -20,6 +20,7 @@ pub mod exit_frame;
 pub mod remote_frame;
 pub mod java_stack_guard;
 pub mod opaque_frame;
+pub mod native_frame;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct FramePointer(pub NonNull<c_void>);

@@ -66,7 +66,7 @@ use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object, to_object_new};
-use crate::utils::throw_npe;
+use crate::utils::{pushable_frame_todo, throw_npe};
 
 //todo this should be in state impl
 thread_local! {
@@ -631,7 +631,7 @@ pub fn field_object_from_view<'gc, 'l>(
     f: FieldView,
 ) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let field_class_name_ = class_obj.clone().cpdtype();
-    let parent_runtime_class = load_class_constant_by_type(jvm, int_state, field_class_name_)?;
+    let parent_runtime_class = load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, field_class_name_)?;
 
     let field_name = f.field_name();
 
@@ -645,7 +645,7 @@ pub fn field_object_from_view<'gc, 'l>(
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let field_name_str = field_name.0.to_str(&jvm.string_pool);
     let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
-    let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
+    let type_ = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
     let signature = match signature {
         None => None,
         Some(signature) => Some(JString::from_rust(jvm, int_state, signature)?),
@@ -765,7 +765,7 @@ pub fn define_class_safe<'gc, 'l>(
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, &mut temp/*int_state*/)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().new_java_handle())
+    Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), pushable_frame_todo()/*int_state*/, current_loader).unwrap().new_java_handle())
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {

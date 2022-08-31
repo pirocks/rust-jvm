@@ -15,6 +15,7 @@ use crate::jvmti::{get_interpreter_state, get_state, universal_error};
 use crate::NewAsObjectOrJavaValue;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
+use crate::utils::pushable_frame_todo;
 
 pub unsafe extern "C" fn get_source_file_name(env: *mut jvmtiEnv, klass: jclass, source_name_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
@@ -44,7 +45,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(env: *mut jvmtiEnv, klass: j
     interface_count_ptr.write(num_interfaces as i32);
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
-        let interface_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state);
+        let interface_obj = get_or_create_class_object(jvm, interface.interface_name().into(), pushable_frame_todo()/*int_state*/);
         let interface_class = new_local_ref_public(interface_obj.unwrap().to_gc_managed().into(), int_state);
         interfaces_ptr.read().add(i).write(interface_class)
     }
@@ -128,7 +129,7 @@ pub unsafe extern "C" fn get_loaded_classes<'gc, 'l>(env: *mut jvmtiEnv, class_c
     let classes: RwLockReadGuard<'_, Classes<'gc>> = jvm.classes.read().unwrap();
     let collected = classes.get_loaded_classes();
     for (_loader, ptype) in collected {
-        let class_object = get_or_create_class_object(jvm, ptype.clone(), int_state);
+        let class_object = get_or_create_class_object(jvm, ptype.clone(), pushable_frame_todo()/*int_state*/);
         res_vec.push(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), int_state))
     }
     class_count_ptr.write(res_vec.len() as i32);

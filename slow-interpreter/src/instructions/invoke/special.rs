@@ -19,6 +19,7 @@ use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
+use crate::utils::pushable_frame_todo;
 
 pub fn invoke_special<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -33,7 +34,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
         Ok(x) => x,
         Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException {} },
     };
-    let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
+    let (target_m_i, final_target_class) = find_target_method(jvm, todo!()/*int_state.inner()*/, method_name, &parsed_descriptor, target_class);
     // dbg!(final_target_class.view().name().jvm_representation(&jvm.string_pool));
     // dbg!(final_target_class.view().method_view_i(target_m_i).name().0.to_str(&jvm.string_pool));
     let view = final_target_class.view();
@@ -50,7 +51,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
     }
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()))).to_new_java_handle(jvm);
-    match invoke_special_impl(jvm, int_state.inner(), &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh| njvh.as_njv()).collect_vec()) {
+    match invoke_special_impl(jvm, todo!()/*int_state.inner()*/, &parsed_descriptor, target_m_i, final_target_class.clone(), args.iter().map(|njvh| njvh.as_njv()).collect_vec()) {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
             return PostInstructionAction::Next {};
@@ -79,7 +80,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
+        match run_native_method(jvm, pushable_frame_todo()/*int_state*/, final_target_class, target_m_i, input_args) {
             Ok(res) => Ok(res),
             Err(NativeMethodWasException { prev_rip }) => {
                 int_state.debug_print_stack_trace(jvm);

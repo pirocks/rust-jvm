@@ -22,7 +22,7 @@ use rust_jvm_common::runtime_type::{RuntimeType};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::interface::misc::get_all_methods;
-use crate::utils::run_static_or_virtual;
+use crate::utils::{pushable_frame_todo, run_static_or_virtual};
 
 /**
 Should only be used for an actual invoke_virtual instruction.
@@ -57,8 +57,8 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
     let base_object_class = args[0].as_njv().unwrap_object_alloc().unwrap().runtime_class(jvm);
-    let current_loader = int_state.inner().current_frame().loader(jvm);
-    let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
+    let current_loader = int_state.inner().current_loader(jvm);
+    let (resolved_rc, method_i) = virtual_method_lookup(jvm, todo!()/*int_state.inner()*/, method_name, expected_descriptor, base_object_class).unwrap();
     let view = resolved_rc.view();
     let method_view = view.method_view_i(method_i);
     let args_len = args.len() as u16;
@@ -69,7 +69,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     // TODO MAKE INTERPRETER USE SAME AFTER INSTRUCTION EXITS
 
     let args = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    let res = invoke_virtual(jvm, int_state.inner(), method_name, expected_descriptor, args);
+    let res = invoke_virtual(jvm, todo!()/*int_state.inner()*/, method_name, expected_descriptor, args);
     match res {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
@@ -129,7 +129,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         return Ok(todo!());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        match run_native_method(jvm, pushable_frame_todo()/*interpreter_state*/, target_class, target_method_i, args) {
             Ok(res) => {
                 return Ok(res);
             }

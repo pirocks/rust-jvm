@@ -6,6 +6,9 @@ use crate::better_java_stack::{FramePointer, StackDepth};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::{JVMState, StackEntryPush};
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::native_frame::NativeFrame;
+use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct OpaqueFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
@@ -28,7 +31,11 @@ impl <'gc, 'k> OpaqueFrame<'gc, 'k> {
     }
 
     pub fn new_from_frame_pointer(java_stack: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer) -> Self{
-        todo!()
+        Self{
+            java_stack,
+            frame_pointer,
+            stack_depth: None
+        }
     }
 }
 
@@ -71,9 +78,21 @@ impl <'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k>{
             }
             StackEntryPush::Native(_) => todo!(),
             StackEntryPush::Opaque(opaque) => {
-                self.java_stack.push_opaque_frame(self.frame_pointer, self.next_frame_pointer(), opaque,|java_stack_guard|within_push(java_stack_guard))
+                todo!()
+/*                self.java_stack.push_opaque_frame(self.frame_pointer, self.next_frame_pointer(), opaque,|java_stack_guard|within_push(java_stack_guard))*/
             },
         }
     }
 
+    fn push_frame_opaque<T>(&mut self, opaque_frame_push: OpaqueFramePush, within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_opaque_frame(self.frame_pointer, self.next_frame_pointer(), opaque_frame_push, |opaque_frame|within_push(opaque_frame))
+    }
+
+    fn push_frame_java<T>(&mut self, java_frame_push: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_java_frame(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame|within_push(java_frame))
+    }
+
+    fn push_frame_native<T>(&mut self, java_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame|within_push(java_frame))
+    }
 }

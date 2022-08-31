@@ -33,6 +33,7 @@ use crate::jvmti::version::get_version_number;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::from_jclass;
 use crate::rust_jni::native_util::from_object;
+use crate::utils::pushable_frame_todo;
 
 pub mod event_callbacks;
 
@@ -305,7 +306,7 @@ unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclas
     let type_ = runtime_class.view().field(index as usize).field_type();
     let int_state = get_interpreter_state(env);
     let res_object = new_local_ref_public(
-        match get_or_create_class_object(jvm, type_, int_state) {
+        match get_or_create_class_object(jvm, type_, pushable_frame_todo()/*int_state*/) {
             Ok(res) => res.to_gc_managed(),
             Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL,
         }

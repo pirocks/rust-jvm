@@ -28,7 +28,7 @@ use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
-use crate::utils::throw_npe;
+use crate::utils::{pushable_frame_todo, throw_npe};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram, blocking on gc.
@@ -41,7 +41,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    let obj = match load_class_constant_by_type(jvm, int_state, CPDType::from_ptype(&type_, &jvm.string_pool)) {
+    let obj = match load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, CPDType::from_ptype(&type_, &jvm.string_pool)) {
         Err(WasException {}) => {
             return null_mut();
         }
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
-    let obj = match load_class_constant_by_type(jvm, int_state, super_name.into()) {
+    let obj = match load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, super_name.into()) {
         Err(WasException {}) => {
             return null_mut();
         }

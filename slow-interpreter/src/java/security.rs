@@ -58,7 +58,7 @@ pub mod access_control_context {
             let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
             let access_control_object = new_object(jvm, /*int_state*/&mut temp, &access_control_context_class).to_jv();
             let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.iter().map(|pd| pd.new_java_value()).collect(), CClassName::protection_domain().into()).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), access_control_context_class, todo!()/*vec![access_control_object.clone(), pds_jv]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, access_control_context_class, todo!()/*vec![access_control_object.clone(), pds_jv]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
             Ok(access_control_object.cast_access_control_context())
         }
 

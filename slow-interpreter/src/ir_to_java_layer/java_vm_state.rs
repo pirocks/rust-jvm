@@ -18,7 +18,6 @@ use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};

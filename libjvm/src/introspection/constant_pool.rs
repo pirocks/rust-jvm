@@ -32,7 +32,7 @@ use slow_interpreter::rust_jni::interface::field_object_from_view;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
 use slow_interpreter::sun::reflect::constant_pool::ConstantPool;
-use slow_interpreter::utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
+use slow_interpreter::utils::{pushable_frame_todo, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
 //todo lots of duplication here, idk if should fix though
 
@@ -65,7 +65,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
         return throw_array_out_of_bounds(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, c.class_ref_type().to_cpdtype(), int_state) {
+        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, c.class_ref_type().to_cpdtype(), pushable_frame_todo()) {
             Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
             Err(_) => null_mut(),
         },

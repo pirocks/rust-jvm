@@ -11,6 +11,7 @@ use rust_jvm_common::loading::LoaderName;
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -24,6 +25,14 @@ pub struct JavaStackGuard<'vm> {
 }
 
 impl<'vm> JavaStackGuard<'vm> {
+    pub(crate) fn ir_stack_ref(&self) -> &OwnedIRStack {
+        &self.guard.as_ref().unwrap().owned_ir_stack
+    }
+
+    pub(crate) fn ir_stack_mut(&mut self) -> &mut OwnedIRStack {
+        &mut self.guard.as_mut().unwrap().owned_ir_stack
+    }
+
     pub(crate) fn has_been_used(&self) -> bool {
         self.guard.as_ref().unwrap().has_been_used
     }
@@ -136,21 +145,16 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        todo!()
-        /*JavaInterpreterFrame {
-            java_stack: java_stack_guard,
-            frame_ptr: next_frame_pointer,
-            num_locals: code.max_locals,
-            max_stack: code.max_stack,
-            current_operand_stack_depth: 0,
-        }*/
+        JavaInterpreterFrame::from_frame_pointer_interpreter(jvm, self, next_frame_pointer, |within|{
+            within_pushed(within)
+        })
     }
 
-    fn push_frame_native<'k, T>(&'k mut self,
+    pub fn push_frame_native<'k, T>(&'k mut self,
                                 current_frame_pointer: FramePointer,
                                 next_frame_pointer: FramePointer,
                                 stack_entry: NativeFramePush,
-                                within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>,
+                                within_pushed: impl FnOnce(&mut NativeFrame<'vm,'k>) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
@@ -183,14 +187,16 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        todo!()
+        let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer);
+        let res = within_pushed(&mut frame)?;
+        Ok(res)
     }
 
     pub fn push_opaque_frame<'k, T>(&'k mut self,
                                     current_frame_pointer: FramePointer,
                                     next_frame_pointer: FramePointer,
                                     opaque_frame: OpaqueFramePush,
-                                    within_pushed: impl FnOnce(&mut Self) -> Result<T, WasException>,
+                                    within_pushed: impl for<'l> FnOnce(&mut OpaqueFrame<'vm, 'l>) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let OpaqueFramePush { opaque_id, native_local_refs } = opaque_frame;
         let jvm = self.jvm();
@@ -209,7 +215,8 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        let res = within_pushed(self)?;
+        let mut frame = OpaqueFrame::new_from_frame_pointer(self, next_frame_pointer);
+        let res = within_pushed(&mut frame)?;
         //todo zero the rest
         Ok(res)
     }

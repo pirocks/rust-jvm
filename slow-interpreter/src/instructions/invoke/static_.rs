@@ -10,8 +10,8 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::{JavaValueCommon, JVMState, NewJavaValue};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
 use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
@@ -20,7 +20,7 @@ use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stack_entry::{JavaFramePush, StackEntryPush};
+use crate::stack_entry::{StackEntryPush};
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static<'gc, 'l, 'k>(
@@ -35,8 +35,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
     //todo handle monitor enter and exit
     //handle init cases
     //todo  spec says where check_ is allowed. need to match that
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let target_class = match check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, ref_type.to_cpdtype()) {
+    let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), ref_type.to_cpdtype()) {
         Ok(x) => x,
         Err(exception) => return PostInstructionAction::Exception { exception },
     };
@@ -104,7 +103,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
 
 pub fn invoke_static_impl<'l, 'gc>(
     jvm: &'gc JVMState<'gc>,
-    interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    interpreter_state: &mut impl PushableFrame<'gc>,
     expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc>>,
     target_method_i: u16,
@@ -117,7 +116,6 @@ pub fn invoke_static_impl<'l, 'gc>(
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();
         if name == MethodName::method_linkToStatic() {
-            let current_frame = interpreter_state.current_frame();
             // let op_stack = current_frame.operand_stack(jvm);
             // let member_name = op_stack.get((op_stack.len() - 1) as u16, CClassName::member_name().into()).cast_member_name();
             // assert_eq!(member_name.clone().java_value().to_type(), CClassName::member_name().into());
@@ -126,7 +124,7 @@ pub fn invoke_static_impl<'l, 'gc>(
             assert_eq!(args[0].to_handle_discouraged().unwrap_object().unwrap().runtime_class(jvm).cpdtype(), CClassName::member_name().into());
             let member_name = args[0].to_handle_discouraged().unwrap_object_nonnull().cast_member_name();
             args.remove(0);
-            let res = call_vmentry(jvm, interpreter_state, member_name, args)?;
+            let res = call_vmentry(jvm, todo!()/*interpreter_state*/, member_name, args)?;
             Ok(Some(res))
         } else {
             unimplemented!()
@@ -137,25 +135,22 @@ pub fn invoke_static_impl<'l, 'gc>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        let function_call_frame = interpreter_state.push_frame(StackEntryPush::Java(next_entry));
-        match run_function(jvm, todo!()/*interpreter_state*/) {
-            Ok(res) => {
-                interpreter_state.pop_frame(jvm, function_call_frame, false);
-                return Ok(res);
-                panic!()
+        return interpreter_state.push_frame_java(next_entry,|next_frame|{
+            return match run_function(jvm, todo!()/*interpreter_state*/) {
+                Ok(res) => {
+                    Ok(res)
+                }
+                Err(_) => {
+                    Err(WasException)
+                }
             }
-            Err(_) => {
-                interpreter_state.pop_frame(jvm, function_call_frame, true);
-                return Err(WasException);
-            }
-        }
+        });
     } else {
         return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
                 Ok(res)
             }
             Err(NativeMethodWasException { prev_rip }) => {
-                assert!(interpreter_state.throw().is_some());
                 Err(WasException {})
             }
         };

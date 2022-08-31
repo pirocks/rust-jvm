@@ -13,6 +13,6 @@ pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
     let allocated_handle = exception_obj.unwrap_object_nonnull();
 
     //todo checkcast not array
-    int_state.inner().set_throw(allocated_handle.into());
+    todo!();/*int_state.inner().set_throw(allocated_handle.into());*/
     PostInstructionAction::Exception { exception: WasException{} }
 }

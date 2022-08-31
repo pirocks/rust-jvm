@@ -6,16 +6,12 @@ use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
-use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
 use rust_jvm_common::runtime_type::{RuntimeType};
 
-use crate::AllocatedHandle;
-use crate::better_java_stack::frames::HasFrame;
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::class_objects::get_or_create_class_object;
-use crate::instructions::special::instance_of_exit_impl_impl_impl;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::interpreter_state::InterpreterStateGuard;
@@ -65,7 +61,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     if !compile_interpreted {
         jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, false);
     } else {
-        return run_function_interpreted(jvm, todo!()/*interpreter_state*/);
+        return run_function_interpreted(jvm, interpreter_state);
     }
 
     let ir_method_id = match jvm.java_vm_state.try_lookup_ir_method_id(OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 }) {
@@ -120,9 +116,9 @@ pub enum PostInstructionAction<'gc> {
     Next {},
 }
 
-pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     // eprintln!("{}",Backtrace::force_capture().to_string());
-    let rc = interpreter_state.current_frame().class_pointer(jvm);
+    let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
@@ -138,12 +134,12 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
             //todo
             let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc);
             let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
-            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            monitor.lock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
             Some(monitor)
         }else {
             let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            monitor.lock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
             Some(monitor)
         }
     }else {
@@ -157,23 +153,21 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
         //     eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
         //     // println!("{}", Backtrace::force_capture());
         // }
-        assert!(real_interpreter_state.inner().throw().is_none());
-        real_interpreter_state.inner().set_current_pc(None);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
-                assert!(real_interpreter_state.inner().throw().is_none());
+                todo!();/*assert!(real_interpreter_state.inner().throw().is_none());*/
                 if let Some(monitor) = should_sync{
-                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
+                    monitor.unlock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
                 }
                 return Ok(res);
             }
             PostInstructionAction::Exception { .. } => {
-                real_interpreter_state.inner().set_current_pc(None);
-                assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
+                todo!();/*real_interpreter_state.inner().set_current_pc(None);*/
+                /*assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,
                     end_pc,
@@ -203,7 +197,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 if let Some(monitor) = should_sync{
                     monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
-                return Err(WasException {});
+                return Err(WasException {});*/
             }
             PostInstructionAction::Next { .. } => {
                 current_offset.0 += current_instruct.instruction_size;
@@ -236,7 +230,7 @@ pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ 
 //     }
 // }
 
-pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
+pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method: &MethodView, synchronized: bool) -> Option<Arc<Monitor2>> {
     if synchronized {
         let monitor: Arc<Monitor2> = if method.is_static() {
             let class_object = get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();
@@ -245,7 +239,7 @@ pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut
             /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
             todo!()
         };
-        monitor.lock(jvm, int_state).unwrap();
+        monitor.lock(jvm, todo!()/*int_state*/).unwrap();
         monitor.into()
     } else {
         None

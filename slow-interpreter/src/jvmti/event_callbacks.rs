@@ -9,18 +9,15 @@ use libloading::os::unix::RTLD_NOW;
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::CClassName;
-use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::MethodId;
 
 use crate::{InterpreterStateGuard, JavaThread, JVMState};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java::lang::thread::JThread;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public};
-use crate::stack_entry::{StackEntryPush};
 use crate::tracing::TracingSettings;
 
 // does not support per thread notification

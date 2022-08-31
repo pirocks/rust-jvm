@@ -7,6 +7,7 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::better_java_stack::frames::HasFrame;
 
 use crate::function_instruction_count::FunctionExecutionCounter;
 use crate::instructions::invoke::dynamic::invoke_dynamic;
@@ -123,9 +124,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::dsub => dsub(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup => dup(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::dup_x1 => dup_x1(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::dup_x2 => dup_x2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
-        CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
-        CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
+        CInstructionInfo::dup_x2 => dup_x2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
+        CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
+        CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
@@ -274,13 +275,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm, interpreter_state.inner()).unwrap();
+            monitor.lock(jvm, todo!()/*interpreter_state.inner()*/).unwrap();
             PostInstructionAction::Next {}
         }
         CInstructionInfo::monitorexit => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.unlock(jvm, interpreter_state.inner()).unwrap();
+            monitor.unlock(jvm, todo!()/*interpreter_state.inner()*/).unwrap();
             // interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
             PostInstructionAction::Next {}
         }
@@ -294,7 +295,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             interpreter_state.current_frame_mut().pop(RuntimeType::LongType);
             PostInstructionAction::Next {}
         }
-        CInstructionInfo::pop2 => pop2(jvm, interpreter_state.inner().current_frame().frame_view.ir_ref.method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
+        CInstructionInfo::pop2 => pop2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::putfield { name, desc, target_class } => putfield(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::putstatic { name, desc, target_class } => putstatic(jvm, interpreter_state, *target_class, *name, desc),
         // CInstructionInfo::ret(local_var_index) => ret(jvm, interpreter_state.current_frame_mut(), *local_var_index as u16),
@@ -307,14 +308,14 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {
-            assert!(interpreter_state.inner().throw().is_none());
+            todo!();/*assert!(interpreter_state.inner().throw().is_none());*/
             PostInstructionAction::Return { res: None }
         }
         CInstructionInfo::invokedynamic(cp) => {
             invoke_dynamic(jvm, interpreter_state, *cp, current_pc)
         }
         instruct => {
-            interpreter_state.inner().debug_print_stack_trace(jvm);
+            todo!();/*interpreter_state.inner().debug_print_stack_trace(jvm);*/
             dbg!(instruct);
             todo!()
         }

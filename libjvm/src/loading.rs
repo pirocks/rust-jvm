@@ -13,13 +13,14 @@ use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
 use slow_interpreter::sun::misc::launcher::ext_class_loader::ExtClassLoader;
 use slow_interpreter::sun::misc::launcher::Launcher;
+use slow_interpreter::utils::pushable_frame_todo;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
-    match get_or_create_class_object(jvm, ptype, int_state) {
+    match get_or_create_class_object(jvm, ptype, pushable_frame_todo()) {
         Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
         Err(_) => null_mut(),
     }

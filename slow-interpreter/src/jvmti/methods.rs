@@ -7,6 +7,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::jvmti::{get_interpreter_state, get_state};
 use method_table::from_jmethod_id;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::utils::pushable_frame_todo;
 
 pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID, name_ptr: *mut *mut ::std::os::raw::c_char, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {
     let jvm = get_state(env);
@@ -74,7 +75,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetMethodDeclaringClass");
     let method_id = from_jmethod_id(method);
     let runtime_class = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0; //todo handle error
-    let class_object = get_or_create_class_object(jvm, runtime_class.cpdtype(), int_state); //todo fix this type verbosity thing
+    let class_object = get_or_create_class_object(jvm, runtime_class.cpdtype(), pushable_frame_todo()/*int_state*/); //todo fix this type verbosity thing
     declaring_class_ptr.write(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), int_state));
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }

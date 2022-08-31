@@ -9,6 +9,7 @@ use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::{Java_java_lang_invoke_MethodHandleNatives_getMembers, Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset, MHN_getConstant};
@@ -48,7 +49,7 @@ pub struct NativeMethodWasException {
 
 pub fn run_native_method<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
     args: Vec<NewJavaValue<'gc, 'k>>,
@@ -63,60 +64,64 @@ pub fn run_native_method<'gc, 'l, 'k>(
 
     assert!(method.is_native());
     let method_as_string = method.name().0.to_str(&jvm.string_pool);
-    let native_call_frame = int_state.push_frame(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, correct_args(args.as_slice())));
-    assert!(int_state.current_frame().is_native_method());
     let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());
-    if let Some(m) = monitor.as_ref() {
-        m.lock(jvm, int_state).unwrap();
-    }
-    let prev_rip = int_state.current_frame().frame_view.ir_ref.prev_rip();
-    let result = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
-        //todo dup
-        let res_fn = {
-            let reg_natives = jvm.native_libaries.registered_natives.read().unwrap();
-            let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
-            *reg_natives_for_class.get(&(method_i as u16)).unwrap()
-        };
-        match call_impl(jvm, int_state, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
-            Ok(call_res) => call_res,
-            Err(WasException {}) => {
-                dbg!(mangling::mangle(&jvm.string_pool, &method));
-                assert!(int_state.throw().is_some());
-                int_state.pop_frame(jvm, native_call_frame, true);
-                return Err(NativeMethodWasException { prev_rip });
-            }
+    let owned_args_clone = args.clone();
+    let corrected_args = correct_args(owned_args_clone.as_slice());
+    match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
+                                      |native_frame|{
+        if let Some(m) = monitor.as_ref() {
+            m.lock(jvm, todo!()/*int_state*/).unwrap();
         }
-    } else {
-        assert!(int_state.current_frame().is_native_method());
-        let first_call = match call(jvm, int_state, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
-            Ok(call_res) => call_res,
-            Err(WasException {}) => {
-                dbg!(mangling::mangle(&jvm.string_pool, &method));
-                int_state.pop_frame(jvm, native_call_frame, true);
-                assert!(int_state.throw().is_some());
-                return Err(NativeMethodWasException { prev_rip });
+        let prev_rip = native_frame.frame_ref().prev_rip();
+        let result = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
+            //todo dup
+            let res_fn = {
+                let reg_natives = jvm.native_libaries.registered_natives.read().unwrap();
+                let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
+                *reg_natives_for_class.get(&(method_i as u16)).unwrap()
+            };
+            match call_impl(jvm, todo!()/*native_frame*/, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
+                Ok(call_res) => call_res,
+                Err(WasException {}) => {
+                    dbg!(mangling::mangle(&jvm.string_pool, &method));
+                    return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
+                }
+            }
+        } else {
+            let first_call = match call(jvm, todo!()/*int_state*/, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
+                Ok(call_res) => call_res,
+                Err(WasException {}) => {
+                    dbg!(mangling::mangle(&jvm.string_pool, &method));
+                    return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
+                }
+            };
+            match first_call {
+                Some(r) => r,
+                None => match special_call_overrides(jvm, todo!()/*int_state*/, &class.view().method_view_i(method_i), args) {
+                    Ok(res) => res,
+                    Err(WasException {}) => None,
+                },
             }
         };
-        match first_call {
-            Some(r) => r,
-            None => match special_call_overrides(jvm, int_state, &class.view().method_view_i(method_i), args) {
-                Ok(res) => res,
-                Err(WasException {}) => None,
-            },
+        if let Some(m) = monitor.as_ref() {
+            m.unlock(jvm, todo!()/*int_state*/).unwrap();
         }
-    };
-    if let Some(m) = monitor.as_ref() {
-        m.unlock(jvm, int_state).unwrap();
+        let was_exception = todo!()/*int_state.throw().is_some()*/;
+        let res: Result<_,WasException> = if was_exception {
+            dbg!(mangling::mangle(&jvm.string_pool, &method));
+            Err(todo!()/*NativeMethodWasException { prev_rip }*/)
+        } else {
+            Ok(result)
+        };
+        res
+    }){
+        Ok(res) => {
+            Ok(res)
+        }
+        Err(_) => {
+            Err(NativeMethodWasException{ prev_rip: todo!() })
+        }
     }
-    let was_exception = int_state.throw().is_some();
-    let res = if was_exception {
-        dbg!(mangling::mangle(&jvm.string_pool, &method));
-        Err(NativeMethodWasException { prev_rip })
-    } else {
-        Ok(result)
-    };
-    int_state.pop_frame(jvm, native_call_frame, was_exception);
-    res
 }
 
 fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {

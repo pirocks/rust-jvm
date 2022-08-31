@@ -1,17 +1,21 @@
 use std::ffi::c_void;
+
 use itertools::Itertools;
+
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
-use another_jit_vm_ir::{IRVMExitAction};
+use another_jit_vm_ir::IRVMExitAction;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
+
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState};
 use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
+use crate::utils::pushable_frame_todo;
 
 #[inline(never)]
 pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut InterpreterStateGuard<'vm, '_>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
@@ -36,15 +40,15 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
         args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
         i += 1;
     }
-    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+    let res = match run_native_method(jvm, pushable_frame_todo()/*int_state*/, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(NativeMethodWasException{ prev_rip }) => {
+        Err(NativeMethodWasException { prev_rip }) => {
             // let current_pc = jvm.java_vm_state.lookup_ip(prev_rip).unwrap().1;
             // int_state.set_current_pc(Some(current_pc));
             let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
             int_state.set_throw(None);//todo should move this into throw impl
             return throw_impl(jvm, int_state, throw_obj, true);
-        },
+        }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
     diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));
@@ -76,9 +80,9 @@ pub fn run_native_static_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mu
         }
         i += 1;
     }
-    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+    let res = match run_native_method(jvm, pushable_frame_todo()/*int_state*/, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(NativeMethodWasException{ prev_rip }) => {
+        Err(NativeMethodWasException { prev_rip }) => {
             // match jvm.java_vm_state.lookup_ip(prev_rip) {
             //     Some((_method_id, current_pc)) => {
             //         int_state.set_current_pc(Some(current_pc));
@@ -93,7 +97,7 @@ pub fn run_native_static_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mu
             let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             int_state.set_throw(None);
             return throw_impl(jvm, int_state, exception_obj_handle.new_java_handle(), true);
-        },
+        }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
     diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));

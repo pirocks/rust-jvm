@@ -80,7 +80,7 @@ pub mod stack_trace_element {
             let res = AllocatedHandle::NormalObject(new_object(jvm, &mut temp/*int_state*/, &class_));
             let full_args = vec![res.new_java_value(), declaring_class.new_java_value(), method_name.new_java_value(), file_name.new_java_value(), NewJavaValue::Int(line_number)];
             let desc = CMethodDescriptor::void_return(vec![CClassName::string().into(), CClassName::string().into(), CClassName::string().into(), CPDType::IntType]);
-            run_constructor(jvm, /*int_state*/ todo!(), class_, full_args, &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_, full_args, &desc)?;
             Ok(res.cast_stack_trace_element())
         }
     }
@@ -229,7 +229,7 @@ pub mod member_name {
         pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, field: Field<'gc>) -> Result<Self, WasException> {
             /*let member_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), CClassName::member_name().into())?;
             let res = new_object(jvm, /*int_state*/todo!(), &member_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), member_class, todo!()/*vec![res.clone(), field.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, member_class, todo!()/*vec![res.clone(), field.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;
             Ok(res.cast_member_name())*/
             todo!()
         }
@@ -239,7 +239,7 @@ pub mod member_name {
             let member_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::member_name().into())?;
             let res = new_object(jvm, &mut temp/*int_state*/, &member_class);
             let desc = CMethodDescriptor::void_return(vec![CClassName::method().into()]);
-            run_constructor(jvm, /*int_state*/ todo!(), member_class, vec![res.new_java_value(), method.new_java_value()], &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, member_class, vec![res.new_java_value(), method.new_java_value()], &desc)?;
             Ok(res.cast_member_name())
         }
 
@@ -249,7 +249,7 @@ pub mod member_name {
             let res = new_object(jvm, &mut temp/*int_state*/, &member_class);
             let desc = CMethodDescriptor::void_return(vec![CClassName::constructor().into()]);
             let args = vec![res.new_java_value(), constructor.new_java_value()];
-            run_constructor(jvm, /*int_state*/ todo!(), member_class, args, &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, member_class, args, &desc)?;
             Ok(res.cast_member_name())
         }
     }
@@ -275,7 +275,6 @@ pub mod class {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
@@ -345,11 +344,10 @@ pub mod class {
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object().map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))*/
         }
 
-        pub fn new_bootstrap_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>) -> Result<Self, WasException> {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
-            let class_class = check_initing_or_inited_class(jvm, &mut temp/*int_state*/, CClassName::class().into())?;
-            let res = AllocatedHandle::NormalObject(new_object(jvm, &mut temp/*int_state*/, &class_class));
-            run_constructor(jvm, /*int_state*/ todo!(), class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
+        pub fn new_bootstrap_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Self, WasException> {
+            let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
+            let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_class));
+            run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(NewJavaValueHandle::Object(res).cast_class().unwrap())
         }
 
@@ -357,16 +355,16 @@ pub mod class {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             let res = AllocatedHandle::NormalObject(new_object(jvm, &mut temp/*int_state*/, &class_class));
-            run_constructor(jvm, /*int_state*/ todo!(), class_class, vec![res.new_java_value(), loader.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_class, vec![res.new_java_value(), loader.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(res.cast_class())
         }
 
-        pub fn from_name<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, name: CClassName) -> JClass<'gc> {
+        pub fn from_name<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: CClassName) -> JClass<'gc> {
             let type_ = name.into();
             JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().to_gc_managed().into()).to_new().cast_class().unwrap()
         }
 
-        pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType) -> Result<JClass<'gc>, WasException> {
+        pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<JClass<'gc>, WasException> {
             let res = load_class_constant_by_type(jvm, int_state, ptype)?;
             Ok(res.cast_class().unwrap())//todo we should be able to safely turn handles that live for gc life without reentrant register
         }
@@ -564,7 +562,7 @@ pub mod string {
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
-            run_constructor(jvm, /*int_state*/ todo!(), string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }
 
@@ -726,8 +724,6 @@ pub mod thread {
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class_loader::ClassLoader;
@@ -842,11 +838,10 @@ pub mod thread {
         }
 
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException> {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, /*int_state*/&mut temp, &thread_class)));
-            let thread_name = JString::from_rust(jvm, /*int_state*/todo!(), Wtf8Buf::from_string(thread_name))?;
-            run_constructor(jvm, /*int_state*/todo!(), thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
+            let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class)));
+            let thread_name = JString::from_rust(jvm, todo!()/*&mut temp*/, Wtf8Buf::from_string(thread_name))?;
+            run_constructor(jvm, int_state, thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
         }
 
@@ -916,7 +911,6 @@ pub mod thread_group {
 
     use crate::{AllocatedHandle, JavaValueCommon, JVMState};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
     use crate::java::lang::thread::JThread;
@@ -967,7 +961,7 @@ pub mod thread_group {
     impl<'gc> JThreadGroup<'gc> {
         pub fn init<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group_class: Arc<RuntimeClass<'gc>>) -> Result<JThreadGroup<'gc>, WasException> {
             let thread_group_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_group_class)));
-            run_constructor(jvm, todo!()/*int_state*/, thread_group_class, vec![thread_group_object.as_njv()], &CMethodDescriptor::void_return(vec![]))?;
+            run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.as_njv()], &CMethodDescriptor::void_return(vec![]))?;
             Ok(thread_group_object.cast_thread_group())
         }
 
@@ -1051,7 +1045,7 @@ pub mod class_not_found_exception {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::class_not_found_exception().into())?;
             let this = new_object_full(jvm, &mut temp/*int_state*/, &class_not_found_class);
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_class_not_found_exception())
         }
     }
@@ -1100,7 +1094,7 @@ pub mod null_pointer_exception {
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::null_pointer_exception().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
             let message = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), message.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), message.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_null_pointer_exception())
         }
     }
@@ -1134,7 +1128,7 @@ pub mod array_out_of_bounds_exception {
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class);
             let desc = CMethodDescriptor::void_return(vec![CPDType::IntType]);
             let args = vec![this.new_java_value(), NewJavaValue::Int(index)];
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, args, &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, args, &desc)?;
             Ok(this.cast_array_out_of_bounds_exception())
         }
 
@@ -1143,7 +1137,7 @@ pub mod array_out_of_bounds_exception {
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::array_out_of_bounds_exception().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class);
             let desc = CMethodDescriptor::void_return(vec![]);
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, vec![this.new_java_value()], &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, vec![this.new_java_value()], &desc)?;
             Ok(this.cast_array_out_of_bounds_exception())
         }
     }
@@ -1196,7 +1190,7 @@ pub mod illegal_argument_exception {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::illegal_argument_exception().into())?;
             let this = new_object_full(jvm, &mut temp/*int_state*/, &class_not_found_class);
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, vec![this.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, vec![this.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
             Ok(this.cast_illegal_argument_exception())
         }
     }
@@ -1252,7 +1246,7 @@ pub mod long {
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class);
             let args = vec![this.new_java_value(), NewJavaValue::Long(param)];
             let desc = CMethodDescriptor::void_return(vec![CPDType::LongType]);
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, args, &desc)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, args, &desc)?;
             Ok(this.cast_long())
         }
 
@@ -1312,7 +1306,7 @@ pub mod int {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::int().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Int(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Int(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
             /*Ok(this.cast_int())*/
             todo!()
         }
@@ -1372,7 +1366,7 @@ pub mod short {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::short().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Short(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ShortType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Short(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ShortType]))?;
             Ok(this.cast_short())
         }
 
@@ -1431,7 +1425,7 @@ pub mod byte {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::byte().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Byte(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ByteType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Byte(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ByteType]))?;
             Ok(this.cast_byte())
         }
 
@@ -1491,7 +1485,7 @@ pub mod boolean {
 
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::boolean().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Boolean(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::BooleanType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Boolean(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::BooleanType]))?;
             Ok(this.cast_boolean())
         }
 
@@ -1551,7 +1545,7 @@ pub mod char {
 
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::character().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Char(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::CharType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Char(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::CharType]))?;
             Ok(this.cast_char())
         }
 
@@ -1608,7 +1602,7 @@ pub mod float {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::float().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Float(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::FloatType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Float(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::FloatType]))?;
             Ok(this.cast_float())
         }
 
@@ -1665,7 +1659,7 @@ pub mod double {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::double().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            run_constructor(jvm, /*int_state*/ todo!(), class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Double(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::DoubleType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Double(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::DoubleType]))?;
             Ok(this.cast_double())
         }
 

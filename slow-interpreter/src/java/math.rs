@@ -28,7 +28,7 @@ pub mod big_integer {
             let object = new_object_full(jvm, &mut temp/*int_state*/, &big_integer_class);
             let args = vec![object.new_java_value(), jstring.new_java_value(), NewJavaValue::Int(radix)];
             let method_descriptor = CMethodDescriptor::void_return(vec![CClassName::string().into(), CPDType::IntType]);
-            run_constructor(jvm, /*int_state*/ todo!(), big_integer_class, args, &method_descriptor)?;
+            run_constructor(jvm, /*int_state*/ &mut temp, big_integer_class, args, &method_descriptor)?;
             Ok(object.cast_big_integer())
         }
 

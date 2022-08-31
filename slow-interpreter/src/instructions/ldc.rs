@@ -4,6 +4,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
@@ -17,11 +18,11 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
 
-fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
+pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
@@ -45,7 +46,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     args.push(JavaValue::Object(todo!()/*Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)*/))*/));
     let char_array_type = CPDType::array(CPDType::CharType);
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
-    let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
+    let (constructor_i, final_target_class) = find_target_method(jvm, todo!()/*interpreter_state*/, MethodName::constructor_init(), &expected_descriptor, string_class);
     let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
     let mut function_call_frame = interpreter_state.push_frame(StackEntryPush::Java(next_entry));
     match run_function(jvm, todo!()/*interpreter_state*/) {

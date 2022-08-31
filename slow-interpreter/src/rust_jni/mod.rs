@@ -30,6 +30,7 @@ use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
+use crate::utils::pushable_frame_todo;
 
 pub mod mangling;
 pub mod value_conversion;
@@ -89,7 +90,7 @@ pub fn call_impl<'gc, 'l, 'k>(
         vec![Arg::new(&env)]
     } else {
         assert!(int_state.current_frame().is_native_method());
-        let class_popped_jv = load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
+        let class_popped_jv = load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, classfile.view().type_())?;
         assert!(int_state.current_frame().is_native_method());
         unsafe { assert!(get_interpreter_state(env).current_frame().is_native_method()); }
         let class_constant = unsafe { to_native(env, &mut arg_boxes, class_popped_jv.as_njv(), &Into::<CPDType>::into(CClassName::object())) };

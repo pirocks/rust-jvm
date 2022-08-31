@@ -4,7 +4,6 @@ use thread_priority::*;
 use another_jit_vm::stack::CannotAllocateStack;
 
 use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_MIN_PRIORITY, JVMTI_THREAD_NORM_PRIORITY, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiStartFunction};
-use rust_jvm_common::loading::LoaderName;
 
 use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
@@ -12,7 +11,6 @@ use crate::jvm_state::JVMState;
 use crate::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::interface::get_interface;
 use crate::rust_jni::native_util::from_object;
-use crate::stack_entry::{StackEntryPush};
 use crate::threading::JavaThread;
 
 struct ThreadArgWrapper {

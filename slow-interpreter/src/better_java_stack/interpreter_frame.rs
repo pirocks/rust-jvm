@@ -1,19 +1,22 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
+
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
-use jvmti_jni_bindings::JavaPrimitiveType;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{MethodI, MethodId, NativeJavaValue};
+use rust_jvm_common::{MethodI, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::better_java_stack::{FramePointer, JavaStack, JavaStackGuard};
-use crate::better_java_stack::frames::HasFrame;
+
+use crate::better_java_stack::{FramePointer, JavaStackGuard};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
-use crate::JVMState;
+use crate::{JVMState, OpaqueFrame, StackEntryPush};
+use crate::better_java_stack::native_frame::NativeFrame;
+use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaInterpreterFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
@@ -28,14 +31,14 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.frame_ptr.0.into(),
-            _ir_stack: todo!()/*&self.java_stack.owned_ir_stack*/,
+            _ir_stack: self.java_stack.ir_stack_ref(),
         }
     }
 
     fn frame_mut(&mut self) -> IRFrameMut {
         IRFrameMut {
             ptr: self.frame_ptr.0,
-            ir_stack: todo!()/*&mut self.java_stack.owned_ir_stack*/,
+            ir_stack: self.java_stack.ir_stack_mut(),
         }
     }
 
@@ -63,16 +66,32 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
     }
+}
 
+impl <'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k>{
+    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException>) -> Result<T, WasException> {
+        todo!()
+    }
+
+    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        todo!()
+    }
+
+    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        todo!()
+    }
+
+    fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_frame_native(self.frame_ptr, self.next_frame_pointer(), native_frame_push, |native_frame|within_push(native_frame))
+    }
 }
 
 impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 
-    pub fn from_frame_pointer_interpreter<T: JavaPrimitiveType>(jvm: &'gc JVMState<'gc>, java_stack: &'gc Mutex<JavaStack<'gc>>, frame_pointer: FramePointer,
-                                                                within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc,'k2>) -> Result<T, WasException>) -> Result<T, WasException> {
-        let mut java_stack_guard :JavaStackGuard = todo!();
+    pub fn from_frame_pointer_interpreter<T>(jvm: &'gc JVMState<'gc>, java_stack_guard: &mut JavaStackGuard<'gc>, frame_pointer: FramePointer,
+                                                                within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> Result<T, WasException>) -> Result<T, WasException> {
         let mut res = JavaInterpreterFrame {
-            java_stack: &mut java_stack_guard,
+            java_stack: java_stack_guard,
             frame_ptr: frame_pointer,
             num_locals: 0,
             max_stack: 0,
@@ -104,7 +123,7 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.os_get_from_start(current_depth, expected_type).to_interpreter_jv()
     }
 
-    pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>>{
+    pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
         let method_id = self.frame_ref().method_id().unwrap();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         rc
@@ -114,13 +133,13 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.class_pointer(jvm).view()
     }
 
-    pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> MethodI{
+    pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> MethodI {
         let method_id = self.frame_ref().method_id().unwrap();
         let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         method_i
     }
 
-    pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName{
+    pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
 }

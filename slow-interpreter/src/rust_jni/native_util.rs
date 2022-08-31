@@ -1,27 +1,28 @@
 use std::os::raw::c_void;
 use std::ptr::{NonNull, null_mut};
-use gc_memory_layout_common::memory_regions::MemoryRegions;
 
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
 
 use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
-use crate::java_values::{GcManagedObject};
-use crate::new_java_values::{NewJavaValueHandle};
-use crate::new_java_values::allocated_objects::{AllocatedObject};
-use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
+use crate::java_values::GcManagedObject;
+use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::allocated_objects::AllocatedObject;
+use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
+use crate::utils::pushable_frame_todo;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let unwrapped = from_object_new(jvm, obj).unwrap(); //todo handle npe
     let object_region_header = MemoryRegions::find_object_region_header(NonNull::new(obj as *mut c_void).unwrap());
-    if object_region_header.class_pointer_cache != null_mut(){
+    if object_region_header.class_pointer_cache != null_mut() {
         return object_region_header.class_pointer_cache as jclass;
     }
     let rc = unwrapped.runtime_class(jvm);
-    let class_object = get_or_create_class_object(jvm,rc.cpdtype(),int_state);
+    let class_object = get_or_create_class_object(jvm, rc.cpdtype(), pushable_frame_todo()/*int_state*/);
     let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass;
     object_region_header.class_pointer_cache = res_class;
     res_class
@@ -47,7 +48,7 @@ pub unsafe fn to_object<'gc>(obj: Option<GcManagedObject<'gc>>) -> jobject {
     }
 }
 
-pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc,'_>>) -> jobject {
+pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc, '_>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => {

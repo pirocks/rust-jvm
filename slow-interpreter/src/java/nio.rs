@@ -38,7 +38,7 @@ pub mod heap_byte_buffer {
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
-            run_constructor(jvm, /*int_state*/ todo!(), heap_byte_buffer_class, vec![object.new_java_value(), array.as_njv(), NewJavaValue::Int(off), NewJavaValue::Int(len)], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
+            run_constructor(jvm, /*int_state*/ &mut temp, heap_byte_buffer_class, vec![object.new_java_value(), array.as_njv(), NewJavaValue::Int(off), NewJavaValue::Int(len)], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::ByteType), CPDType::IntType, CPDType::IntType]))?;
             Ok(object.cast_heap_byte_buffer())
         }
 

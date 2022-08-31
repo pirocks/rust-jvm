@@ -393,14 +393,14 @@ pub enum StackEntryPush<'gc, 'k> {
 }
 
 impl<'gc, 'k> StackEntryPush<'gc, 'k> {
-    pub fn new_native_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> Self {
+    pub fn new_native_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> NativeFramePush<'gc,'k> {
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-        Self::Native(NativeFramePush{
+        NativeFramePush{
             method_id,
             native_local_refs: vec![HashSet::new()],
             local_vars: args,
             operand_stack: vec![],
-        })
+        }
     }
 
     pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> JavaFramePush<'gc,'k> {

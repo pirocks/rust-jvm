@@ -117,8 +117,7 @@ pub fn idiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     if value2 == 0{
-        current_frame.inner().inner().debug_print_stack_trace(jvm);
-        todo!()
+        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Int(((value1 as i64) / (value2 as i64)) as i32));
     PostInstructionAction::Next {}
@@ -141,8 +140,7 @@ pub fn irem<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     if value2 == 0{
-        current_frame.inner().inner().debug_print_stack_trace(jvm);
-        todo!()
+        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Int(value1 % value2));
     PostInstructionAction::Next {}
@@ -213,7 +211,7 @@ pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     if value2 == 0{
-        current_frame.inner().inner().debug_print_stack_trace(jvm);
+        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
         todo!()
     }
     current_frame.push(InterpreterJavaValue::Long(value1 / value2));
@@ -224,8 +222,7 @@ pub fn lrem<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     if value2 == 0{
-        current_frame.inner().inner().debug_print_stack_trace(jvm);
-        todo!()
+        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Long(value1 % value2));
     PostInstructionAction::Next {}

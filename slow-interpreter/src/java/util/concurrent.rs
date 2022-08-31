@@ -27,7 +27,7 @@ pub mod concurrent_hash_map {
 
             let concurrent_hash_map_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::concurrent_hash_map().into()).unwrap();
             let concurrent_hash_map = new_object_full(jvm, &mut temp/*int_state*/, &concurrent_hash_map_class);
-            run_constructor(jvm, /*int_state*/ todo!(), concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
+            run_constructor(jvm, /*int_state*/ &mut temp, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
 

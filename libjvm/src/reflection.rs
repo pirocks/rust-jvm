@@ -223,6 +223,6 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let obj = new_object(jvm, /*int_state*/&mut temp, &clazz);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
-    run_constructor(jvm, /*int_state*/ todo!(), clazz, full_args, &signature);
+    run_constructor(jvm, /*int_state*/ &mut temp, clazz, full_args, &signature);
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }

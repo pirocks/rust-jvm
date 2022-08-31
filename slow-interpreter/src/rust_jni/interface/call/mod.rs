@@ -20,6 +20,7 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state};
+use crate::utils::pushable_frame_todo;
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
@@ -58,7 +59,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let parsed = method.desc();
     let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
-    let res = invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method, not_handles)?;
+    let res = invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, parsed, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {
         assert!(res.is_none());
         None

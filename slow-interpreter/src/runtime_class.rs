@@ -10,7 +10,6 @@ use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 

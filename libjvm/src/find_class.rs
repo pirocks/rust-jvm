@@ -24,7 +24,7 @@ use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
@@ -90,7 +90,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => null_mut(),
         Some(view) => {
             // todo what if name is long/int etc.
-            let res = get_or_create_class_object(jvm, class_name.into(), int_state).unwrap(); //todo handle exception
+            let res = get_or_create_class_object(jvm, class_name.into(), pushable_frame_todo()/*int_state*/).unwrap(); //todo handle exception
             new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
         }
     }
@@ -142,6 +142,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let res = get_or_create_class_object(jvm, ptype, int_state).unwrap(); //todo what if not using bootstap loader, todo handle exception
+    let res = get_or_create_class_object(jvm, ptype, pushable_frame_todo()).unwrap(); //todo what if not using bootstap loader, todo handle exception
     new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
 }

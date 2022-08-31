@@ -178,7 +178,7 @@ impl JavaVMStateWrapperInner {
                 let int_state = int_state.unwrap();
                 let expected_method_id = int_state.current_frame().frame_view.ir_ref.method_id();
                 assert_eq!(expected_method_id, Some(*method_id));
-                match run_function_interpreted(jvm, int_state) {
+                match run_function_interpreted(jvm, todo!()/*int_state*/) {
                     Ok(res) => {
                         let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
                         saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
