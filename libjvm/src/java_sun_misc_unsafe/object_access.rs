@@ -16,7 +16,8 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object_new};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(env: *mut JNIEnv, cb: jclass) {

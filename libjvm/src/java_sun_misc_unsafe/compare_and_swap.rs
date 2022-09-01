@@ -17,7 +17,8 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::utils::{throw_npe, throw_npe_res};
 use verification::verifier::codecorrectness::operand_stack_has_legal_length;
 
@@ -87,7 +88,7 @@ pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<Allocate
         Some(cur) => match expected {
             None => false,
             Some(expected) => {
-                dbg!(cur.unwrap_alloc().raw_ptr_usize()) == dbg!(expected.as_allocated_obj().raw_ptr_usize())
+                cur.unwrap_alloc().raw_ptr_usize() == expected.as_allocated_obj().raw_ptr_usize()
             }
         },
     };
@@ -113,7 +114,7 @@ pub unsafe fn get_obj_and_name<'gc>(
     let field_name = field.field_name();
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
-            throw_npe_res(jvm, int_state)?;
+            throw_npe_res(jvm, todo!()/*int_state*/)?;
             unreachable!()
         }
         Some(notnull) => notnull,

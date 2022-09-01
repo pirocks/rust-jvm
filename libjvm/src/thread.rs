@@ -28,11 +28,13 @@ use slow_interpreter::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref, new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::{JavaThread, SuspendError};
 use slow_interpreter::threading::safepoints::Monitor2;
+use slow_interpreter::utils::pushable_frame_todo;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -40,7 +42,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let thread_object = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread();
-    jvm.thread_state.start_thread_from_obj(jvm, int_state, thread_object, false);
+    jvm.thread_state.start_thread_from_obj(jvm, todo!()/*int_state*/, thread_object, false);
 }
 
 #[no_mangle]
@@ -49,7 +51,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let target_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    if let Err(_err) = target_thread.suspend_thread(jvm, int_state, false) {
+    if let Err(_err) = target_thread.suspend_thread(jvm, todo!()/*int_state*/, false) {
         // it appears we should ignore any errors here.
         //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
     }
@@ -76,7 +78,7 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    let _ = java_thread.suspend_thread(jvm, int_state, false);
+    let _ = java_thread.suspend_thread(jvm, todo!()/*int_state*/, false);
     //javadoc doesn't say anything about error handling so we just don't anything
 }
 
@@ -115,7 +117,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
     let current_thread_allocated_object_handle = current_thread.thread_object().object();
-    let res = new_local_ref_public_new(current_thread_allocated_object_handle.as_allocated_obj().into(), int_state);
+    let res = new_local_ref_public_new(current_thread_allocated_object_handle.as_allocated_obj().into(), todo!()/*int_state*/);
     assert_ne!(res, null_mut());
     res
 }
@@ -164,7 +166,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
         })
         .collect::<Vec<_>>();
     let object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
-    new_local_ref_public(todo!()/*object_array*/, int_state)
+    new_local_ref_public(todo!()/*object_array*/, todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -221,22 +223,22 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
     let int_state = get_interpreter_state(env);
     let names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("NEW"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("NEW"))?]
         }
         JAVA_THREAD_STATE_RUNNABLE => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("RUNNABLE"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("RUNNABLE"))?]
         }
         JAVA_THREAD_STATE_BLOCKED => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("BLOCKED"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("BLOCKED"))?]
         }
         JAVA_THREAD_STATE_WAITING => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("WAITING.PARKED"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("WAITING.PARKED"))?]
         }
         JAVA_THREAD_STATE_TIMED_WAITING => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.SLEEPING"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.PARKED"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.SLEEPING"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.PARKED"))?]
         }
         JAVA_THREAD_STATE_TERMINATED => {
-            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TERMINATED"))?]
+            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TERMINATED"))?]
         }
         _ => return Ok(null_mut()),
     }
@@ -244,7 +246,7 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
     let res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
-    Ok(new_local_ref_public(todo!()/*res*/, int_state))
+    Ok(new_local_ref_public(todo!()/*res*/, todo!()/*int_state*/))
 }
 
 #[no_mangle]

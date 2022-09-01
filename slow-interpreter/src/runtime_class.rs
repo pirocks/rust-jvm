@@ -27,7 +27,7 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
                     None => continue,
                     Some(i) => i,
                 };
-                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, todo!()/*int_state*/);
+                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
                 let name = field.field_name();
                 static_vars(runtime_class.deref(), jvm).set(name, constant_value);
             }

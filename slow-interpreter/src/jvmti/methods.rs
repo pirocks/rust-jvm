@@ -76,7 +76,7 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
     let method_id = from_jmethod_id(method);
     let runtime_class = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0; //todo handle error
     let class_object = get_or_create_class_object(jvm, runtime_class.cpdtype(), pushable_frame_todo()/*int_state*/); //todo fix this type verbosity thing
-    declaring_class_ptr.write(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), int_state));
+    declaring_class_ptr.write(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), todo!()/*int_state*/));
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

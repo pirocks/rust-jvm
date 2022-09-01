@@ -44,6 +44,7 @@ use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 use crate::threading::safepoints::{Monitor2, SafePoint};
+use crate::utils::pushable_frame_todo;
 
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
@@ -113,7 +114,7 @@ impl<'gc> ThreadState<'gc> {
                 assert!(!jvm.live.load(Ordering::SeqCst));
                 jvm.live.store(true, Ordering::SeqCst);
                 if let Some(jvmti) = jvm.jvmti_state() {
-                    jvmti.built_in_jdwp.vm_inited(jvm, &mut int_state, main_thread.clone())
+                    jvmti.built_in_jdwp.vm_inited(jvm, todo!()/*&mut int_state*/, main_thread.clone())
                 }
                 let MainThreadStartInfo { args } = main_recv.recv().unwrap();
                 //from the jvmti spec:
@@ -165,7 +166,7 @@ impl<'gc> ThreadState<'gc> {
         // assert_eq!(res.unwrap_array().array_iterator().map(|njv|njv.unwrap_int()).collect_vec(),vec![0, 2328, 1316134912]);
         // panic!();
         // for i in [0,10,10000,10000000,1000000000000u128,10000000000000000000000u128]{
-        //     let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(format!("{}", i))).unwrap();
+        //     let jstring = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(format!("{}", i))).unwrap();
         //     let biginteger = BigInteger::new(jvm, int_state, jstring,10).unwrap();
         //     dbg!(biginteger.mag(jvm).unwrap_object_nonnull().unwrap_array().array_iterator().collect_vec());
         //     dbg!("start");
@@ -173,7 +174,7 @@ impl<'gc> ThreadState<'gc> {
         //     assert_eq!(res, format!("{}", i));
         // }
         //
-        // let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("+3660456486484698469816897408490640604354".to_string())).unwrap();
+        // let jstring = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("+3660456486484698469816897408490640604354".to_string())).unwrap();
         // let biginteger = BigInteger::new(jvm, int_state, jstring,10).unwrap();
         // let res = biginteger.to_string(jvm,int_state).unwrap().unwrap().to_rust_string(jvm);
         // dbg!(res);
@@ -182,11 +183,11 @@ impl<'gc> ThreadState<'gc> {
         // dbg!(loader_obj.hash_code(jvm, int_state).unwrap());
         // dbg!(loader_obj.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
         // dbg!(loader_obj.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
-        // let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("utf-8".to_string())).unwrap();
+        // let jstring = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("utf-8".to_string())).unwrap();
         // let res = jstring.hash_code(jvm, int_state).unwrap();
         // let mut hash_map = ConcurrentHashMap::new(jvm, int_state);
-        // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
-        // let first_value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
+        // let first_key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("test".to_string())).unwrap();
+        // let first_value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("test".to_string())).unwrap();
         // hash_map.put_if_absent(jvm, int_state, first_key.new_java_value(),first_value.new_java_value());
         //
         // let keys = ["test1",
@@ -202,14 +203,14 @@ impl<'gc> ThreadState<'gc> {
         //     "test11",
         // ];
         // for key in keys{
-        //     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(key.to_string())).unwrap();
+        //     let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(key.to_string())).unwrap();
         //     eprintln!("PUT START");
         //     hash_map.put_if_absent(jvm, int_state, key.new_java_value(),first_value.new_java_value());
         // }
         // dbg!(hash_map.size_ctl(jvm));
         // hash_map.debug_print_table(jvm);
-        // let first_key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("sun.misc.Launcher$AppClassLoader@18b4aac2".to_string())).unwrap();
-        // let first_value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("test".to_string())).unwrap();
+        // let first_key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("sun.misc.Launcher$AppClassLoader@18b4aac2".to_string())).unwrap();
+        // let first_value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("test".to_string())).unwrap();
         // hash_map.put_if_absent(jvm, int_state, first_key.new_java_value(), first_value.new_java_value());
         // let res = hash_map.get(jvm, int_state, first_key.new_java_value());
         // dbg!(res.unwrap_object().is_some());
@@ -247,12 +248,12 @@ impl<'gc> ThreadState<'gc> {
         }
         set_properties(jvm, int_state).expect("todo");
         //todo read and copy props here
-        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("java.home".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
+        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
-        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
+        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
         System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
         //todo should handle exceptions here

@@ -67,7 +67,7 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
     info_pointer_writer.name = name;
     info_pointer_writer.is_daemon = thread_group.daemon(jvm);
     info_pointer_writer.max_priority = thread_group.max_priority(jvm);
-    info_pointer_writer.parent = new_local_ref_public(thread_group.parent(jvm).map(|x| x.object().to_gc_managed()), int_state);
+    info_pointer_writer.parent = new_local_ref_public(thread_group.parent(jvm).map(|x| x.object().to_gc_managed()), todo!()/*int_state*/);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
@@ -111,7 +111,7 @@ pub unsafe extern "C" fn get_top_thread_groups(env: *mut jvmtiEnv, group_count_p
     group_count_ptr.write(1);
     let system_j_thread_group = jvm.thread_state.get_system_thread_group();
     let thread_group_object = system_j_thread_group.object().to_gc_managed();
-    let res = new_local_ref_public(thread_group_object.into(), int_state);
+    let res = new_local_ref_public(thread_group_object.into(), todo!()/*int_state*/);
 
     jvm.native.native_interface_allocations.allocate_and_write_vec(vec![res], group_count_ptr, groups_ptr);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

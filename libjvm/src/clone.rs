@@ -17,8 +17,9 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::sun::misc::unsafe_::Unsafe;
 
 #[no_mangle]
@@ -38,7 +39,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 return new_local_ref_public_new(Some(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
                     whole_array_runtime_class: o.runtime_class(jvm),
                     elems: new_array.iter().map(|handle| handle.as_njv()).collect(),
-                })).as_allocated_obj()), int_state);
+                })).as_allocated_obj()), todo!()/*int_state*/);
             } else {
                 let rc = o.unwrap_normal_object_ref().runtime_class(jvm);
                 let owned_copied_fields = copy_fields(jvm, o.unwrap_normal_object_ref(), rc.unwrap_class_class());
@@ -46,7 +47,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                     object_rc: rc,
                     fields: owned_copied_fields.iter().map(|(number, handle)| (*number, handle.as_njv())).collect(),
                 }));
-                return new_local_ref_public_new(Some(cloned.as_allocated_obj()), int_state);
+                return new_local_ref_public_new(Some(cloned.as_allocated_obj()), todo!()/*int_state*/);
             }
         }
     }

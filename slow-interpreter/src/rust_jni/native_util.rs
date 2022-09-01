@@ -24,7 +24,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     }
     let rc = unwrapped.runtime_class(jvm);
     let class_object = get_or_create_class_object(jvm, rc.cpdtype(), pushable_frame_todo()/*int_state*/);
-    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass;
+    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), todo!()/*int_state*/) as jclass;
     object_region_header.class_pointer_cache = res_class;
     res_class
 }

@@ -17,6 +17,7 @@ use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
+use crate::utils::pushable_frame_todo;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     load_class_constant_by_type(jvm, int_state, type_)
@@ -27,10 +28,9 @@ pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: 
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
 
-fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, s: &StringView) -> NewJavaValueHandle<'gc> {
+fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, s: &StringView) -> NewJavaValueHandle<'gc> {
     let res_string = s.string();
-    assert!(int_state.throw().is_none());
-    let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
+    let before_intern = JString::from_rust(jvm, pushable_frame_todo(), res_string).expect("todo");
     let string = intern_safe(jvm, before_intern.full_object().into());
     string.new_java_value_handle()
 }
@@ -64,7 +64,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
 }
 
 
-pub fn from_constant_pool_entry<'gc, 'l>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> NewJavaValueHandle<'gc> {
+pub fn from_constant_pool_entry<'gc, 'l>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> NewJavaValueHandle<'gc> {
     match &c {
         ConstantInfoView::Integer(i) => NewJavaValueHandle::Int(i.int),
         ConstantInfoView::Float(f) => NewJavaValueHandle::Float(f.float),

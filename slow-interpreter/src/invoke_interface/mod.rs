@@ -6,7 +6,6 @@ use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 use crate::{InterpreterStateGuard, JVMState};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::jvmti::get_jvmti_interface;
-use crate::rust_jni::interface::get_interface;
 
 pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();
@@ -71,7 +70,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
         //todo do a proper jvmti check
         (penv as *mut *mut jvmtiEnv).write(get_jvmti_interface(state, int_state));
     } else {
-        let res_ptr = get_interface(state, /*int_state*/todo!());
+        let res_ptr = todo!()/*get_interface(state, /*int_state*/todo!(), )*/;
         (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);
     }
 

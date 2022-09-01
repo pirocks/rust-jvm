@@ -159,7 +159,6 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
-                todo!();/*assert!(real_interpreter_state.inner().throw().is_none());*/
                 if let Some(monitor) = should_sync{
                     monitor.unlock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
                 }

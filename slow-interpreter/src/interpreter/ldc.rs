@@ -24,7 +24,7 @@ fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
 // fn load_string_constant(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, s: &StringView) {
 //     let res_string = s.string();
 //     assert!(int_state.throw().is_none());
-//     let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
+//     let before_intern = JString::from_rust(jvm, pushable_frame_todo(), res_string).expect("todo");
 //     let string = intern_safe(jvm, before_intern.object().into());
 //     int_state.push_current_operand_stack(string.java_value());
 // }
@@ -78,7 +78,7 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
         Either::Left(ldcw) => {
             match &ldcw {
                 CompressedLdcW::String { str } => {
-                    let jstring = JString::from_rust(jvm, todo!()/*int_state.inner()*/, str.clone()).expect("todo");
+                    let jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, str.clone()).expect("todo");
                     let string_value = intern_safe(jvm, AllocatedHandle::NormalObject(jstring.object()));
                     int_state.current_frame_mut().push(string_value.new_java_value_handle().to_interpreter_jv())
                 }

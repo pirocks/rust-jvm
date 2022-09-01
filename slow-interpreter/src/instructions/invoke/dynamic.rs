@@ -61,7 +61,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
 
     for x in arg_iterator {
         args.push(match x {
-            BootstrapArgView::String(s) => JString::from_rust(jvm, todo!()/*int_state.inner()*/, s.string())?.new_java_value_handle(),
+            BootstrapArgView::String(s) => JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, s.string())?.new_java_value_handle(),
             BootstrapArgView::Class(c) => JClass::from_type(jvm, pushable_frame_todo()/*int_state.inner()*/, c.type_())?.new_java_value_handle(),
             BootstrapArgView::Integer(i) => NewJavaValueHandle::Int(i.int),
             BootstrapArgView::Long(_) => unimplemented!(),
@@ -90,7 +90,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
     let lookup_for_this = Lookup::trusted_lookup(jvm, todo!()/*int_state.inner()*/);
     let method_type = desc_from_rust_str(jvm, todo!()/*int_state.inner()*/, other_desc_str.to_str(&jvm.string_pool).clone())?;
-    let name_jstring = JString::from_rust(jvm, todo!()/*int_state.inner()*/, Wtf8Buf::from_string(other_name.to_str(&jvm.string_pool)))?.new_java_value_handle();
+    let name_jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, Wtf8Buf::from_string(other_name.to_str(&jvm.string_pool)))?.new_java_value_handle();
 
     let mut next_invoke_virtual_args = vec![];
 
@@ -156,7 +156,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
 
 //todo this should go in MethodType or something.
 fn desc_from_rust_str<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, desc_str: String) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    let desc_str = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str))?;
+    let desc_str = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(desc_str))?;
     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
     Ok(method_type.new_java_value_handle())
 }
@@ -170,8 +170,8 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                 InvokeStatic::Method(mr) => {
                     // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                     let lookup = Lookup::trusted_lookup(jvm, int_state);
-                    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                    let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let desc = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                     let target_class = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, mr.class(&jvm.string_pool).to_cpdtype())?;
                     lookup.find_static(jvm, int_state, target_class, name, method_type)?
@@ -184,8 +184,8 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                 InvokeSpecial::Method(mr) => {
                     //todo dupe
                     let lookup = Lookup::trusted_lookup(jvm, int_state);
-                    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                    let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let desc = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
                     let target_class = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, mr.class(&jvm.string_pool).to_cpdtype())?;
                     let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();

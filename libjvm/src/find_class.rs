@@ -22,8 +22,9 @@ use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 
 #[no_mangle]
@@ -34,8 +35,8 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    let loader_obj = int_state.previous_frame().unwrap().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader();
-    let current_loader = loader_obj.to_jvm_loader(jvm);
+    let loader_obj = todo!()/*int_state.previous_frame().unwrap().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader()*/;
+    todo!();/*let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
@@ -57,7 +58,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
         Some(runtime_class) => runtime_class.clone(),
     };
     let mut guard = jvm.classes.write().unwrap();
-    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())
+    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())*/
 }
 
 #[no_mangle]
@@ -91,7 +92,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         Some(view) => {
             // todo what if name is long/int etc.
             let res = get_or_create_class_object(jvm, class_name.into(), pushable_frame_todo()/*int_state*/).unwrap(); //todo handle exception
-            new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
+            new_local_ref_public_new(res.as_allocated_obj().into(), todo!()/*int_state*/)
         }
     }
 }
@@ -143,5 +144,5 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
     };
 
     let res = get_or_create_class_object(jvm, ptype, pushable_frame_todo()).unwrap(); //todo what if not using bootstap loader, todo handle exception
-    new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
+    new_local_ref_public_new(res.as_allocated_obj().into(), todo!()/*int_state*/)
 }

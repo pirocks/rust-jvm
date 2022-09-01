@@ -76,7 +76,7 @@ fn get_signature<'gc, 'l>(
 ) -> Result<Option<JString<'gc>>, WasException> {
     match method_view.generic_signature() {
         None => Ok(None),
-        Some(sig) => Ok(Some(JString::from_rust(jvm, int_state, sig)?.intern(jvm, int_state)?))
+        Some(sig) => Ok(Some(JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, sig)?.intern(jvm, int_state)?))
     }
 }
 
@@ -174,7 +174,7 @@ pub mod method {
                     todo!()
                     // return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
+                JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {

@@ -16,7 +16,8 @@ use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 
 struct OwnedStackEntry<'gc> {
@@ -32,7 +33,8 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
     //todo handle opaque frames properly
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let stacktrace = int_state.frame_iter().collect_vec();
+    todo!()
+    /*let stacktrace = int_state.frame_iter().collect_vec();
     let stack_entry_objs = stacktrace
         .iter()
         .map(|stack_entry| {
@@ -72,11 +74,11 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         .into_iter()
         .flatten()
         .map(|OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }| {
-            let declaring_class_name = JString::from_rust(jvm, int_state, class_name_wtf8)?;
-            let method_name = JString::from_rust(jvm, int_state, method_name_wtf8)?;
-            let source_file_name = JString::from_rust(jvm, int_state, source_file_name_wtf8)?;
+            let declaring_class_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, class_name_wtf8)?;
+            let method_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, method_name_wtf8)?;
+            let source_file_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, source_file_name_wtf8)?;
 
-            Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
+            Ok(StackTraceElement::new(jvm, todo!()/*int_state*/, declaring_class_name, method_name, source_file_name, line_number)?)
         })
         .collect::<Result<Vec<_>, WasException>>().expect("todo");
 
@@ -89,7 +91,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             }
         }),
         stack_entry_objs,
-    );
+    );*/
 }
 
 #[no_mangle]
@@ -122,13 +124,13 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     let stack_traces: &Vec<StackTraceElement> = match guard.get(&AllocatedObjectHandleByAddress(throwable_not_null)) {
         Some(x) => x,
         None => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, todo!()/*int_state*/);
         }
     };
     match stack_traces.get(index as usize)
     {
         None => {
-            return throw_array_out_of_bounds(jvm, int_state, index);
+            return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
         }
         Some(element) => { to_object_new(Some(element.full_object_ref())) }
     }

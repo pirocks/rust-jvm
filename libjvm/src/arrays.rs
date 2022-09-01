@@ -21,8 +21,9 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]
@@ -44,14 +45,14 @@ unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueH
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {
         None => {
-            throw_npe_res(jvm, int_state)?;
+            throw_npe_res(jvm, todo!()/*int_state*/)?;
             unreachable!()
         }
         Some(possibly_arr) => {
             if possibly_arr.is_array(jvm) {
                 Ok(NewJavaValueHandle::Object(possibly_arr))
             } else {
-                return throw_illegal_arg_res(jvm, int_state);
+                return throw_illegal_arg_res(jvm, todo!()/*int_state*/);
             }
         }
     }
@@ -66,15 +67,15 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             let nonnull = jv.unwrap_object_nonnull();
             let len = nonnull.unwrap_array().len() as i32;
             if index < 0 || index >= len {
-                return throw_array_out_of_bounds(jvm, int_state, index);
+                return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
             }
             let java_value = nonnull.unwrap_array().get_i(index as usize);
             new_local_ref_public(
-                match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
+                match java_value_to_boxed_object(jvm, todo!()/*int_state*/, todo!()/*java_value*/) {
                     Ok(boxed) => todo!()/*boxed*/,
                     Err(WasException {}) => None,
                 },
-                int_state,
+                todo!()/*int_state*/,
             )
         }
         Err(WasException {}) => null_mut(),
@@ -101,8 +102,8 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).cpdtype();
-    let res = a_new_array_from_name(jvm, int_state, length, array_type_name).unwrap();
-    new_local_ref_public_new(res.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
+    let res = a_new_array_from_name(jvm, todo!()/*int_state*/, length, array_type_name).unwrap();
+    new_local_ref_public_new(res.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]

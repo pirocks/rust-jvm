@@ -10,6 +10,7 @@ use runtime_class_stuff::RuntimeClass;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::instructions::invoke::native::mhn_temp::{Java_java_lang_invoke_MethodHandleNatives_getMembers, Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset, MHN_getConstant};
@@ -67,13 +68,12 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());
     let owned_args_clone = args.clone();
     let corrected_args = correct_args(owned_args_clone.as_slice());
-    match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
-                                      |native_frame|{
+    let within_frame = |native_frame: &mut NativeFrame<'gc, '_>| {
         if let Some(m) = monitor.as_ref() {
             m.lock(jvm, todo!()/*int_state*/).unwrap();
         }
         let prev_rip = native_frame.frame_ref().prev_rip();
-        let result = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
+        let result: Option<NewJavaValueHandle<'gc>> = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
             //todo dup
             let res_fn = {
                 let reg_natives = jvm.native_libaries.registered_natives.read().unwrap();
@@ -83,7 +83,6 @@ pub fn run_native_method<'gc, 'l, 'k>(
             match call_impl(jvm, todo!()/*native_frame*/, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
                 Ok(call_res) => call_res,
                 Err(WasException {}) => {
-                    dbg!(mangling::mangle(&jvm.string_pool, &method));
                     return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
                 }
             }
@@ -99,27 +98,19 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 Some(r) => r,
                 None => match special_call_overrides(jvm, todo!()/*int_state*/, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
-                    Err(WasException {}) => None,
+                    Err(WasException {}) => todo!(),
                 },
             }
         };
-        if let Some(m) = monitor.as_ref() {
-            m.unlock(jvm, todo!()/*int_state*/).unwrap();
-        }
-        let was_exception = todo!()/*int_state.throw().is_some()*/;
-        let res: Result<_,WasException> = if was_exception {
-            dbg!(mangling::mangle(&jvm.string_pool, &method));
-            Err(todo!()/*NativeMethodWasException { prev_rip }*/)
-        } else {
-            Ok(result)
-        };
-        res
-    }){
+        Ok(result)
+    };
+    match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
+                                      within_frame) {
         Ok(res) => {
             Ok(res)
         }
         Err(_) => {
-            Err(NativeMethodWasException{ prev_rip: todo!() })
+            Err(NativeMethodWasException { prev_rip: todo!() })
         }
     }
 }

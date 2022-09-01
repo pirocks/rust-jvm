@@ -1,17 +1,18 @@
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jshort};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::{JavaValueCommon, NewJavaValue};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
-use crate::rust_jni::interface::local_frame::new_local_ref;
-use crate::rust_jni::native_util::to_object_new;
+use crate::rust_jni::interface::local_frame::{new_local_ref_internal_new};
 
 pub fn runtime_class_to_native<'gc>(runtime_class: Arc<RuntimeClass<'gc>>) -> Arg {
     let boxed_arc = Box::new(runtime_class);
@@ -41,7 +42,7 @@ pub fn to_native_type(t: &CPDType) -> Type {
     }
 }
 
-pub unsafe fn to_native<'gc>(env: *mut JNIEnv, arg_boxes: &mut ArgBoxesToFree, j: NewJavaValue<'gc, '_>, t: &CPDType) -> Arg {
+pub fn to_native<'gc, 'l>(int_state: &mut NativeFrame<'gc, 'l>, arg_boxes: &mut ArgBoxesToFree, j: NewJavaValue<'gc, '_>, t: &CPDType) -> Arg {
     match t {
         CPDType::ByteType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jbyte).as_ref()),
         CPDType::CharType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jchar).as_ref()),
@@ -52,7 +53,11 @@ pub unsafe fn to_native<'gc>(env: *mut JNIEnv, arg_boxes: &mut ArgBoxesToFree, j
         CPDType::ShortType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jshort).as_ref()),
         CPDType::BooleanType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jboolean).as_ref()),
         CPDType::Array { .. } | CPDType::Class(_) => {
-            let object_ptr = new_local_ref(env, to_object_new(j.unwrap_object_alloc()));
+            let object_ptr = if let Some(object) = j.unwrap_object_alloc() {
+                unsafe { new_local_ref_internal_new(object, int_state) }
+            } else {
+                null_mut()
+            };
             Arg::new(arg_boxes.new_generic(object_ptr).as_ref())
         }
         _ => panic!(),

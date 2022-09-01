@@ -413,7 +413,7 @@ pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         None => {
             drop(read_guard);
             let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-            let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
+            let jstring = JString::from_rust(jvm, pushable_frame_todo(), wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
             jvm.string_exit_cache.write().unwrap().register_entry(compressed_wtf8, jstring.clone());
             let jv = jstring.new_java_value();
             jv.to_native()

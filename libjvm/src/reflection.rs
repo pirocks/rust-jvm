@@ -33,9 +33,10 @@ use slow_interpreter::jvmti::event_callbacks::JVMTIEvent::ClassPrepare;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::utils::{run_static_or_virtual, string_obj_to_string, throw_npe};
 
 #[no_mangle]
@@ -50,8 +51,8 @@ unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, sig
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobject, obj: jobject, args0: jobjectArray) -> jobject {
-    let int_state = get_interpreter_state(env);
     let jvm: &'gc JVMState<'gc> = get_state(env);
+    let int_state = get_interpreter_state(env);
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
@@ -121,14 +122,14 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let res = if is_virtual {
-        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args).unwrap().unwrap()
+        invoke_virtual(jvm, todo!()/*int_state*/, method_name, &parsed_md, res_args).unwrap().unwrap()
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
+        run_static_or_virtual(jvm, todo!()/*int_state*/, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
     };
 
     let res = match res {
         NewJavaValueHandle::Long(long) => {
-            Some(Long::new(jvm,int_state, long).unwrap().full_object())
+            Some(Long::new(jvm,todo!()/*int_state*/, long).unwrap().full_object())
         }
         NewJavaValueHandle::Int(_) => {
             todo!()
@@ -162,7 +163,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         }
     };
 
-    new_local_ref_public_new(res.as_ref().map(|obj|obj.as_allocated_obj()), int_state)
+    new_local_ref_public_new(res.as_ref().map(|obj|obj.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -176,7 +177,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         }
     };
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
-    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, int_state) {
+    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, todo!()/*int_state*/) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, /*int_state*/todo!());
@@ -224,5 +225,5 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
     run_constructor(jvm, /*int_state*/ &mut temp, clazz, full_args, &signature);
-    new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
+    new_local_ref_public_new(Some(obj.as_allocated_obj()), todo!()/*int_state*/)
 }

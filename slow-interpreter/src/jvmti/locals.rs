@@ -70,7 +70,7 @@ pub unsafe extern "C" fn get_local_object(env: *mut jvmtiEnv, thread: jthread, d
                 None => {
                     return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH);
                 }
-                Some(obj) => value_ptr.write(new_local_ref_public(obj, int_state)),
+                Some(obj) => value_ptr.write(new_local_ref_public(obj, todo!()/*int_state*/)),
             }
         }
     }

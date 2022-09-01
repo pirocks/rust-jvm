@@ -5,6 +5,7 @@ use libc::c_void;
 
 use jvmti_jni_bindings::{jlong, JNIEnv, jobject};
 use slow_interpreter::jvmti::get_jvmti_interface;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 
 #[no_mangle]
@@ -14,7 +15,7 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
     let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
-    monitor.wait(jvm, int_state, duration);
+    monitor.wait(jvm, todo!()/*int_state*/, duration);
 }
 
 #[no_mangle]

@@ -311,7 +311,7 @@ unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: jclas
             Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL,
         }
             .into(),
-        int_state,
+        todo!()/*int_state*/
     );
     declaring_class_ptr.write(res_object);
     return jvmtiError_JVMTI_ERROR_NONE;
@@ -478,7 +478,7 @@ unsafe extern "C" fn get_current_thread(env: *mut jvmtiEnv, thread_ptr: *mut jth
     let int_state = get_interpreter_state(env);
     null_check!(thread_ptr);
     let current_thread = jvm.thread_state.get_current_thread();
-    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().to_gc_managed().into(), int_state));
+    thread_ptr.write(new_local_ref_public(current_thread.thread_object().object().to_gc_managed().into(), todo!()/*int_state*/));
     jvmtiError_JVMTI_ERROR_NONE
 }
 

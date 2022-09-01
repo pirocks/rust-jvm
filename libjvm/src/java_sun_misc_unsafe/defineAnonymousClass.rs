@@ -32,8 +32,8 @@ use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
-use slow_interpreter::rust_jni::interface::define_class_safe;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use slow_interpreter::rust_jni::interface::{define_class_safe, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
 use verification::{VerifierContext, verify};
 
@@ -53,7 +53,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     });
 
 
-    to_object_new(Some(defineAnonymousClass(jvm, int_state, &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
+    to_object_new(Some(defineAnonymousClass(jvm, /*int_state*/todo!(), &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
     //todo local ref
 }
 

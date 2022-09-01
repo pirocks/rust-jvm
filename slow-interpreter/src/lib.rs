@@ -19,6 +19,7 @@
 
 
 extern crate core;
+extern crate alloc;
 
 use std::error::Error;
 use std::sync::Arc;
@@ -52,6 +53,7 @@ use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocated
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
 use crate::threading::{JavaThread, ThreadState};
+use crate::utils::pushable_frame_todo;
 
 pub mod function_call_targets_updating;
 pub mod java_values;
@@ -138,7 +140,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
 fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {
     let mut arg_strings: Vec<NewJavaValueHandle<'gc>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
+        arg_strings.push(JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
     }
     let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
@@ -156,8 +158,8 @@ fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterSt
     for i in 0..properties.len() / 2 {
         let key_i = 2 * i;
         let value_i = 2 * i + 1;
-        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
-        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
+        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
+        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
         prop_obj.set_property(jvm, int_state, key, value)?;
     }
     int_state.pop_frame(jvm, frame_for_properties, false);

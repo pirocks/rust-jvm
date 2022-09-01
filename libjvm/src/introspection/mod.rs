@@ -37,10 +37,11 @@ use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::sun::reflect::reflection::Reflection;
 use slow_interpreter::threading::JavaThread;
@@ -74,7 +75,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
     let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CClassName::class().into()));
     let elems = interface_vec.iter().map(|handle| NewJavaValue::AllocObject(handle.as_allocated_obj())).collect_vec();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }));
-    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
+    new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -90,7 +91,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
     let class = from_jclass(jvm, cls).as_runtime_class(jvm);
     match jvm.classes.read().unwrap().protection_domains.get_by_left(&ByAddress(class)) {
         None => null_mut(),
-        Some(pd_obj) => new_local_ref_public(pd_obj.clone().owned_inner().to_gc_managed().into(), int_state),
+        Some(pd_obj) => new_local_ref_public(pd_obj.clone().owned_inner().to_gc_managed().into(), todo!()/*int_state*/),
     }
 }
 
@@ -106,7 +107,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
             Ok(jclass) => jclass,
             Err(WasException {}) => return null_mut(),
         }.full_object_ref().into(),
-        int_state,
+        todo!()/*int_state*/
     )
 }
 
@@ -145,7 +146,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         obj_array.iter().map(|njvh| njvh.as_njv()).collect_vec(),
         CClassName::class().into(),
     );
-    new_local_ref_public_new(Some(res_jv.as_allocated_obj()), int_state)
+    new_local_ref_public_new(Some(res_jv.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -188,7 +189,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     };
 
     match JString::from_rust(jvm, int_state, signature) {
-        Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
+        Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), todo!()/*int_state*/),
         Err(WasException) => null_mut(),
     }
 }
@@ -219,7 +220,8 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
+    todo!()
+    /*let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
         .map(|ptype| get_or_create_class_object(jvm, ptype, pushable_frame_todo())
             .map(|elem| elem.new_java_handle())
         )
@@ -227,7 +229,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), todo!()/*int_state*/)*/
 }
 
 #[no_mangle]
@@ -253,7 +255,8 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
+    todo!();
+    /*let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
     let this_native_fn_frame = stack.next().unwrap();
     assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque());
     let mut parent_frame = stack.next().unwrap();
@@ -284,14 +287,14 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     let jclass = load_class_constant_by_type(jvm, pushable_frame_todo(), type_).unwrap();
-    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)*/
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match Reflection::is_same_class_package(jvm, int_state, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
+    match Reflection::is_same_class_package(jvm, todo!()/*int_state*/, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
         Ok(res) => res,
         Err(WasException {}) => return jboolean::MAX,
     }
@@ -317,7 +320,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
                     return null_mut();
                 };
             }
-            new_local_ref_public_new(Some(class_object.as_allocated_obj()), int_state)
+            new_local_ref_public_new(Some(class_object.as_allocated_obj()), todo!()/*int_state*/)
         }
         Err(WasException {}) => null_mut(),
     }

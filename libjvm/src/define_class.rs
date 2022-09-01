@@ -11,8 +11,8 @@ use jvmti_jni_bindings::{jbyte, jclass, JNIEnv, jobject, jsize};
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
-use slow_interpreter::rust_jni::interface::define_class_safe;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use slow_interpreter::rust_jni::interface::{define_class_safe, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject) -> jclass {
@@ -36,7 +36,7 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
     }
     let parsed = Arc::new(parse_class_file(&mut Cursor::new(slice)).expect("todo handle invalid"));
     to_object_new(
-        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
+        match define_class_safe(jvm, todo!()/*int_state*/, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(res) => res,
             Err(WasException {}) => {
                 return null_mut();

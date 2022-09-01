@@ -25,7 +25,7 @@ use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::interface::field_object_from_view;
 use crate::rust_jni::interface::misc::{get_all_fields, get_all_methods};
 use crate::sun::misc::unsafe_::Unsafe;
-use crate::utils::{throw_illegal_arg_res, unwrap_or_npe};
+use crate::utils::{pushable_frame_todo, throw_illegal_arg_res, unwrap_or_npe};
 
 pub mod resolve;
 
@@ -185,7 +185,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc, 'l>(jvm:
     let clazz = unwrap_or_npe(jvm, int_state, member_name.clazz(jvm))?;
     let field_type_option = member_name.get_field_type(jvm, int_state)?;
     let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
-    let empty_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("".to_string()))?;
+    let empty_string = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string("".to_string()))?;
     let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, None, vec![])?;
     let res = Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?;
     Ok(res)

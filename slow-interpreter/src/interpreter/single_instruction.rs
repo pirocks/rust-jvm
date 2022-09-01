@@ -308,7 +308,6 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
         CInstructionInfo::return_ => {
-            todo!();/*assert!(interpreter_state.inner().throw().is_none());*/
             PostInstructionAction::Return { res: None }
         }
         CInstructionInfo::invokedynamic(cp) => {

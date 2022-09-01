@@ -504,6 +504,7 @@ pub mod string {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, UnAllocatedObject};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object, run_constructor};
@@ -551,18 +552,17 @@ pub mod string {
             string_obj_to_string(jvm, &self.normal_object)
         }
 
-        pub fn from_rust<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let string_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::string().into()).unwrap(); //todo replace these unwraps
-            let string_object = AllocatedHandle::NormalObject(new_object(jvm, /*int_state*/&mut temp, &string_class));
+        pub fn from_rust(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException> {
+            let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into()).unwrap(); //todo replace these unwraps
+            let string_object = AllocatedHandle::NormalObject(new_object(jvm, int_state, &string_class));
             let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
             let array_object = UnAllocatedObjectArray {
-                whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::CharType)).unwrap(),
+                whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::CharType)).unwrap(),
                 elems,
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
-            run_constructor(jvm, /*int_state*/ &mut temp, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
+            run_constructor(jvm, int_state , string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }
 
@@ -734,7 +734,7 @@ pub mod thread {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::threading::JavaThread;
-    use crate::utils::run_static_or_virtual;
+    use crate::utils::{pushable_frame_todo, run_static_or_virtual};
 
     pub struct JThread<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -840,7 +840,7 @@ pub mod thread {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class)));
-            let thread_name = JString::from_rust(jvm, todo!()/*&mut temp*/, Wtf8Buf::from_string(thread_name))?;
+            let thread_name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(thread_name))?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
         }
@@ -1075,6 +1075,7 @@ pub mod null_pointer_exception {
     use crate::java::lang::string::JString;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::utils::pushable_frame_todo;
 
     pub struct NullPointerException<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1093,7 +1094,7 @@ pub mod null_pointer_exception {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::null_pointer_exception().into())?;
             let this = new_object(jvm, /*int_state*/&mut temp, &class_not_found_class).to_jv();
-            let message = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
+            let message = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
             run_constructor(jvm, /*int_state*/ &mut temp, class_not_found_class, todo!()/*vec![this.clone(), message.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_null_pointer_exception())
         }

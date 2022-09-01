@@ -46,7 +46,7 @@ pub unsafe extern "C" fn get_implemented_interfaces(env: *mut jvmtiEnv, klass: j
     interfaces_ptr.write(libc::calloc(num_interfaces, size_of::<*mut jclass>()) as *mut jclass);
     for (i, interface) in class_view.interfaces().enumerate() {
         let interface_obj = get_or_create_class_object(jvm, interface.interface_name().into(), pushable_frame_todo()/*int_state*/);
-        let interface_class = new_local_ref_public(interface_obj.unwrap().to_gc_managed().into(), int_state);
+        let interface_class = new_local_ref_public(interface_obj.unwrap().to_gc_managed().into(), todo!()/*int_state*/);
         interfaces_ptr.read().add(i).write(interface_class)
     }
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
@@ -130,7 +130,7 @@ pub unsafe extern "C" fn get_loaded_classes<'gc, 'l>(env: *mut jvmtiEnv, class_c
     let collected = classes.get_loaded_classes();
     for (_loader, ptype) in collected {
         let class_object = get_or_create_class_object(jvm, ptype.clone(), pushable_frame_todo()/*int_state*/);
-        res_vec.push(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), int_state))
+        res_vec.push(new_local_ref_public(class_object.unwrap().to_gc_managed().into(), todo!()/*int_state*/))
     }
     class_count_ptr.write(res_vec.len() as i32);
     classes_ptr.write(transmute(Vec::leak(res_vec).as_mut_ptr())); //todo leaking
@@ -234,7 +234,7 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
         Ok(class_loader) => class_loader,
         Err(WasException {}) => return universal_error(),
     };
-    let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object().to_gc_managed()), int_state);
+    let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object().to_gc_managed()), todo!()/*int_state*/);
     classloader_ptr.write(jobject_);
     jvmtiError_JVMTI_ERROR_NONE
 }

@@ -18,9 +18,9 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
-use slow_interpreter::rust_jni::interface::define_class_safe;
+use slow_interpreter::rust_jni::interface::{define_class_safe, get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::utils::throw_npe;
 
 #[no_mangle]
@@ -46,11 +46,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
         LoaderName::BootstrapLoader
     };
     new_local_ref_public_new(
-        match define_class_safe(jvm, int_state, classfile, loader_name, class_view) {
+        match define_class_safe(jvm, todo!()/*int_state*/, classfile, loader_name, class_view) {
             Ok(object) => object,
             Err(_) => todo!(),
         }
             .unwrap_object().unwrap().as_allocated_obj().into(),
-        int_state,
+        todo!()/*int_state*/,
     )
 }

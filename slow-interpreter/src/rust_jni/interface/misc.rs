@@ -49,7 +49,7 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {

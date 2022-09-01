@@ -18,8 +18,9 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
@@ -44,7 +45,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let view = clazz.view();
     let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, todo!()/*int_state*/);
         }
         Some(res_method_view) => res_method_view,
     };
@@ -93,7 +94,7 @@ unsafe fn get_code_attr<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method
         let code_attr = match method_view.real_code_attribute() {
             Some(x) => x,
             None => {
-                return throw_illegal_arg_res(jvm, int_state);
+                return throw_illegal_arg_res(jvm, todo!()/*int_state*/);
             }
         };
         and_then(code_attr)
@@ -207,7 +208,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
         .map(|byte| NewJavaValue::Byte(byte as i8))
         .collect_vec();
     let res = JavaValue::new_vec_from_vec(jvm, java_bytes_vec, CPDType::ByteType);
-    new_local_ref_public_new(Some(res.as_allocated_obj()), get_interpreter_state(env))
+    new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -237,7 +238,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.num_methods() as jint {
-        return throw_array_out_of_bounds(jvm, int_state, index);
+        return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
     }
     u8::from(view.method_view_i(index as u16).name() == MethodName::constructor_init())
 }

@@ -15,6 +15,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::{LoaderIndex, LoaderName};
+use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
@@ -30,9 +31,10 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
+use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::misc::get_all_methods;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state, to_object};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 
 #[no_mangle]
@@ -42,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let loader = int_state.current_loader(jvm);
     let of_class_obj = from_object_new(jvm, ofClass).unwrap().cast_class();
     let int_state = get_interpreter_state(env);
-    match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
+    match JVM_GetClassDeclaredMethods_impl(jvm, todo!()/*int_state*/, publicOnly, loader, of_class_obj) {
         Ok(res) => res,
         Err(_) => null_mut(),
     }
@@ -88,7 +90,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
+    match JVM_GetClassDeclaredConstructors_impl(jvm, todo!()/*int_state*/, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
         Ok(res) => res,
         Err(WasException {}) => null_mut(),
     }
