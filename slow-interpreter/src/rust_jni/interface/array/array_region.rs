@@ -4,7 +4,8 @@ use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jch
 use crate::JavaValueCommon;
 
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_object, from_object_new};
 use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn get_boolean_array_region(env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *mut jboolean) {
@@ -33,7 +34,7 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
 
     let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(x) => x,
     };
@@ -50,7 +51,7 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(x) => x,
     };
@@ -66,7 +67,7 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(x) => x,
     };
@@ -82,7 +83,7 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(x) => x,
     };
@@ -130,7 +131,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len
     let int_state = get_interpreter_state(env);
     let non_nullarray = match from_object_new(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(x) => x,
     };

@@ -4,7 +4,8 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jflo
 use crate::new_java_values::NewJavaValueHandle;
 use crate::{JavaValueCommon, NewJavaValue};
 use crate::runtime_class::static_vars;
-use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object_new};
 use crate::utils::throw_npe;
 
 unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: NewJavaValue<'gc,'_>) {
@@ -15,7 +16,7 @@ unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID,
     let name = view.field(field_i as usize).field_name();
     let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
     notnull.unwrap_normal_object_ref().set_var(&rc, name, val);
 }

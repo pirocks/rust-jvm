@@ -1,6 +1,7 @@
 use jvmti_jni_bindings::{JNIEnv, jobject, jweak};
+use crate::rust_jni::interface::get_state;
 
-use crate::rust_jni::native_util::{from_object, from_object_new, get_state, to_object, to_object_new};
+use crate::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 
 static mut TIMES: usize = 0;
 

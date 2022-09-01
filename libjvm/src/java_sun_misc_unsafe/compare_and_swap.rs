@@ -52,7 +52,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
         Some(notnull) => notnull,
     };

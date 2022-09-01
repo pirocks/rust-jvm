@@ -117,7 +117,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let src_o = from_object_new(jvm, src);
     let src = match src_o {
         Some(x) => NewJavaValueHandle::Object(x),
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
     let nonnull = src.unwrap_object_nonnull();
     let src = nonnull.unwrap_array();
@@ -125,7 +125,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let new_jv_handle = match dest_o {
         Some(x) => NewJavaValueHandle::Object(x),
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
     };
     let nonnull = new_jv_handle.unwrap_object_nonnull();

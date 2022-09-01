@@ -30,7 +30,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let method = JavaValue::Object(
         todo!(), /*Some(match from_jclass(jvm,method) {
                      None => {
-                         return throw_npe(jvm, int_state);
+                         return throw_npe(jvm, /*int_state*/todo!());
                      }
                      Some(method_obj) => method_obj
                  })*/

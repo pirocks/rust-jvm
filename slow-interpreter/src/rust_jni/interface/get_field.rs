@@ -18,10 +18,11 @@ use crate::new_java_values::NewJavaValueHandle;
 use runtime_class_stuff::RuntimeClass;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::runtime_class::static_vars;
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::rust_jni::interface::util::class_object_to_runtime_class;
-use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object_new};
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
@@ -95,7 +96,7 @@ pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_
         Ok(res) => res,
     };
 
-    new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle|handle.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<NewJavaValueHandle<'gc>, WasException> {
@@ -107,7 +108,7 @@ unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_
     let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
         None => {
-            throw_npe_res(jvm, int_state)?;
+            throw_npe_res(jvm, todo!()/*int_state*/)?;
             unreachable!()
         }
     };
@@ -119,7 +120,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string(), false); //todo handle utf8
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
-    let (field_rc, field_i) = match get_all_fields(jvm, int_state, runtime_class, true) {
+    let (field_rc, field_i) = match get_all_fields(jvm, todo!()/*int_state*/, runtime_class, true) {
         Ok(res) => res,
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
     }
@@ -142,12 +143,12 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = match from_object_new(jvm, clazz) {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
         Some(class_obj_o) => Some(class_obj_o),
     };
-    let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm, int_state) {
+    let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm, todo!()/*int_state*/) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
     let view = &runtime_class.view();
     let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);
@@ -183,7 +184,7 @@ pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass
     };
     new_local_ref_public_new(
         object.as_ref().map(|handle| handle.as_allocated_obj()),
-        int_state,
+        todo!()/*int_state*/,
     )
 }
 

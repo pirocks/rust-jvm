@@ -113,7 +113,7 @@ fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: Inter
         Some(x) => x,
         None => {
             todo!()
-            /*return throw_npe(jvm, int_state);*/
+            /*return throw_npe(jvm, /*int_state*/todo!());*/
         }
     };
     let val = T::cast(val);

@@ -65,13 +65,13 @@ pub unsafe fn get_interpreter_state_invoke_interface<'l, 'interpreter_guard>(vm:
 
 pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw::c_void, version: jint) -> jint {
     let state = get_state_invoke_interface(vm);
-    let int_state = get_interpreter_state_invoke_interface(vm);
+    let int_state = todo!()/*get_interpreter_state_invoke_interface(vm)*/;
     // assert_eq!(version, JVMTI_VERSION_1_0 as i32);
     if version == JVMTI_VERSION_1_0 as i32 || version == JVMTI_VERSION_1_2 as i32 {
         //todo do a proper jvmti check
         (penv as *mut *mut jvmtiEnv).write(get_jvmti_interface(state, int_state));
     } else {
-        let res_ptr = get_interface(state, int_state);
+        let res_ptr = get_interface(state, /*int_state*/todo!());
         (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);
     }
 

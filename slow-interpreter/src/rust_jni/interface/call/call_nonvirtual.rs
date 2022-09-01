@@ -3,15 +3,14 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
-use crate::rust_jni::native_util::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn call_nonvirtual_object_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject {
     let mut vararg_provider = VarargProvider::Dots(&mut l);
@@ -21,7 +20,7 @@ pub unsafe extern "C" fn call_nonvirtual_object_method(env: *mut JNIEnv, obj: jo
             Err(_) => return null_mut(),
         }
             .unwrap_object(),
-        get_interpreter_state(env),
+        todo!()/*get_interpreter_state(env)*/,
     )
 }
 
@@ -33,7 +32,7 @@ pub unsafe extern "C" fn call_nonvirtual_object_method_v(env: *mut JNIEnv, obj: 
             Err(WasException {}) => return null_mut(),
         }
             .unwrap_object(),
-        get_interpreter_state(env),
+        todo!()/*get_interpreter_state(env)*/,
     )
 }
 
@@ -45,7 +44,7 @@ pub unsafe extern "C" fn call_nonvirtual_object_method_a(env: *mut JNIEnv, obj: 
             Err(WasException {}) => return null_mut(),
         }
             .unwrap_object(),
-        get_interpreter_state(env),
+        todo!()/*get_interpreter_state(env)*/,
     )
 }
 
@@ -310,11 +309,11 @@ unsafe fn call_non_virtual<'gc>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, 
         None => todo!(),
         Some((rc, i)) => (rc.clone(), i, rc.clone().view().method_view_i(i).desc().clone()),
     };
-    int_state.push_current_operand_stack(JavaValue::Object(todo!() /*from_jclass(jvm,obj)*/));
-    push_params_onto_frame(jvm, vararg_provider, int_state, &method_desc);
-    invoke_special_impl(jvm, int_state, &method_desc, i, rc, todo!())?;
+    todo!();// int_state.push_current_operand_stack(JavaValue::Object(todo!() /*from_jclass(jvm,obj)*/));
+    push_params_onto_frame(jvm, vararg_provider, todo!()/*int_state*/, &method_desc);
+    invoke_special_impl(jvm, todo!()/*int_state*/, &method_desc, i, rc, todo!())?;
     if !is_void {
-        int_state.pop_current_operand_stack(Some(CClassName::object().into()));
+        todo!()/*int_state.pop_current_operand_stack(Some(CClassName::object().into()));*/
     }
     Ok(JavaValue::Top)
 }

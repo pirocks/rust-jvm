@@ -6,7 +6,8 @@ use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::allocated_objects::{AllocatedObject};
-use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object, to_object_new};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_object_new, to_object, to_object_new};
 
 ///PopLocalFrame
 ///
@@ -18,15 +19,15 @@ use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_s
 ///
 pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> jobject {
     let interpreter_state = get_interpreter_state(env);
-    let popped = pop_current_native_local_refs(interpreter_state); //.pop().expect("Attempted to pop local native frame, but no such local frame exists");
+    let popped = pop_current_native_local_refs(todo!()/*interpreter_state*/); //.pop().expect("Attempted to pop local native frame, but no such local frame exists");
     if result.is_null() {
         null_mut()
     } else {
         //no freeing need occur here
         popped.get(&result).unwrap();
-        let mut get_top_frame = get_top_local_ref_frame(interpreter_state).clone();
+        let mut get_top_frame = get_top_local_ref_frame(todo!()/*interpreter_state*/).clone();
         get_top_frame.insert(result);
-        set_local_refs_top_frame(interpreter_state, get_top_frame);
+        set_local_refs_top_frame(todo!()/*interpreter_state*/, get_top_frame);
         result
     }
 }
@@ -40,7 +41,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
 /// Note that local references already created in previous local frames are still valid in the current local frame.
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, _capacity: jint) -> jint {
     let interpreter_state = get_interpreter_state(env);
-    push_current_native_local_refs(interpreter_state, HashSet::new());
+    push_current_native_local_refs(todo!()/*interpreter_state*/, HashSet::new());
     JNI_OK as jint
 }
 
@@ -57,7 +58,7 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
     let interpreter_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let rust_obj = from_object_new(jvm, ref_).unwrap();
-    new_local_ref_internal_new(rust_obj.as_allocated_obj(), interpreter_state)
+    new_local_ref_internal_new(rust_obj.as_allocated_obj(), todo!()/*interpreter_state*/)
 }
 
 pub unsafe fn new_local_ref_public<'gc, 'l>(rust_obj: Option<GcManagedObject<'gc>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> jobject {
@@ -106,9 +107,9 @@ pub unsafe extern "C" fn delete_local_ref(env: *mut JNIEnv, obj: jobject) {
         return;
     }
     let interpreter_state = get_interpreter_state(env);
-    let mut top_local_ref = get_top_local_ref_frame(interpreter_state).clone();
+    let mut top_local_ref = get_top_local_ref_frame(todo!()/*interpreter_state*/).clone();
     top_local_ref.remove(&obj);
-    set_local_refs_top_frame(interpreter_state, top_local_ref)
+    set_local_refs_top_frame(todo!()/*interpreter_state*/, top_local_ref)
 }
 
 fn get_top_local_ref_frame<'l>(interpreter_state: &'l InterpreterStateGuard) -> HashSet<jobject> {

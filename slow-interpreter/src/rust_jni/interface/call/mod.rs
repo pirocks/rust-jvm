@@ -18,8 +18,8 @@ use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
-use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::interface::{get_interpreter_state, get_state, push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::native_util::{from_object_new};
 use crate::utils::pushable_frame_todo;
 
 pub mod call_nonstatic;
@@ -39,11 +39,11 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
     let mut args = vec![];
     args.push(NewJavaValueHandle::Object(from_object_new(jvm, obj).unwrap()));
     for type_ in &parsed.arg_types {
-        args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
+        args.push(push_type_to_operand_stack_new(jvm, /*int_state*/todo!(), type_, &mut l));
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    let res = invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
-    assert!(int_state.throw().is_none());
+    let res = invoke_virtual_method_i(jvm, todo!()/*int_state*/, parsed, class, &method, not_handles)?;
+    todo!();// assert!(int_state.throw().is_none());
     return Ok(res);
 }
 
@@ -57,7 +57,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();
-    let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
+    let args = push_params_onto_frame_new(jvm, &mut l, todo!()/*int_state*/, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
     let res = invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, parsed, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {

@@ -235,7 +235,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jstring = match JavaValue::Object(todo!() /*from_jclass(jvm,JVM_GetClassName(env, cb))*/).cast_string() {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
         Some(jstring) => jstring,
     };
     let rust_string = jstring.to_rust_string(jvm);

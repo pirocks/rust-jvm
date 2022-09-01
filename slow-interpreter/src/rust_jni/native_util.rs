@@ -4,12 +4,13 @@ use std::ptr::{NonNull, null_mut};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
 
-use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, JVMState};
 use crate::class_objects::get_or_create_class_object;
 use crate::java::lang::class::JClass;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedObject;
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::utils::pushable_frame_todo;
 
@@ -28,14 +29,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     res_class
 }
 
-pub unsafe fn get_state<'gc>(env: *mut JNIEnv) -> &'gc JVMState<'gc> {
-    &(*((**env).reserved0 as *const JVMState))
-}
 
-pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l, 'interpreter_guard> {
-    let jvm = get_state(env);
-    jvm.get_int_state()
-}
 
 pub unsafe fn to_object<'gc>(obj: Option<GcManagedObject<'gc>>) -> jobject {
     match obj {

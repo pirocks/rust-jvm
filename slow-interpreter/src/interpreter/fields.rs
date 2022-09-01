@@ -41,7 +41,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
                         raw_field_ptr.write(val.to_raw());
                     }
                     None => {
-                        todo!()/*return throw_npe(jvm, int_state);*/
+                        todo!()/*return throw_npe(jvm, /*int_state*/todo!());*/
                     }
                 }
             }

@@ -5,7 +5,7 @@ use libc::c_void;
 
 use jvmti_jni_bindings::{jlong, JNIEnv, jobject};
 use slow_interpreter::jvmti::get_jvmti_interface;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {

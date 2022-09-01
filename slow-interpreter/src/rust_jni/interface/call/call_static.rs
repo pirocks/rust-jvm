@@ -6,8 +6,8 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, 
 use another_jit_vm_ir::WasException;
 use crate::JavaValueCommon;
 use crate::rust_jni::interface::call::{call_static_method_impl, VarargProvider};
+use crate::rust_jni::interface::get_interpreter_state;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
-use crate::rust_jni::native_util::get_interpreter_state;
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
     match call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l)) {
@@ -87,7 +87,7 @@ pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: j
         Err(WasException {}) => return null_mut(),
     }
         .unwrap();
-    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), get_interpreter_state(env))
+    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), todo!()/*get_interpreter_state(env)*/)
 }
 
 pub unsafe extern "C" fn call_static_void_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) {
@@ -104,7 +104,8 @@ pub unsafe extern "C" fn call_static_object_method(env: *mut JNIEnv, _clazz: jcl
         Err(WasException {}) => return null_mut(),
     }
         .unwrap();
-    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), get_interpreter_state(env))
+    let interpreter_state = get_interpreter_state(env);
+    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), todo!()/*interpreter_state*/)
 }
 
 pub unsafe extern "C" fn call_static_boolean_method(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: ...) -> jboolean {
@@ -193,7 +194,8 @@ pub unsafe extern "C" fn call_static_object_method_a(env: *mut JNIEnv, _clazz: j
         Err(WasException {}) => return null_mut(),
     }
         .unwrap();
-    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), get_interpreter_state(env))
+    let interpreter_state = get_interpreter_state(env);
+    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), todo!()/*interpreter_state*/)
 }
 
 pub unsafe extern "C" fn call_static_boolean_method_a(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, args: *const jvalue) -> jboolean {

@@ -5,8 +5,9 @@ use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, UnAllocate
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java_values::default_value_njv;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
-use crate::rust_jni::native_util::{from_jclass, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object_new};
 use crate::utils::throw_npe;
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
@@ -16,7 +17,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     let res = new_array(env, len, type_);
     let res_safe = match from_object_new(jvm, res) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
     let array = res_safe.unwrap_array();
     for i in 0..array.len() {
@@ -69,6 +70,6 @@ unsafe fn new_array<'gc, 'l>(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> 
     let object_array = UnAllocatedObject::new_array(rc, the_vec);
     new_local_ref_public_new(
         Some(jvm.allocate_object(object_array).as_allocated_obj()),
-        int_state,
+        todo!()/*int_state*/,
     )
 }

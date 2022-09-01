@@ -9,7 +9,7 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
-use itertools::Itertools;
+use itertools::{Itertools};
 use libc::rand;
 use wtf8::Wtf8Buf;
 
@@ -32,6 +32,7 @@ use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
 use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
@@ -65,7 +66,7 @@ use crate::rust_jni::interface::misc::*;
 use crate::rust_jni::interface::new_object::*;
 use crate::rust_jni::interface::set_field::*;
 use crate::rust_jni::interface::string::*;
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_object_class, get_state, to_object, to_object_new};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_object_class, to_object, to_object_new};
 use crate::utils::{pushable_frame_todo, throw_npe};
 
 //todo this should be in state impl
@@ -73,8 +74,7 @@ thread_local! {
     static JNI_INTERFACE: RefCell<*mut *const JNINativeInterface_> = RefCell::new(null_mut());
 }
 
-//GetFieldID
-pub fn get_interface<'gc, 'l>(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> *mut *const JNINativeInterface_ {
+pub fn get_interface<'gc, 'l>(state: &JVMState, int_state: &mut NativeFrame<'gc, 'l>) -> *mut *const JNINativeInterface_ {
     // unsafe { state.set_int_state(int_state) };
     JNI_INTERFACE.with(|refcell| {
         if refcell.borrow().is_null() {
@@ -88,12 +88,20 @@ pub fn get_interface<'gc, 'l>(state: &JVMState, int_state: &'_ mut InterpreterSt
     })
 }
 
-fn get_interface_impl<'gc, 'l>(state: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> JNINativeInterface_ {
+pub unsafe fn get_state<'gc>(env: *mut JNIEnv) -> &'gc JVMState<'gc> {
+    &(*((**env).reserved0 as *const JVMState))
+}
+
+pub unsafe fn get_interpreter_state<'gc, 'k, 'any>(env: *mut JNIEnv) -> &'any mut NativeFrame<'gc, 'k> {
+    (**env).reserved1.cast::<NativeFrame<'gc, 'k>>().as_mut().unwrap()
+}
+
+fn get_interface_impl<'gc, 'l>(state: &JVMState, int_state: &mut NativeFrame<'gc, 'l>) -> JNINativeInterface_ {
     JNINativeInterface_ {
         reserved0: unsafe { transmute(state) },
-        reserved1: null_mut(),
-        reserved2: std::ptr::null_mut(),
-        reserved3: std::ptr::null_mut(),
+        reserved1: unsafe { transmute(int_state) },
+        reserved2: null_mut(),
+        reserved3: null_mut(),
         GetVersion: Some(get_version),
         DefineClass: Some(define_class),
         FindClass: Some(find_class),
@@ -350,11 +358,12 @@ fn get_interface_impl<'gc, 'l>(state: &JVMState, int_state: &'_ mut InterpreterS
 // Returns “0” on success; returns a negative value on failure.
 pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
     let jvm = get_state(env);
+    let interpreter_state = get_interpreter_state(env);
     match from_object(jvm, obj) {
         Some(x) => x,
         None => return JNI_ERR,
     }
-        .monitor_lock(jvm, get_interpreter_state(env));
+        .monitor_lock(jvm, todo!()/*interpreter_state*/);
     JNI_OK as i32
 }
 
@@ -380,11 +389,12 @@ pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
 // IllegalMonitorStateException: if the current thread does not own the monitor.
 pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
     let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
     match from_object(jvm, obj) {
         Some(x) => x,
         None => return JNI_ERR,
     }
-        .monitor_unlock(jvm, get_interpreter_state(env));
+        .monitor_unlock(jvm, todo!()/*int_state*/);
     JNI_OK as i32
 }
 
@@ -413,7 +423,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
     let string: JString = match JavaValue::Object(todo!() /*from_jclass(jvm,str)*/).cast_string() {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
         Some(string) => string,
     };
     let char_vec = string.value(jvm);
@@ -448,7 +458,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
 unsafe extern "C" fn alloc_object<'gc, 'l>(env: *mut JNIEnv, clazz: jclass) -> jobject {
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let res_object = new_object(jvm, /*int_state*/&mut temp, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
     to_object(res_object)
 }
@@ -477,7 +487,7 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
     };
     let runtime_class_view = runtime_class.view();
     let method_view = runtime_class_view.method_view_i(index);
-    let method_obj = match Method::method_object_from_method_view(jvm, int_state, &method_view) {
+    let method_obj = match Method::method_object_from_method_view(jvm, todo!()/*int_state*/, &method_view) {
         Ok(method_obj) => method_obj,
         Err(_) => todo!(),
     };
@@ -509,14 +519,15 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
 unsafe extern "C" fn exception_describe(env: *mut JNIEnv) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    if let Some(throwing) = int_state.throw() {
-        int_state.set_throw(None);
-        todo!()
-        /*match JavaValue::Object(todo!() /*throwing.into()*/).cast_throwable().print_stack_trace(jvm, int_state) {
-            Ok(_) => {}
-            Err(WasException {}) => {}
-        };*/
-    }
+    todo!();
+    // if let Some(throwing) = int_state.throw() {
+    //     int_state.set_throw(None);
+    //     todo!()
+    //     /*match JavaValue::Object(todo!() /*throwing.into()*/).cast_throwable().print_stack_trace(jvm, int_state) {
+    //         Ok(_) => {}
+    //         Err(WasException {}) => {}
+    //     };*/
+    // }
 }
 
 ///FatalError
@@ -588,7 +599,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Err(_) => return -2,
         }
             .to_string();
-        let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
+        let java_string = match JString::from_rust(jvm, todo!()/*int_state*/, Wtf8Buf::from_string(rust_string)) {
             Ok(java_string) => java_string,
             Err(WasException {}) => return -4,
         };
@@ -598,13 +609,13 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
     let jvalue_ = jvalue { l: java_string_object };
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
-    int_state.set_throw(
+    todo!();/*int_state.set_throw(
         Some(match from_object_new(jvm, obj) {
             None => return -3,
             Some(res) => res,
         }
             .into()),
-    );
+    );*/
     JNI_OK as i32
 }
 
@@ -615,7 +626,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
     let field_id: FieldId = transmute(field_id);
     let (rc, i) = jvm.field_table.write().unwrap().lookup(field_id);
     to_object_new(
-        match field_object_from_view(jvm, int_state, rc.clone(), rc.view().field(i as usize)) {
+        match field_object_from_view(jvm, todo!()/*int_state*/, rc.clone(), rc.view().field(i as usize)) {
             Ok(res) => res,
             Err(_) => todo!(),
         }
@@ -759,7 +770,7 @@ pub fn define_class_safe<'gc, 'l>(
     classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
     drop(classes);
     assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
-    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
     prepare_class(jvm, &mut temp/*int_state*/, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
@@ -784,7 +795,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object_new(
-        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
+        match define_class_safe(jvm, todo!()/*int_state*/, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(class_) => class_,
             Err(_) => todo!(),
         }

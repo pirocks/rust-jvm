@@ -16,6 +16,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;
+use crate::better_java_stack::frames::PushableFrame;
 
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
@@ -26,8 +27,9 @@ use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_interpreter_state, get_state};
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new};
 use crate::utils::{pushable_frame_todo, throw_npe};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
@@ -64,7 +66,7 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
@@ -72,11 +74,11 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
     let int_state = get_interpreter_state(env);
     let sub_not_null = match from_object_new(jvm, sub) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
     let sup_not_null = match from_object_new(jvm, sup) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, /*int_state*/todo!()),
     };
 
     let sub_class = NewJavaValueHandle::Object(sub_not_null.into()).cast_class().unwrap();
@@ -117,7 +119,7 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     let state = get_state(env);
     let int_state = get_interpreter_state(env); //todo maybe this should have an optionable version
-    let interface = get_invoke_interface(state, int_state);
+    let interface = get_invoke_interface(state, todo!()/*int_state*/);
     *vm = Box::into_raw(box interface); //todo do something about this leak
     0 as jint
 }

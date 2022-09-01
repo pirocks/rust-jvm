@@ -4,7 +4,7 @@ use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::string::get_string_region;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 
 ///Blocks current thread, returning when a balancing unpark occurs, or a balancing unpark has already occurred,
 /// or the thread is interrupted, or, if not absolute and time is not zero, the given time nanoseconds have

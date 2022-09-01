@@ -29,7 +29,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let unwrapped_action = match action {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
     };
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };

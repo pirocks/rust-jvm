@@ -52,7 +52,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
             jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, &mut int_state, java_thread.thread_object());
 
             let jvmti = get_jvmti_interface(jvm, &mut int_state);
-            let jni_env = get_interface(jvm, &mut int_state);
+            let jni_env = get_interface(jvm, todo!()/*&mut int_state*/);
             let frame_for_agent = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"agent_frame")*/);
             proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
             int_state.pop_frame(jvm, frame_for_agent, false);

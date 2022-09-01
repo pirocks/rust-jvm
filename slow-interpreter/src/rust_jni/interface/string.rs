@@ -17,8 +17,9 @@ use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValueHandle};
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
-use crate::rust_jni::native_util::{from_object_new, get_interpreter_state, get_state, to_object_new};
+use crate::rust_jni::native_util::{from_object_new, to_object_new};
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
@@ -45,13 +46,13 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
     let res = new_local_ref_public_new(
-        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
+        match JString::from_rust(jvm, todo!()/*int_state*/, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
             Err(WasException {}) => {
                 todo!();
                 return null_mut();
             }
-        }.intern(jvm, int_state).unwrap()
+        }.intern(jvm, todo!()/*int_state*/).unwrap()
             .object().as_allocated_obj()
             .into(),
         int_state,
@@ -121,7 +122,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
     };
     let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap();
@@ -149,7 +150,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, /*int_state*/todo!());
         }
     };
     let rust_str = NewJavaValueHandle::Object(str_obj).cast_string().unwrap().to_rust_string(jvm);

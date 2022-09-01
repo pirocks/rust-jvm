@@ -22,15 +22,15 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue};
+use crate::{JavaValueCommon, JVMState, NewJavaValue};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
 use crate::rust_jni::interface::get_interface;
-use crate::rust_jni::native_util::{from_object_new, get_interpreter_state};
+use crate::rust_jni::native_util::{from_object_new};
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
-use crate::utils::pushable_frame_todo;
 
 pub mod mangling;
 pub mod value_conversion;
@@ -46,7 +46,7 @@ impl<'gc> NativeLibraries<'gc> {
     }
 }
 
-pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException> {
+pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -72,7 +72,7 @@ pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
 
 pub fn call_impl<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut NativeFrame<'gc, 'l>,
     classfile: Arc<RuntimeClass<'gc>>,
     mut args: Vec<NewJavaValue<'gc, 'k>>,
     md: CMethodDescriptor,
@@ -80,19 +80,16 @@ pub fn call_impl<'gc, 'l, 'k>(
     suppress_runtime_class: bool,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     args.retain(|arg| !matches!(arg,NewJavaValue::Top));
-    assert!(jvm.thread_state.int_state_guard_valid.with(|valid| valid.borrow().clone()));
-    assert!(int_state.current_frame().is_native_method());
-    unsafe { assert!(jvm.get_int_state().registered()); }
+    int_state.debug_assert();
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
     let env = get_interface(jvm, int_state);
     let mut arg_boxes = ArgBoxesToFree::new();
     let mut c_args = if suppress_runtime_class {
         vec![Arg::new(&env)]
     } else {
-        assert!(int_state.current_frame().is_native_method());
-        let class_popped_jv = load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, classfile.view().type_())?;
-        assert!(int_state.current_frame().is_native_method());
-        unsafe { assert!(get_interpreter_state(env).current_frame().is_native_method()); }
+        int_state.debug_assert();
+        let class_popped_jv = load_class_constant_by_type(jvm, int_state, classfile.view().type_())?;
+        int_state.debug_assert();
         let class_constant = unsafe { to_native(env, &mut arg_boxes, class_popped_jv.as_njv(), &Into::<CPDType>::into(CClassName::object())) };
         let res = vec![Arg::new(&env), class_constant];
         res
@@ -152,9 +149,10 @@ pub fn call_impl<'gc, 'l, 'k>(
             })
         }
     };
-    if int_state.throw().is_some() {
+    todo!();
+    /*if int_state.throw().is_some() {
         return Err(WasException {});
-    }
+    }*/
     Ok(res)
 }
 

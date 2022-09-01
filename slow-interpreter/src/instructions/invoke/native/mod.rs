@@ -88,7 +88,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 }
             }
         } else {
-            let first_call = match call(jvm, todo!()/*int_state*/, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
+            let first_call = match call(jvm, native_frame, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
                 Ok(call_res) => call_res,
                 Err(WasException {}) => {
                     dbg!(mangling::mangle(&jvm.string_pool, &method));
