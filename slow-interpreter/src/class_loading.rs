@@ -23,7 +23,6 @@ use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
 use crate::java::lang::class_not_found_exception::ClassNotFoundException;
@@ -79,7 +78,6 @@ pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state
             return Ok(class);
         }
         RuntimeClass::Array(a) => {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
             check_initing_or_inited_class(jvm, int_state, a.sub_class.cpdtype())?;
             let loader_name = int_state.current_loader(jvm);
             jvm.classes.write().unwrap().initiating_loaders.insert(ptype, (loader_name, class.clone()));
@@ -142,7 +140,7 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                         CPDType::LongType => Arc::new(RuntimeClass::Long),
                         CPDType::Class(class_name) => {
                             let java_string = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
-                            class_loader.load_class(jvm, todo!()/*int_state*/, java_string)?.as_runtime_class(jvm)
+                            class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                         }
                         CPDType::Array { base_type: sub_type, num_nested_arrs } => {
                             drop(jvm.classes.write().unwrap());
@@ -232,7 +230,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                     let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
                     let class_name_string = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, class_name_wtf8)?;
 
-                    let exception = ClassNotFoundException::new(jvm, todo!()/*int_state*/, class_name_string)?.full_object();
+                    let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.full_object();
                     let throwable = exception.cast_throwable();
                     // throwable.print_stack_trace(jvm,int_state).unwrap();
                     todo!();
@@ -274,7 +272,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                 }
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
                     let jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(class_name.get_referred_name().clone())).unwrap();
-                    let exception = ClassNotFoundException::new(jvm, todo!()/*int_state*/, jstring)?.full_object();
+                    let exception = ClassNotFoundException::new(jvm, pushable_frame_todo()/*int_state*/, jstring)?.full_object();
                     let throwable = exception.cast_throwable();
                     // throwable.print_stack_trace(jvm,int_state).unwrap();
                     todo!();

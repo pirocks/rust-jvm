@@ -14,15 +14,14 @@ use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_new_array_i
 use crate::java_values::default_value;
 
 pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, classname: CClassName) -> PostInstructionAction<'gc> {
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let target_classfile = match check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, classname.into()) {
+    let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), classname.into()) {
         Ok(x) => x,
         Err(WasException {}) => {
             // int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
             return PostInstructionAction::Exception { exception: WasException {} };
         }
     };
-    let obj = new_object(jvm, &mut temp/*int_state.inner()*/, &target_classfile);
+    let obj = new_object(jvm, int_state.inner(), &target_classfile);
     int_state.current_frame_mut().push(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(obj)).to_interpreter_jv());
     PostInstructionAction::Next {}
 }
@@ -43,8 +42,7 @@ pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'
     if len < 0 {
         todo!("check array length");
     }
-    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
-    let whole_array_runtime_class = check_resolved_class(jvm, &mut temp/*int_state.inner()*/, CPDType::array(elem_type))?;
+    let whole_array_runtime_class = check_resolved_class(jvm, int_state.inner(), CPDType::array(elem_type))?;
     let new_array = NewJavaValueHandle::new_default_array(jvm, len, whole_array_runtime_class, elem_type);
     Ok(int_state.current_frame_mut().push(new_array.to_interpreter_jv()))
 }

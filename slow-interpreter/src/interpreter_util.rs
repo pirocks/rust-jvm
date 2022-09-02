@@ -8,7 +8,6 @@ use rust_jvm_common::compressed_classfile::names::MethodName;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::java_values::{default_value, JavaValue};
@@ -21,8 +20,7 @@ pub fn new_object_full<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
 }
 
 pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    check_initing_or_inited_class(jvm, &mut temp/*int_state*/, runtime_class.cpdtype()).expect("todo");
+    check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
     let object_handle = JavaValue::new_object(jvm, runtime_class.clone());
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &runtime_class, &object_handle);
@@ -56,7 +54,7 @@ pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();
-    let res = invoke_special_impl(jvm, todo!()/*int_state*/, md, method_view.method_i(), target_classfile.clone(), full_args)?;
+    let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), full_args)?;
     assert!(res.is_none());
     Ok(())
 }

@@ -122,7 +122,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let res = if is_virtual {
-        invoke_virtual(jvm, todo!()/*int_state*/, method_name, &parsed_md, res_args).unwrap().unwrap()
+        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args).unwrap().unwrap()
     } else {
         run_static_or_virtual(jvm, todo!()/*int_state*/, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
     };

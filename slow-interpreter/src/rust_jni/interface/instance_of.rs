@@ -14,7 +14,7 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
     let type_view = NewJavaValueHandle::from_optional_object(class_object).cast_class().expect("todo").as_type(jvm);
     let type_ = match type_view.try_unwrap_ref_type() {
         None => {
-            return throw_illegal_arg(jvm, todo!()/*int_state*/);
+            return throw_illegal_arg(jvm, int_state);
         }
         Some(ref_type) => ref_type,
     };

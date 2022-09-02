@@ -13,7 +13,6 @@ use crate::interpreter::{PostInstructionAction};
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::java::lang::string::JString;
 use crate::rust_jni::interface::string::intern_safe;
-use crate::utils::pushable_frame_todo;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let object = get_or_create_class_object(jvm, *type_, int_state)?;
@@ -78,12 +77,12 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
         Either::Left(ldcw) => {
             match &ldcw {
                 CompressedLdcW::String { str } => {
-                    let jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, str.clone()).expect("todo");
+                    let jstring = JString::from_rust(jvm, int_state.inner(), str.clone()).expect("todo");
                     let string_value = intern_safe(jvm, AllocatedHandle::NormalObject(jstring.object()));
                     int_state.current_frame_mut().push(string_value.new_java_value_handle().to_interpreter_jv())
                 }
                 CompressedLdcW::Class { type_ } => {
-                    match load_class_constant(jvm, pushable_frame_todo()/*int_state.inner()*/, type_) {
+                    match load_class_constant(jvm, int_state.inner(), type_) {
                         Err(WasException {}) => {
                             return PostInstructionAction::Exception { exception: WasException {} };
                         }

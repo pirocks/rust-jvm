@@ -22,7 +22,6 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::instructions::special::inherits_from_cpdtype;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::{JVMState, NativeLibraries};
@@ -74,7 +73,7 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
     let int_state = get_interpreter_state(env);
     let sub_not_null = match from_object_new(jvm, sub) {
         Some(x) => x,
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
     };
     let sup_not_null = match from_object_new(jvm, sup) {
         Some(x) => x,
@@ -203,27 +202,25 @@ fn register_native_with_lib_java_loading<'gc>(jni_context: &NativeLibraries<'gc>
     }
 }
 
-pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException> {
+pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException> {
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
     match class.view().super_name() {
         None => {
-
-            let object = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::object().into())?;
+            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
             object.view().methods().for_each(|m| {
                 res.push((object.clone(), m.method_i()));
             });
         }
         Some(super_name) => {
-            let super_ = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, super_name.into())?;
+            let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
             get_all_methods_impl(jvm, int_state, super_, res, include_interface)?;
         }
     }
@@ -231,7 +228,7 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
         let view = class.view();
         let interfaces = view.interfaces();
         for interface in interfaces {
-            let interface = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, interface.interface_name().into())?;
+            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
             interface.view().methods().for_each(|m| {
                 res.push((interface.clone(), m.method_i()));
             });
@@ -240,13 +237,13 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
     Ok(())
 }
 
-pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException> {
+pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException> {
     let mut res = vec![];
     get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });

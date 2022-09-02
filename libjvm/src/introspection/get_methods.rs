@@ -50,7 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException> {
     let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -96,7 +96,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException> {
+fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()

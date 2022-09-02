@@ -1,8 +1,9 @@
 pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use threads::signal::__sched_cpualloc;
 
-    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue};
+    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue, pushable_frame_todo};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -46,7 +47,7 @@ pub mod concurrent_hash_map {
             };
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
             let args = vec![self.normal_object.new_java_value(), key, value];
-            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_putIfAbsent(), &desc, args).unwrap();
+            let res = run_static_or_virtual(jvm, pushable_frame_todo()/*int_state*/, &properties_class, MethodName::method_putIfAbsent(), &desc, args).unwrap();
             res.unwrap()
         }
 
@@ -57,7 +58,7 @@ pub mod concurrent_hash_map {
             };
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
             let args = vec![self.normal_object.new_java_value(), key];
-            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_get(), &desc, args).unwrap();
+            let res = run_static_or_virtual(jvm, pushable_frame_todo()/*int_state*/, &properties_class, MethodName::method_get(), &desc, args).unwrap();
             res.unwrap()
         }
 

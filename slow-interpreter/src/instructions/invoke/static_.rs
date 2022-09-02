@@ -124,7 +124,7 @@ pub fn invoke_static_impl<'l, 'gc>(
             assert_eq!(args[0].to_handle_discouraged().unwrap_object().unwrap().runtime_class(jvm).cpdtype(), CClassName::member_name().into());
             let member_name = args[0].to_handle_discouraged().unwrap_object_nonnull().cast_member_name();
             args.remove(0);
-            let res = call_vmentry(jvm, todo!()/*interpreter_state*/, member_name, args)?;
+            let res = call_vmentry(jvm, interpreter_state, member_name, args)?;
             Ok(Some(res))
         } else {
             unimplemented!()

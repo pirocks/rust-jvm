@@ -36,9 +36,10 @@ pub mod properties {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{InterpreterStateGuard, JVMState};
+    use crate::{JVMState};
     use crate::class_loading::assert_inited_or_initing_class;
     use another_jit_vm_ir::WasException;
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::java::lang::string::JString;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{JavaValue};
@@ -60,7 +61,7 @@ pub mod properties {
     }
 
     impl<'gc> Properties<'gc> {
-        pub fn set_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, key: JString<'gc>, value: JString<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+        pub fn set_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, key: JString<'gc>, value: JString<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![self.new_java_value(), key.new_java_value(), value.new_java_value()];
             let desc = CMethodDescriptor {
@@ -71,7 +72,7 @@ pub mod properties {
             Ok(res.unwrap())
         }
 
-        pub fn get_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, key: JString<'gc>) -> Result<Option<JString<'gc>>, WasException> {
+        pub fn get_property<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, key: JString<'gc>) -> Result<Option<JString<'gc>>, WasException> {
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::properties().into());
             let args = vec![self.new_java_value(), key.new_java_value()];
             let desc = CMethodDescriptor {

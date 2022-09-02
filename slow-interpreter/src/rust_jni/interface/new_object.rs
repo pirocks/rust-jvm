@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
-use crate::{JavaValueCommon, JVMState};
+use crate::{JavaValueCommon, JVMState, pushable_frame_todo};
 use method_table::from_jmethod_id;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::rust_jni::interface::call::VarargProvider;
@@ -44,7 +44,7 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     for arg in args_handle.iter(){
         args.push(arg.as_njv());
     }
-    if let Err(_) = invoke_special_impl(jvm, todo!()/*int_state*/, &parsed, method_i, class.clone(), args) {
+    if let Err(_) = invoke_special_impl(jvm, pushable_frame_todo()/*int_state*/, &parsed, method_i, class.clone(), args) {
         return null_mut();
     };
     new_local_ref_public_new(obj.new_java_value().unwrap_object_alloc(), todo!()/*int_state*/)

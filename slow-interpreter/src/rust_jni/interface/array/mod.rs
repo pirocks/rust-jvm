@@ -17,7 +17,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
     let temp = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, todo!()/*int_state*/);
+            return throw_npe(jvm, int_state);
         }
     };
     return temp.unwrap_array().len() as jsize;
@@ -37,7 +37,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let int_state = get_interpreter_state(env);
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let array = notnull.unwrap_array();
@@ -72,7 +72,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     let not_null = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let array = not_null.unwrap_array();
@@ -126,7 +126,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
     let not_null = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let array = not_null.unwrap_array();

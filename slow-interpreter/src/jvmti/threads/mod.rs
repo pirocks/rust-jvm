@@ -5,6 +5,7 @@ use crate::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
+use crate::pushable_frame_todo;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 #[macro_export]
@@ -143,7 +144,7 @@ pub unsafe extern "C" fn get_thread_info(env: *mut jvmtiEnv, thread: jthread, in
         Ok(thread_class_object) => thread_class_object,
         Err(_) => return universal_error(),
     };
-    let class_loader = match thread_class_object.get_class_loader(jvm, int_state) {
+    let class_loader = match thread_class_object.get_class_loader(jvm, pushable_frame_todo()/*int_state*/) {
         Ok(class_loader) => class_loader,
         Err(_) => return universal_error(),
     };

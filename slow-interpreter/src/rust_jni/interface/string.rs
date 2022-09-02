@@ -11,12 +11,11 @@ use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::class_loading::assert_loaded_class;
 use another_jit_vm_ir::WasException;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValueHandle};
-use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue};
+use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFrame};
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object_new, to_object_new};
@@ -72,7 +71,7 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, owned_str).unwrap().intern(jvm, todo!()/*int_state*/) {
+    match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, owned_str).unwrap().intern(jvm, int_state) {
         Err(WasException {}) => {
             null_mut()
         }
@@ -82,7 +81,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> js
     }
 }
 
-pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str_unsafe: jstring) -> Result<jstring, WasException> {
     let str_obj = match from_object_new(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -122,7 +121,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap();
@@ -150,7 +149,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let rust_str = NewJavaValueHandle::Object(str_obj).cast_string().unwrap().to_rust_string(jvm);

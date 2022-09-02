@@ -41,9 +41,9 @@ pub fn invoke_interface<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut
     args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
     let base_object_class = args[0].as_njv().unwrap_normal_object().unwrap().runtime_class(jvm);
 
-    let (target_method_i, final_target_class) = find_target_method(jvm, todo!()/*int_state.inner()*/, expected_method_name, &expected_descriptor, base_object_class);
+    let (target_method_i, final_target_class) = find_target_method(jvm, int_state.inner(), expected_method_name, &expected_descriptor, base_object_class);
 
-    match invoke_virtual_method_i(jvm, todo!()/*int_state.inner()*/, expected_descriptor, final_target_class.clone(), &final_target_class.view().method_view_i(target_method_i), args.iter().map(|njv| njv.as_njv()).collect_vec()) {
+    match invoke_virtual_method_i(jvm, int_state.inner(), expected_descriptor, final_target_class.clone(), &final_target_class.view().method_view_i(target_method_i), args.iter().map(|njv| njv.as_njv()).collect_vec()) {
         Ok(Some(res)) => {
             int_state.current_frame_mut().push(res.to_interpreter_jv());
         }

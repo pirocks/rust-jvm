@@ -77,8 +77,8 @@ impl <'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k>{
         todo!()
     }
 
-    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
-        todo!()
+    fn push_frame_java<T>(&mut self, java_frame_push: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_java_frame(self.frame_ptr, self.next_frame_pointer(), java_frame_push, |java_frame|within_push(java_frame))
     }
 
     fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
@@ -121,6 +121,10 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.current_operand_stack_depth -= 1;
         let current_depth = self.current_operand_stack_depth;
         self.os_get_from_start(current_depth, expected_type).to_interpreter_jv()
+    }
+
+    pub fn local_get_interpreter(&mut self,i: u16, rtype: RuntimeType) -> InterpreterJavaValue{
+        self.local_get_handle(i,rtype).to_interpreter_jv()
     }
 
     pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {

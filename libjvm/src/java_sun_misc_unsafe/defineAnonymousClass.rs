@@ -57,7 +57,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     //todo local ref
 }
 
-pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, args: &mut Vec<NewJavaValueHandle<'gc>>) -> NewJavaValueHandle<'gc> {
+pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: &mut Vec<NewJavaValueHandle<'gc>>) -> NewJavaValueHandle<'gc> {
     let _parent_class = args[1].as_njv().to_handle_discouraged(); //todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|b| b.unwrap_int() as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");

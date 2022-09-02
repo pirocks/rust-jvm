@@ -8,6 +8,7 @@ use rust_jvm_common::MethodId;
 use crate::instructions::invoke::special::invoke_special_impl;
 use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
+use crate::pushable_frame_todo;
 use crate::rust_jni::interface::call::{push_params_onto_frame, VarargProvider};
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
@@ -310,8 +311,8 @@ unsafe fn call_non_virtual<'gc>(env: *mut JNIEnv, obj: jobject, _clazz: jclass, 
         Some((rc, i)) => (rc.clone(), i, rc.clone().view().method_view_i(i).desc().clone()),
     };
     todo!();// int_state.push_current_operand_stack(JavaValue::Object(todo!() /*from_jclass(jvm,obj)*/));
-    push_params_onto_frame(jvm, vararg_provider, todo!()/*int_state*/, &method_desc);
-    invoke_special_impl(jvm, todo!()/*int_state*/, &method_desc, i, rc, todo!())?;
+    push_params_onto_frame(jvm, vararg_provider, int_state, &method_desc);
+    invoke_special_impl(jvm, pushable_frame_todo()/*int_state*/, &method_desc, i, rc, todo!())?;
     if !is_void {
         todo!()/*int_state.pop_current_operand_stack(Some(CClassName::object().into()));*/
     }

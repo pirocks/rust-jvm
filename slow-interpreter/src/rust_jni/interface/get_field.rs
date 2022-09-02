@@ -108,7 +108,7 @@ unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_
     let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
         None => {
-            throw_npe_res(jvm, todo!()/*int_state*/)?;
+            throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
     };
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string(), false); //todo handle utf8
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
-    let (field_rc, field_i) = match get_all_fields(jvm, todo!()/*int_state*/, runtime_class, true) {
+    let (field_rc, field_i) = match get_all_fields(jvm, int_state, runtime_class, true) {
         Ok(res) => res,
         Err(WasException {}) => return ExceptionReturn::invalid_default(),
     }
@@ -143,12 +143,12 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = match from_object_new(jvm, clazz) {
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
         Some(class_obj_o) => Some(class_obj_o),
     };
     let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm, todo!()/*int_state*/) {
         Some(x) => x,
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
     };
     let view = &runtime_class.view();
     let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);

@@ -12,10 +12,10 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use another_jit_vm_ir::WasException;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::JavaValueCommon;
 use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
+use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{get_interpreter_state, get_state, push_type_to_operand_stack, push_type_to_operand_stack_new};
@@ -39,7 +39,7 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
     let mut args = vec![];
     args.push(NewJavaValueHandle::Object(from_object_new(jvm, obj).unwrap()));
     for type_ in &parsed.arg_types {
-        args.push(push_type_to_operand_stack_new(jvm, /*int_state*/todo!(), type_, &mut l));
+        args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
     let res = invoke_virtual_method_i(jvm, todo!()/*int_state*/, parsed, class, &method, not_handles)?;
@@ -57,7 +57,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();
-    let args = push_params_onto_frame_new(jvm, &mut l, todo!()/*int_state*/, &parsed);
+    let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
     let res = invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, parsed, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {
@@ -72,7 +72,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
 unsafe fn push_params_onto_frame_new<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
     l: &mut VarargProvider,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     parsed: &CMethodDescriptor,
 ) -> Vec<NewJavaValueHandle<'gc>> {
     let mut args = vec![];
@@ -82,7 +82,7 @@ unsafe fn push_params_onto_frame_new<'gc, 'l>(
     args
 }
 
-unsafe fn push_params_onto_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, l: &mut VarargProvider, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, parsed: &CMethodDescriptor) {
+unsafe fn push_params_onto_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, l: &mut VarargProvider, int_state: &mut impl PushableFrame<'gc>, parsed: &CMethodDescriptor) {
     for type_ in &parsed.arg_types {
         push_type_to_operand_stack(jvm, int_state, type_, l)
     }

@@ -9,11 +9,11 @@ pub mod reflection {
 
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::java::lang::class::JClass;
     use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
+    use crate::PushableFrame;
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc> {
@@ -27,17 +27,17 @@ pub mod reflection {
     }
 
     impl<'gc> Reflection<'gc> {
-        pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException> {
+        pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException> {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let reflection = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::reflection().into())?;
-            int_state.push_current_operand_stack(class1.java_value());
-            int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
+            todo!();// int_state.push_current_operand_stack(class1.java_value());
+            todo!();// int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
             let desc = CMethodDescriptor {
                 arg_types: vec![CClassName::class().into(), CClassName::class().into()],
                 return_type: CPDType::BooleanType,
             };
             run_static_or_virtual(jvm, int_state, &reflection, MethodName::method_isSameClassPackage(), &desc, todo!())?;
-            Ok(int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean())
+            Ok(todo!()/*int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean()*/)
         }
 
         //as_object_or_java_value!();
@@ -48,10 +48,9 @@ pub mod constant_pool {
     use another_jit_vm_ir::WasException;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::AllocatedHandle;
+    use crate::{AllocatedHandle, PushableFrame};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::new_object_full;
     use crate::java::lang::class::JClass;
     use crate::java::NewAsObjectOrJavaValue;
@@ -69,7 +68,7 @@ pub mod constant_pool {
     }
 
     impl<'gc> ConstantPool<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException> {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let constant_pool_classfile = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::constant_pool().into())?;
             let constant_pool_object = new_object_full(jvm, &mut temp/*int_state*/, &constant_pool_classfile);

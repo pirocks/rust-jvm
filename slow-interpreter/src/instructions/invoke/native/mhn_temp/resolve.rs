@@ -5,7 +5,7 @@ use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::{AllocatedHandle, InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, pushable_frame_todo, PushableFrame};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
@@ -18,7 +18,7 @@ use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resol
 use crate::rust_jni::interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
-pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException> {
     //so as far as I can find this is undocumented.
     //so as far as I can figure out we have a method name and a class
     //we lookup for a matching method, throw various kinds of exceptions if it doesn't work
@@ -83,8 +83,8 @@ enum ResolveAssertionCase {
             ACC_VARARGS                = ACC_TRANSIENT;
 */
 
-fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, member_name: MemberName<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
+fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, member_name: MemberName<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
@@ -93,20 +93,20 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "zero_L" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::ZERO_L.into()
-    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToSpecial" && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToSpecial" && member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.MethodHandle.linkToSpecial(Object,Object,MemberName)Object/invokeStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::LINK_TO_SPECIAL.into()
-    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "make" && member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
+    } else if &member_name.get_name(jvm).to_rust_string(jvm) == "make" && member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
         ResolveAssertionCase::MAKE.into()
-    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
+    } else if member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.BoundMethodHandle$Species_L.argL0/java.lang.Object/getField" {
         assert_eq!(member_name.get_flags(jvm), 17039360);
         ResolveAssertionCase::ARG_L0.into()
-    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
+    } else if member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "sun.misc.Unsafe.getObject(Object,long)Object/invokeVirtual" {
         assert_eq!(member_name.get_flags(jvm), 83951616);
         // assert_eq!(member_name.get_type(jvm).cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "(Object,long)Object");
         ResolveAssertionCase::GET_OBJECT_UNSAFE.into()
-    } else if member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.LambdaForm.identity_L(Object)Object/invokeStatic" {
+    } else if member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.invoke.LambdaForm.identity_L(Object)Object/invokeStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
         // assert_eq!(member_name.get_type(jvm).cast_object().to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "(Object,long)Object");
         ResolveAssertionCase::IDENTITY_L.into()
@@ -144,7 +144,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
         }
         IS_METHOD => {
             if ref_kind == JVM_REF_invokeVirtual {
-                let (resolve_result, method_i, class) = match resolve_invoke_virtual(jvm, int_state, member_name.clone())? {
+                let (resolve_result, method_i, class) = match resolve_invoke_virtual(jvm, todo!()/*int_state*/, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
@@ -156,7 +156,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else if ref_kind == JVM_REF_invokeStatic {
                 let mut synthetic = false;
-                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, int_state, member_name.clone(), &mut synthetic)? {
+                let (resolve_result, method_i, class) = match resolve_invoke_static(jvm, todo!()/*int_state*/, member_name.clone(), &mut synthetic)? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
@@ -169,7 +169,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 jvm.resolved_method_handles.write().unwrap().insert(ByAddressAllocatedObject::Owned(member_name.clone().object()), method_id);
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), synthetic)?;
             } else if ref_kind == JVM_REF_invokeInterface {
-                let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, int_state, member_name.clone())? {
+                let (resolve_result, method_i, class) = match resolve_invoke_interface(jvm, todo!()/*int_state*/, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
@@ -180,7 +180,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 };
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else if ref_kind == JVM_REF_invokeSpecial {
-                let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, int_state, member_name.clone())? {
+                let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, todo!()/*int_state*/, member_name.clone())? {
                     Ok(ok) => ok,
                     Err(err) => match err {
                         ResolutionError::Linkage => {
@@ -216,7 +216,7 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
                 assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
             }
             ResolveAssertionCase::MAKE => {
-                assert_eq!(&member_name.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
+                assert_eq!(&member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm), "java.lang.invoke.BoundMethodHandle$Species_L.make(MethodType,LambdaForm,Object)BoundMethodHandle/invokeStatic");
                 assert_eq!(member_name.get_flags(jvm), 100728840);
                 assert!(member_name.get_resolution(jvm).unwrap_object().is_some());
                 assert_eq!(member_name.get_resolution(jvm).cast_member_name().get_flags(jvm), 100728832);
@@ -238,10 +238,10 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Interpreter
     Ok(member_name.new_java_value_handle())
 }
 
-fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
+fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
     let mut temp: OpaqueFrame<'gc, 'l> = todo!();
     let linkage_error = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::linkage_error().into())?;
     let object = new_object(jvm, /*int_state*/&mut temp, &linkage_error);
-    int_state.set_throw(Some(AllocatedHandle::NormalObject(object)));
+    todo!();// int_state.set_throw(Some(AllocatedHandle::NormalObject(object)));
     return Err(WasException);
 }

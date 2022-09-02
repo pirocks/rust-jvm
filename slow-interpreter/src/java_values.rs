@@ -25,7 +25,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
-use crate::{AllocatedHandle, check_initing_or_inited_class};
+use crate::{AllocatedHandle, check_initing_or_inited_class, pushable_frame_todo};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
@@ -630,13 +630,13 @@ impl<'gc> JavaValue<'gc> {
             jv => (*jv).clone(),
         }*/
     }
-    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException> {
         let mut temp: OpaqueFrame<'gc, 'l> = todo!();
         let byte_array = check_initing_or_inited_class(jvm, &mut temp/*int_state*/, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
-    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException> {
         let mut temp: OpaqueFrame<'gc, 'l> = todo!();
         let byte_array = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType))?;
         let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
@@ -661,7 +661,7 @@ impl<'gc> JavaValue<'gc> {
         })).unwrap_normal_object()
     }
 
-    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedHandle<'gc>, WasException> {
         let mut buf: Vec<NewJavaValue<'gc, '_>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -948,7 +948,7 @@ impl<'gc, 'l> Object<'gc, 'l> {
 
     pub fn monitor_lock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'k>) {
         let monitor_to_lock = self.monitor();
-        monitor_to_lock.lock(jvm, int_state).unwrap();
+        monitor_to_lock.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
     }
 }
 

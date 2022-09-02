@@ -21,7 +21,7 @@ pub trait HasFrame<'gc> {
     fn max_stack(&self) -> u16;
     fn next_frame_pointer(&self) -> FramePointer;
     fn debug_assert(&self);
-    fn local_get(&self, i: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
+    fn local_get_handle(&self, i: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
         assert!(i < self.num_locals());
         let jvm = self.jvm();
         let ir_frame_ref = self.frame_ref();
@@ -30,7 +30,7 @@ pub trait HasFrame<'gc> {
         native_to_new_java_value_rtype(native_jv, expected_type, jvm)
     }
 
-    fn local_set(&mut self, i: u16, njv: NewJavaValue<'gc, '_>) {
+    fn local_set_njv(&mut self, i: u16, njv: NewJavaValue<'gc, '_>) {
         assert!(i < self.num_locals());
         let native_jv = njv.to_native();
         let ir_frame_mut = self.frame_mut();

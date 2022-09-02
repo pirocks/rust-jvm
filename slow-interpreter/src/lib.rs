@@ -34,6 +34,7 @@ use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
@@ -90,7 +91,7 @@ pub mod string_exit_cache;
 pub mod function_instruction_count;
 pub mod better_java_stack;
 
-pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), Box<dyn Error>> {
+pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
@@ -118,7 +119,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     match run_function(&jvm, todo!()/*int_state*/) {
         Ok(_) => {
             if !jvm.config.compiled_mode_active {
-                int_state.pop_frame(jvm, main_frame_guard, false);
+                todo!()// int_state.pop_frame(jvm, main_frame_guard, false);
             }
             loop {
                 sleep(Duration::new(100, 0)); //todo need to wait for other threads or something

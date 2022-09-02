@@ -30,7 +30,7 @@ use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue};
+use crate::{JVMState, NewAsObjectOrJavaValue, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
@@ -441,7 +441,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
     let string: JString = match JavaValue::Object(todo!() /*from_jclass(jvm,str)*/).cast_string() {
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, /*int_state*/pushable_frame_todo()),
         Some(string) => string,
     };
     let char_vec = string.value(jvm);
@@ -505,7 +505,7 @@ unsafe extern "C" fn to_reflected_method(env: *mut JNIEnv, _cls: jclass, method_
     };
     let runtime_class_view = runtime_class.view();
     let method_view = runtime_class_view.method_view_i(index);
-    let method_obj = match Method::method_object_from_method_view(jvm, todo!()/*int_state*/, &method_view) {
+    let method_obj = match Method::method_object_from_method_view(jvm, pushable_frame_todo()/*int_state*/, &method_view) {
         Ok(method_obj) => method_obj,
         Err(_) => todo!(),
     };
@@ -655,7 +655,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
 //shouldn't take class as arg and should be an impl method on Field
 pub fn field_object_from_view<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     class_obj: Arc<RuntimeClass<'gc>>,
     f: FieldView,
 ) -> Result<NewJavaValueHandle<'gc>, WasException> {
@@ -716,7 +716,7 @@ unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
 
 pub fn define_class_safe<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     parsed: Arc<Classfile>,
     current_loader: LoaderName,
     class_view: ClassBackedView,
@@ -824,7 +824,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
 #[must_use]
 pub(crate) unsafe fn push_type_to_operand_stack_new<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     type_: &CPDType,
     l: &mut VarargProvider,
 ) -> NewJavaValueHandle<'gc> {
@@ -871,44 +871,44 @@ pub(crate) unsafe fn push_type_to_operand_stack_new<'gc, 'l>(
 }
 
 
-pub(crate) unsafe fn push_type_to_operand_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, type_: &CPDType, l: &mut VarargProvider) {
+pub(crate) unsafe fn push_type_to_operand_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType, l: &mut VarargProvider) {
     match type_ {
         CPDType::ByteType => {
             let byte_ = l.arg_byte();
-            int_state.push_current_operand_stack(JavaValue::Byte(byte_))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Byte(byte_))
         }
         CPDType::CharType => {
             let char_ = l.arg_char();
-            int_state.push_current_operand_stack(JavaValue::Char(char_))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Char(char_))
         }
         CPDType::DoubleType => {
             let double_ = l.arg_double();
-            int_state.push_current_operand_stack(JavaValue::Double(double_))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Double(double_))
         }
         CPDType::FloatType => {
             let float_ = l.arg_float();
-            int_state.push_current_operand_stack(JavaValue::Float(float_))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Float(float_))
         }
         CPDType::IntType => {
             let int: i32 = l.arg_int();
-            int_state.push_current_operand_stack(JavaValue::Int(int))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Int(int))
         }
         CPDType::LongType => {
             let long: i64 = l.arg_long();
-            int_state.push_current_operand_stack(JavaValue::Long(long))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Long(long))
         }
         CPDType::Class(_) | CPDType::Array { .. } => {
             let native_object: jobject = l.arg_ptr();
             let o = from_object(jvm, native_object);
-            int_state.push_current_operand_stack(JavaValue::Object(o));
+            todo!();// int_state.push_current_operand_stack(JavaValue::Object(o));
         }
         CPDType::ShortType => {
             let short = l.arg_short();
-            int_state.push_current_operand_stack(JavaValue::Short(short))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Short(short))
         }
         CPDType::BooleanType => {
             let boolean_ = l.arg_bool();
-            int_state.push_current_operand_stack(JavaValue::Boolean(boolean_))
+            todo!();// int_state.push_current_operand_stack(JavaValue::Boolean(boolean_))
         }
         _ => panic!(),
     }

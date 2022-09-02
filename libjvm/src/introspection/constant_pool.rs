@@ -106,7 +106,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constant
     }
 }
 
-fn get_class_from_type_maybe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc>>>, WasException> {
+fn get_class_from_type_maybe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc>>>, WasException> {
     Ok(if load_class {
         let mut temp : OpaqueFrame<'gc, '_> = todo!();
         Some(check_initing_or_inited_class(jvm, /*int_state*/&mut temp, ptype)?)

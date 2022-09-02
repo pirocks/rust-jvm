@@ -27,6 +27,7 @@ use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
@@ -181,7 +182,7 @@ pub fn instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
@@ -198,7 +199,7 @@ pub fn assert_instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Inte
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let initied = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
@@ -248,7 +249,7 @@ pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterSt
         eprintln!("MonitorEnter");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    monitor.lock(jvm, int_state).unwrap();
+    monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
@@ -283,7 +284,7 @@ pub fn invoke_virtual_resolve<'gc>(
             let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(method_shape_id);
             let res = invoke_virtual_full(
                 jvm,
-                int_state,
+                pushable_frame_todo()/*int_state*/,
                 method_number,
                 name,
                 &desc,
@@ -315,7 +316,7 @@ pub fn invoke_virtual_resolve<'gc>(
 
 fn invoke_virtual_full<'gc>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    int_state: &mut impl PushableFrame<'gc>,
     method_number: MethodNumber,
     name: MethodName,
     desc: &CMethodDescriptor,
@@ -511,7 +512,7 @@ pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mu
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let inited = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };

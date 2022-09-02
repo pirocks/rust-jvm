@@ -4,7 +4,8 @@ pub mod big_integer {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+    use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -22,7 +23,7 @@ pub mod big_integer {
     }
 
     impl<'gc> BigInteger<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, jstring: JString<'gc>, radix: jint) -> Result<Self, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, jstring: JString<'gc>, radix: jint) -> Result<Self, WasException> {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let big_integer_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::big_integer().into())?;
             let object = new_object_full(jvm, &mut temp/*int_state*/, &big_integer_class);
@@ -32,7 +33,7 @@ pub mod big_integer {
             Ok(object.cast_big_integer())
         }
 
-        pub fn destructive_mul_add<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, arr: NewJavaValue<'gc, '_>, var1: jint, var2: jint) -> Result<(), WasException> {
+        pub fn destructive_mul_add<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, arr: NewJavaValue<'gc, '_>, var1: jint, var2: jint) -> Result<(), WasException> {
             let mut temp: OpaqueFrame<'gc, 'l> = todo!();
             let big_integer_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::big_integer().into())?;
             let args = vec![arr, NewJavaValue::Int(var1), NewJavaValue::Int(var2)];

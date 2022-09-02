@@ -14,7 +14,6 @@ use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
 use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
@@ -206,14 +205,14 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
     let thread = interpreter_state.thread().clone();
     let safe_point = thread.safepoint_state.borrow();
     safe_point.check(jvm, interpreter_state)
 }
 
 
-// fn breakpoint_check<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, methodid: MethodId) {
+// fn breakpoint_check<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, methodid: MethodId) {
 //     let pc = interpreter_state.current_pc();
 //     let stop = match jvm.jvmti_state() {
 //         None => false,

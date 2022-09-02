@@ -3,7 +3,7 @@ use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{AllocatedHandle, InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, JVMState};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
@@ -35,7 +35,7 @@ fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
     string.new_java_value_handle()
 }
 
-pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, res_string: String) -> Result<(), WasException> {
+pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, res_string: String) -> Result<(), WasException> {
     let java_lang_string = CClassName::string();
     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
     let str_as_vec = res_string.chars();
@@ -47,19 +47,21 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     let char_array_type = CPDType::array(CPDType::CharType);
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, todo!()/*interpreter_state*/, MethodName::constructor_init(), &expected_descriptor, string_class);
-    let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
-    let mut function_call_frame = interpreter_state.push_frame(StackEntryPush::Java(next_entry));
-    match run_function(jvm, todo!()/*interpreter_state*/) {
-        Ok(_) => {}
-        Err(_) => todo!(),
-    }
+    let java_frame_push = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
+    let mut function_call_frame = interpreter_state.push_frame(java_frame_push, |java_frame|{
+        match run_function(jvm, todo!()/*interpreter_state*/) {
+            Ok(_) => {}
+            Err(_) => todo!(),
+        };
+        todo!()
+    });
     let was_exception = interpreter_state.throw().is_some();
     interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
     if !jvm.config.compiled_mode_active {}
     if interpreter_state.throw().is_some() {
         unimplemented!()
     }
-    interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
+    todo!();// interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
     Ok(())
 }
 

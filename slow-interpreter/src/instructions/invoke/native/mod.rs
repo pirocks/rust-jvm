@@ -8,7 +8,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
-use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -70,7 +70,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let corrected_args = correct_args(owned_args_clone.as_slice());
     let within_frame = |native_frame: &mut NativeFrame<'gc, '_>| {
         if let Some(m) = monitor.as_ref() {
-            m.lock(jvm, todo!()/*int_state*/).unwrap();
+            m.lock(jvm, int_state).unwrap();
         }
         let prev_rip = native_frame.frame_ref().prev_rip();
         let result: Option<NewJavaValueHandle<'gc>> = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
@@ -96,7 +96,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
             };
             match first_call {
                 Some(r) => r,
-                None => match special_call_overrides(jvm, todo!()/*int_state*/, &class.view().method_view_i(method_i), args) {
+                None => match special_call_overrides(jvm, pushable_frame_todo()/*int_state*/, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
                     Err(WasException {}) => todo!(),
                 },
@@ -115,7 +115,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     }
 }
 
-fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
@@ -130,7 +130,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, int_state, args)?.into()
+        shouldBeInitialized(jvm, todo!()/*int_state*/, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
@@ -144,23 +144,23 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
         check_initing_or_inited_class(jvm, /*int_state*/&mut temp, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, todo!()/*int_state*/, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, todo!()/*int_state*/, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {
         //todo not really sure what to do here, for now nothing
         None
     } else if &mangled == "Java_sun_misc_Perf_createLong" {
-        Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.new_java_value_handle())
+        Some(HeapByteBuffer::new(jvm, todo!()/*int_state*/, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.new_java_value_handle())
         //todo this is incorrect and should be implemented properly.
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
         Some(NewJavaValueHandle::Int(4096)) //todo actually get page size
     } else if &mangled == "Java_sun_misc_Unsafe_putLong__Ljava_lang_Object_2JJ" {
         todo!()
     } else {
-        int_state.debug_print_stack_trace(jvm);
+        todo!();/*int_state.debug_print_stack_trace(jvm);*/
         dbg!(mangled);
         panic!()
     })

@@ -34,7 +34,7 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
 
     let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
@@ -67,7 +67,7 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
@@ -131,7 +131,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len
     let int_state = get_interpreter_state(env);
     let non_nullarray = match from_object_new(jvm, array) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };

@@ -136,7 +136,7 @@ impl<'gc> ThreadState<'gc> {
         main_send
     }
 
-    pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, loader_obj: ClassLoader<'gc>) {
+    pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader_obj: ClassLoader<'gc>) {
         // for _ in 0..100{
         //     let list_cpdtype = CPDType::from_ptype(&PType::from_class(ClassName::Str("java/util/ArrayList".to_string())), &jvm.string_pool);
         //     let list_class_object = get_or_create_class_object(jvm,list_cpdtype,int_state).unwrap();
@@ -219,7 +219,7 @@ impl<'gc> ThreadState<'gc> {
         //print sizeCtl after put if absent
     }
 
-    fn jvm_init_from_main_thread<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) {
+    fn jvm_init_from_main_thread<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) {
         let main_thread = jvm.thread_state.get_main_thread();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
         let system_class = assert_inited_or_initing_class(jvm, CClassName::system().into());
@@ -362,7 +362,7 @@ impl<'gc> ThreadState<'gc> {
         self.all_java_threads.read().unwrap().get(&tid).cloned()
     }
 
-    pub fn start_thread_from_obj<'l>(&'gc self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, obj: JThread<'gc>, invisible_to_java: bool) -> Arc<JavaThread<'gc>> {
+    pub fn start_thread_from_obj<'l>(&'gc self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JThread<'gc>, invisible_to_java: bool) -> Arc<JavaThread<'gc>> {
         let (send, recv) = channel();
         let java_thread: Arc<JavaThread<'gc>> = JavaThread::new(jvm, Some(obj), invisible_to_java).expect("todo");
         let loader_name = java_thread.thread_object.read().unwrap().as_ref().unwrap().get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
@@ -554,7 +554,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -564,7 +564,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
+    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -573,7 +573,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }

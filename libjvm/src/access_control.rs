@@ -20,7 +20,7 @@ use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 
 #[no_mangle]
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: jobject, context: jobject, wrapException: jboolean) -> jobject {
@@ -36,7 +36,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
     let mut args = vec![];
     args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
-    let res = match invoke_virtual(jvm, todo!()/*int_state*/, MethodName::method_run(), &expected_descriptor, args) {
+    let res = match invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_run(), &expected_descriptor, args) {
         Ok(x) => x,
         Err(WasException{}) => {
             return null_mut();

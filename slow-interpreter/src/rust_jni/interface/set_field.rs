@@ -16,7 +16,7 @@ unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID,
     let name = view.field(field_i as usize).field_name();
     let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
     };
     notnull.unwrap_normal_object_ref().set_var(&rc, name, val);
 }

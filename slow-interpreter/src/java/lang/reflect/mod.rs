@@ -7,9 +7,8 @@ use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{check_initing_or_inited_class, JavaValueCommon, UnAllocatedObject};
+use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
@@ -71,7 +70,7 @@ fn get_modifiers(method_view: &MethodView) -> jint {
 
 fn get_signature<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     method_view: &MethodView,
 ) -> Result<Option<JString<'gc>>, WasException> {
     match method_view.generic_signature() {
@@ -80,7 +79,7 @@ fn get_signature<'gc, 'l>(
     }
 }
 
-fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let class_type: CPDType = CClassName::class().into();
     let empty_vec = vec![];
     let types_iter = method_view
@@ -107,7 +106,7 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut In
     }))))
 }
 
-fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let class_type: CPDType = CClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -134,10 +133,10 @@ pub mod method {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{JavaValueCommon, NewJavaValue};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
@@ -162,7 +161,7 @@ pub mod method {
     }
 
     impl<'gc> Method<'gc> {
-        pub fn method_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView) -> Result<Method<'gc>, WasException> {
+        pub fn method_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Method<'gc>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -202,7 +201,7 @@ pub mod method {
 
         pub fn new_method<'l>(
             jvm: &'gc JVMState<'gc>,
-            int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+            int_state: &mut impl PushableFrame<'gc>,
             clazz: JClass<'gc>,
             name: JString<'gc>,
             parameter_types: NewJavaValueHandle<'gc>,
@@ -318,11 +317,10 @@ pub mod constructor {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{JavaValueCommon, NewJavaValue};
+    use crate::{JavaValueCommon, NewJavaValue, PushableFrame};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
     use crate::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
@@ -347,7 +345,7 @@ pub mod constructor {
     }
 
     impl<'gc> Constructor<'gc> {
-        pub fn constructor_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, method_view: &MethodView) -> Result<Constructor<'gc>, WasException> {
+        pub fn constructor_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Constructor<'gc>, WasException> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -365,7 +363,7 @@ pub mod constructor {
 
         pub fn new_constructor<'l>(
             jvm: &'gc JVMState<'gc>,
-            int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+            int_state: &mut impl PushableFrame<'gc>,
             clazz: JClass<'gc>,
             parameter_types: NewJavaValue<'gc, '_>,
             exception_types: NewJavaValue<'gc, '_>,
@@ -467,7 +465,7 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{InterpreterStateGuard, JVMState, NewAsObjectOrJavaValue, NewJavaValue, UnAllocatedObject};
+    use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -491,7 +489,7 @@ pub mod field {
     impl<'gc> Field<'gc> {
         pub fn init<'l>(
             jvm: &'gc JVMState<'gc>,
-            int_state: &'_ mut InterpreterStateGuard<'gc, 'l>,
+            int_state: &mut impl PushableFrame<'gc>,
             clazz: JClass<'gc>,
             name: JString<'gc>,
             type_: JClass<'gc>,
