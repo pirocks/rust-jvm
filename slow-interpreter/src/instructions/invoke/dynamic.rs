@@ -68,7 +68,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
             BootstrapArgView::Float(_) => unimplemented!(),
             BootstrapArgView::Double(_) => unimplemented!(),
             BootstrapArgView::MethodHandle(mh) => method_handle_from_method_view(jvm, pushable_frame_todo()/*int_state.inner()*/, &mh)?.new_java_value_handle(),
-            BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, todo!()/*int_state.inner()*/, mt.get_descriptor())?,
+            BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, pushable_frame_todo()/*int_state.inner()*/, mt.get_descriptor())?,
         })
     }
 
@@ -88,9 +88,9 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     };
 
     //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
-    let lookup_for_this = Lookup::trusted_lookup(jvm, todo!()/*int_state.inner()*/);
-    let method_type = desc_from_rust_str(jvm, todo!()/*int_state.inner()*/, other_desc_str.to_str(&jvm.string_pool).clone())?;
-    let name_jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, Wtf8Buf::from_string(other_name.to_str(&jvm.string_pool)))?.new_java_value_handle();
+    let lookup_for_this = Lookup::trusted_lookup(jvm, int_state.inner());
+    let method_type = desc_from_rust_str(jvm, int_state.inner(), other_desc_str.to_str(&jvm.string_pool).clone())?;
+    let name_jstring = JString::from_rust(jvm, int_state.inner(), Wtf8Buf::from_string(other_name.to_str(&jvm.string_pool)))?.new_java_value_handle();
 
     let mut next_invoke_virtual_args = vec![];
 
@@ -109,9 +109,9 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     //todo theres a MHN native for this upcall
     let from_legacy_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool);
     todo!();/*int_state.inner().set_current_pc(Some(current_pc));*/
-    let call_site = invoke_virtual_method_i(jvm, todo!()/*int_state.inner()*/, &from_legacy_desc, method_handle_class.clone(), invoke, next_invoke_virtual_args)?.unwrap();
+    let call_site = invoke_virtual_method_i(jvm, int_state.inner(), &from_legacy_desc, method_handle_class.clone(), invoke, next_invoke_virtual_args)?.unwrap();
     let call_site = call_site.cast_call_site();
-    let target = call_site.get_target(jvm, todo!()/*int_state.inner()*/)?;
+    let target = call_site.get_target(jvm, int_state.inner())?;
     let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact()); //todo need safe java wrapper way of doing this
     let invoke = lookup_res.iter().next().unwrap();
     let (num_args, args, is_static) = if int_state.current_frame_mut().operand_stack_depth() == 0 {
@@ -121,7 +121,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         let args = method_type.get_ptypes_as_types(jvm);
         let form: LambdaForm<'gc> = target.get_form(jvm)?;
         let member_name: MemberName<'gc> = form.get_vmentry(jvm);
-        let static_: bool = member_name.is_static(jvm, todo!()/*int_state.inner()*/)?;
+        let static_: bool = member_name.is_static(jvm, int_state.inner())?;
         (args.len() as u16 + if static_ { 0u16 } else { 1u16 }, args, static_)
     }; //todo also sketch
     // let operand_stack_len = int_state.current_frame_mut().operand_stack(jvm).len();
@@ -146,7 +146,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let main_invoke_args = main_invoke_args_owned.iter().map(|arg| arg.as_njv()).collect_vec();
     todo!();/*int_state.inner().set_current_pc(Some(current_pc));*/
     let desc = CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() };
-    let res = invoke_virtual_method_i(jvm, todo!()/*int_state.inner()*/, &desc, method_handle_class, invoke, main_invoke_args)?;
+    let res = invoke_virtual_method_i(jvm, int_state.inner(), &desc, method_handle_class, invoke, main_invoke_args)?;
 
     todo!();/*assert!(int_state.inner().throw().is_none());*/
 

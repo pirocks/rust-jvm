@@ -34,7 +34,7 @@ use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dsto
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
 use crate::interpreter::wide::wide;
-use crate::JVMState;
+use crate::{JVMState, pushable_frame_todo};
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -275,7 +275,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm, todo!()/*interpreter_state.inner()*/).unwrap();
+            monitor.lock(jvm, interpreter_state.inner()).unwrap();
             PostInstructionAction::Next {}
         }
         CInstructionInfo::monitorexit => {

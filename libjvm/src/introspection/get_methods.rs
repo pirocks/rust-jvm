@@ -44,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     let loader = int_state.current_loader(jvm);
     let of_class_obj = from_object_new(jvm, ofClass).unwrap().cast_class();
     let int_state = get_interpreter_state(env);
-    match JVM_GetClassDeclaredMethods_impl(jvm, todo!()/*int_state*/, publicOnly, loader, of_class_obj) {
+    match JVM_GetClassDeclaredMethods_impl(jvm, int_state, publicOnly, loader, of_class_obj) {
         Ok(res) => res,
         Err(_) => null_mut(),
     }
@@ -59,7 +59,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let method_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::method().into())?;
+    let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
     let mut object_array = vec![];
     let methods_owned = methods
         .filter(|(c, i)| {
@@ -76,10 +76,10 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     for method_owned in methods_owned.iter() {
         object_array.push(method_owned.new_java_value());
     }
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::method().into())).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::method().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
         UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array }));
-    unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }
+    unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)) }
 }
 
 #[no_mangle]
@@ -90,7 +90,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     let class_type = class_obj.as_type(jvm);
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    match JVM_GetClassDeclaredConstructors_impl(jvm, todo!()/*int_state*/, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
+    match JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
         Ok(res) => res,
         Err(WasException {}) => null_mut(),
     }
@@ -111,8 +111,8 @@ fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_s
         object_array.push(constructor.new_java_value_handle())
     });
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::constructor().into())).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::constructor().into())).unwrap();
     let unallocated = UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array.iter().map(|handle| handle.as_njv()).collect_vec() });
     let res = jvm.allocate_object(unallocated);
-    Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), int_state) })
+    Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/) })
 }

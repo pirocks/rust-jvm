@@ -70,7 +70,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
         //todo do a proper jvmti check
         (penv as *mut *mut jvmtiEnv).write(get_jvmti_interface(state, int_state));
     } else {
-        let res_ptr = todo!()/*get_interface(state, /*int_state*/todo!(), )*/;
+        let res_ptr = todo!()/*get_interface(state, int_state, )*/;
         (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);
     }
 

@@ -5,7 +5,7 @@ use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, pushable_frame_todo, PushableFrame};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
@@ -84,7 +84,9 @@ enum ResolveAssertionCase {
 */
 
 fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, member_name: MemberName<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
-    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" && member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() && member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
+    let assertion_case = if &member_name.get_name(jvm).to_rust_string(jvm) == "cast" &&
+        member_name.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type() == CClassName::class() &&
+        member_name.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm) == "java.lang.Class.cast(Object)Object/invokeVirtual" {
         None
     } else if &member_name.get_name(jvm).to_rust_string(jvm) == "linkToStatic" {
         assert_eq!(member_name.get_flags(jvm), 100728832);
@@ -239,9 +241,8 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableF
 }
 
 fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let linkage_error = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::linkage_error().into())?;
-    let object = new_object(jvm, /*int_state*/&mut temp, &linkage_error);
+    let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
+    let object = new_object(jvm, int_state, &linkage_error);
     todo!();// int_state.set_throw(Some(AllocatedHandle::NormalObject(object)));
     return Err(WasException);
 }

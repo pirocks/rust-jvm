@@ -78,7 +78,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             let method_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, method_name_wtf8)?;
             let source_file_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, source_file_name_wtf8)?;
 
-            Ok(StackTraceElement::new(jvm, todo!()/*int_state*/, declaring_class_name, method_name, source_file_name, line_number)?)
+            Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
         })
         .collect::<Result<Vec<_>, WasException>>().expect("todo");
 
@@ -87,7 +87,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
             Some(x) => x,
             None => {
-                return throw_npe(jvm, /*int_state*/todo!());
+                return throw_npe(jvm, int_state);
             }
         }),
         stack_entry_objs,
@@ -101,7 +101,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
     match jvm.stacktraces_by_throwable.read().unwrap().get(&AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     })) {
         Some(x) => x,
@@ -118,19 +118,19 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     let throwable_not_null = match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let stack_traces: &Vec<StackTraceElement> = match guard.get(&AllocatedObjectHandleByAddress(throwable_not_null)) {
         Some(x) => x,
         None => {
-            return throw_illegal_arg(jvm, todo!()/*int_state*/);
+            return throw_illegal_arg(jvm, int_state);
         }
     };
     match stack_traces.get(index as usize)
     {
         None => {
-            return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
+            return throw_array_out_of_bounds(jvm, int_state, index);
         }
         Some(element) => { to_object_new(Some(element.full_object_ref())) }
     }

@@ -24,18 +24,16 @@ pub mod big_integer {
 
     impl<'gc> BigInteger<'gc> {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, jstring: JString<'gc>, radix: jint) -> Result<Self, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let big_integer_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::big_integer().into())?;
-            let object = new_object_full(jvm, &mut temp/*int_state*/, &big_integer_class);
+            let big_integer_class = check_initing_or_inited_class(jvm, int_state, CClassName::big_integer().into())?;
+            let object = new_object_full(jvm, int_state, &big_integer_class);
             let args = vec![object.new_java_value(), jstring.new_java_value(), NewJavaValue::Int(radix)];
             let method_descriptor = CMethodDescriptor::void_return(vec![CClassName::string().into(), CPDType::IntType]);
-            run_constructor(jvm, /*int_state*/ &mut temp, big_integer_class, args, &method_descriptor)?;
+            run_constructor(jvm, int_state, big_integer_class, args, &method_descriptor)?;
             Ok(object.cast_big_integer())
         }
 
         pub fn destructive_mul_add<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, arr: NewJavaValue<'gc, '_>, var1: jint, var2: jint) -> Result<(), WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let big_integer_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::big_integer().into())?;
+            let big_integer_class = check_initing_or_inited_class(jvm, int_state, CClassName::big_integer().into())?;
             let args = vec![arr, NewJavaValue::Int(var1), NewJavaValue::Int(var2)];
             let res = run_static_or_virtual(
                 jvm,

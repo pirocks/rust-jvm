@@ -53,7 +53,7 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     let int_state = get_interpreter_state(env);
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
         Some(notnull) => notnull,
     };
@@ -114,7 +114,7 @@ pub unsafe fn get_obj_and_name<'gc>(
     let field_name = field.field_name();
     let notnull = match from_object_new(jvm, target_obj) {
         None => {
-            throw_npe_res(jvm, todo!()/*int_state*/)?;
+            throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
         Some(notnull) => notnull,

@@ -42,7 +42,7 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
         args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    let res = invoke_virtual_method_i(jvm, todo!()/*int_state*/, parsed, class, &method, not_handles)?;
+    let res = invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
     todo!();// assert!(int_state.throw().is_none());
     return Ok(res);
 }
@@ -53,7 +53,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    check_initing_or_inited_class(jvm, /*int_state*/&mut temp, class.cpdtype())?;
+    check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();

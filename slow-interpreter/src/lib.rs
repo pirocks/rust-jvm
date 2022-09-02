@@ -49,7 +49,6 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
-use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
 use crate::sun::misc::launcher::Launcher;
@@ -98,10 +97,9 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
 
     ThreadState::debug_assertions(jvm,int_state, loader_obj);
 
-    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
-    let main = check_loaded_class_force_loader(jvm, &mut temp/*int_state*/, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    let main = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, main.cpdtype()).expect("failed to load main class");
-    check_loaded_class(jvm, &mut temp/*int_state*/, main.cpdtype()).expect("failed to init main class");
+    let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
+    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
+    check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);
     let main_thread = jvm.thread_state.get_main_thread();
@@ -110,31 +108,32 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
     jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id,false);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
-    let local_var_array = setup_program_args(&jvm, int_state, args);
+    let local_var_array = setup_program_args(&jvm, todo!()/*int_state*/, args);
     jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
-    let stack_entry = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
-    let main_frame_guard = int_state.push_frame(StackEntryPush::Java(stack_entry));
-    jvm.include_name_field.store(true, Ordering::SeqCst);
-    match run_function(&jvm, todo!()/*int_state*/) {
-        Ok(_) => {
-            if !jvm.config.compiled_mode_active {
-                todo!()// int_state.pop_frame(jvm, main_frame_guard, false);
+    let java_frame_push = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
+    let _: Result<(), WasException> = int_state.push_frame_java(java_frame_push, |java_native|{
+        jvm.include_name_field.store(true, Ordering::SeqCst);
+        match run_function(&jvm, java_native) {
+            Ok(_) => {
+                if !jvm.config.compiled_mode_active {
+                    todo!()// int_state.pop_frame(jvm, main_frame_guard, false);
+                }
+                loop {
+                    sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
+                }
+                // panic!();
             }
-            loop {
-                sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
+            Err(WasException {}) => {
+                todo!();// let throwable = int_state.throw().unwrap().duplicate_discouraged().cast_throwable();
+                // int_state.set_throw(None);
+                // throwable.print_stack_trace(jvm, int_state).unwrap();
+                // dbg!(throwable.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
+                // int_state.debug_print_stack_trace(jvm);
+                todo!()
             }
-            // panic!();
         }
-        Err(WasException {}) => {
-            let throwable = int_state.throw().unwrap().duplicate_discouraged().cast_throwable();
-            int_state.set_throw(None);
-            throwable.print_stack_trace(jvm, int_state).unwrap();
-            dbg!(throwable.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
-            int_state.debug_print_stack_trace(jvm);
-            todo!()
-        }
-    }
+    });
     Ok(())
 }
 
@@ -146,7 +145,7 @@ fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
     let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
     jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::string().into())).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CPDType::array(CClassName::string().into())).unwrap(),
         elems,
     }))
 }
@@ -161,7 +160,7 @@ fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterSt
         let value_i = 2 * i + 1;
         let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
         let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
-        prop_obj.set_property(jvm, int_state, key, value)?;
+        prop_obj.set_property(jvm, pushable_frame_todo()/*int_state*/, key, value)?;
     }
     int_state.pop_frame(jvm, frame_for_properties, false);
     Ok(())

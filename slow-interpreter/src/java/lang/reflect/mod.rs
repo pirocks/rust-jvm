@@ -98,10 +98,8 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl 
     for ptype in types_iter {
         exception_table.push(JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, ptype)?.new_java_value_handle())
     }
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-
     Ok(NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(class_type)).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(class_type)).unwrap(),
         elems: exception_table.iter().map(|handle| handle.as_njv()).collect_vec(),
     }))))
 }
@@ -114,9 +112,7 @@ fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
         res.push(JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, param_type.clone())?.new_java_value_handle());
     }
     let not_owned_elems = res.iter().map(|handle| handle.as_njv()).collect_vec();
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-
-    let whole_array_runtime_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(class_type)).unwrap();
+    let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(class_type)).unwrap();
 
     let allocated_obj = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: not_owned_elems }));
     Ok(NewJavaValueHandle::Object(allocated_obj))
@@ -185,8 +181,7 @@ pub mod method {
             //todo what does slot do?
             let slot = -1;
             let signature = get_signature(jvm, int_state, &method_view)?;
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType)).unwrap();
+            let byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
             let annotations = NewJavaValueHandle::from_optional_object(method_view.get_annotation_bytes().map(|param_annotations| {
                 JavaValue::byte_array(jvm, int_state, param_annotations).unwrap()
             }));
@@ -214,9 +209,8 @@ pub mod method {
             parameter_annotations: NewJavaValueHandle<'gc>,
             annotation_default: NewJavaValueHandle<'gc>,
         ) -> Result<Method<'gc>, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let method_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::method().into()).unwrap();
-            let method_object = new_object_full(jvm, &mut temp/*int_state*/, &method_class);
+            let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
+            let method_object = new_object_full(jvm, int_state, &method_class);
             let full_args = vec![method_object.new_java_value(),
                                  clazz.new_java_value(),
                                  name.new_java_value(),
@@ -243,7 +237,7 @@ pub mod method {
                 CPDType::array(CPDType::ByteType),
                 CPDType::array(CPDType::ByteType),
             ]);
-            run_constructor(jvm, /*int_state*/ &mut temp, method_class, full_args, &c_method_descriptor)?;
+            run_constructor(jvm, int_state, method_class, full_args, &c_method_descriptor)?;
             Ok(method_object.cast_method())
         }
 
@@ -371,12 +365,11 @@ pub mod constructor {
             slot: jint,
             signature: Option<JString<'gc>>,
         ) -> Result<Constructor<'gc>, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let constructor_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::constructor().into())?;
-            let constructor_object = new_object_full(jvm, &mut temp/*int_state*/, &constructor_class);
+            let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
+            let constructor_object = new_object_full(jvm, int_state, &constructor_class);
 
             //todo impl annotations
-            let empty_byte_array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType)).unwrap();
+            let empty_byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
             let empty_byte_array = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc);
             let full_args = vec![constructor_object.new_java_value(),
                                  clazz.new_java_value(),
@@ -388,7 +381,7 @@ pub mod constructor {
                                  empty_byte_array.as_njv(),
                                  empty_byte_array.as_njv()];
             let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
-            run_constructor(jvm, /*int_state*/ &mut temp, constructor_class, full_args, &c_method_descriptor)?;
+            run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
             Ok(constructor_object.cast_constructor())
         }
 
@@ -498,23 +491,22 @@ pub mod field {
             signature: Option<JString<'gc>>,
             annotations: Vec<NewJavaValue<'gc, '_>>,
         ) -> Result<Self, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let field_classfile = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::field().into())?;
-            let field_object = new_object_full(jvm, &mut temp/*int_state*/, &field_classfile);
+            let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
+            let field_object = new_object_full(jvm, int_state, &field_classfile);
 
             let modifiers = NewJavaValue::Int(modifiers);
             let slot = NewJavaValue::Int(slot);
 
             //todo impl annotations.
             let allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-                whole_array_runtime_class: check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType))?,
+                whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?,
                 elems: annotations,
             }));
             let annotations = allocated_object_handle.new_java_value();
 
             run_constructor(
                 jvm,
-                &mut temp/*int_state*/,
+                int_state,
                 field_classfile,
                 vec![field_object.new_java_value(),
                      clazz.new_java_value(),

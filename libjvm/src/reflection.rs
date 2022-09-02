@@ -56,23 +56,23 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let args_not_null = match from_object_new(jvm, args0) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let args = args_not_null.unwrap_array();
     let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
         Some(method_name) => method_name.cast_string().to_rust_string(jvm),
     };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
     // let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
-    //     None => return throw_npe(jvm, /*int_state*/todo!()),
+    //     None => return throw_npe(jvm, int_state),
     //     Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
     // };
     let clazz_java_val = method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
@@ -83,7 +83,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     }
     let target_class_name = target_class.unwrap_class_type();
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let target_runtime_class = match check_initing_or_inited_class(jvm, /*int_state*/&mut temp, target_class_name.into()) {
+    let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
         Ok(x) => x,
         Err(WasException {}) => return null_mut(),
     };
@@ -124,12 +124,12 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let res = if is_virtual {
         invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args).unwrap().unwrap()
     } else {
-        run_static_or_virtual(jvm, todo!()/*int_state*/, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
+        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
     };
 
     let res = match res {
         NewJavaValueHandle::Long(long) => {
-            Some(Long::new(jvm,todo!()/*int_state*/, long).unwrap().full_object())
+            Some(Long::new(jvm,int_state, long).unwrap().full_object())
         }
         NewJavaValueHandle::Int(_) => {
             todo!()
@@ -173,14 +173,14 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let constructor_obj = match from_object_new(jvm, c) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, todo!()/*int_state*/) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
@@ -194,7 +194,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         let temp_1 = match from_object_new(jvm, args0) {
             Some(x) => x,
             None => {
-                return throw_npe(jvm, /*int_state*/todo!());
+                return throw_npe(jvm, int_state);
             }
         };
         let elems_refcell = temp_1.unwrap_array();
@@ -221,9 +221,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         arg_types: parameter_types,
         return_type: CPDType::VoidType, //todo use from_leaacy instead
     };
-    let obj = new_object(jvm, /*int_state*/&mut temp, &clazz);
+    let obj = new_object(jvm, int_state, &clazz);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
-    run_constructor(jvm, /*int_state*/ &mut temp, clazz, full_args, &signature);
+    run_constructor(jvm, int_state, clazz, full_args, &signature);
     new_local_ref_public_new(Some(obj.as_allocated_obj()), todo!()/*int_state*/)
 }

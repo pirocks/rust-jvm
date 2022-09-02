@@ -165,7 +165,7 @@ pub mod method_type_form {
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo};
     use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
@@ -227,7 +227,7 @@ pub mod method_type_form {
         ) -> MethodTypeForm<'gc> {
             let mut temp : OpaqueFrame<'gc, '_> = todo!();
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, /*int_state*/&mut temp, &method_type_form));
+            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, pushable_frame_todo()/*int_state*/, &method_type_form));
             let res = res_handle.cast_method_type_form();
             res.set_arg_to_slot_table(jvm, arg_to_slot_table);
             res.set_slot_to_arg_table(jvm, slot_to_arg_table);

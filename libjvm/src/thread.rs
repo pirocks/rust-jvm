@@ -42,7 +42,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let thread_object = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread();
-    jvm.thread_state.start_thread_from_obj(jvm, todo!()/*int_state*/, thread_object, false);
+    jvm.thread_state.start_thread_from_obj(jvm, int_state, thread_object, false);
 }
 
 #[no_mangle]
@@ -51,7 +51,7 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let target_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    if let Err(_err) = target_thread.suspend_thread(jvm, todo!()/*int_state*/, false) {
+    if let Err(_err) = target_thread.suspend_thread(jvm, int_state, false) {
         // it appears we should ignore any errors here.
         //todo unclear what happens when one calls start on stopped thread. javadoc says terminate immediately, but what does that mean/ do we do this
     }
@@ -78,7 +78,7 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
-    let _ = java_thread.suspend_thread(jvm, todo!()/*int_state*/, false);
+    let _ = java_thread.suspend_thread(jvm, int_state, false);
     //javadoc doesn't say anything about error handling so we just don't anything
 }
 
@@ -166,7 +166,7 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
         })
         .collect::<Vec<_>>();
     let object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
-    new_local_ref_public(todo!()/*object_array*/, todo!()/*int_state*/)
+    new_local_ref_public(todo!()/*object_array*/, int_state)
 }
 
 #[no_mangle]
@@ -246,7 +246,7 @@ unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Re
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
     let res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
-    Ok(new_local_ref_public(todo!()/*res*/, todo!()/*int_state*/))
+    Ok(new_local_ref_public(todo!()/*res*/, int_state))
 }
 
 #[no_mangle]

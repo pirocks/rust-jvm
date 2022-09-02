@@ -10,7 +10,7 @@ use crate::interpreter::{safepoint_check};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::JVMState;
-use crate::PushableFrame;
+use crate::{pushable_frame_todo, PushableFrame};
 use crate::threading::{ResumeError, SuspendError, ThreadStatus};
 
 pub type MonitorID = usize;
@@ -346,7 +346,7 @@ impl Monitor2 {
             todo!("illegal monitor state")
         }
         drop(guard);
-        safepoint_check(jvm, int_state).unwrap();
+        safepoint_check(jvm, pushable_frame_todo()/*int_state*/).unwrap();
         Ok(())
     }
 
@@ -382,7 +382,7 @@ impl Monitor2 {
             guard.waiting_notify.push(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
         } else {
-            int_state.debug_print_stack_trace(jvm);
+            todo!();// int_state.debug_print_stack_trace(jvm);
             todo!("throw illegal monitor state")
         }
         drop(guard);

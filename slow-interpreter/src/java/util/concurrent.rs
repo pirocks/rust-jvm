@@ -1,7 +1,6 @@
 pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
-    use threads::signal::__sched_cpualloc;
 
     use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue, pushable_frame_todo};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -26,9 +25,9 @@ pub mod concurrent_hash_map {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> Self {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
 
-            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::concurrent_hash_map().into()).unwrap();
+            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CClassName::concurrent_hash_map().into()).unwrap();
             let concurrent_hash_map = new_object_full(jvm, &mut temp/*int_state*/, &concurrent_hash_map_class);
-            run_constructor(jvm, /*int_state*/ &mut temp, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
+            run_constructor(jvm, pushable_frame_todo()/*int_state*/, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
 

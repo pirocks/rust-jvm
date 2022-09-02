@@ -54,7 +54,7 @@ pub fn array_out_of_bounds<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpr
     }
     assert!(int_state.throw().is_none());
     let save = int_state.current_pc();
-    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, int_state).unwrap();
+    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, pushable_frame_todo()/*int_state*/).unwrap();
     let throwable = array_out_of_bounds.object().cast_throwable();
     int_state.set_current_pc(save);
     assert!(int_state.current_pc().is_some());
@@ -183,7 +183,7 @@ pub fn instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
+    check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -200,7 +200,7 @@ pub fn assert_instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Inte
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let initied = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
+    let initied = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
     dbg!(cpdtype.jvm_representation(&jvm.string_pool));
@@ -414,7 +414,7 @@ pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         None => {
             drop(read_guard);
             let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-            let jstring = JString::from_rust(jvm, pushable_frame_todo(), wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
+            let jstring = JString::from_rust(jvm, pushable_frame_todo(), wtf8buf).expect("todo exceptions").intern(jvm, pushable_frame_todo()/*int_state*/).unwrap();
             jvm.string_exit_cache.write().unwrap().register_entry(compressed_wtf8, jstring.clone());
             let jv = jstring.new_java_value();
             jv.to_native()
@@ -513,7 +513,7 @@ pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mu
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let inited = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, cpdtype).unwrap();
+    let inited = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);

@@ -17,7 +17,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     let res = new_array(env, len, type_);
     let res_safe = match from_object_new(jvm, res) {
         Some(x) => x,
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
     };
     let array = res_safe.unwrap_array();
     for i in 0..array.len() {

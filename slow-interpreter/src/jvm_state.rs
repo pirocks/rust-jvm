@@ -51,7 +51,7 @@ use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
-use crate::{AllocatedHandle, JavaValueCommon,  UnAllocatedObject};
+use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
@@ -690,7 +690,7 @@ impl<'gc> NativeLibraries<'gc> {
 
     pub unsafe fn load_old<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
+        let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, todo!()/*int_state*/);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
         //todo check return res
     }

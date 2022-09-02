@@ -34,7 +34,7 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let loader_name = int_state.current_loader(jvm);
-    loader_name_to_native_obj(jvm, todo!()/*int_state*/, loader_name)
+    loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
 unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader_name: LoaderName) -> jobject {
@@ -103,7 +103,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
     let int_state = get_interpreter_state(env);
     todo!();/*for stack_entry in int_state.cloned_stack_snapshot(jvm) {
         if !stack_entry.privileged_frame() {
-            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object().to_gc_managed()), todo!()/*int_state*/);
+            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object().to_gc_managed()), int_state);
         }
     }*/
     return new_local_ref_public(
@@ -113,7 +113,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
         }
             .object().to_gc_managed()
             .into()*/,
-        todo!()/*int_state*/
+        int_state
     );
 }
 
@@ -123,5 +123,5 @@ unsafe extern "system" fn JVM_GetClassLoader(env: *mut JNIEnv, cls: jclass) -> j
     let int_state = get_interpreter_state(env);
     let runtime_class = from_jclass(jvm, cls).as_runtime_class(jvm);
     let loader_name = jvm.classes.read().unwrap().get_initiating_loader(&runtime_class);
-    loader_name_to_native_obj(jvm, todo!()/*int_state*/, loader_name)
+    loader_name_to_native_obj(jvm, int_state, loader_name)
 }

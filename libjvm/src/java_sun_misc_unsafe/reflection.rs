@@ -12,8 +12,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_allocateInstance<'gc>(env: *mut J
     let int_state = get_interpreter_state(env);
     let jclass = from_jclass(jvm, cls);
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, jclass.as_type(jvm)).unwrap();
-    let obj_handle = new_object(jvm, /*int_state*/&mut temp, &rc);
+    let rc = check_initing_or_inited_class(jvm, int_state, jclass.as_type(jvm)).unwrap();
+    let obj_handle = new_object(jvm, int_state, &rc);
     to_object_new(Some(obj_handle.as_allocated_obj()))
 }
 

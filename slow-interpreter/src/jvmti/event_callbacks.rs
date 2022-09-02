@@ -138,7 +138,7 @@ impl SharedLibJVMTI {
                 /*let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"vm_inited")*/);
                 let main_thread_object = main_thread.thread_object();
                 let event = VMInitEvent { thread: new_local_ref_public(todo!()/*main_thread_object.object().to_gc_managed().into()*/, int_state) };
-                self.VMInit(jvm, /*int_state*/todo!(), event);
+                self.VMInit(jvm, int_state, event);
                 assert!(self.thread_start_callback.read().unwrap().is_some());
                 int_state.pop_frame(jvm, frame_for_event, false); //todo check for pending excpetion anyway*/
             }
@@ -252,7 +252,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         jvm.config.tracing.trace_event_trigger("VMInit");
         let VMInitEvent { thread } = vminit;
         let jvmti = get_jvmti_interface(jvm, int_state);
-        let jni = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni = todo!()/*get_interface(jvm, int_state, )*/;
         let guard = self.vm_init_callback.read().unwrap();
         let f_pointer = *guard.as_ref().unwrap();
         drop(guard);
@@ -288,7 +288,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn ThreadStart<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, event: ThreadStartEvent) {
         jvm.config.tracing.trace_event_trigger("ThreadStart");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
-        let jni_env = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni_env = todo!()/*get_interface(jvm, int_state, )*/;
         let ThreadStartEvent { thread } = event;
         let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"ThreadStart")*/);
         if let Some(callback) = self.thread_start_callback.read().unwrap().as_ref() {
@@ -307,7 +307,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     }
 
     unsafe fn Exception<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, event: ExceptionEvent) {
-        let jni_env = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni_env = todo!()/*get_interface(jvm, int_state, )*/;
         let jvmti_env = get_jvmti_interface(jvm, int_state);
         let ExceptionEvent { thread, method, location, exception, catch_method, catch_location } = event;
         let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"Exception")*/);
@@ -347,7 +347,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn ClassPrepare<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, event: ClassPrepareEvent) {
         jvm.config.tracing.trace_event_trigger("ClassPrepare");
         let jvmti_env = get_jvmti_interface(jvm, int_state); //todo deal with these leaks
-        let jni_env = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni_env = todo!()/*get_interface(jvm, int_state, )*/;
         let ClassPrepareEvent { thread, klass } = event;
         let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"ClassPrepare")*/);
         (self.class_prepare_callback.read().unwrap().as_ref().unwrap())(jvmti_env, jni_env, thread, klass);
@@ -390,7 +390,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
     unsafe fn Breakpoint<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, event: BreakpointEvent) {
         jvm.config.tracing.trace_event_trigger("Breakpoint");
         let jvmti_env = get_jvmti_interface(jvm, int_state);
-        let jni_env = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni_env = todo!()/*get_interface(jvm, int_state, )*/;
         let BreakpointEvent { thread, method, location } = event;
         let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"Breakpoint")*/);
         let guard = self.breakpoint_callback.read().unwrap();
@@ -417,7 +417,7 @@ impl DebuggerEventConsumer for SharedLibJVMTI {
         jvm.config.tracing.trace_event_trigger("FramePop");
         //todo dup with above
         let jvmti_env = get_jvmti_interface(jvm, int_state);
-        let jni_env = todo!()/*get_interface(jvm, todo!()/*int_state*/, )*/;
+        let jni_env = todo!()/*get_interface(jvm, int_state, )*/;
         let FramePopEvent { thread, method, was_popped_by_exception } = event;
         let frame_for_event = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"FramePop")*/);
         let guard = self.frame_pop_callback.read().unwrap();

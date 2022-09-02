@@ -40,7 +40,7 @@ pub unsafe extern "C" fn release_string_chars(env: *mut JNIEnv, _str: jstring, c
     jvm.native.native_interface_allocations.free(chars as *mut c_void);
 }
 
-pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char) -> jstring {
+pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const c_char) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
@@ -51,7 +51,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
                 todo!();
                 return null_mut();
             }
-        }.intern(jvm, todo!()/*int_state*/).unwrap()
+        }.intern(jvm, int_state).unwrap()
             .object().as_allocated_obj()
             .into(),
         todo!()/*int_state*/
@@ -59,7 +59,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const ::std::os:
     res
 }
 
-pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const ::std::os::raw::c_char, len: usize) -> jstring {
+pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const c_char, len: usize) -> jstring {
     let mut owned_str = Wtf8Buf::with_capacity(len);
     for i in 0..len {
         //todo this is probably wrong

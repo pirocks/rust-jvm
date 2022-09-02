@@ -230,7 +230,7 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
     let jvm = get_state(env);
     let class = from_jclass(jvm, klass as jobject);
     let int_state = get_interpreter_state(env);
-    let class_loader = match class.get_class_loader(jvm, int_state) {
+    let class_loader = match class.get_class_loader(jvm, pushable_frame_todo()/*int_state*/) {
         Ok(class_loader) => class_loader,
         Err(WasException {}) => return universal_error(),
     };

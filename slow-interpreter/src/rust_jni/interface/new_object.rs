@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
 use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
-use crate::{JavaValueCommon, JVMState, pushable_frame_todo};
+use crate::{JavaValueCommon, JVMState};
 use method_table::from_jmethod_id;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::rust_jni::interface::call::VarargProvider;
@@ -34,17 +34,17 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     let _name = method.name();
     let parsed = method.desc();
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let obj = new_object(jvm, /*int_state*/&mut temp, &class);
+    let obj = new_object(jvm, int_state, &class);
     let mut args = vec![];
     let mut args_handle = vec![];
     args.push(obj.new_java_value());
     for type_ in &parsed.arg_types {
-        args_handle.push(push_type_to_operand_stack_new(jvm, todo!()/*int_state*/, type_, &mut l));
+        args_handle.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
     for arg in args_handle.iter(){
         args.push(arg.as_njv());
     }
-    if let Err(_) = invoke_special_impl(jvm, pushable_frame_todo()/*int_state*/, &parsed, method_i, class.clone(), args) {
+    if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), args) {
         return null_mut();
     };
     new_local_ref_public_new(obj.new_java_value().unwrap_object_alloc(), todo!()/*int_state*/)

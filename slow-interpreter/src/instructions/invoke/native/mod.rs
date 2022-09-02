@@ -70,7 +70,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let corrected_args = correct_args(owned_args_clone.as_slice());
     let within_frame = |native_frame: &mut NativeFrame<'gc, '_>| {
         if let Some(m) = monitor.as_ref() {
-            m.lock(jvm, int_state).unwrap();
+            m.lock(jvm, native_frame).unwrap();
         }
         let prev_rip = native_frame.frame_ref().prev_rip();
         let result: Option<NewJavaValueHandle<'gc>> = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
@@ -140,8 +140,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
             Some(class) => class,
         };
         let ptype = jclass.as_runtime_class(jvm).cpdtype();
-        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-        check_initing_or_inited_class(jvm, /*int_state*/&mut temp, ptype)?;
+        check_initing_or_inited_class(jvm, /*int_state*/pushable_frame_todo(), ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
         Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, todo!()/*int_state*/, args)?.into()

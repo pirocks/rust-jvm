@@ -9,7 +9,7 @@ use slow_interpreter::rust_jni::interface::string::intern_impl_unsafe;
 unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match intern_impl_unsafe(jvm, todo!()/*int_state*/, str_unsafe) {
+    match intern_impl_unsafe(jvm, int_state, str_unsafe) {
         Ok(res) => res,
         Err(WasException {}) => null_mut(),
     }

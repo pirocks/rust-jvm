@@ -141,8 +141,8 @@ fn get_matching_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inte
     for (field_class, i) in filtered {
         let view = field_class.view();
         let field_view = view.field(i);
-        let field_obj = field_object_from_view(jvm, todo!()/*int_state*/, field_class, field_view)?;
-        res.push(MemberName::new_from_field(jvm, todo!()/*int_state*/, field_obj.cast_field())?)
+        let field_obj = field_object_from_view(jvm, pushable_frame_todo()/*int_state*/, field_class, field_view)?;
+        res.push(MemberName::new_from_field(jvm, pushable_frame_todo()/*int_state*/, field_obj.cast_field())?)
     }
     Ok(res)
 }
@@ -170,9 +170,9 @@ fn get_matching_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
         let method_view = view.method_view_i(i);
         if method_view.name() == MethodName::constructor_init() {
             let constructor_obj = Constructor::constructor_object_from_method_view(jvm, pushable_frame_todo()/*int_state*/, &method_view)?;
-            res.push(MemberName::new_from_constructor(jvm, todo!()/*int_state*/, constructor_obj)?)
+            res.push(MemberName::new_from_constructor(jvm, pushable_frame_todo()/*int_state*/, constructor_obj)?)
         } else {
-            let method_obj = Method::method_object_from_method_view(jvm, todo!()/*int_state*/, &method_view)?;
+            let method_obj = Method::method_object_from_method_view(jvm, pushable_frame_todo()/*int_state*/, &method_view)?;
             res.push(MemberName::new_from_method(jvm, pushable_frame_todo()/*int_state*/, method_obj)?)
         }
     }

@@ -31,7 +31,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let method = JavaValue::Object(
         todo!(), /*Some(match from_jclass(jvm,method) {
                      None => {
-                         return throw_npe(jvm, /*int_state*/todo!());
+                         return throw_npe(jvm, int_state);
                      }
                      Some(method_obj) => method_obj
                  })*/
@@ -45,7 +45,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let view = clazz.view();
     let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
-            return throw_illegal_arg(jvm, todo!()/*int_state*/);
+            return throw_illegal_arg(jvm, int_state);
         }
         Some(res_method_view) => res_method_view,
     };
@@ -94,7 +94,7 @@ unsafe fn get_code_attr<T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method
         let code_attr = match method_view.real_code_attribute() {
             Some(x) => x,
             None => {
-                return throw_illegal_arg_res(jvm, todo!()/*int_state*/);
+                return throw_illegal_arg_res(jvm, int_state);
             }
         };
         and_then(code_attr)
@@ -238,7 +238,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.num_methods() as jint {
-        return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
+        return throw_array_out_of_bounds(jvm, int_state, index);
     }
     u8::from(view.method_view_i(index as u16).name() == MethodName::constructor_init())
 }

@@ -22,6 +22,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
+use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
@@ -53,7 +54,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     });
 
 
-    to_object_new(Some(defineAnonymousClass(jvm, /*int_state*/todo!(), &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
+    to_object_new(Some(defineAnonymousClass(jvm, int_state, &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
     //todo local ref
 }
 
@@ -62,7 +63,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
     let byte_array: Vec<u8> = args[2].as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|b| b.unwrap_int() as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
     if args[3].as_njv().to_handle_discouraged().unwrap_object().is_some() {
-        patch_all(jvm, int_state.current_frame(), args, &mut unpatched);
+        patch_all(jvm, todo!()/*int_state.current_frame()*/, args, &mut unpatched);
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this

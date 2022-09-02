@@ -19,6 +19,7 @@ use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::pushable_frame_todo;
 use crate::threading::safepoints::Monitor2;
 
 pub mod single_instruction;
@@ -133,12 +134,12 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
             //todo
             let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc);
             let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
-            monitor.lock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
+            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
             Some(monitor)
         }else {
             let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
+            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
             Some(monitor)
         }
     }else {
@@ -206,9 +207,10 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 
 
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
-    let thread = interpreter_state.thread().clone();
+    todo!()
+    /*let thread = interpreter_state.thread().clone();
     let safe_point = thread.safepoint_state.borrow();
-    safe_point.check(jvm, interpreter_state)
+    safe_point.check(jvm, interpreter_state)*/
 }
 
 
@@ -237,7 +239,7 @@ pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
             /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
             todo!()
         };
-        monitor.lock(jvm, todo!()/*int_state*/).unwrap();
+        monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
         monitor.into()
     } else {
         None

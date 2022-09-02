@@ -31,7 +31,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let int_state = get_interpreter_state(env);
     let mut byte_array = from_object_new(jvm, bytes).unwrap().unwrap_array().array_iterator().map(|byte| byte.unwrap_byte_strict() as u8).collect::<Vec<_>>(); //todo handle npe
     let jname = match NewJavaValueHandle::Object(from_object_new(jvm, name).unwrap()).cast_string() {
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
         Some(jname) => jname,
     };
     let class_name = ClassName::Str(jname.to_rust_string(jvm)); //todo need to parse arrays here
@@ -46,11 +46,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
         LoaderName::BootstrapLoader
     };
     new_local_ref_public_new(
-        match define_class_safe(jvm, todo!()/*int_state*/, classfile, loader_name, class_view) {
+        match define_class_safe(jvm, int_state, classfile, loader_name, class_view) {
             Ok(object) => object,
             Err(_) => todo!(),
         }
             .unwrap_object().unwrap().as_allocated_obj().into(),
-        todo!()/*int_state*/,
+        todo!()/*int_state,*/
     )
 }

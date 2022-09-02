@@ -631,14 +631,12 @@ impl<'gc> JavaValue<'gc> {
         }*/
     }
     pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException> {
-        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-        let byte_array = check_initing_or_inited_class(jvm, &mut temp/*int_state*/, CPDType::array(CPDType::ByteType))?;
+        let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
     pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException> {
-        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-        let byte_array = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CPDType::ByteType))?;
+        let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
     }
@@ -666,8 +664,7 @@ impl<'gc> JavaValue<'gc> {
         for _ in 0..len {
             buf.push(val.clone());
         }
-        let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-        Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm, &mut temp/*int_state*/, CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
+        Ok(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(elem_type)).unwrap(), elems: buf })/*Object::Array(ArrayObject::new_array(jvm, int_state, buf, elem_type, jvm.thread_state.new_monitor("array object monitor".to_string()))?)*/))
     }
 
     pub fn new_vec_from_vec(jvm: &'gc JVMState<'gc>, vals: Vec<NewJavaValue<'gc, '_>>, elem_type: CPDType) -> AllocatedHandle<'gc> {

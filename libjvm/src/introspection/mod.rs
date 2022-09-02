@@ -91,7 +91,7 @@ unsafe extern "system" fn JVM_GetProtectionDomain(env: *mut JNIEnv, cls: jclass)
     let class = from_jclass(jvm, cls).as_runtime_class(jvm);
     match jvm.classes.read().unwrap().protection_domains.get_by_left(&ByAddress(class)) {
         None => null_mut(),
-        Some(pd_obj) => new_local_ref_public(pd_obj.clone().owned_inner().to_gc_managed().into(), todo!()/*int_state*/),
+        Some(pd_obj) => new_local_ref_public(pd_obj.clone().owned_inner().to_gc_managed().into(), int_state),
     }
 }
 
@@ -229,7 +229,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
-    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), todo!()/*int_state*/)*/
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)*/
 }
 
 #[no_mangle]
@@ -237,7 +237,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jstring = match JavaValue::Object(todo!() /*from_jclass(jvm,JVM_GetClassName(env, cb))*/).cast_string() {
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
         Some(jstring) => jstring,
     };
     let rust_string = jstring.to_rust_string(jvm);
@@ -287,14 +287,14 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
         return null_mut();
     };
     let jclass = load_class_constant_by_type(jvm, pushable_frame_todo(), type_).unwrap();
-    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)*/
+    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)*/
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclass, class2: jclass) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match Reflection::is_same_class_package(jvm, todo!()/*int_state*/, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
+    match Reflection::is_same_class_package(jvm, int_state, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
         Ok(res) => res,
         Err(WasException {}) => return jboolean::MAX,
     }
@@ -315,8 +315,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
-                let mut temp : OpaqueFrame<'gc, '_> = todo!();
-                if let Err(WasException {}) = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, p_type) {
+                if let Err(WasException {}) = check_initing_or_inited_class(jvm, int_state, p_type) {
                     return null_mut();
                 };
             }

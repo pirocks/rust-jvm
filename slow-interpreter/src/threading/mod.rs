@@ -109,7 +109,7 @@ impl<'gc> ThreadState<'gc> {
                 main_thread.notify_alive(jvm); //is this too early?
                 let _old = int_state.register_interpreter_state_guard(jvm);
                 jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
-                ThreadState::jvm_init_from_main_thread(jvm, &mut int_state);
+                ThreadState::jvm_init_from_main_thread(jvm, pushable_frame_todo()/*&mut int_state*/);
 
                 assert!(!jvm.live.load(Ordering::SeqCst));
                 jvm.live.store(true, Ordering::SeqCst);
@@ -126,7 +126,7 @@ impl<'gc> ThreadState<'gc> {
                 //handle any exceptions from here
                 int_state.pop_frame(jvm, push_guard, false);
                 let main_frame_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame")*/);
-                run_main(args, jvm, &mut int_state).unwrap();
+                run_main(args, jvm, pushable_frame_todo()/*&mut int_state*/).unwrap();
                 //todo handle exception exit from main
                 int_state.pop_frame(jvm, main_frame_guard, false);
                 main_thread.notify_terminated(jvm)
@@ -148,7 +148,7 @@ impl<'gc> ThreadState<'gc> {
         //     }
         // }
 
-        // let list_class = check_initing_or_inited_class(jvm, /*int_state*/todo!(), list_cpdtype).unwrap();
+        // let list_class = check_initing_or_inited_class(jvm, int_state, list_cpdtype).unwrap();
         // let input = vec![0,2328,1316134912];
         // let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray{
         //     whole_array_runtime_class: check_initing_or_inited_class(jvm,int_state, CPDType::array(CPDType::IntType)).unwrap(),
@@ -236,28 +236,30 @@ impl<'gc> ThreadState<'gc> {
             locals.push(NewJavaValue::Top);
         }
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard = int_state.push_frame(StackEntryPush::Java(initialize_system_frame));
-        assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
-        let _old = int_state.register_interpreter_state_guard(jvm);
-        match run_function(&jvm, todo!()/*int_state*/) {
-            Ok(_) => {}
-            Err(_) => todo!(),
-        }
-        if int_state.throw().is_some() {
-            unimplemented!()
-        }
-        set_properties(jvm, int_state).expect("todo");
-        //todo read and copy props here
-        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
-        System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
+        let init_frame_guard: Result<(), WasException> = int_state.push_frame_java(initialize_system_frame, |java_frame|{
+            assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
+            todo!();// let _old = int_state.register_interpreter_state_guard(jvm);
+            match run_function(&jvm, java_frame) {
+                Ok(_) => {}
+                Err(_) => todo!(),
+            }
+            todo!();
+            /*if int_state.throw().is_some() {
+                unimplemented!()
+            }*/
+            set_properties(jvm, todo!()).expect("todo");
+            //todo read and copy props here
+            let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+            let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
+            System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
 
-        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
-        System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
-
+            let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
+            let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
+            System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
+            todo!()
+        });
         //todo should handle exceptions here
-        int_state.pop_frame(jvm, init_frame_guard, false);
+        todo!(); // int_state.pop_frame(jvm, init_frame_guard, false);
         if !jvm.config.compiled_mode_active {}
     }
 
@@ -399,7 +401,7 @@ impl<'gc> ThreadState<'gc> {
 
         //todo fix loader
         let frame_for_run_call = interpreter_state_guard.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "frame for calling run on a new thread")*/);
-        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, &mut interpreter_state_guard) {
+        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
             /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
                             .cast_throwable()
                             .print_stack_trace(jvm, &mut interpreter_state_guard)
@@ -407,7 +409,7 @@ impl<'gc> ThreadState<'gc> {
             todo!();
             interpreter_state_guard.set_throw(None);
         };
-        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, &mut interpreter_state_guard) {
+        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
             eprintln!("Exception occurred exiting thread, something is pretty messed up");
             panic!()
         }
@@ -579,7 +581,7 @@ impl<'gc> JavaThread<'gc> {
         }
         self.safepoint_state.set_suspended()?;
         if self.underlying_thread.is_this_thread() {
-            assert_eq!(self.java_tid, int_state.thread().java_tid);
+            todo!();/*assert_eq!(self.java_tid, int_state.thread().java_tid);*/
             if !without_self_suspend {
                 safepoint_check(jvm, int_state)?;
             }

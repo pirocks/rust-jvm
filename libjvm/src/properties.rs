@@ -66,11 +66,11 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Result<jobject, WasException> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let key = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(key))?.intern(jvm, todo!()/*int_state*/)?;
-    let val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(val))?.intern(jvm, todo!()/*int_state*/)?;
+    let key = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(key))?.intern(jvm, int_state)?;
+    let val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
     let prop_obj = match from_object_new(jvm, p) {
         Some(x) => x,
-        None => return throw_npe_res(jvm, todo!()/*int_state*/),
+        None => return throw_npe_res(jvm, int_state),
     };
     let normal_object_handle = prop_obj.unwrap_normal_object();
     let runtime_class = &normal_object_handle.runtime_class(jvm);
@@ -81,7 +81,7 @@ unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Re
 
     let p = invoke_virtual_method_i(
         jvm,
-        todo!()/*int_state*/,
+        int_state,
         md,
         runtime_class.clone(),
         meth,

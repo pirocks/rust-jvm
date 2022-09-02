@@ -7,7 +7,7 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame};
+use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -142,8 +142,8 @@ pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
         JavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
         JavaValue::Boolean(param) => Boolean::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
         JavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Float(param) => Float::new(jvm, todo!()/*int_state*/, param)?.object().into(),
-        JavaValue::Double(param) => Double::new(jvm, todo!()/*int_state*/, param)?.object().into(),
+        JavaValue::Float(param) => Float::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
+        JavaValue::Double(param) => Double::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
         JavaValue::Object(obj) => todo!(), /*obj*/
         JavaValue::Top => panic!(),
     })

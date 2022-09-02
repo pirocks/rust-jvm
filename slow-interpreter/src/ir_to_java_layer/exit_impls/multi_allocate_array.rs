@@ -9,7 +9,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
+use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, pushable_frame_todo, UnAllocatedObject, UnAllocatedObjectArray};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::default_value;
@@ -29,7 +29,7 @@ pub fn multi_allocate_array<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut In
     assert_inited_or_initing_class(jvm, elem_type.to_cpdtype());
     let default = default_value(elem_type.to_cpdtype());
     let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, array_type).unwrap();
+    let rc = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, array_type).unwrap();
     let res = multi_new_array_impl(jvm, rc.cpdtype(),lens.as_slice() ,default.as_njv());
     unsafe { res_address.cast::<NativeJavaValue<'gc>>().write(res.to_native()) }
     std::mem::forget(res);

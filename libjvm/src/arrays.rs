@@ -45,14 +45,14 @@ unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueH
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {
         None => {
-            throw_npe_res(jvm, todo!()/*int_state*/)?;
+            throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
         Some(possibly_arr) => {
             if possibly_arr.is_array(jvm) {
                 Ok(NewJavaValueHandle::Object(possibly_arr))
             } else {
-                return throw_illegal_arg_res(jvm, todo!()/*int_state*/);
+                return throw_illegal_arg_res(jvm, int_state);
             }
         }
     }
@@ -67,15 +67,15 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             let nonnull = jv.unwrap_object_nonnull();
             let len = nonnull.unwrap_array().len() as i32;
             if index < 0 || index >= len {
-                return throw_array_out_of_bounds(jvm, todo!()/*int_state*/, index);
+                return throw_array_out_of_bounds(jvm, int_state, index);
             }
             let java_value = nonnull.unwrap_array().get_i(index as usize);
             new_local_ref_public(
-                match java_value_to_boxed_object(jvm, todo!()/*int_state*/, todo!()/*java_value*/) {
+                match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
                     Ok(boxed) => todo!()/*boxed*/,
                     Err(WasException {}) => None,
                 },
-                todo!()/*int_state*/,
+                int_state,
             )
         }
         Err(WasException {}) => null_mut(),
@@ -118,7 +118,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let src_o = from_object_new(jvm, src);
     let src = match src_o {
         Some(x) => NewJavaValueHandle::Object(x),
-        None => return throw_npe(jvm, /*int_state*/todo!()),
+        None => return throw_npe(jvm, int_state),
     };
     let nonnull = src.unwrap_object_nonnull();
     let src = nonnull.unwrap_array();
@@ -126,7 +126,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let new_jv_handle = match dest_o {
         Some(x) => NewJavaValueHandle::Object(x),
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let nonnull = new_jv_handle.unwrap_object_nonnull();

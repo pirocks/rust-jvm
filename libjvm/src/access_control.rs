@@ -30,7 +30,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let unwrapped_action = match action {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, /*int_state*/todo!());
+            return throw_npe(jvm, int_state);
         }
     };
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
@@ -59,7 +59,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
 unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().to_gc_managed().into(), /*int_state*/todo!())
+    new_local_ref_public(JavaValue::Object(todo!() /*jvm.thread_state.get_current_thread().thread_object().object().into()*/).cast_thread().get_inherited_access_control_context(jvm).object().to_gc_managed().into(), int_state)
 }
 
 ///  /**
@@ -94,8 +94,8 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
     if protection_domains.is_empty() {
         return null_mut();
     } else {
-        match AccessControlContext::new(jvm, todo!()/*int_state*/, protection_domains) {
-            Ok(access_control_ctx) => new_local_ref_public(todo!()/*access_control_ctx.object().to_gc_managed().into()*/, todo!()/*int_state*/),
+        match AccessControlContext::new(jvm, int_state, protection_domains) {
+            Ok(access_control_ctx) => new_local_ref_public(todo!()/*access_control_ctx.object().to_gc_managed().into()*/, int_state),
             Err(WasException {}) => return null_mut(),
         }
     }*/

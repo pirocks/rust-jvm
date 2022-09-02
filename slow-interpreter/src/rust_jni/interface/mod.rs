@@ -477,7 +477,7 @@ unsafe extern "C" fn alloc_object<'gc, 'l>(env: *mut JNIEnv, clazz: jclass) -> j
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let res_object = new_object(jvm, /*int_state*/&mut temp, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
     to_object(res_object)
 }
 
@@ -644,7 +644,7 @@ unsafe extern "C" fn to_reflected_field(env: *mut JNIEnv, _cls: jclass, field_id
     let field_id: FieldId = transmute(field_id);
     let (rc, i) = jvm.field_table.write().unwrap().lookup(field_id);
     to_object_new(
-        match field_object_from_view(jvm, todo!()/*int_state*/, rc.clone(), rc.view().field(i as usize)) {
+        match field_object_from_view(jvm, pushable_frame_todo()/*int_state*/, rc.clone(), rc.view().field(i as usize)) {
             Ok(res) => res,
             Err(_) => todo!(),
         }
@@ -723,9 +723,8 @@ pub fn define_class_safe<'gc, 'l>(
 ) -> Result<NewJavaValueHandle<'gc>, WasException> {
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, /*int_state*/&mut temp, name.into()).unwrap());
-    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, /*int_state*/&mut temp, interface.interface_name().into()).unwrap()).collect_vec();
+    let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
+    let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
         RuntimeClassClass::new_new(&jvm.inheritance_tree, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
@@ -753,7 +752,7 @@ pub fn define_class_safe<'gc, 'l>(
             dbg!(&class_name);
             let class = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_str(class_name.get_referred_name()))?;
             let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().new_java_handle().unwrap_object().unwrap();
-            int_state.set_throw(Some(to_throw));
+            todo!();// int_state.set_throw(Some(to_throw));
             return Err(WasException {});
         }
         Err(TypeSafetyError::NotSafe(msg)) => {
@@ -780,7 +779,7 @@ pub fn define_class_safe<'gc, 'l>(
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
-    let class_object = create_class_object(jvm, &mut temp/*int_state*/, None, current_loader)?;
+    let class_object = create_class_object(jvm, int_state, None, current_loader)?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
@@ -788,11 +787,10 @@ pub fn define_class_safe<'gc, 'l>(
     classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
     drop(classes);
     assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    prepare_class(jvm, &mut temp/*int_state*/, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
+    prepare_class(jvm, int_state, Arc::new(ClassBackedView::from(parsed.clone(), &jvm.string_pool)), &mut static_vars(runtime_class.deref(), jvm));
     runtime_class.set_status(ClassStatus::PREPARED);
     runtime_class.set_status(ClassStatus::INITIALIZING);
-    initialize_class(runtime_class.clone(), jvm, &mut temp/*int_state*/)?;
+    initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
     Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), pushable_frame_todo()/*int_state*/, current_loader).unwrap().new_java_handle())
 }
@@ -813,7 +811,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object_new(
-        match define_class_safe(jvm, todo!()/*int_state*/, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
+        match define_class_safe(jvm, pushable_frame_todo()/*int_state*/, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(class_) => class_,
             Err(_) => todo!(),
         }

@@ -41,7 +41,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
     let int_state = get_interpreter_state(env);
     let mut object_array = vec![];
     for f in class_obj.clone().view().fields() {
-        let field_object = match field_object_from_view(jvm, todo!()/*int_state*/, class_obj.clone(), f) {
+        let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
             Ok(field_object) => field_object,
             Err(WasException {}) => {
                 return null_mut();
@@ -50,8 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
 
         object_array.push(field_object)
     }
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    let array_rc = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CPDType::array(CClassName::field().into())).unwrap();
+    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),

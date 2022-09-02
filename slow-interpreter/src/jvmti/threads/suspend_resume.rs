@@ -4,6 +4,7 @@ use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::jvmti::{get_interpreter_state, get_state};
+use crate::pushable_frame_todo;
 use crate::rust_jni::native_util::from_object;
 use crate::threading::{ResumeError, SuspendError};
 
@@ -69,7 +70,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
 unsafe fn suspend_thread_impl<'gc, 'l>(thread_object_raw: jthread, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> jvmtiError {
     let jthread = get_thread_or_error!(jvm, thread_object_raw);
     let java_thread = jthread.get_java_thread(jvm);
-    match java_thread.suspend_thread(jvm, int_state, false) {
+    match java_thread.suspend_thread(jvm, pushable_frame_todo()/*int_state*/, false) {
         Ok(_) => jvmtiError_JVMTI_ERROR_NONE,
         Err(err) => match err {
             SuspendError::AlreadySuspended => jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,

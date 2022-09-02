@@ -5,12 +5,10 @@ pub mod reflection {
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-    use rust_jvm_common::runtime_type::RuntimeType;
 
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::java::lang::class::JClass;
-    use crate::java::NewAsObjectOrJavaValue;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::PushableFrame;
@@ -28,8 +26,7 @@ pub mod reflection {
 
     impl<'gc> Reflection<'gc> {
         pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let reflection = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::reflection().into())?;
+            let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
             todo!();// int_state.push_current_operand_stack(class1.java_value());
             todo!();// int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
             let desc = CMethodDescriptor {
@@ -69,9 +66,8 @@ pub mod constant_pool {
 
     impl<'gc> ConstantPool<'gc> {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException> {
-            let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-            let constant_pool_classfile = check_initing_or_inited_class(jvm, /*int_state*/&mut temp, CClassName::constant_pool().into())?;
-            let constant_pool_object = new_object_full(jvm, &mut temp/*int_state*/, &constant_pool_classfile);
+            let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
+            let constant_pool_object = new_object_full(jvm, int_state, &constant_pool_classfile);
             let res = constant_pool_object.cast_constant_pool();
             res.set_constant_pool_oop(jvm, class);
             Ok(res)

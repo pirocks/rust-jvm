@@ -95,15 +95,15 @@ unsafe fn InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> Result<
 
     let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.java.command"))?;
     let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, todo!()/*int_state*/, sun_java_command, sun_java_command_val);
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.jvm.flags"))?;
     let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, todo!()/*int_state*/, sun_java_command, sun_java_command_val);
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.jvm.args"))?;
     let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, todo!()/*int_state*/, sun_java_command, sun_java_command_val);
+    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
 
     Ok(agent_props)
 }

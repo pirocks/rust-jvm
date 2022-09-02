@@ -10,7 +10,7 @@ pub fn arraylength<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: 
         Some(x) => x,
         None => {
             todo!()
-            /*return throw_npe(jvm, /*int_state*/todo!());*/
+            /*return throw_npe(jvm, int_state);*/
         }
     };
     //todo use ArrayMemoryLayout
