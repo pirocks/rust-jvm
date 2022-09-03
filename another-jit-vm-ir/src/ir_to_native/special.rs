@@ -48,7 +48,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let registers = resolve_exit.registers_to_save();
             IRVMExitType::NPE { java_pc }.gen_assembly(assembler, &mut not_null, &registers);
             let mut before_exit_label = assembler.create_label();
-            VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
+            VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
             let vtable_ptr_register = Register(3);
             MemoryRegions::generate_find_vtable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register);
             let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4
@@ -60,7 +60,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let registers = resolve_exit.registers_to_save();
             resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
             let mut before_exit_label = assembler.create_label();
-            VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
+            VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
             // assembler.set_label(&mut fast_resolve_worked).unwrap();
             assembler.nop().unwrap();
         }

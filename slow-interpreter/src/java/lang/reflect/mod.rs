@@ -8,7 +8,6 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
@@ -130,7 +129,6 @@ pub mod method {
 
     use crate::{JavaValueCommon, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -312,7 +310,6 @@ pub mod constructor {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{JavaValueCommon, NewJavaValue, PushableFrame};
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -459,7 +456,6 @@ pub mod field {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject};
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;

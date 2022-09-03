@@ -6,7 +6,6 @@ use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;

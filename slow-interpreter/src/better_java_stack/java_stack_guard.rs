@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use itertools::Itertools;
 
@@ -8,11 +8,12 @@ use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use another_jit_vm_ir::WasException;
 use rust_jvm_common::loading::LoaderName;
 
-use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
+use crate::{JavaThread, JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::rust_jni::interface::PerStackJNIInterface;
@@ -22,6 +23,7 @@ pub struct JavaStackGuard<'vm> {
     stack: &'vm Mutex<JavaStack<'vm>>,
     guard: Option<MutexGuard<'vm, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>,
+    pub java_thread: Arc<JavaThread<'vm>>,
     per_stack_interface: PerStackJNIInterface,
     current_frame_pointer: FramePointer,
 }
@@ -52,7 +54,7 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     //todo I really need an init function which just creates the mutex and everything in one place
-    pub fn new_from_empty_stack<T>(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl for<'l, 'k> FnOnce(&'l mut OpaqueFrame<'vm, 'k>) -> Result<T, WasException> + 'vm) -> Result<T, WasException> {
+    pub fn new_from_empty_stack<T>(jvm: &'vm JVMState<'vm>, java_thread: Arc<JavaThread<'vm>>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl for<'l, 'k> FnOnce(&'l mut OpaqueFrame<'vm, 'k>) -> Result<T, WasException> + 'vm) -> Result<T, WasException> {
         let guard = stack.lock().unwrap();
         if guard.has_been_used {
             panic!()
@@ -62,6 +64,7 @@ impl<'vm> JavaStackGuard<'vm> {
             stack,
             guard: Some(guard),
             jvm,
+            java_thread,
             per_stack_interface: PerStackJNIInterface::new(),
             current_frame_pointer: FramePointer(mmapped_top),
         };
@@ -70,11 +73,12 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     pub fn new_from_prev_with_new_frame_pointer(old: Self, new_frame_pointer: FramePointer) -> Self {
-        let Self { stack, guard, jvm, per_stack_interface, current_frame_pointer } = old;
+        let Self { stack, guard, jvm, java_thread, per_stack_interface, current_frame_pointer } = old;
         Self {
             stack,
             guard,
             jvm,
+            java_thread,
             per_stack_interface,
             current_frame_pointer: new_frame_pointer,
         }
@@ -153,16 +157,16 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        JavaInterpreterFrame::from_frame_pointer_interpreter(jvm, self, next_frame_pointer, |within|{
+        JavaInterpreterFrame::from_frame_pointer_interpreter(jvm, self, next_frame_pointer, |within| {
             within_pushed(within)
         })
     }
 
     pub fn push_frame_native<'k, T>(&'k mut self,
-                                current_frame_pointer: FramePointer,
-                                next_frame_pointer: FramePointer,
-                                stack_entry: NativeFramePush,
-                                within_pushed: impl FnOnce(&mut NativeFrame<'vm,'k>) -> Result<T, WasException>,
+                                    current_frame_pointer: FramePointer,
+                                    next_frame_pointer: FramePointer,
+                                    stack_entry: NativeFramePush,
+                                    within_pushed: impl FnOnce(&mut NativeFrame<'vm, 'k>) -> Result<T, WasException>,
     ) -> Result<T, WasException> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
@@ -228,6 +232,10 @@ impl<'vm> JavaStackGuard<'vm> {
         let res = within_pushed(&mut frame)?;
         //todo zero the rest
         Ok(res)
+    }
+
+    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
+        self.guard.as_ref().unwrap().signal_safe_data()
     }
 }
 

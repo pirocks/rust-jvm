@@ -6,7 +6,6 @@ pub mod reflection {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::java::lang::class::JClass;
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -46,7 +45,6 @@ pub mod constant_pool {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{AllocatedHandle, PushableFrame};
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::new_object_full;
     use crate::java::lang::class::JClass;

@@ -10,7 +10,7 @@ use nix::sys::signal::{SaFlags, SigAction, sigaction, SigHandler, Signal, SigSet
 use threads::signal::ucontext_t;
 
 pub struct SignalAccessibleJavaStackData {
-    interpreter_should_interrupt: AtomicBool,
+    pub(crate) interpreter_should_safepoint_check: AtomicBool,
     in_guest: AtomicBool,
     // both get reset to null once answer received. only should be set when null
     remote_request: AtomicPtr<RemoteQuery>,
@@ -21,7 +21,7 @@ pub struct SignalAccessibleJavaStackData {
 impl SignalAccessibleJavaStackData {
     pub fn new() -> Self {
         Self {
-            interpreter_should_interrupt: AtomicBool::new(true),
+            interpreter_should_safepoint_check: AtomicBool::new(false),
             in_guest: AtomicBool::new(false),
             remote_request: AtomicPtr::new(null_mut()),
             remote_request_answer: AtomicPtr::new(null_mut()),
@@ -73,7 +73,7 @@ extern "C" fn handler(sig: c_int, info: *mut nix::libc::siginfo_t, ucontext: *mu
 unsafe fn handler_impl(info: *mut nix::libc::siginfo_t, ucontext: *mut c_void) {
     let si_value = (info.as_ref().unwrap().si_value().sival_ptr as *const SignalAccessibleJavaStackData).as_ref().unwrap();
     if let Err(err) = std::panic::catch_unwind(|| {
-        assert!(!si_value.interpreter_should_interrupt.load(Ordering::SeqCst));
+        assert!(!si_value.interpreter_should_safepoint_check.load(Ordering::SeqCst));
         let answer = si_value.remote_request_answer.load(Ordering::SeqCst) as *mut RemoteQueryAnswerInternal;
         let answer = answer.as_mut().unwrap();
         let remote_request = match si_value.remote_request.load(Ordering::SeqCst).as_ref() {

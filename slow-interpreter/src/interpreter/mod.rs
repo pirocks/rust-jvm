@@ -1,6 +1,6 @@
-use std::borrow::Borrow;
 use std::os::raw::c_void;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
@@ -19,7 +19,6 @@ use crate::java_values::native_to_new_java_value;
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::pushable_frame_todo;
 use crate::threading::safepoints::Monitor2;
 
 pub mod single_instruction;
@@ -206,11 +205,13 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
-    todo!()
-    /*let thread = interpreter_state.thread().clone();
-    let safe_point = thread.safepoint_state.borrow();
-    safe_point.check(jvm, interpreter_state)*/
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<(), WasException> {
+    let thread = interpreter_state.thread().clone();
+    thread.safepoint_state.check(jvm, interpreter_state)?;
+    if interpreter_state.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst){
+        todo!()
+    }
+    Ok(())
 }
 
 
@@ -239,7 +240,7 @@ pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
             /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
             todo!()
         };
-        monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+        monitor.lock(jvm, todo!()/*pushable_frame_todo()*//*int_state*/).unwrap();
         monitor.into()
     } else {
         None

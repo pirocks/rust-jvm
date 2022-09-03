@@ -1,7 +1,6 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
 
-use iced_x86::ConditionCode::s;
 use libc::c_void;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};

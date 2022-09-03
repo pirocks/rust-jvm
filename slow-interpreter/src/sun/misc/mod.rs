@@ -48,7 +48,6 @@ pub mod launcher {
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::{AllocatedHandle, PushableFrame};
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::java::lang::class_loader::ClassLoader;
     use crate::jvm_state::JVMState;
@@ -90,7 +89,6 @@ pub mod launcher {
         use rust_jvm_common::compressed_classfile::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
         use crate::better_java_stack::frames::PushableFrame;
-        use crate::better_java_stack::opaque_frame::OpaqueFrame;
 
         use crate::class_loading::check_initing_or_inited_class;
         use crate::java_values::{GcManagedObject, JavaValue};

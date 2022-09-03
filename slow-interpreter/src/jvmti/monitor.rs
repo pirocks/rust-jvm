@@ -86,7 +86,7 @@ pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor_id: jrawM
         Some(m) => m,
     };
     let interpreter_state = get_interpreter_state(env);
-    monitor.lock(jvm, pushable_frame_todo()/*interpreter_state*/).unwrap();
+    monitor.lock(jvm, todo!()/*pushable_frame_todo()*//*interpreter_state*/).unwrap();
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
@@ -120,7 +120,8 @@ pub unsafe extern "C" fn raw_monitor_exit(env: *mut jvmtiEnv, monitor_id: jrawMo
         None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_MONITOR),
         Some(m) => m,
     };
-    monitor.unlock(jvm, get_interpreter_state(env)).unwrap();
+    let interpreter_state = get_interpreter_state(env);
+    monitor.unlock(jvm, todo!()/*interpreter_state*/).unwrap();
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

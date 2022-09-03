@@ -75,8 +75,7 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    todo!()
-    /*let stack = int_state.frame_iter().collect_vec();
+    let stack = int_state.frame_iter().collect_vec();
     let classes_guard = jvm.classes.read().unwrap();
     let protection_domains = &classes_guard.protection_domains;
     let protection_domains = stack
@@ -98,5 +97,5 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls
             Ok(access_control_ctx) => new_local_ref_public(todo!()/*access_control_ctx.object().to_gc_managed().into()*/, int_state),
             Err(WasException {}) => return null_mut(),
         }
-    }*/
+    }
 }

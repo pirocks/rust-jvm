@@ -1,10 +1,11 @@
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRFrameMut, IRFrameRef};
 use another_jit_vm_ir::WasException;
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::NativeJavaValue;
+use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush};
+use crate::better_java_stack::frame_iter::FrameIterFrameRef;
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
@@ -12,6 +13,41 @@ use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::java_values::native_to_new_java_value_rtype;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
+
+pub struct JavaFrameIterRefNew<'vm, 'l, 'h> {
+    ir: IRFrameIterRef<'l, 'h, 'vm>,
+    jvm: &'vm JVMState<'vm>,
+    current_pc: Option<ByteCodeOffset>,
+}
+
+impl<'l, 'h, 'vm> Iterator for JavaFrameIterRefNew<'l, 'h, 'vm> {
+    type Item = FrameIterFrameRef<'vm, 'l>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.ir.next().map(|ir_frame_ref| {
+            let prev_rip = ir_frame_ref.prev_rip();
+            let res = StackEntryRef {
+                frame_view: RuntimeJavaStackFrameRef {
+                    ir_ref: ir_frame_ref,
+                    jvm: self.jvm,
+                },
+                pc: self.current_pc,
+            };
+            match self.jvm.java_vm_state.lookup_ip(prev_rip) {
+                Some((_, new_pc)) => {
+                    self.current_pc = Some(new_pc);
+                }
+                None => {
+                    self.current_pc = None
+                }
+            };
+            res
+        })
+    }
+}
+
+
+
 
 pub trait HasFrame<'gc> {
     fn frame_ref(&self) -> IRFrameRef;
@@ -21,6 +57,7 @@ pub trait HasFrame<'gc> {
     fn max_stack(&self) -> u16;
     fn next_frame_pointer(&self) -> FramePointer;
     fn debug_assert(&self);
+    fn frame_iter(&self) -> JavaFrameIterRefNew;
     fn local_get_handle(&self, i: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
         assert!(i < self.num_locals());
         let jvm = self.jvm();

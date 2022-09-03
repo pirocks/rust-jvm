@@ -6,7 +6,6 @@ pub mod throwable {
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use crate::better_java_stack::frames::PushableFrame;
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -51,7 +50,6 @@ pub mod stack_trace_element {
 
     use crate::{AllocatedHandle, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -102,7 +100,6 @@ pub mod member_name {
 
     use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::class::JClass;
@@ -724,7 +721,7 @@ pub mod thread {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::threading::JavaThread;
-    use crate::utils::{pushable_frame_todo, run_static_or_virtual};
+    use crate::utils::{run_static_or_virtual};
 
     pub struct JThread<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1013,7 +1010,6 @@ pub mod class_not_found_exception {
 
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::string::JString;
@@ -1058,7 +1054,6 @@ pub mod null_pointer_exception {
     use rust_jvm_common::compressed_classfile::names::CClassName;
     use crate::better_java_stack::frames::PushableFrame;
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -1096,7 +1091,6 @@ pub mod array_out_of_bounds_exception {
 
     use crate::{NewAsObjectOrJavaValue, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::jvm_state::JVMState;
@@ -1145,7 +1139,6 @@ pub mod illegal_argument_exception {
 
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue, pushable_frame_todo};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java_values::JavaValue;
@@ -1197,7 +1190,6 @@ pub mod long {
 
     use crate::{JavaValueCommon, NewAsObjectOrJavaValue, NewJavaValue};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::JavaValue;
@@ -1315,14 +1307,13 @@ pub mod short {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, NewJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame};
 
     pub struct Short<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1370,7 +1361,6 @@ pub mod byte {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1425,7 +1415,6 @@ pub mod boolean {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1482,7 +1471,6 @@ pub mod char {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1538,7 +1526,6 @@ pub mod float {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
@@ -1594,7 +1581,6 @@ pub mod double {
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
     use crate::better_java_stack::frames::PushableFrame;
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};

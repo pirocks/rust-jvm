@@ -14,8 +14,9 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
-use crate::{JVMState, OpaqueFrame, StackEntryPush};
+use crate::{JavaThread, JVMState, OpaqueFrame, StackEntryPush};
 use crate::better_java_stack::native_frame::NativeFrame;
+use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaInterpreterFrame<'gc, 'k> {
@@ -65,6 +66,10 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
+    }
+
+    fn frame_iter(&self) -> JavaFrameIter {
+        todo!()
     }
 }
 
@@ -145,6 +150,14 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 
     pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
+    }
+
+    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData{
+        self.java_stack.signal_safe_data()
+    }
+
+    pub fn thread(&self) -> Arc<JavaThread<'gc>>{
+        self.java_stack.java_thread.clone()
     }
 }
 

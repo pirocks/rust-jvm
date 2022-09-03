@@ -195,24 +195,23 @@ pub struct MethodImplementationID(usize);
 
 pub struct MethodOffset(usize);
 
-pub struct VMStateInner<'vm, T: Sized, ExtraData: 'vm>/*<'vm_state_life, T: Sized, ExtraData: 'vm_state_life>*/ {
+pub struct VMStateInner<'vm, T: Sized>/*<'vm_state_life, T: Sized, ExtraData: 'vm_state_life>*/ {
     method_id_max: MethodImplementationID,
     code_regions: HashMap<MethodImplementationID, Range<*const c_void>>,
     code_regions_to_method: RangeMap<*const c_void, MethodImplementationID>,
     max_ptr: *mut c_void,
     phantom_nightly_compiler_bug_workaround: PhantomData<&'vm ()>,
     phantom_2: PhantomData<&'vm T>,
-    phantom_3: PhantomData<&'vm ExtraData>,
 }
 
-pub struct VMState<'vm, T: Sized, ExtraData> {
-    inner: RwLock<VMStateInner<'vm, T, ExtraData>>,
+pub struct VMState<'vm, T: Sized> {
+    inner: RwLock<VMStateInner<'vm, T>>,
     //should be per thread
     mmaped_code_region_base: *mut c_void,
     mmaped_code_size: usize,
 }
 
-impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
+impl<'vm, T> VMState<'vm, T> {
     pub fn lookup_method_addresses(&self, method_implementation_id: MethodImplementationID) -> Range<*const c_void> {
         self.inner.read().unwrap().code_regions.get(&method_implementation_id).unwrap().clone()
     }
@@ -222,7 +221,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
     }
 }
 
-impl<T, ExtraData> Drop for VMState<'_, T, ExtraData> {
+impl<T> Drop for VMState<'_, T> {
     fn drop(&mut self) {
         let res = unsafe { libc::munmap(self.mmaped_code_region_base, self.mmaped_code_size) };
         if res != 0 {
@@ -267,16 +266,15 @@ struct JITContext {
 
 trait ExitHandlerType<'vm, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm;
 
-pub struct LaunchedVM<'vm, 'extra_data_life, 'l, T, ExtraData: 'vm> {
-    vm_state: &'l VMState<'vm, T, ExtraData>,
+pub struct LaunchedVM<'vm, 'l, T> {
+    vm_state: &'l VMState<'vm, T>,
     jit_context: JITContext,
     stack_top: NonNull<c_void>,
     stack_bottom: NonNull<c_void>,
-    pub extra: &'extra_data_life mut ExtraData,
     pending_exit: bool,
 }
 
-impl<'vm, 'extra_data_life, T, ExtraData: 'vm> Iterator for LaunchedVM<'vm, 'extra_data_life, '_, T, ExtraData> {
+impl<'vm, 'extra_data_life, T> Iterator for LaunchedVM<'vm, '_, T> {
     type Item = VMExitEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -291,7 +289,7 @@ impl<'vm, 'extra_data_life, T, ExtraData: 'vm> Iterator for LaunchedVM<'vm, 'ext
     }
 }
 
-impl<'vm, 'extra_data_life, T, ExtraData: 'vm> LaunchedVM<'vm, 'extra_data_life, '_, T, ExtraData> {
+impl<'vm, 'extra_data_life, T> LaunchedVM<'vm, '_, T> {
     pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff) {
         assert!(self.pending_exit);
         self.pending_exit = false;
@@ -305,7 +303,7 @@ impl<'vm, 'extra_data_life, T, ExtraData: 'vm> LaunchedVM<'vm, 'extra_data_life,
     }
 }
 
-impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
+impl<'vm, T> VMState<'vm, T> {
     //don't store exit type in here, that can go in register or derive from ip, include base method address in  event
     pub fn new() -> Self {
         const DEFAULT_CODE_SIZE: usize = 1024 * 1024 * 1024;
@@ -319,7 +317,6 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
                     max_ptr: mmaped_code_region_base,
                     phantom_nightly_compiler_bug_workaround: Default::default(),
                     phantom_2: Default::default(),
-                    phantom_3: Default::default(),
                 }),
                 mmaped_code_region_base,
                 mmaped_code_size: DEFAULT_CODE_SIZE,
@@ -327,7 +324,7 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
         }
     }
 
-    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, extra: &'extra_data mut ExtraData) -> LaunchedVM<'vm, 'extra_data, 'l, T, ExtraData> {
+    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -425,14 +422,14 @@ impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
             },
             intrinsic_helpers: IntrinsicHelpers::new()
         };
-        let self_: &'l VMState<'vm, T, ExtraData> = self;
-        let iterator: LaunchedVM<'vm, '_, 'l, T, ExtraData> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, extra, pending_exit: false };
+        let self_: &'l VMState<'vm, T> = self;
+        let iterator: LaunchedVM<'vm, 'l, T> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, pending_exit: false };
         // eprintln!("==== VM Start ====");
         iterator
     }
 }
 
-impl<'vm, T, ExtraData> VMState<'vm, T, ExtraData> {
+impl<'vm, T> VMState<'vm, T> {
     #[allow(named_asm_labels)]
     #[inline(never)]
     fn run_method_impl(&self, jit_context: &mut JITContext) -> VMExitEvent {

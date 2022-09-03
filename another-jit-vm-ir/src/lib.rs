@@ -43,7 +43,7 @@ pub mod ir_to_native;
 #[derive(Clone, Copy, Debug)]
 pub struct WasException;
 
-pub struct IRVMStateInner<'vm, ExtraData: 'vm> {
+pub struct IRVMStateInner<'vm> {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
@@ -57,12 +57,12 @@ pub struct IRVMStateInner<'vm, ExtraData: 'vm> {
     // index
     opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
-    pub handler: OnceCell<ExitHandlerType<'vm, ExtraData>>,
+    pub handler: OnceCell<ExitHandlerType<'vm>>,
 
     reserved_ir_method_id: HashSet<IRMethodID>,
 }
 
-impl<'vm, ExtraData: 'vm> IRVMStateInner<'vm, ExtraData> {
+impl<'vm> IRVMStateInner<'vm> {
     pub fn new() -> Self {
         Self {
             ir_method_id_max: IRMethodID(0),
@@ -102,13 +102,13 @@ impl<'vm, ExtraData: 'vm> IRVMStateInner<'vm, ExtraData> {
     }
 }
 
-pub struct IRVMState<'vm, ExtraData: 'vm> {
-    native_vm: VMState<'vm, u64, ExtraData>,
-    pub inner: RwLock<IRVMStateInner<'vm, ExtraData>>,
+pub struct IRVMState<'vm> {
+    native_vm: VMState<'vm, u64>,
+    pub inner: RwLock<IRVMStateInner<'vm>>,
 }
 
 //todo make this not an arc for perf
-pub type ExitHandlerType<'vm, ExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm, ExtraData>, &mut ExtraData) -> IRVMExitAction + 'vm>;
+pub type ExitHandlerType<'vm> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm>) -> IRVMExitAction + 'vm>;
 
 
 #[derive(Debug)]
@@ -135,7 +135,7 @@ pub enum IRVMExitAction {
     },
 }
 
-impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
+impl<'vm> IRVMState<'vm> {
     pub fn lookup_opaque_ir_method_id(&self, opaque_id: OpaqueID) -> IRMethodID {
         let mut guard = self.inner.write().unwrap();
         match guard.opaque_method_to_or_method_id.get(&opaque_id) {
@@ -204,7 +204,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>, extra_data: &'f mut ExtraData) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -217,7 +217,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = &mut ir_stack_frame.ir_stack;
-        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers, extra_data);
+        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers);
         while let Some(vm_exit_event) = launched_vm.next() {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
@@ -235,7 +235,7 @@ impl<'vm, ExtraData: 'vm> IRVMState<'vm, ExtraData> {
 
             let handler = read_guard.handler.get().unwrap().clone();
             drop(read_guard);
-            match (handler.deref())(&event, ir_stack_mut, self, launched_vm.extra) {
+            match (handler.deref())(&event, ir_stack_mut, self) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
                     let mut vm_exit_event = vm_exit_event;
                     vm_exit_event.indicate_okay_to_drop();
@@ -361,7 +361,7 @@ fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut after_exit_label = assembler.create_label();
     let registers = exit_type.registers_to_save();
     exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
-    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
 }
 
 

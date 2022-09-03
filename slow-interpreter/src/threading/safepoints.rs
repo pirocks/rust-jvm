@@ -7,10 +7,10 @@ use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOC
 use rust_jvm_common::JavaThreadId;
 
 use crate::interpreter::{safepoint_check};
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::JVMState;
-use crate::{pushable_frame_todo, PushableFrame};
+use crate::{PushableFrame};
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::threading::{ResumeError, SuspendError, ThreadStatus};
 
 pub type MonitorID = usize;
@@ -307,10 +307,9 @@ impl Monitor2 {
         }
     }
 
-    pub fn lock<'l, 'gc>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+    pub fn lock<'l, 'gc>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
-        // dbg!(current_thread.java_tid);
         if let Some(owner) = guard.owner.as_ref() {
             if *owner == current_thread.java_tid {
                 guard.count += 1;
@@ -327,7 +326,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) -> Result<(), WasException> {
+    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         // dbg!(current_thread.java_tid);
@@ -341,12 +340,13 @@ impl Monitor2 {
                 }
             }
         } else {
-            int_state.debug_print_stack_trace(jvm);
+            todo!();
+            /*int_state.debug_print_stack_trace(jvm);*/
             dbg!(guard.owner);
             todo!("illegal monitor state")
         }
         drop(guard);
-        safepoint_check(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+        safepoint_check(jvm, int_state).unwrap();
         Ok(())
     }
 
@@ -386,14 +386,14 @@ impl Monitor2 {
             todo!("throw illegal monitor state")
         }
         drop(guard);
-        safepoint_check(jvm, int_state).unwrap();
+        safepoint_check(jvm, todo!()/*int_state*/).unwrap();
         assert_eq!(self.monitor2_priv.read().unwrap().owner, current_thread.java_tid.into());
         assert_eq!(self.monitor2_priv.read().unwrap().count, prev_count);
         Ok(())
     }
 
     pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, prev_count: usize) -> Result<(), WasException> {
-        self.lock(jvm, int_state)?;
+        self.lock(jvm, todo!()/*int_state*/)?;
         let current_thread = jvm.thread_state.get_current_thread();
         let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here
         guard.count = prev_count;

@@ -239,7 +239,7 @@ pub fn monitor_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterSta
         eprintln!("MonitorExit");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    monitor.unlock(jvm, int_state).unwrap();
+    monitor.unlock(jvm, todo!()/*int_state*/).unwrap();
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
@@ -249,7 +249,7 @@ pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterSt
         eprintln!("MonitorEnter");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+    monitor.lock(jvm, todo!()/*pushable_frame_todo()*//*int_state*/).unwrap();
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 

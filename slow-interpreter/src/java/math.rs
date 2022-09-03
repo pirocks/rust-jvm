@@ -6,7 +6,6 @@ pub mod big_integer {
 
     use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;

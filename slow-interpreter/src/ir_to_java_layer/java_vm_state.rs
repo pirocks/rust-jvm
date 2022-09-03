@@ -23,7 +23,7 @@ use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateW
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 
 pub struct JavaVMStateWrapper<'vm> {
-    pub ir: IRVMState<'vm, ()>,
+    pub ir: IRVMState<'vm>,
     pub inner: RwLock<JavaVMStateWrapperInner>,
     // should be per thread
     labeler: Labeler,
@@ -48,7 +48,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     pub fn init(&'vm self, jvm: &'vm JVMState<'vm>) {
         self.ir.inner.write().unwrap().handler.get_or_init(|| {
-            let ir_exit_handler: ExitHandlerType<'vm, ()> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm, ()>, extra| {
+            let ir_exit_handler: ExitHandlerType<'vm> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm>| {
                 JavaVMStateWrapper::exit_handler(&jvm, &ir_vm_exit_event, ir_stack_mut)
             });
             ir_exit_handler
@@ -82,7 +82,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         }
         let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on, &mut ()) {
+        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on) {
             Ok(res) => {
                 // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                 res

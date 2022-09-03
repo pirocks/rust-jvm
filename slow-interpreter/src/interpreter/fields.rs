@@ -9,7 +9,6 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 
 use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};

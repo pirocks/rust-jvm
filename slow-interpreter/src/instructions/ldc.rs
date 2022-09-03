@@ -5,7 +5,6 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
 use crate::{AllocatedHandle, JVMState};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;

@@ -34,13 +34,11 @@ pub mod access_control_context {
 
     use crate::class_loading::assert_inited_or_initing_class;
     use another_jit_vm_ir::WasException;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::security::protection_domain::ProtectionDomain;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::{NewAsObjectOrJavaValue, pushable_frame_todo};
+    use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, PushableFrame};
 
     pub struct AccessControlContext<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -53,15 +51,12 @@ pub mod access_control_context {
     }
 
     impl<'gc> AccessControlContext<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, protection_domains: Vec<ProtectionDomain<'gc>>) -> Result<Self, WasException> {
-            let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, protection_domains: Vec<ProtectionDomain<'gc>>) -> Result<Self, WasException> {
             let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
             let access_control_object = new_object(jvm, pushable_frame_todo()/*int_state*/, &access_control_context_class).to_jv();
             let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.iter().map(|pd| pd.new_java_value()).collect(), CClassName::protection_domain().into()).to_jv();
-            run_constructor(jvm, pushable_frame_todo()/*int_state*/, access_control_context_class, todo!()/*vec![access_control_object.clone(), pds_jv]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
+            run_constructor(jvm, int_state, access_control_context_class, todo!()/*vec![access_control_object.clone(), pds_jv]*/, &CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]))?;
             Ok(access_control_object.cast_access_control_context())
         }
-
-        // as_object_or_java_value!();
     }
 }

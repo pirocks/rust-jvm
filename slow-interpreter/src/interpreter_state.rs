@@ -352,7 +352,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         self.current_frame().method_i(jvm)
     }
 
-    pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc, ()> {
+    pub fn frame_iter(&self) -> JavaFrameIterRef<'_, '_, 'gc> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
@@ -456,13 +456,13 @@ pub struct SavedAssertState {
     data: Vec<*const c_void>,
 }
 
-pub struct JavaFrameIterRef<'l, 'h, 'vm, ExtraData: 'vm> {
-    ir: IRFrameIterRef<'l, 'h, 'vm, ExtraData>,
+pub struct JavaFrameIterRef<'l, 'h, 'vm> {
+    ir: IRFrameIterRef<'l, 'h, 'vm>,
     jvm: &'vm JVMState<'vm>,
     current_pc: Option<ByteCodeOffset>,
 }
 
-impl<'l, 'h, 'vm, ExtraData> Iterator for JavaFrameIterRef<'l, 'h, 'vm, ExtraData> {
+impl<'l, 'h, 'vm> Iterator for JavaFrameIterRef<'l, 'h, 'vm> {
     type Item = StackEntryRef<'vm, 'l>;
 
     fn next(&mut self) -> Option<Self::Item> {

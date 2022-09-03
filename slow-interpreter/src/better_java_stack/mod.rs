@@ -1,10 +1,11 @@
+use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::{Arc};
+use std::sync::Arc;
 
 use libc::c_void;
 
-use another_jit_vm_ir::ir_stack::{OwnedIRStack};
-use rust_jvm_common::{ByteCodeOffset};
+use another_jit_vm_ir::ir_stack::OwnedIRStack;
+use rust_jvm_common::ByteCodeOffset;
 
 use crate::{AllocatedHandle, JVMState};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
@@ -21,6 +22,7 @@ pub mod remote_frame;
 pub mod java_stack_guard;
 pub mod opaque_frame;
 pub mod native_frame;
+pub mod frame_iter;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Ord, PartialOrd)]
 pub struct FramePointer(pub NonNull<c_void>);
@@ -56,7 +58,7 @@ pub struct JavaStack<'gc> {
     throw: Option<AllocatedHandle<'gc>>,
     //todo this should probably be in some kind of thread state thing
     thread_stack_data: Arc<SignalAccessibleJavaStackData>,
-    has_been_used: bool
+    has_been_used: bool,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -73,19 +75,21 @@ impl<'gc> JavaStack<'gc> {
             interpreter_frame_operand_stack_depths: vec![],
             throw: None,
             thread_stack_data,
-            has_been_used: false
+            has_been_used: false,
         }
     }
 
     pub fn assert_interpreter_frame_operand_stack_depths_sorted(&self) {
         assert!(self.interpreter_frame_operand_stack_depths.iter().map(|(frame_ptr, _)| *frame_ptr).is_sorted());
     }
+
+    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
+        self.thread_stack_data.deref()
+    }
 }
 
 
 //need enter and exit native functions, enter taking an operand stack depth?
-
-
 
 
 // fn push_interpreter<'gc, 'k>(

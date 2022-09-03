@@ -272,7 +272,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let registers = get_class_exit.registers_to_save();
                     get_class_exit.gen_assembly(assembler, &mut after_exit_label, &registers);
                     let mut before_exit_label = assembler.create_label();
-                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+                    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
                     assembler.nop().unwrap();
                 }
                 _ => {
@@ -299,7 +299,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     assembler.set_label(&mut resolver_exit_label).unwrap();
                     resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
                     let mut before_exit_label = assembler.create_label();
-                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
+                    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
                     assembler.nop().unwrap();
                 }
                 _ => {
@@ -365,13 +365,13 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let registers = instance_of_exit.registers_to_save();
                     instance_of_exit.gen_assembly(assembler, &mut done, &registers);
                     let mut before_exit_label = assembler.create_label();
-                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
+                    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
                 }
                 IRVMExitType::CheckCast { .. } => {
                     let registers = instance_of_exit.registers_to_save();
                     instance_of_exit.gen_assembly(assembler, &mut done, &registers);
                     let mut before_exit_label = assembler.create_label();
-                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
+                    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut done, registers);
                 }
                 _ => {
                     panic!()
@@ -471,7 +471,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let mut before_exit_label = assembler.create_label();
                     let registers = allocate_exit.registers_to_save();
                     allocate_exit.gen_assembly(assembler, &mut after_exit_label, &registers);
-                    VMState::<u64, ()>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
+                    VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
                 }
                 _ => {
                     panic!()

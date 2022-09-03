@@ -236,7 +236,7 @@ impl<'gc> ThreadState<'gc> {
             locals.push(NewJavaValue::Top);
         }
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard: Result<(), WasException> = int_state.push_frame_java(initialize_system_frame, |java_frame|{
+        let init_frame_guard: Result<(), WasException> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
             assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
             todo!();// let _old = int_state.register_interpreter_state_guard(jvm);
             match run_function(&jvm, java_frame) {
@@ -471,7 +471,7 @@ impl<'gc> JavaThread<'gc> {
     ) -> Result<T, CannotAllocateStack> {
         let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
-        Ok(JavaStackGuard::new_from_empty_stack(jvm, java_stack, move |opaque_frame| {
+        Ok(JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive(jvm);
             let res = to_run(java_thread.clone(), opaque_frame);
@@ -583,7 +583,7 @@ impl<'gc> JavaThread<'gc> {
         if self.underlying_thread.is_this_thread() {
             todo!();/*assert_eq!(self.java_tid, int_state.thread().java_tid);*/
             if !without_self_suspend {
-                safepoint_check(jvm, int_state)?;
+                safepoint_check(jvm, todo!()/*int_state*/)?;
             }
         }
         Ok(())
