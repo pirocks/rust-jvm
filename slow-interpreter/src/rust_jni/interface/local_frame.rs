@@ -2,11 +2,11 @@ use std::collections::HashSet;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
-use crate::better_java_stack::native_frame::NativeFrame;
 
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
-use crate::new_java_values::allocated_objects::{AllocatedObject};
+use crate::new_java_values::allocated_objects::AllocatedObject;
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::{from_object_new, to_object, to_object_new};
 
@@ -62,8 +62,7 @@ pub unsafe extern "C" fn new_local_ref(env: *mut JNIEnv, ref_: jobject) -> jobje
     new_local_ref_internal_new(rust_obj.as_allocated_obj(), interpreter_state)
 }
 
-pub unsafe fn new_local_ref_public<'gc, 'l>(rust_obj: Option<GcManagedObject<'gc>>, interpreter_state: &mut NativeFrame<'gc,'l>) -> jobject {
-
+pub unsafe fn new_local_ref_public<'gc, 'l>(rust_obj: Option<GcManagedObject<'gc>>, interpreter_state: &mut NativeFrame<'gc, 'l>) -> jobject {
     if rust_obj.is_none() {
         return null_mut();
     }
@@ -71,17 +70,16 @@ pub unsafe fn new_local_ref_public<'gc, 'l>(rust_obj: Option<GcManagedObject<'gc
     //todo use match
 }
 
-pub unsafe fn new_local_ref_public_new<'gc, 'l>(rust_obj: Option<AllocatedObject<'gc,'_>>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> jobject {
-
+pub unsafe fn new_local_ref_public_new<'gc, 'l>(rust_obj: Option<AllocatedObject<'gc, '_>>, interpreter_state: &mut NativeFrame<'gc, 'l>) -> jobject {
     if rust_obj.is_none() {
         return null_mut();
     }
-    new_local_ref_internal_new(rust_obj.unwrap(), todo!()/*interpreter_state*/)
+    new_local_ref_internal_new(rust_obj.unwrap(), interpreter_state)
     //todo use match
 }
 
 
-pub unsafe fn new_local_ref_internal_new<'gc, 'l>(rust_obj: AllocatedObject<'gc,'_>, interpreter_state: &mut NativeFrame<'gc,'l>) -> jobject {
+pub unsafe fn new_local_ref_internal_new<'gc, 'l>(rust_obj: AllocatedObject<'gc, '_>, interpreter_state: &mut NativeFrame<'gc, 'l>) -> jobject {
     let c_obj = to_object_new(rust_obj.into());
     let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();
     new_local_ref_frame.insert(c_obj);
@@ -89,7 +87,7 @@ pub unsafe fn new_local_ref_internal_new<'gc, 'l>(rust_obj: AllocatedObject<'gc,
     c_obj
 }
 
-unsafe fn new_local_ref_internal<'gc, 'l>(rust_obj: GcManagedObject<'gc>, interpreter_state: &mut NativeFrame<'gc,'l>) -> jobject {
+unsafe fn new_local_ref_internal<'gc, 'l>(rust_obj: GcManagedObject<'gc>, interpreter_state: &mut NativeFrame<'gc, 'l>) -> jobject {
     let c_obj = to_object(rust_obj.clone().into());
     let mut new_local_ref_frame = get_top_local_ref_frame(interpreter_state).clone();
     new_local_ref_frame.insert(c_obj);
@@ -117,25 +115,25 @@ fn get_top_local_ref_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>
     current_native_local_refs(interpreter_state).pop().unwrap()
 }
 
-fn set_local_refs_top_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc,'l>, new: HashSet<jobject>) {
+fn set_local_refs_top_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>, new: HashSet<jobject>) {
     *interpreter_state.frame_info_mut().native_local_refs.last_mut().unwrap() = new
 }
 
-fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> HashSet<jobject> {
+fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> HashSet<jobject> {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs(),
     }*/
 }
 
-fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, to_push: HashSet<jobject>) {
+fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, to_push: HashSet<jobject>) {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push),
     }*/
 }
 
-fn current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc,'l>) -> Vec<HashSet<jobject>> {
+fn current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> Vec<HashSet<jobject>> {
     // assert!(interpreter_state.current_frame().is_opaque() || interpreter_state.current_frame().is_native_method());
     interpreter_state.frame_info_mut().native_local_refs.clone()
 }

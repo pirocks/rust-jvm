@@ -80,7 +80,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 let reg_natives_for_class = reg_natives.get(&ByAddress(class.clone())).unwrap().read().unwrap();
                 *reg_natives_for_class.get(&(method_i as u16)).unwrap()
             };
-            match call_impl(jvm, todo!()/*native_frame*/, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
+            match call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
                 Ok(call_res) => call_res,
                 Err(WasException {}) => {
                     return Err(todo!()/*NativeMethodWasException { prev_rip }*/);

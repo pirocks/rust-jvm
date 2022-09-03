@@ -70,8 +70,7 @@ pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealI
 }
 
 fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let target_classfile = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, field_class_name.clone().into())?;
+    let target_classfile = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {
         let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone(), cpdtype)?;

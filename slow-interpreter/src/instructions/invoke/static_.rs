@@ -136,7 +136,7 @@ pub fn invoke_static_impl<'l, 'gc>(
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         return interpreter_state.push_frame_java(next_entry,|next_frame|{
-            return match run_function(jvm, todo!()/*interpreter_state*/) {
+            return match run_function(jvm, next_frame) {
                 Ok(res) => {
                     Ok(res)
                 }

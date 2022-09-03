@@ -830,7 +830,7 @@ pub mod thread {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class)));
-            let thread_name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(thread_name))?;
+            let thread_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(thread_name))?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
             Ok(thread_object.cast_thread())
         }

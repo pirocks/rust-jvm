@@ -144,10 +144,6 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         interpreter_state.push_frame_java(java_frame_push, |java_frame|{
             match run_function(jvm, java_frame) {
                 Ok(res) => {
-                    todo!();/*assert!(!interpreter_state.throw().is_some());*/
-                    /* if let Some(res) = &res {
-                         eprintln!("{:X}", res.to_interpreter_jv().to_raw());
-                     }*/
                     Ok(res)
                 }
                 Err(WasException {}) => {

@@ -143,6 +143,6 @@ unsafe extern "system" fn JVM_FindPrimitiveClass(env: *mut JNIEnv, utf: *const :
         unimplemented!()
     };
 
-    let res = get_or_create_class_object(jvm, ptype, pushable_frame_todo()).unwrap(); //todo what if not using bootstap loader, todo handle exception
-    new_local_ref_public_new(res.as_allocated_obj().into(), todo!()/*int_state*/)
+    let res = get_or_create_class_object(jvm, ptype, int_state).unwrap(); //todo what if not using bootstap loader, todo handle exception
+    new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
 }

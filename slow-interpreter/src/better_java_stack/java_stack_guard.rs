@@ -173,6 +173,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let loader = jvm.classes.read().unwrap().get_initiating_loader(&rc);
         assert_eq!(jvm.num_local_vars_native(method_id) as usize, local_vars.len());
+        assert!(native_local_refs.len() >= 1);
         let native_frame_info = NativeFrameInfo {
             method_id,
             loader,
@@ -195,7 +196,7 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer);
+        let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
         let res = within_pushed(&mut frame)?;
         Ok(res)
     }

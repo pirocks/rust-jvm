@@ -1,12 +1,19 @@
+use std::mem::size_of;
+use std::ptr::NonNull;
+
+use iced_x86::ConditionCode::s;
 use libc::c_void;
+
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use another_jit_vm_ir::WasException;
+use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use jvmti_jni_bindings::jlong;
 
+use crate::{JVMState, OpaqueFrame, StackEntryPush};
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::{JVMState, OpaqueFrame, StackEntryPush};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::interpreter_state::NativeFrameInfo;
 use crate::rust_jni::interface::PerStackJNIInterface;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -14,13 +21,15 @@ use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 pub struct NativeFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
+    num_locals: u16,
 }
 
 impl<'gc, 'k> NativeFrame<'gc, 'k> {
-    pub fn new_from_pointer(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer) -> Self {
+    pub fn new_from_pointer(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer, num_locals: u16) -> Self {
         let res = Self {
             java_stack: java_stack_guard,
             frame_pointer,
+            num_locals,
         };
         res.debug_assert();
         res
@@ -30,10 +39,19 @@ impl<'gc, 'k> NativeFrame<'gc, 'k> {
         let method_id = self.frame_ref().method_id().unwrap();
         self.java_stack.jvm().is_native_by_method_id(method_id);
         self.java_stack.debug_assert();
+        assert!(self.frame_info_ref().native_local_refs.len() > 0);
     }
 
     pub fn frame_info_mut(&mut self) -> &mut NativeFrameInfo<'gc> {
-        unsafe { (self.frame_ref().data(0) as *mut c_void as *mut NativeFrameInfo<'gc>).as_mut().unwrap() }
+        let num_locals = self.num_locals as usize;
+        unsafe { (self.frame_ref().data(num_locals) as *mut c_void as *mut NativeFrameInfo<'gc>).as_mut().unwrap() }
+    }
+
+    pub fn frame_info_ref(&self) -> &NativeFrameInfo<'gc> {
+        let num_locals = self.num_locals as usize;
+        unsafe {
+            (self.frame_ref().data(num_locals) as *const c_void as *const NativeFrameInfo<'gc>).as_ref().unwrap()
+        }
     }
 
     pub(crate) fn stack_jni_interface(&mut self) -> &mut PerStackJNIInterface {
@@ -70,7 +88,13 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
     }
 
     fn next_frame_pointer(&self) -> FramePointer {
-        todo!()
+        let raw = unsafe {
+            self.frame_pointer.0.as_ptr()
+                .sub(FRAME_HEADER_END_OFFSET) //header
+                .sub((self.num_locals as usize* size_of::<jlong>()) as usize)//locals
+                .sub(1 * size_of::<*const c_void>())
+        };//frame info pointer
+        FramePointer(NonNull::new(raw).unwrap())
     }
 
     fn debug_assert(&self) {
@@ -87,8 +111,8 @@ impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
         todo!()
     }
 
-    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
-        todo!()
+    fn push_frame_java<T>(&mut self, java_frame_push: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
+        self.java_stack.push_java_frame(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame| within_push(java_frame))
     }
 
     fn push_frame_native<T>(&mut self, java_frame: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
