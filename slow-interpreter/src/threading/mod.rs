@@ -86,55 +86,13 @@ impl<'gc> ThreadState<'gc> {
         }
     }
 
-    pub fn setup_main_thread(&self, jvm: &'gc JVMState<'gc>, main_thread: &'gc Arc<JavaThread<'gc>>) -> Sender<MainThreadStartInfo> {
-        *self.main_thread.write().unwrap() = main_thread.clone().into();
-        let (main_send, main_recv) = channel();
-        main_thread.clone().underlying_thread.start_thread(
-            box move |_| {
-                jvm.thread_state.set_current_thread(main_thread.clone());
-                main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-                // assert!(match main_thread.interpreter_state.read().unwrap().deref() {
-                //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
-                //     InterpreterState::Jit { .. } => {}//todo!()
-                // });
-                let mut guard = main_thread.interpreter_state.lock().unwrap();
-                let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-                    int_state: IRStackMut::from_stack_start(&mut guard.call_stack.inner),
-                    thread: main_thread.clone(),
-                    registered: false,
-                    jvm,
-                    current_exited_pc: None,
-                    throw: None,
-                }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
-                main_thread.notify_alive(jvm); //is this too early?
-                let _old = int_state.register_interpreter_state_guard(jvm);
-                jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
-                ThreadState::jvm_init_from_main_thread(jvm, pushable_frame_todo()/*&mut int_state*/);
+   /* pub fn setup_main_thread(&self, jvm: &'gc JVMState<'gc>, main_thread: &'gc Arc<JavaThread<'gc>>) -> Sender<MainThreadStartInfo> {
 
-                assert!(!jvm.live.load(Ordering::SeqCst));
-                jvm.live.store(true, Ordering::SeqCst);
-                if let Some(jvmti) = jvm.jvmti_state() {
-                    jvmti.built_in_jdwp.vm_inited(jvm, todo!()/*&mut int_state*/, main_thread.clone())
-                }
-                let MainThreadStartInfo { args } = main_recv.recv().unwrap();
-                //from the jvmti spec:
-                //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
-                if let Some(jvmti) = jvm.jvmti_state() {
-                    jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
-                }
-                let push_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread temp stack frame")*/); //todo think this is correct, check
-                //handle any exceptions from here
-                int_state.pop_frame(jvm, push_guard, false);
-                let main_frame_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame")*/);
-                run_main(args, jvm, pushable_frame_todo()/*&mut int_state*/).unwrap();
-                //todo handle exception exit from main
-                int_state.pop_frame(jvm, main_frame_guard, false);
-                main_thread.notify_terminated(jvm)
-            },
+        main_thread.clone().underlying_thread.start_thread(
             box (),
         );
         main_send
-    }
+    }*/
 
     pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader_obj: ClassLoader<'gc>) {
         // for _ in 0..100{
@@ -276,8 +234,8 @@ impl<'gc> ThreadState<'gc> {
         })
     }
 
-    pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>) -> Arc<JavaThread<'vm>> {
-        let main_jthread = JavaThread::new_with_stack(jvm, None, true, move |bootstrap_thread, opaque_frame| {
+    pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>, main_thread_start_info: MainThreadStartInfo) -> Arc<JavaThread<'vm>> {
+        let main_jthread = JavaThread::new_with_stack_on_this_thread(jvm, None, true, move |bootstrap_thread, opaque_frame| {
             unsafe {
                 jvm.native_libaries.load(jvm, opaque_frame, &jvm.native_libaries.libjava_path, "java".to_string());
                 {
@@ -303,7 +261,53 @@ impl<'gc> ThreadState<'gc> {
                 Ok(main_jthread)
             })
         }).unwrap();
-        JavaThread::new(jvm, Some(main_jthread), false).expect("todo")
+        let (main_send, main_recv) = channel();
+        let res = JavaThread::background_new_with_stack(jvm, Some(main_jthread), false, move |main_thread, opaque_frame| {
+            *jvm.thread_state.main_thread.write().unwrap() = main_thread.clone().into();
+            jvm.thread_state.set_current_thread(main_thread.clone());
+            main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
+            // assert!(match main_thread.interpreter_state.read().unwrap().deref() {
+            //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
+            //     InterpreterState::Jit { .. } => {}//todo!()
+            // });
+            let mut guard = main_thread.interpreter_state.lock().unwrap();
+            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
+                int_state: IRStackMut::from_stack_start(&mut guard.call_stack.inner),
+                thread: main_thread.clone(),
+                registered: false,
+                jvm,
+                current_exited_pc: None,
+                throw: None,
+            }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
+            main_thread.notify_alive(jvm); //is this too early?
+            let _old = int_state.register_interpreter_state_guard(jvm);
+            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
+            ThreadState::jvm_init_from_main_thread(jvm, opaque_frame);
+
+            assert!(!jvm.live.load(Ordering::SeqCst));
+            jvm.live.store(true, Ordering::SeqCst);
+            if let Some(jvmti) = jvm.jvmti_state() {
+                jvmti.built_in_jdwp.vm_inited(jvm, todo!()/*&mut int_state*/, main_thread.clone())
+            }
+            let MainThreadStartInfo { args } = main_recv.recv().unwrap();
+            //from the jvmti spec:
+            //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
+            if let Some(jvmti) = jvm.jvmti_state() {
+                jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
+            }
+            let push_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread temp stack frame")*/); //todo think this is correct, check
+            //handle any exceptions from here
+            int_state.pop_frame(jvm, push_guard, false);
+            let main_frame_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame")*/);
+            run_main(args, jvm, pushable_frame_todo()/*&mut int_state*/).unwrap();
+            //todo handle exception exit from main
+            int_state.pop_frame(jvm, main_frame_guard, false);
+            main_thread.notify_terminated(jvm);
+            todo!();
+        }).expect("todo");
+        main_send.send(main_thread_start_info).unwrap();
+        res
+
         // let mut interpreter_state_guard = bootstrap_thread.interpreter_state.lock().unwrap();
         // let mut new_int_state = InterpreterStateGuard::LocalInterpreterState {
         //     int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
@@ -463,7 +467,7 @@ pub struct JavaThread<'vm> {
 }
 
 impl<'gc> JavaThread<'gc> {
-    pub fn new_with_stack<T: 'gc>(
+    pub fn new_with_stack_on_this_thread<T: 'gc>(
         jvm: &'gc JVMState<'gc>,
         thread_obj: Option<JThread<'gc>>,
         invisible_to_java: bool,
@@ -478,6 +482,28 @@ impl<'gc> JavaThread<'gc> {
             java_thread.notify_terminated(jvm);
             res
         }).unwrap())
+    }
+
+    pub fn background_new_with_stack(
+        jvm: &'gc JVMState<'gc>,
+        thread_obj: Option<JThread<'gc>>,
+        invisible_to_java: bool,
+        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<(), WasException> + 'gc,
+    ) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack>{
+        let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
+        let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
+        //todo should run on actual thread.
+        let java_thread_clone = java_thread.clone();
+        java_thread_clone.get_underlying().start_thread(box move |_|{
+            JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
+                jvm.thread_state.set_current_thread(java_thread.clone());
+                java_thread.notify_alive(jvm);
+                let res = to_run(java_thread.clone(), opaque_frame);
+                java_thread.notify_terminated(jvm);
+                res
+            }).unwrap();
+        }, box ());
+        Ok(java_thread_clone)
     }
 
     pub fn is_alive(&self) -> bool {

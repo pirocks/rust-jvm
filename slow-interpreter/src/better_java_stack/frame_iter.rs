@@ -20,7 +20,10 @@ pub struct FrameIterFrameRef<'gc, 'k> {
 
 impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
-        todo!()
+        IRFrameRef{
+            ptr: self.frame_pointer.as_const_nonnull(),
+            _ir_stack: self.java_stack.ir_stack()
+        }
     }
 
     fn frame_mut(&mut self) -> IRFrameMut {
@@ -54,7 +57,9 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
 
 impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
     pub fn try_class_pointer(&self, jvm: &'vm JVMState<'vm>) -> Option<Arc<RuntimeClass<'vm>>> {
-        todo!()
+        let method_id = self.frame_ref().method_id()?;
+        let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        Some(rc)
     }
 }
 

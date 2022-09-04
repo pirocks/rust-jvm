@@ -159,7 +159,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
             }
             PostInstructionAction::Return { res } => {
                 if let Some(monitor) = should_sync{
-                    monitor.unlock(jvm,todo!()/*real_interpreter_state.inner()*/).unwrap();
+                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
                 return Ok(res);
             }

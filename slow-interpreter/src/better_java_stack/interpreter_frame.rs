@@ -20,6 +20,7 @@ use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
+//todo need to merge real interpreter state into this and update operand stack depth as needed with java stack guard
 pub struct JavaInterpreterFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_ptr: FramePointer,
