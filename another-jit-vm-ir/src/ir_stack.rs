@@ -42,7 +42,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter<'h, 'vm>(&'_ self, start_frame: NonNullConst<c_void>, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'_, 'h, 'vm> {
+    pub unsafe fn frame_iter<'h, 'vm>(&'_ self, start_frame: NonNullConst<c_void>, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'vm, '_, 'h> {
         IRFrameIterRef {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -140,7 +140,7 @@ impl<'l, 'k> IRStackMut<'l> {
         eprintln!("End IR stacktrace");
     }
 
-    pub fn frame_iter<'h, 'vm>(&'l self, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'l, 'h, 'vm> {
+    pub fn frame_iter<'h, 'vm>(&'l self, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'vm, 'l, 'h> {
         unsafe { self.owned_ir_stack.frame_iter(self.current_rbp.into(), ir_vm_state) }
     }
 
@@ -192,13 +192,13 @@ impl Drop for IRPushFrameGuard {
 
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIterRef<'l, 'h, 'vm> {
+pub struct IRFrameIterRef<'vm, 'l, 'h> {
     ir_stack: &'l OwnedIRStack,
     current_frame_ptr: Option<NonNullConst<c_void>>,
     ir_vm_state: &'h IRVMState<'vm>,
 }
 
-impl<'l, 'h, 'vm> Iterator for IRFrameIterRef<'l, 'h, 'vm> {
+impl<'l, 'h, 'vm> Iterator for IRFrameIterRef<'vm, 'l, 'h> {
     type Item = IRFrameRef<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -373,7 +373,7 @@ pub const OPAQUE_FRAME_SIZE: usize = 1024;
 #[derive(Copy, Clone)]
 pub struct UnPackedIRFrameHeader {
     prev_rip: *mut c_void,
-    prev_rbp: *mut c_void,
+    pub prev_rbp: *mut c_void,
     ir_method_id: IRMethodID,
     method_id_ignored: u64,
     magic_1: u64,

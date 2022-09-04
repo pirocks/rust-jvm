@@ -12,10 +12,13 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
+use slow_interpreter::java::security::protection_domain::ProtectionDomain;
 use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
@@ -72,13 +75,13 @@ unsafe extern "system" fn JVM_GetInheritedAccessControlContext(env: *mut JNIEnv,
 //      *         null if there was only privileged system code.
 //      */
 #[no_mangle]
-unsafe extern "system" fn JVM_GetStackAccessControlContext(env: *mut JNIEnv, cls: jclass) -> jobject {
-    let jvm = get_state(env);
+unsafe extern "system" fn JVM_GetStackAccessControlContext<'vm>(env: *mut JNIEnv, cls: jclass) -> jobject {
+    let jvm: &'vm JVMState<'vm> = get_state(env);
     let int_state = get_interpreter_state(env);
     let stack = int_state.frame_iter().collect_vec();
     let classes_guard = jvm.classes.read().unwrap();
     let protection_domains = &classes_guard.protection_domains;
-    let protection_domains = stack
+    let protection_domains: Vec<ProtectionDomain<'vm>> = stack
         .iter()
         .rev()
         .flat_map(|entry| {

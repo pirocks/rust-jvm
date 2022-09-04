@@ -6,6 +6,7 @@ use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use rust_jvm_common::NativeJavaValue;
 use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
 use crate::{JVMState, OpaqueFrame, StackEntryPush};
+use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -59,6 +60,10 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
+    }
+
+    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+        todo!()
     }
 }
 

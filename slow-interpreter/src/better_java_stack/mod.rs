@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 
 use libc::c_void;
+use nonnull_const::NonNullConst;
 
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use rust_jvm_common::ByteCodeOffset;
@@ -35,6 +36,14 @@ impl FramePointer {
     pub fn as_const_ptr(&self) -> *const c_void {
         self.0.as_ptr() as *const c_void
     }
+
+    pub fn as_const_nonnull(&self) -> NonNullConst<c_void> {
+        self.0.into()
+    }
+
+    pub fn as_nonnull(&self) -> NonNull<c_void> {
+        self.0
+    }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -54,6 +63,7 @@ pub struct StackDepth(u16);
 pub struct JavaStack<'gc> {
     jvm: &'gc JVMState<'gc>,
     owned_ir_stack: OwnedIRStack,
+    //todo is a sorted vec by frame pointer need some better data structure
     interpreter_frame_operand_stack_depths: Vec<(FramePointer, InterpreterFrameState)>,
     throw: Option<AllocatedHandle<'gc>>,
     //todo this should probably be in some kind of thread state thing

@@ -460,7 +460,7 @@ pub enum StackEntry {
 // }
 
 pub struct StackEntryMut<'gc, 'l> {
-    pub frame_view: RuntimeJavaStackFrameMut<'l, 'gc>,
+    pub frame_view: RuntimeJavaStackFrameMut<'gc, 'l>,
 }
 
 impl<'gc, 'l> StackEntryMut<'gc, 'l> {
@@ -535,7 +535,7 @@ pub enum LocalVarsMut<'gc, 'l, 'k> {
         vars: &'l mut Vec<JavaValue<'gc>>
     },*/
     Jit {
-        frame_view: &'k mut RuntimeJavaStackFrameMut<'l, 'gc>,
+        frame_view: &'k mut RuntimeJavaStackFrameMut<'gc, 'l>,
         jvm: &'gc JVMState<'gc>,
     },
 }
@@ -568,7 +568,7 @@ pub enum LocalVarsRef<'gc, 'l, 'k> {
         vars: &'l Vec<JavaValue>
     },*/
     Jit {
-        frame_view: &'k RuntimeJavaStackFrameRef<'l, 'gc>,
+        frame_view: &'k RuntimeJavaStackFrameRef<'gc, 'l>,
         jvm: &'gc JVMState<'gc>,
         pc: Option<ByteCodeOffset>,
     },
@@ -633,7 +633,7 @@ pub enum OperandStackRef<'gc, 'l, 'k> {
         operand_stack: &'l Vec<JavaValue>
     },*/
     Jit {
-        frame_view: &'k RuntimeJavaStackFrameRef<'l, 'gc>,
+        frame_view: &'k RuntimeJavaStackFrameRef<'gc, 'l>,
         jvm: &'gc JVMState<'gc>,
         pc: Option<ByteCodeOffset>,
     },
@@ -753,7 +753,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
 }
 
 pub struct OperandStackMut<'gc, 'l> {
-    pub(crate) frame_view: RuntimeJavaStackFrameMut<'l, 'gc>,
+    pub(crate) frame_view: RuntimeJavaStackFrameMut<'gc, 'l>,
 }
 
 impl<'gc, 'l> OperandStackMut<'gc, 'l> {
@@ -809,7 +809,7 @@ impl<'gc, 'l> OperandStackMut<'gc, 'l> {
 }
 
 pub struct StackEntryRef<'gc, 'l> {
-    pub(crate) frame_view: RuntimeJavaStackFrameRef<'l, 'gc>,
+    pub(crate) frame_view: RuntimeJavaStackFrameRef<'gc, 'l>,
     //todo in future may want to pass ir instr index info back down to ir layer, esp is relevant data is in registers
     pub(crate) pc: Option<ByteCodeOffset>,// option is for opaque frames or similar.
 }

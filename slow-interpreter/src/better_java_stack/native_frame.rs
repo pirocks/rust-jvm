@@ -9,6 +9,7 @@ use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use jvmti_jni_bindings::jlong;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush};
+use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
@@ -90,7 +91,7 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
         let raw = unsafe {
             self.frame_pointer.0.as_ptr()
                 .sub(FRAME_HEADER_END_OFFSET) //header
-                .sub((self.num_locals as usize* size_of::<jlong>()) as usize)//locals
+                .sub((self.num_locals as usize * size_of::<jlong>()) as usize)//locals
                 .sub(1 * size_of::<*const c_void>())
         };//frame info pointer
         FramePointer(NonNull::new(raw).unwrap())
@@ -98,6 +99,10 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         todo!()
+    }
+
+    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer)
     }
 }
 

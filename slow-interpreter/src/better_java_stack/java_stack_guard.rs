@@ -6,6 +6,7 @@ use itertools::Itertools;
 
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use another_jit_vm_ir::WasException;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{JavaThread, JavaValueCommon, JVMState, MethodResolverImpl};
@@ -16,6 +17,7 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::java::lang::byte::Byte;
 use crate::rust_jni::interface::PerStackJNIInterface;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
@@ -236,6 +238,11 @@ impl<'vm> JavaStackGuard<'vm> {
 
     pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
         self.guard.as_ref().unwrap().signal_safe_data()
+    }
+
+    pub fn lookup_interpreter_pc_offset_with_frame_pointer(&self, frame_pointer: FramePointer) -> Option<ByteCodeOffset>{
+        let (_, res) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.iter().find(|(current_frame_pointer, _)|current_frame_pointer == &frame_pointer)?.clone();
+        Some(res.current_pc)
     }
 }
 

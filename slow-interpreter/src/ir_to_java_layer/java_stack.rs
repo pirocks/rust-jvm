@@ -100,7 +100,7 @@ impl<'vm> OwnedJavaStack<'vm> {
             inner,
         })
     }
-    pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm JVMState<'vm>) -> RuntimeJavaStackFrameRef<'_, 'vm> {
+    pub fn frame_at(&self, java_stack_position: JavaStackPosition, jvm: &'vm JVMState<'vm>) -> RuntimeJavaStackFrameRef<'vm, '_> {
         let ir_frame = unsafe { self.inner.frame_at(java_stack_position.get_frame_pointer()) };
         // let ir_method_id = ir_frame.ir_method_id();
         // let max_locals = if let Some(method_id) = ir_frame.method_id() {
@@ -123,12 +123,12 @@ impl<'vm> OwnedJavaStack<'vm> {
 
 
 
-pub struct RuntimeJavaStackFrameRef<'l, 'vm> {
+pub struct RuntimeJavaStackFrameRef<'vm, 'l> {
     pub(crate) ir_ref: IRFrameRef<'l>,
     pub(crate) jvm: &'vm JVMState<'vm>,
 }
 
-impl<'vm> RuntimeJavaStackFrameRef<'_, 'vm> {
+impl<'vm> RuntimeJavaStackFrameRef<'vm, '_> {
     pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm> {
         let res = self.ir_ref.read_at_offset(offset);
         NativeJavaValue{as_u64:res}
@@ -159,20 +159,20 @@ impl<'vm> RuntimeJavaStackFrameRef<'_, 'vm> {
     }
 }
 
-pub struct RuntimeJavaStackFrameMut<'l, 'vm> {
+pub struct RuntimeJavaStackFrameMut<'vm, 'l> {
     pub ir_mut: IRFrameMut<'l>,
     pub(crate) jvm: &'vm JVMState<'vm>,
 }
 
-impl<'k, 'l, 'vm, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'l, 'vm> {
-    pub fn downgrade_owned(self) -> RuntimeJavaStackFrameRef<'l, 'vm> {
+impl<'k, 'l, 'vm, 'ir_vm_life, 'native_vm_life> RuntimeJavaStackFrameMut<'vm, 'l> {
+    pub fn downgrade_owned(self) -> RuntimeJavaStackFrameRef<'vm, 'l> {
         RuntimeJavaStackFrameRef {
             ir_ref: self.ir_mut.downgrade_owned(),
             jvm: self.jvm,
         }
     }
 
-    pub fn downgrade<'new_l>(&'new_l self) -> RuntimeJavaStackFrameRef<'new_l, 'vm> {
+    pub fn downgrade<'new_l>(&'new_l self) -> RuntimeJavaStackFrameRef<'vm, 'new_l> {
         RuntimeJavaStackFrameRef {
             ir_ref: self.ir_mut.downgrade(),
             jvm: self.jvm,

@@ -1,5 +1,6 @@
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
+use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::frames::HasFrame;
 use crate::JVMState;
 
@@ -45,5 +46,9 @@ impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
+    }
+
+    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+        todo!()
     }
 }

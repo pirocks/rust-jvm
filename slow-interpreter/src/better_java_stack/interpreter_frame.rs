@@ -15,6 +15,7 @@ use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::{JavaThread, JVMState, OpaqueFrame, StackEntryPush};
+use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -68,12 +69,12 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
         self.java_stack.debug_assert();
     }
 
-    fn frame_iter(&self) -> JavaFrameIter {
+    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
         todo!()
     }
 }
 
-impl <'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k>{
+impl<'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException>) -> Result<T, WasException> {
         todo!()
     }
@@ -83,18 +84,17 @@ impl <'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k>{
     }
 
     fn push_frame_java<T>(&mut self, java_frame_push: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
-        self.java_stack.push_java_frame(self.frame_ptr, self.next_frame_pointer(), java_frame_push, |java_frame|within_push(java_frame))
+        self.java_stack.push_java_frame(self.frame_ptr, self.next_frame_pointer(), java_frame_push, |java_frame| within_push(java_frame))
     }
 
     fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException>) -> Result<T, WasException> {
-        self.java_stack.push_frame_native(self.frame_ptr, self.next_frame_pointer(), native_frame_push, |native_frame|within_push(native_frame))
+        self.java_stack.push_frame_native(self.frame_ptr, self.next_frame_pointer(), native_frame_push, |native_frame| within_push(native_frame))
     }
 }
 
 impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
-
     pub fn from_frame_pointer_interpreter<T>(jvm: &'gc JVMState<'gc>, java_stack_guard: &mut JavaStackGuard<'gc>, frame_pointer: FramePointer,
-                                                                within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> Result<T, WasException>) -> Result<T, WasException> {
+                                             within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> Result<T, WasException>) -> Result<T, WasException> {
         let mut res = JavaInterpreterFrame {
             java_stack: java_stack_guard,
             frame_ptr: frame_pointer,
@@ -128,8 +128,8 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.os_get_from_start(current_depth, expected_type).to_interpreter_jv()
     }
 
-    pub fn local_get_interpreter(&mut self,i: u16, rtype: RuntimeType) -> InterpreterJavaValue{
-        self.local_get_handle(i,rtype).to_interpreter_jv()
+    pub fn local_get_interpreter(&mut self, i: u16, rtype: RuntimeType) -> InterpreterJavaValue {
+        self.local_get_handle(i, rtype).to_interpreter_jv()
     }
 
     pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
@@ -152,11 +152,11 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         LoaderName::BootstrapLoader //todo
     }
 
-    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData{
+    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
         self.java_stack.signal_safe_data()
     }
 
-    pub fn thread(&self) -> Arc<JavaThread<'gc>>{
+    pub fn thread(&self) -> Arc<JavaThread<'gc>> {
         self.java_stack.java_thread.clone()
     }
 }
