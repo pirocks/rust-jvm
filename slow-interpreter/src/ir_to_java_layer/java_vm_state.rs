@@ -276,30 +276,13 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     #[inline(never)]
     fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut) -> IRVMExitAction {
-        let ir_stack_mut: IRStackMut = ir_stack_mut;
-        // let read_guard = self.inner.read().unwrap();
-        // let ir_method_id = ir_vm_exit_event.ir_method;
-        // let method = read_guard.methods.get(&ir_method_id).unwrap();
-        // let method_id = method.associated_method_id;
-        // let exiting_pc = *method.ir_index_to_bytecode_pc.get(&ir_vm_exit_event.exit_ir_instr).unwrap();
-        // drop(read_guard);
         let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
-
-        let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-            int_state: ir_stack_mut,
-            thread: jvm.thread_state.get_current_thread(),
-            registered: false,
-            jvm,
-            current_exited_pc: ir_vm_exit_event.exit_type.exiting_pc(),
-            throw: None,
-        };
-        let old_intstate = int_state.register_interpreter_state_guard(jvm);
+        let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
+        let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
         unsafe {
-            let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
-            let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
             if NonNull::new(exiting_stack_pointer).unwrap() != mmaped_top {
                 let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
-                let frame_ref = int_state.current_frame().frame_view.ir_ref;
+                let frame_ref = ir_stack_mut.current_frame_ref();
                 if let Some(expected_current_frame_size) = frame_ref.try_frame_size(&jvm.java_vm_state.ir) {
                     if offset != expected_current_frame_size {
                         dbg!(offset);
@@ -310,8 +293,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 }
             }
         }
-        let res = JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut int_state), &ir_vm_exit_event.exit_type);
-        int_state.deregister_int_state(jvm, old_intstate);
-        res
+        JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(todo!()/*&mut int_state*/), &ir_vm_exit_event.exit_type)
     }
 }

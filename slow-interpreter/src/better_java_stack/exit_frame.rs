@@ -13,12 +13,14 @@ use crate::better_java_stack::native_frame::NativeFrame;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaExitFrame<'gc, 'k> {
-    java_stack: &'k mut JavaStackGuard<'gc>,
-    frame_pointer: FramePointer,
-    num_locals: u16,
-    max_stack: u16,
-    stack_depth: Option<StackDepth>,
-    //get/set/etc
+    // Interpreter{
+        java_stack: &'k mut JavaStackGuard<'gc>,
+        frame_pointer: FramePointer,
+        num_locals: u16,
+        max_stack: u16,
+        stack_depth: Option<StackDepth>,
+    // }
+    // are there any other possible exits?
 }
 
 
