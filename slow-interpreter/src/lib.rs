@@ -107,7 +107,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
     jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id,false);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
-    let local_var_array = setup_program_args(&jvm, todo!()/*int_state*/, args);
+    let local_var_array = setup_program_args(&jvm, int_state, args);
     jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
     let java_frame_push = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
@@ -136,15 +136,14 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     Ok(())
 }
 
-fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, args: Vec<String>) -> AllocatedHandle<'gc> {
+fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<String>) -> AllocatedHandle<'gc> {
     let mut arg_strings: Vec<NewJavaValueHandle<'gc>> = vec![];
     for arg_str in args {
-        arg_strings.push(JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
+        arg_strings.push(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(arg_str)).expect("todo").new_java_value_handle());
     }
     let elems = arg_strings.iter().map(|handle| handle.as_njv()).collect_vec();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
     jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-        whole_array_runtime_class: check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CPDType::array(CClassName::string().into())).unwrap(),
+        whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::string().into())).unwrap(),
         elems,
     }))
 }

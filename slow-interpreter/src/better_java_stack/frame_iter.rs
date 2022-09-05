@@ -1,7 +1,9 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
+
 use nonnull_const::NonNullConst;
+
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;
@@ -14,14 +16,14 @@ use crate::JVMState;
 pub struct FrameIterFrameRef<'gc, 'k> {
     java_stack: &'k JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
-    pc: Option<ByteCodeOffset>
+    pc: Option<ByteCodeOffset>,
 }
 
 impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
-        IRFrameRef{
+        IRFrameRef {
             ptr: self.frame_pointer.as_const_nonnull(),
-            _ir_stack: self.java_stack.ir_stack()
+            _ir_stack: self.java_stack.ir_stack(),
         }
     }
 
@@ -72,15 +74,13 @@ impl<'vm, 'k> Iterator for PreviousFramePointerIter<'vm, 'k> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let ir_stack = self.java_stack_guard.ir_stack();
-        unsafe {
-            if self.current_frame_pointer? == FramePointer(ir_stack.native.mmaped_top) {
-                self.current_frame_pointer = None;
-                None
-            } else {
-                let res = unsafe { ir_stack.frame_at(self.current_frame_pointer?.as_const_nonnull()) };
-                self.current_frame_pointer = Some(FramePointer(res.prev_rbp().unwrap()));
-                Some(res)
-            }
+        if self.current_frame_pointer? == FramePointer(ir_stack.native.mmaped_top) {
+            self.current_frame_pointer = None;
+            None
+        } else {
+            let res = unsafe { ir_stack.frame_at(self.current_frame_pointer?.as_const_nonnull()) };
+            self.current_frame_pointer = Some(FramePointer(res.prev_rbp().unwrap()));
+            Some(res)
         }
     }
 }
@@ -89,7 +89,7 @@ pub struct JavaFrameIterRefNew<'vm, 'k> {
     helper: PreviousFramePointerIter<'vm, 'k>,
     java_stack_guard: &'k JavaStackGuard<'vm>,
     current_rip: Option<NonNullConst<c_void>>,
-    current_pc: Option<ByteCodeOffset>
+    current_pc: Option<ByteCodeOffset>,
 }
 
 impl<'vm, 'k> JavaFrameIterRefNew<'vm, 'k> {
@@ -98,7 +98,7 @@ impl<'vm, 'k> JavaFrameIterRefNew<'vm, 'k> {
             helper: PreviousFramePointerIter { java_stack_guard, current_frame_pointer: Some(current_frame_pointer) },
             java_stack_guard,
             current_rip: None,
-            current_pc: None
+            current_pc: None,
         }
     }
 }
@@ -110,13 +110,13 @@ impl<'vm, 'k> Iterator for JavaFrameIterRefNew<'vm, 'k> {
         self.helper.next().map(|ir_frame_ref| {
             let prev_rip = NonNullConst::new(ir_frame_ref.prev_rip()).unwrap();
             let current_frame_pointer = FramePointer(NonNull::new(ir_frame_ref.ptr.as_ptr() as *mut c_void).unwrap());
-            if self.current_pc.is_none(){
+            if self.current_pc.is_none() {
                 self.current_pc = self.java_stack_guard.lookup_interpreter_pc_offset_with_frame_pointer(current_frame_pointer)
             }
             let res = FrameIterFrameRef {
                 java_stack: self.java_stack_guard,
                 frame_pointer: current_frame_pointer,
-                pc: self.current_pc
+                pc: self.current_pc,
             };
             self.current_rip = Some(prev_rip);
             match self.java_stack_guard.jvm().java_vm_state.lookup_ip(prev_rip.as_ptr()) {

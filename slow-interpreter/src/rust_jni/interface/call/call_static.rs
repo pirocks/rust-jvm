@@ -113,7 +113,7 @@ pub unsafe extern "C" fn call_static_object_method_v(env: *mut JNIEnv, _clazz: j
         }
     }
         .unwrap();
-    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), todo!()/*get_interpreter_state(env)*/)
+    new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), get_interpreter_state(env))
 }
 
 pub unsafe extern "C" fn call_static_void_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) {

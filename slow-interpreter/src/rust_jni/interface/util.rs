@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use rust_jvm_common::compressed_classfile::CPRefType;
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{JVMState};
 use crate::class_loading::assert_loaded_class;
 use crate::java::lang::class::JClass;
 use runtime_class_stuff::RuntimeClass;
 
 //todo move util stuff like varargs into here
 
-pub fn class_object_to_runtime_class<'gc, 'l>(obj: &JClass<'gc>, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Option<Arc<RuntimeClass<'gc>>> {
+pub fn class_object_to_runtime_class<'gc, 'l>(obj: &JClass<'gc>, jvm: &'gc JVMState<'gc>) -> Option<Arc<RuntimeClass<'gc>>> {
     if obj.as_type(jvm).is_primitive() {
         return None;
     }

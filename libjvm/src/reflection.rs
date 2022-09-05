@@ -180,7 +180,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         }
     };
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
-    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm, todo!()/*int_state*/) {
+    let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);

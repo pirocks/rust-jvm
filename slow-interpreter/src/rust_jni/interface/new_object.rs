@@ -7,7 +7,6 @@ use crate::instructions::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
 use crate::{JavaValueCommon, JVMState};
 use method_table::from_jmethod_id;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::rust_jni::interface::call::VarargProvider;
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::interface::{get_interpreter_state, get_state, push_type_to_operand_stack_new};
@@ -33,7 +32,6 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     let method = &classview.method_view_i(method_i);
     let _name = method.name();
     let parsed = method.desc();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
     let obj = new_object(jvm, int_state, &class);
     let mut args = vec![];
     let mut args_handle = vec![];
@@ -47,5 +45,5 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), args) {
         return null_mut();
     };
-    new_local_ref_public_new(obj.new_java_value().unwrap_object_alloc(), todo!()/*int_state*/)
+    new_local_ref_public_new(obj.new_java_value().unwrap_object_alloc(), int_state)
 }

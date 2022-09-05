@@ -16,11 +16,9 @@ use crate::{JavaValueCommon, WasException};
 use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{get_interpreter_state, get_state, get_throw, push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{from_object_new};
-use crate::utils::pushable_frame_todo;
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
@@ -52,14 +50,13 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let int_state = get_interpreter_state(env);
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
     check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();
     let method = &classfile.method_view_i(method_i);
     let parsed = method.desc();
     let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
-    let res = invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, parsed, class.clone(), method_i, method, not_handles)?;
+    let res = invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {
         assert!(res.is_none());
         None
