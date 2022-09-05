@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue};
+use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
@@ -30,7 +30,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
     // dbg!(method_class_name.0.to_str(&jvm.string_pool));
     let target_class = match check_initing_or_inited_class(jvm, int_state.inner(), method_class_name.into()) {
         Ok(x) => x,
-        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException {} },
+        Err(WasException { exception_obj }) => return PostInstructionAction::Exception { exception: WasException { exception_obj } },
     };
     let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
     // dbg!(final_target_class.view().name().jvm_representation(&jvm.string_pool));
@@ -57,8 +57,8 @@ pub fn invoke_special<'gc, 'l, 'k>(
         Ok(None) => {
             return PostInstructionAction::Next {};
         }
-        Err(WasException {}) => {
-            PostInstructionAction::Exception { exception: WasException {} }
+        Err(WasException { exception_obj }) => {
+            PostInstructionAction::Exception { exception: WasException { exception_obj } }
         }
     }
 }
@@ -70,7 +70,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc>>,
     input_args: Vec<NewJavaValue<'gc, 'k>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let final_target_view = final_target_class.view();
     let target_m = &final_target_view.method_view_i(target_m_i);
     if final_target_view.method_view_i(target_m_i).is_signature_polymorphic() {
@@ -99,8 +99,9 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
                 Ok(res) => {
                     Ok(res)
                 }
-                Err(WasException {}) => {
-                    Err(WasException)
+                Err(WasException { exception_obj }) => {
+                    todo!();
+                    Err(WasException { exception_obj })
                 }
             }
         })

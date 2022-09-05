@@ -4,13 +4,13 @@ pub mod heap_byte_buffer {
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
     use crate::class_loading::assert_inited_or_initing_class;
-    use another_jit_vm_ir::WasException;
+
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::{NewJavaValueHandle};
-    use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo, UnAllocatedObject};
+    use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo, UnAllocatedObject, WasException};
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
@@ -25,7 +25,7 @@ pub mod heap_byte_buffer {
     }
 
     impl<'gc> HeapByteBuffer<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, buf: Vec<jbyte>, off: jint, len: jint) -> Result<Self, WasException<'gc>> {
             let heap_byte_buffer_class = assert_inited_or_initing_class(jvm, CClassName::heap_byte_buffer().into());
             let mut temp : OpaqueFrame<'gc, 'l> = todo!();
             let object = new_object_full(jvm, &mut temp/*int_state*/, &heap_byte_buffer_class);

@@ -1,24 +1,25 @@
 use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jthrowable};
-use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::NewAsObjectOrJavaValue;
+use crate::rust_jni::interface::{get_interpreter_state, get_state, get_throw};
 
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 
 pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
     let int_state = get_interpreter_state(env);
-    todo!();/*let throw_owned = int_state.throw().map(|obj|obj.duplicate_discouraged());
-    let throw = throw_owned.as_ref().map(|obj|obj.as_allocated_obj());*/
-    new_local_ref_public_new(todo!()/*throw*/, todo!()/*int_state*/)
+    let throw = get_throw(env);
+    let throw = throw.as_mut().map(|obj|obj.exception_obj.full_object_ref());
+    new_local_ref_public_new(throw, int_state)
 }
 
 pub unsafe extern "C" fn exception_clear(env: *mut JNIEnv) {
-    let int_state = get_interpreter_state(env);
-    todo!()/*int_state.set_throw(None);
-    assert!(int_state.throw().is_none());*/
+    // let int_state = get_interpreter_state(env);
+    let throw = get_throw(env);
+    *throw = None;
 }
 
 pub unsafe extern "C" fn exception_check(env: *mut JNIEnv) -> jboolean {
-    let int_state = get_interpreter_state(env);
-    todo!()/*u8::from(int_state.throw().is_some())*/
+    let throw = get_throw(env);
+    u8::from(throw.is_some())
 }
 
 pub unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {

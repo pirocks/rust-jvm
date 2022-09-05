@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue};
+use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
@@ -94,8 +94,8 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
             int_state.current_frame_mut().push(res.to_interpreter_jv());
         }
         Ok(None) => {}
-        Err(WasException {}) => {
-            return PostInstructionAction::Exception { exception: WasException {} };
+        Err(WasException { exception_obj }) => {
+            return PostInstructionAction::Exception { exception: WasException { exception_obj } };
         }
     }
     PostInstructionAction::Next {}
@@ -109,7 +109,7 @@ pub fn invoke_static_impl<'l, 'gc>(
     target_method_i: u16,
     target_method: &MethodView,
     mut args: Vec<NewJavaValue<'gc, '_>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_class_view = target_class.view();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
@@ -141,7 +141,7 @@ pub fn invoke_static_impl<'l, 'gc>(
                     Ok(res)
                 }
                 Err(_) => {
-                    Err(WasException)
+                    Err(WasException { exception_obj: todo!() })
                 }
             }
         });
@@ -151,7 +151,7 @@ pub fn invoke_static_impl<'l, 'gc>(
                 Ok(res)
             }
             Err(NativeMethodWasException { prev_rip }) => {
-                Err(WasException {})
+                Err(WasException { exception_obj: todo!() })
             }
         };
     }

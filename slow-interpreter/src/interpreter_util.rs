@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue};
+use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::special::invoke_special_impl;
@@ -50,7 +50,7 @@ fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: 
     }
 }
 
-pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc, 'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException> {
+pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc, 'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException<'gc>> {
     let target_classfile_view = target_classfile.view();
     let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
     let md = method_view.desc();

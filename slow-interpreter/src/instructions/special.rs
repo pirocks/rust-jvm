@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::interface_view::InterfaceView;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::jint;
@@ -9,7 +9,7 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{AllocatedHandle, JVMState};
+use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class, try_assert_loaded_class};
 use crate::interpreter::PostInstructionAction;
@@ -134,7 +134,7 @@ pub fn invoke_instanceof<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_f
 
 pub fn instance_of_impl<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException> {
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException<'gc>> {
     match unwrapped.deref() {
         Array(array) => {
             match instance_of_class_type {

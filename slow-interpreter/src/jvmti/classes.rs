@@ -4,15 +4,14 @@ use std::sync::RwLockReadGuard;
 
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jclass, jint, jmethodID, jobject, JVMTI_CLASS_STATUS_ARRAY, JVMTI_CLASS_STATUS_INITIALIZED, JVMTI_CLASS_STATUS_PREPARED, JVMTI_CLASS_STATUS_PRIMITIVE, JVMTI_CLASS_STATUS_VERIFIED, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 
+use crate::{NewAsObjectOrJavaValue, WasException};
 use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
-use another_jit_vm_ir::WasException;
 use crate::java_values::JavaValue;
 use crate::jvm_state::{Classes, JVMState};
 use crate::jvmti::{get_interpreter_state, get_state, universal_error};
-use crate::NewAsObjectOrJavaValue;
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 use crate::utils::pushable_frame_todo;
@@ -232,7 +231,10 @@ pub unsafe extern "C" fn get_class_loader(env: *mut jvmtiEnv, klass: jclass, cla
     let int_state = get_interpreter_state(env);
     let class_loader = match class.get_class_loader(jvm, pushable_frame_todo()/*int_state*/) {
         Ok(class_loader) => class_loader,
-        Err(WasException {}) => return universal_error(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return universal_error();
+        }
     };
     let jobject_ = new_local_ref_public(class_loader.map(|cl| cl.object().to_gc_managed()), todo!()/*int_state*/);
     classloader_ptr.write(jobject_);

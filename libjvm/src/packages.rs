@@ -4,8 +4,8 @@ use std::ptr::null_mut;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
 use jvmti_jni_bindings::{JNIEnv, jobjectArray, jstring};
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::JavaValue;
@@ -26,7 +26,10 @@ unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) 
     let res_string = elements.iter().join(".");
     let jstring = match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(res_string)) {
         Ok(jstring) => jstring,
-        Err(WasException {}) => return null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return null_mut();
+        }
     };
     new_local_ref_public_new(jstring.full_object().as_allocated_obj().into(), todo!()/*int_state*/)
 }

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 use std::sync::{Arc};
-use another_jit_vm_ir::WasException;
+
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -8,12 +8,12 @@ use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
-use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush};
+use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::instructions::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
-pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     // assert!(int_state.throw().is_none());
     //todo make sure all superclasses are iniited first
     //todo make sure all interfaces are initted first
@@ -70,10 +70,10 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
                 // }
                 // panic!()
             }
-            Err(WasException {}) => {
+            Err(WasException { exception_obj }) => {
                 todo!();
                 /*int_state.pop_frame(jvm, new_function_frame, false);*/
-                Err(WasException)
+                Err(WasException { exception_obj })
             }
         }
     })

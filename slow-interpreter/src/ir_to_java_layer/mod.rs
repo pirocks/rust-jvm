@@ -4,13 +4,13 @@ use std::hash::Hash;
 
 use another_jit_vm::IRMethodID;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
-use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction, WasException};
+use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
-use crate::{InterpreterStateGuard, JavaValue, JVMState};
+use crate::{InterpreterStateGuard, JavaValue, JVMState, WasException};
 use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
@@ -185,7 +185,8 @@ impl JavaVMStateWrapperInner {
                         let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
                         IRVMExitAction::RestartWithRegisterState { diff }
                     }
-                    Err(WasException {}) => {
+                    Err(WasException { exception_obj }) => {
+                        todo!();
                         IRVMExitAction::Exception {
                             throwable: int_state.throw().unwrap().ptr
                         }

@@ -1,13 +1,13 @@
 use itertools::Either;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{JVMState, NewJavaValue};
+use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
@@ -17,7 +17,7 @@ use crate::java::lang::reflect::method::Method;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
-pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<(), WasException> {
+pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<(), WasException<'gc>> {
     //two params, is a static function.
     let mname = args[0].to_handle_discouraged().cast_member_name();
     let target = args[1].to_handle_discouraged();
@@ -43,7 +43,7 @@ pub enum InitAssertionCase {
     CHECK_EXACT_TYPE,
 }
 
-pub fn init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, target: NewJavaValue<'gc, '_>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException> {
+pub fn init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, target: NewJavaValue<'gc, '_>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException<'gc>> {
     if target.unwrap_normal_object().unwrap().runtime_class(jvm).view().name() == CClassName::method().into() {
         let target = target.to_handle_discouraged().unwrap_object().unwrap().cast_method();
         method_init(jvm, int_state, mname.clone(), target, view.left().unwrap(), synthetic)?;
@@ -105,7 +105,7 @@ pub fn init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame
 */
 
 /// the method view param here and elsewhere is only passed when resolving
-fn method_init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, method: Method<'gc>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn method_init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, method: Method<'gc>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException<'gc>> {
     let flags = method.get_modifiers(jvm);
     let clazz = method.get_clazz(jvm).gc_lifeify();
     mname.set_clazz(jvm, clazz.clone());
@@ -159,7 +159,7 @@ fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, metho
     }
 }
 
-fn constructor_init<'gc>(jvm: &'gc JVMState<'gc>, mname: MemberName<'gc>, constructor: Constructor<'gc>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException> {
+fn constructor_init<'gc>(jvm: &'gc JVMState<'gc>, mname: MemberName<'gc>, constructor: Constructor<'gc>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException<'gc>> {
     let clazz = constructor.get_clazz(jvm);
     mname.set_clazz(jvm, clazz.clone());
     //static v. invoke_virtual v. interface

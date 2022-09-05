@@ -1,9 +1,9 @@
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
-use crate::{AllocatedHandle, JVMState};
+use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
@@ -18,11 +18,11 @@ use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
 use crate::utils::pushable_frame_todo;
 
-fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     load_class_constant_by_type(jvm, int_state, type_)
 }
 
-pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
+pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
@@ -34,7 +34,7 @@ fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
     string.new_java_value_handle()
 }
 
-pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, res_string: String) -> Result<(), WasException> {
+pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, res_string: String) -> Result<(), WasException<'gc>> {
     let java_lang_string = CClassName::string();
     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
     let str_as_vec = res_string.chars();
@@ -46,7 +46,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, todo!()/*interpreter_state*/, MethodName::constructor_init(), &expected_descriptor, string_class);
     let java_frame_push = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
-    let _: Result<(), WasException> = interpreter_state.push_frame_java(java_frame_push, |java_frame|{
+    let _: Result<(), WasException<'gc>> = interpreter_state.push_frame_java(java_frame_push, |java_frame|{
         match run_function(jvm, java_frame) {
             Ok(_) => {}
             Err(_) => todo!(),

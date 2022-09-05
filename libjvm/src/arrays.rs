@@ -3,10 +3,12 @@ use std::ops::Deref;
 use std::panic::panic_any;
 use std::ptr::null_mut;
 
-use another_jit_vm_ir::WasException;
+use libc::timer_delete;
+
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::new::a_new_array_from_name;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java::lang::boolean::Boolean;
@@ -36,11 +38,14 @@ unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> 
     let jvm = get_state(env);
     match get_array(env, arr) {
         Ok(jv) => jv.unwrap_object_nonnull().unwrap_array().len() as i32,
-        Err(WasException {}) => -1 as i32,
+        Err(WasException { exception_obj }) => {
+            todo!();
+            -1 as i32
+        }
     }
 }
 
-unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueHandle<'gc>, WasException> {
+unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {
@@ -73,12 +78,18 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             new_local_ref_public(
                 match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
                     Ok(boxed) => todo!()/*boxed*/,
-                    Err(WasException {}) => None,
+                    Err(WasException { exception_obj }) => {
+                        todo!();
+                        None
+                    }
                 },
                 int_state,
             )
         }
-        Err(WasException {}) => null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            null_mut()
+        }
     }
 }
 

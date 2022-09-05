@@ -8,11 +8,10 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
-use itertools::{Itertools};
+use itertools::Itertools;
 use libc::rand;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
@@ -35,6 +34,7 @@ use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
+use crate::exceptions::WasException;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::interpreter_util::new_object;
 use crate::java::lang::class::JClass;
@@ -68,14 +68,13 @@ use crate::rust_jni::interface::string::*;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, get_object_class, to_object, to_object_new};
 use crate::utils::{pushable_frame_todo, throw_npe};
 
-
 pub struct PerStackJNIInterface {
-    inner: JNINativeInterface_
+    inner: JNINativeInterface_,
 }
 
 impl PerStackJNIInterface {
     pub fn new() -> Self {
-        Self{
+        Self {
             inner: JNINativeInterface_ {
                 reserved0: null_mut(),
                 reserved1: null_mut(),
@@ -314,16 +313,16 @@ impl PerStackJNIInterface {
         }
     }
 
-    pub fn inner_mut(&mut self) -> &mut JNINativeInterface_{
+    pub fn inner_mut(&mut self) -> &mut JNINativeInterface_ {
         &mut self.inner
     }
 }
 
 
-pub fn with_interface<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, was_exception: &mut Option<WasException>, with_interface: impl FnOnce(*mut *const JNINativeInterface_) -> T) -> T{
+pub fn with_interface<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, was_exception: &mut Option<WasException<'gc>>, with_interface: impl FnOnce(*mut *const JNINativeInterface_) -> T) -> T {
     let jvm_ptr = jvm as *const JVMState<'gc> as *const c_void as *mut c_void; //todo this is mut/const thing is annoying
     let int_state_ptr = int_state as *mut NativeFrame<'gc, 'l> as *mut c_void;
-    let exception_pointer = was_exception as *mut Option<WasException> as *mut c_void;
+    let exception_pointer = was_exception as *mut Option<WasException<'gc>> as *mut c_void;
     let interface = int_state.stack_jni_interface().inner_mut();
     let reserved0_save = interface.reserved0;
     let reserved1_save = interface.reserved1;
@@ -348,8 +347,13 @@ pub unsafe fn get_interpreter_state<'gc, 'k, 'any>(env: *mut JNIEnv) -> &'any mu
     (**env).reserved1.cast::<NativeFrame<'gc, 'k>>().as_mut().unwrap()
 }
 
-pub unsafe fn get_exeception_option<'any>(env: *mut JNIEnv) -> &'any mut Option<WasException>{
-    ((**env).reserved2 as *mut Option<WasException>).as_mut().unwrap()
+//todo dup methods?
+pub unsafe fn get_throw<'any, 'gc>(env: *mut JNIEnv) -> &'any mut Option<WasException<'gc>> {
+    (**env).reserved2.cast::<Option<WasException<'gc>>>().as_mut().unwrap()
+}
+
+pub unsafe fn get_exeception_option<'any, 'gc>(env: *mut JNIEnv) -> &'any mut Option<WasException<'gc>> {
+    ((**env).reserved2 as *mut Option<WasException<'gc>>).as_mut().unwrap()
 }
 
 ///MonitorEnter
@@ -619,7 +623,10 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             .to_string();
         let java_string = match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(rust_string)) {
             Ok(java_string) => java_string,
-            Err(WasException {}) => return -4,
+            Err(WasException { exception_obj }) => {
+                todo!();
+                return -4;
+            }
         };
         (constructor_method_id, to_object(todo!()/*java_string.object().to_gc_managed().into()*/))
     };
@@ -658,7 +665,7 @@ pub fn field_object_from_view<'gc, 'l>(
     int_state: &mut impl PushableFrame<'gc>,
     class_obj: Arc<RuntimeClass<'gc>>,
     f: FieldView,
-) -> Result<NewJavaValueHandle<'gc>, WasException> {
+) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let field_class_name_ = class_obj.clone().cpdtype();
     let parent_runtime_class = load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, field_class_name_)?;
 
@@ -720,7 +727,7 @@ pub fn define_class_safe<'gc, 'l>(
     parsed: Arc<Classfile>,
     current_loader: LoaderName,
     class_view: ClassBackedView,
-) -> Result<NewJavaValueHandle<'gc>, WasException> {
+) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let class_name = class_view.name().unwrap_name();
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
@@ -753,7 +760,7 @@ pub fn define_class_safe<'gc, 'l>(
             let class = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_str(class_name.get_referred_name()))?;
             let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().new_java_handle().unwrap_object().unwrap();
             todo!();// int_state.set_throw(Some(to_throw));
-            return Err(WasException {});
+            return Err(WasException { exception_obj: todo!() });
         }
         Err(TypeSafetyError::NotSafe(msg)) => {
             dbg!(&msg);

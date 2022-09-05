@@ -1,7 +1,7 @@
 pub mod invoke;
 
 pub mod throwable {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use crate::better_java_stack::frames::PushableFrame;
@@ -9,7 +9,7 @@ pub mod throwable {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::NewAsObjectOrJavaValue;
+    use crate::{NewAsObjectOrJavaValue, WasException};
     use crate::utils::run_static_or_virtual;
 
     pub struct Throwable<'gc> {
@@ -23,7 +23,7 @@ pub mod throwable {
     }
 
     impl<'gc> Throwable<'gc> {
-        pub fn print_stack_trace<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+        pub fn print_stack_trace<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
             let throwable_class = check_initing_or_inited_class(jvm, int_state, CClassName::throwable().into()).expect("Throwable isn't inited?");
             let args = vec![self.new_java_value()];
             run_static_or_virtual(jvm, int_state, &throwable_class, MethodName::method_printStackTrace(), &CMethodDescriptor::empty_args(CPDType::VoidType), args)?;
@@ -43,12 +43,12 @@ pub mod throwable {
 }
 
 pub mod stack_trace_element {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::{AllocatedHandle, NewJavaValue};
+    use crate::{AllocatedHandle, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -71,7 +71,7 @@ pub mod stack_trace_element {
     }
 
     impl<'gc> StackTraceElement<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, declaring_class: JString<'gc>, method_name: JString<'gc>, file_name: JString<'gc>, line_number: jint) -> Result<StackTraceElement<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, declaring_class: JString<'gc>, method_name: JString<'gc>, file_name: JString<'gc>, line_number: jint) -> Result<StackTraceElement<'gc>, WasException<'gc>> {
             let class_ = check_initing_or_inited_class(jvm, int_state, CClassName::stack_trace_element().into())?;
             let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_));
             let full_args = vec![res.new_java_value(), declaring_class.new_java_value(), method_name.new_java_value(), file_name.new_java_value(), NewJavaValue::Int(line_number)];
@@ -93,12 +93,12 @@ pub mod stack_trace_element {
 }
 
 pub mod member_name {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -123,7 +123,7 @@ pub mod member_name {
         // private String name;
         // private Object type;
         // private int flags;
-        pub fn get_name_func<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<JString<'gc>>, WasException> {
+        pub fn get_name_func<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<JString<'gc>>, WasException<'gc>> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             let args = vec![self.normal_object.new_java_value()];
             let desc = CMethodDescriptor::empty_args(CClassName::string().into());
@@ -131,7 +131,7 @@ pub mod member_name {
             Ok(res.unwrap().cast_string())
         }
 
-        pub fn is_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<bool, WasException> {
+        pub fn is_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<bool, WasException<'gc>> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             let desc = CMethodDescriptor::empty_args(CPDType::BooleanType);
             let args = vec![self.normal_object.new_java_value()];
@@ -206,7 +206,7 @@ pub mod member_name {
             Some(self.normal_object.get_var_top_level(jvm, FieldName::field_clazz()).unwrap_object()?.cast_class())
         }
 
-        pub fn get_method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException> {
+        pub fn get_method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
             /*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
             run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;
@@ -214,7 +214,7 @@ pub mod member_name {
             todo!()
         }
 
-        pub fn get_field_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<JClass<'gc>>, WasException> {
+        pub fn get_field_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<JClass<'gc>>, WasException<'gc>> {
             let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
             let args = vec![self.normal_object.new_java_value()];
             let desc = CMethodDescriptor::empty_args(CClassName::class().into());
@@ -222,7 +222,7 @@ pub mod member_name {
             Ok(res.unwrap().cast_class())
         }
 
-        pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, field: Field<'gc>) -> Result<Self, WasException> {
+        pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, field: Field<'gc>) -> Result<Self, WasException<'gc>> {
             /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class).to_jv();
             run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), field.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;
@@ -230,7 +230,7 @@ pub mod member_name {
             todo!()
         }
 
-        pub fn new_from_method<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method: Method<'gc>) -> Result<Self, WasException> {
+        pub fn new_from_method<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method: Method<'gc>) -> Result<Self, WasException<'gc>> {
             let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class);
             let desc = CMethodDescriptor::void_return(vec![CClassName::method().into()]);
@@ -238,7 +238,7 @@ pub mod member_name {
             Ok(res.cast_member_name())
         }
 
-        pub fn new_from_constructor<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, constructor: Constructor<'gc>) -> Result<Self, WasException> {
+        pub fn new_from_constructor<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, constructor: Constructor<'gc>) -> Result<Self, WasException<'gc>> {
             let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
             let res = new_object(jvm, int_state, &member_class);
             let desc = CMethodDescriptor::void_return(vec![CClassName::constructor().into()]);
@@ -262,12 +262,12 @@ pub mod member_name {
 pub mod class {
     use std::sync::Arc;
 
-    use another_jit_vm_ir::WasException;
+
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, JVMState, NewJavaValue};
+    use crate::{AllocatedHandle, JVMState, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
@@ -331,21 +331,21 @@ pub mod class {
             JClass { normal_object: self.normal_object.clone() }//todo there should be a better way to do this b/c class objects live forever
         }
 
-        pub fn get_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException> {
+        pub fn get_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException<'gc>> {
             todo!()
             /*int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.as_allocated_obj().to_gc_managed().clone().into()));
             run_static_or_virtual(jvm, int_state, &self.normal_object.as_allocated_obj().to_gc_managed().unwrap_normal_object().objinfo.class_pointer, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object().map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))*/
         }
 
-        pub fn new_bootstrap_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Self, WasException> {
+        pub fn new_bootstrap_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Self, WasException<'gc>> {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_class));
             run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(NewJavaValueHandle::Object(res).cast_class().unwrap())
         }
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader: ClassLoader<'gc>) -> Result<Self, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader: ClassLoader<'gc>) -> Result<Self, WasException<'gc>> {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
             let res = AllocatedHandle::NormalObject(new_object(jvm, &mut temp/*int_state*/, &class_class));
@@ -358,12 +358,12 @@ pub mod class {
             JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().to_gc_managed().into()).to_new().cast_class().unwrap()
         }
 
-        pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<JClass<'gc>, WasException> {
+        pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<JClass<'gc>, WasException<'gc>> {
             let res = load_class_constant_by_type(jvm, int_state, ptype)?;
             Ok(res.cast_class().unwrap())//todo we should be able to safely turn handles that live for gc life without reentrant register
         }
 
-        pub fn get_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException> {
+        pub fn get_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
             /*int_state.push_current_operand_stack(self.clone().java_value());
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
             run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;
@@ -372,7 +372,7 @@ pub mod class {
             todo!()
         }
 
-        pub fn get_generic_interfaces<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+        pub fn get_generic_interfaces<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
             let args = vec![self.new_java_value()];
             let desc = CMethodDescriptor::empty_args(CPDType::array(CClassName::type_().into()).into());
@@ -401,12 +401,12 @@ pub mod class {
 }
 
 pub mod class_loader {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::loading::LoaderName;
 
-    use crate::AllocatedHandle;
+    use crate::{AllocatedHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::java::lang::class::JClass;
@@ -459,7 +459,7 @@ pub mod class_loader {
             classes_guard.lookup_or_add_classloader(gc_lifefied_obj)
         }
 
-        pub fn load_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: JString<'gc>) -> Result<JClass<'gc>, WasException> {
+        pub fn load_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: JString<'gc>) -> Result<JClass<'gc>, WasException<'gc>> {
             let class_loader = assert_inited_or_initing_class(jvm, CClassName::classloader().into());
             let res = run_static_or_virtual(
                 jvm,
@@ -491,12 +491,12 @@ pub mod string {
     use itertools::Itertools;
     use wtf8::Wtf8Buf;
 
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, UnAllocatedObject};
+    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, UnAllocatedObject, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object, run_constructor};
@@ -544,7 +544,7 @@ pub mod string {
             string_obj_to_string(jvm, &self.normal_object)
         }
 
-        pub fn from_rust(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException> {
+        pub fn from_rust(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException<'gc>> {
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into()).unwrap(); //todo replace these unwraps
             let string_object = AllocatedHandle::NormalObject(new_object(jvm, int_state, &string_class));
             let elems = rust_str.to_ill_formed_utf16().map(|c| NewJavaValue::Char(c as u16)).collect_vec();
@@ -558,7 +558,7 @@ pub mod string {
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }
 
-        pub fn intern<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException> {
+        pub fn intern<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into())?;
             let args = vec![self.new_java_value()];
             let res = run_static_or_virtual(
@@ -593,7 +593,7 @@ pub mod string {
             String::from_utf16(res.as_slice()).ok()
         }
 
-        pub fn length<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jint, WasException> {
+        pub fn length<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jint, WasException<'gc>> {
             todo!()/*int_state.push_current_operand_stack(self.clone().java_value())*/;
             let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into())?;
             run_static_or_virtual(jvm, int_state, &string_class, MethodName::method_length(), &CMethodDescriptor::empty_args(CPDType::IntType), todo!())?;
@@ -702,14 +702,14 @@ pub mod thread {
 
     use wtf8::Wtf8Buf;
 
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
     use rust_jvm_common::JavaThreadId;
 
-    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue};
+    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -776,14 +776,14 @@ pub mod thread {
             self.normal_object.get_var(jvm, &thread_class, FieldName::field_tid()).as_njv().unwrap_long_strict()
         }
 
-        pub fn run<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+        pub fn run<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
             let args = vec![self.normal_object.new_java_value()];
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_run(), &CompressedMethodDescriptor::empty_args(CPDType::VoidType), args)?;
             Ok(())
         }
 
-        pub fn exit<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+        pub fn exit<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             let args = vec![self.new_java_value()];
             let desc = CompressedMethodDescriptor::empty_args(CPDType::VoidType);
@@ -824,7 +824,7 @@ pub mod thread {
             self.normal_object.set_var(&thread_class, FieldName::field_threadStatus(), NewJavaValue::Int(thread_status));
         }
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException<'gc>> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class)));
             let thread_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(thread_name))?;
@@ -841,14 +841,14 @@ pub mod thread {
             jvm.thread_state.try_get_thread_by_tid(tid)
         }
 
-        pub fn is_alive<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jboolean, WasException> {
+        pub fn is_alive<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jboolean, WasException<'gc>> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             todo!();// int_state.push_current_operand_stack(todo!()/*self.clone().java_value()*/);
             run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_isAlive(), &CompressedMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
             Ok(todo!()/*int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean()*/)
         }
 
-        pub fn get_context_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException> {
+        pub fn get_context_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException<'gc>> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
             let mut args = vec![];
             args.push(self.new_java_value());
@@ -891,12 +891,12 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 
-    use crate::{AllocatedHandle, JavaValueCommon, JVMState};
+    use crate::{AllocatedHandle, JavaValueCommon, JVMState, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java::lang::string::JString;
@@ -946,7 +946,7 @@ pub mod thread_group {
     }
 
     impl<'gc> JThreadGroup<'gc> {
-        pub fn init<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group_class: Arc<RuntimeClass<'gc>>) -> Result<JThreadGroup<'gc>, WasException> {
+        pub fn init<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group_class: Arc<RuntimeClass<'gc>>) -> Result<JThreadGroup<'gc>, WasException<'gc>> {
             let thread_group_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_group_class)));
             run_constructor(jvm, int_state, thread_group_class, vec![thread_group_object.as_njv()], &CMethodDescriptor::void_return(vec![]))?;
             Ok(thread_group_object.cast_thread_group())
@@ -1004,11 +1004,11 @@ pub mod thread_group {
 }
 
 pub mod class_not_found_exception {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue};
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -1027,7 +1027,7 @@ pub mod class_not_found_exception {
     }
 
     impl<'gc> ClassNotFoundException<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JString<'gc>) -> Result<ClassNotFoundException<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JString<'gc>) -> Result<ClassNotFoundException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::class_not_found_exception().into())?;
             let this = new_object_full(jvm, int_state, &class_not_found_class);
             run_constructor(jvm, int_state , class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
@@ -1049,7 +1049,7 @@ pub mod class_not_found_exception {
 pub mod null_pointer_exception {
     use wtf8::Wtf8Buf;
 
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
     use crate::better_java_stack::frames::PushableFrame;
@@ -1060,6 +1060,7 @@ pub mod null_pointer_exception {
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::utils::pushable_frame_todo;
+    use crate::WasException;
 
     pub struct NullPointerException<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1073,7 +1074,7 @@ pub mod null_pointer_exception {
 
     impl<'gc> NullPointerException<'gc> {
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NullPointerException<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NullPointerException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::null_pointer_exception().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             let message = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
@@ -1084,12 +1085,12 @@ pub mod null_pointer_exception {
 }
 
 pub mod array_out_of_bounds_exception {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::{NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::{NewAsObjectOrJavaValue, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -1103,7 +1104,7 @@ pub mod array_out_of_bounds_exception {
 
     impl<'gc> ArrayOutOfBoundsException<'gc> {
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<ArrayOutOfBoundsException<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<ArrayOutOfBoundsException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::array_out_of_bounds_exception().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class);
             let desc = CMethodDescriptor::void_return(vec![CPDType::IntType]);
@@ -1112,7 +1113,7 @@ pub mod array_out_of_bounds_exception {
             Ok(this.cast_array_out_of_bounds_exception())
         }
 
-        pub fn new_no_index<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<ArrayOutOfBoundsException<'gc>, WasException> {
+        pub fn new_no_index<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<ArrayOutOfBoundsException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::array_out_of_bounds_exception().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class);
             let desc = CMethodDescriptor::void_return(vec![]);
@@ -1133,11 +1134,11 @@ pub mod array_out_of_bounds_exception {
 }
 
 pub mod illegal_argument_exception {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, pushable_frame_todo};
+    use crate::{AllocatedHandle, NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -1163,7 +1164,7 @@ pub mod illegal_argument_exception {
 
     impl<'gc> IllegalArgumentException<'gc> {
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<IllegalArgumentException<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<IllegalArgumentException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::illegal_argument_exception().into())?;
             let this = new_object_full(jvm, pushable_frame_todo()/*int_state*/, &class_not_found_class);
             run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value()], &CMethodDescriptor::void_return(vec![]))?;
@@ -1183,12 +1184,12 @@ pub mod illegal_argument_exception {
 }
 
 pub mod long {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{JavaValueCommon, NewAsObjectOrJavaValue, NewJavaValue};
+    use crate::{JavaValueCommon, NewAsObjectOrJavaValue, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
@@ -1215,7 +1216,7 @@ pub mod long {
     }
 
     impl<'gc> Long<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jlong) -> Result<Long<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jlong) -> Result<Long<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::long().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class);
             let args = vec![this.new_java_value(), NewJavaValue::Long(param)];
@@ -1241,7 +1242,7 @@ pub mod long {
 }
 
 pub mod int {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1251,7 +1252,7 @@ pub mod int {
     use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::JavaValue;
-    use crate::{JavaValueCommon, pushable_frame_todo};
+    use crate::{JavaValueCommon, pushable_frame_todo, WasException};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
@@ -1276,7 +1277,7 @@ pub mod int {
     impl<'gc, 'l> Int<'gc> {
         // as_object_or_java_value!();
 
-        pub fn new<'todo>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, param: jint) -> Result<Int<'gc>, WasException> {
+        pub fn new<'todo>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, param: jint) -> Result<Int<'gc>, WasException<'gc>> {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let class_not_found_class = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CClassName::int().into())?;
             let this = new_object(jvm, pushable_frame_todo()/*int_state*/, &class_not_found_class).to_jv();
@@ -1302,7 +1303,7 @@ pub mod int {
 }
 
 pub mod short {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jshort;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1313,7 +1314,7 @@ pub mod short {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Short<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1332,7 +1333,7 @@ pub mod short {
     }
 
     impl<'gc> Short<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jshort) -> Result<Short<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jshort) -> Result<Short<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::short().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), NewJavaValue::Short(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ShortType]))?;
@@ -1356,7 +1357,7 @@ pub mod short {
 }
 
 pub mod byte {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1367,7 +1368,7 @@ pub mod byte {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Byte<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1386,7 +1387,7 @@ pub mod byte {
     }
 
     impl<'gc> Byte<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jbyte) -> Result<Byte<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jbyte) -> Result<Byte<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::byte().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Byte(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::ByteType]))?;
@@ -1410,7 +1411,7 @@ pub mod byte {
 }
 
 pub mod boolean {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1421,7 +1422,7 @@ pub mod boolean {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Boolean<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1442,7 +1443,7 @@ pub mod boolean {
     impl<'gc> Boolean<'gc> {
         //as_object_or_java_value!();
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jboolean) -> Result<Boolean<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jboolean) -> Result<Boolean<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::boolean().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Boolean(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::BooleanType]))?;
@@ -1466,7 +1467,7 @@ pub mod boolean {
 }
 
 pub mod char {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jchar;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1477,7 +1478,7 @@ pub mod char {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Char<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1497,7 +1498,7 @@ pub mod char {
 
     impl<'gc> Char<'gc> {
 
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jchar) -> Result<Char<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jchar) -> Result<Char<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::character().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Char(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::CharType]))?;
@@ -1521,7 +1522,7 @@ pub mod char {
 }
 
 pub mod float {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1532,7 +1533,7 @@ pub mod float {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame};
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Float<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1551,7 +1552,7 @@ pub mod float {
     }
 
     impl<'gc> Float<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jfloat) -> Result<Float<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jfloat) -> Result<Float<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::float().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Float(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::FloatType]))?;
@@ -1575,7 +1576,7 @@ pub mod float {
 }
 
 pub mod double {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1587,7 +1588,7 @@ pub mod double {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::NewAsObjectOrJavaValue;
+    use crate::{NewAsObjectOrJavaValue, WasException};
 
     pub struct Double<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1606,7 +1607,7 @@ pub mod double {
     }
 
     impl<'gc> Double<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jdouble) -> Result<Double<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jdouble) -> Result<Double<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::double().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
             run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Double(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::DoubleType]))?;

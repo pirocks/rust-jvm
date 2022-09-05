@@ -5,7 +5,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::attribute_view::SourceFileView;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
@@ -69,7 +69,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             let source_file_name_wtf8 = file;
             Ok(Some(OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
-        .collect::<Result<Vec<Option<_>>, WasException>>()
+        .collect::<Result<Vec<Option<_>>, WasException<'gc>>>()
         .expect("todo")
         .into_iter()
         .flatten()
@@ -80,7 +80,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
 
             Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
         })
-        .collect::<Result<Vec<_>, WasException>>().expect("todo");
+        .collect::<Result<Vec<_>, WasException<'gc>>>().expect("todo");
 
     let mut stack_traces_guard = jvm.stacktraces_by_throwable.write().unwrap();
     stack_traces_guard.insert(

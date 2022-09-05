@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame};
+use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::invoke::static_::invoke_static_impl;
@@ -77,9 +77,9 @@ pub fn string_obj_to_string<'gc>(jvm: &'gc JVMState<'gc>, str_obj: &'_ Allocated
     //todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
-pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException> {
+pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
     let _ = throw_npe::<T>(jvm, int_state);
-    Err(WasException)
+    Err(WasException { exception_obj: todo!() })
 }
 
 pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> T {
@@ -97,15 +97,16 @@ pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state
     T::invalid_default()*/
 }
 
-pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<T, WasException> {
+pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<T, WasException<'gc>> {
     let _ = throw_array_out_of_bounds::<T>(jvm, int_state, index);
-    Err(WasException)
+    Err(WasException { exception_obj: todo!() })
 }
 
 pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> T {
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             eprintln!("Warning error encountered creating Array out of bounds");
             return T::invalid_default();
         }
@@ -116,15 +117,15 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
     T::invalid_default()
 }
 
-pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException> {
+pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
     let _ = throw_illegal_arg::<T>(jvm, int_state);
-    Err(WasException)
+    Err(WasException { exception_obj: todo!() })
 }
 
 pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> T {
     let illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(illegal_arg) => illegal_arg,
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
             eprintln!("Warning error encountered creating illegal arg exception");
             return T::invalid_default();
         }
@@ -133,7 +134,7 @@ pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, i
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: JavaValue<'gc>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException> {
+pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: JavaValue<'gc>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException<'gc>> {
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
@@ -160,7 +161,7 @@ pub fn run_static_or_virtual<'gc, 'l>(
     method_name: MethodName,
     desc: &CMethodDescriptor,
     args: Vec<NewJavaValue<'gc, '_>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let view = class.view();
     let res_fun = view.lookup_method(method_name, desc);
     let method_view = match res_fun {
@@ -168,16 +169,16 @@ pub fn run_static_or_virtual<'gc, 'l>(
         None => panic!(),
     };
     if method_view.is_static() {
-        invoke_static_impl(jvm, pushable_frame_todo()/*int_state*/, desc, class.clone(), method_view.method_i(), &method_view, args)
+        invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view, args)
     } else {
         // let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, method_name, &desc, class.clone()).unwrap();
         // let view = resolved_rc.view();
         // let method_view = view.method_view_i(method_i);
-        invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, method_name, desc, args)
+        invoke_virtual(jvm, int_state, method_name, desc, args)
     }
 }
 
-pub fn unwrap_or_npe<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException> {
+pub fn unwrap_or_npe<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException<'gc>> {
     match to_unwrap {
         None => {
             throw_npe_res(jvm, int_state)?;

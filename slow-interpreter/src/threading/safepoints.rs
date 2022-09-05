@@ -1,7 +1,7 @@
 use std::ops::Add;
 use std::sync::{Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use another_jit_vm_ir::WasException;
+
 
 use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
 use rust_jvm_common::JavaThreadId;
@@ -9,7 +9,7 @@ use rust_jvm_common::JavaThreadId;
 use crate::interpreter::{safepoint_check};
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::JVMState;
-use crate::{PushableFrame};
+use crate::{PushableFrame, WasException};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::threading::{ResumeError, SuspendError, ThreadStatus};
 
@@ -207,7 +207,7 @@ impl<'gc> SafePoint<'gc> {
 }
 
 impl<'gc> SafePoint<'gc> {
-    pub fn check<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+    pub fn check<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
         let guard = self.state.lock().unwrap();
 
         if guard.gc_suspended {
@@ -229,7 +229,7 @@ impl<'gc> SafePoint<'gc> {
         if let Some(exception) = &guard.throw_exception {
             todo!();
             // int_state.set_throw(Some(exception.clone().to_allocated_object().into()));
-            return Err(WasException);
+            return Err(WasException { exception_obj: todo!() });
         }
         if guard.suspended {
             todo!();
@@ -307,7 +307,7 @@ impl Monitor2 {
         }
     }
 
-    pub fn lock<'l, 'gc>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException> {
+    pub fn lock<'l, 'gc>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if let Some(owner) = guard.owner.as_ref() {
@@ -326,7 +326,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException> {
+    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         // dbg!(current_thread.java_tid);
@@ -350,7 +350,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn notify<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException> {
+    pub fn notify<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         if let Some(to_notify) = guard.waiting_notify.pop() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
@@ -359,7 +359,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn notify_all<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException> {
+    pub fn notify_all<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         for to_notify in guard.waiting_notify.drain(..) {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
@@ -368,7 +368,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn wait<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, wait_duration: Option<Duration>) -> Result<(), WasException> {
+    pub fn wait<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, wait_duration: Option<Duration>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let now = Instant::now();
         let wait_until = wait_duration.map(|wait_duration| match now.checked_add(wait_duration) {
@@ -392,7 +392,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, prev_count: usize) -> Result<(), WasException> {
+    pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, prev_count: usize) -> Result<(), WasException<'gc>> {
         self.lock(jvm, todo!()/*int_state*/)?;
         let current_thread = jvm.thread_state.get_current_thread();
         let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here

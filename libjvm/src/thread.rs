@@ -13,12 +13,13 @@ use nix::unistd::gettid;
 use parking_lot::Mutex;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::PType;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::invoke_interface::get_env;
@@ -217,7 +218,7 @@ unsafe extern "system" fn JVM_GetThreadStateNames(env: *mut JNIEnv, javaThreadSt
     }
 }
 
-unsafe fn GetThreadStateNames_impl(env: *mut JNIEnv, javaThreadState: i32) -> Result<jobject, WasException> {
+unsafe fn GetThreadStateNames_impl<'gc>(env: *mut JNIEnv, javaThreadState: i32) -> Result<jobject, WasException<'gc>> {
     //don't check values for now. They should be correct and from JVM_GetThreadStateValues
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);

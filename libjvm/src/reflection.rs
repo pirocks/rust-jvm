@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
@@ -16,6 +15,7 @@ use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::boolean::Boolean;
@@ -82,14 +82,17 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
         Ok(x) => x,
-        Err(WasException {}) => return null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return null_mut();
+        }
     };
 
     let method = method_obj.cast_method();
-    let parameter_types = method.parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
+    let parameter_types = method.parameter_types(jvm).iter().map(|paramater_type| paramater_type.as_type(jvm)).collect_vec();
     let return_types = method.get_return_type(jvm).as_type(jvm);
     //todo this arg array setup is almost certainly wrong.
     // let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
@@ -129,7 +132,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
 
     let res = match res {
         NewJavaValueHandle::Long(long) => {
-            Some(Long::new(jvm,int_state, long).unwrap().full_object())
+            Some(Long::new(jvm, int_state, long).unwrap().full_object())
         }
         NewJavaValueHandle::Int(_) => {
             todo!()
@@ -163,7 +166,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         }
     };
 
-    new_local_ref_public_new(res.as_ref().map(|obj|obj.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(res.as_ref().map(|obj| obj.as_allocated_obj()), todo!()/*int_state*/)
 }
 
 #[no_mangle]
@@ -183,11 +186,12 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
             return throw_npe(jvm, int_state);
         }
     };
-    let mut temp : OpaqueFrame<'gc, '_> = todo!();
-    if let Err(WasException {}) = check_loaded_class(jvm, &mut temp/*int_state*/, clazz.cpdtype()) {
+    let mut temp: OpaqueFrame<'gc, '_> = todo!();
+    if let Err(WasException { exception_obj }) = check_loaded_class(jvm, &mut temp/*int_state*/, clazz.cpdtype()) {
+        todo!();
         return null_mut();
     };
-    let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type|paramater_type.as_type(jvm)).collect_vec();
+    let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type| paramater_type.as_type(jvm)).collect_vec();
     let args = if args0.is_null() {
         vec![]
     } else {

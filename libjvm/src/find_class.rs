@@ -6,7 +6,7 @@ use std::ptr::null_mut;
 use by_address::ByAddress;
 use nix::sys::aio::aio_suspend;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations;

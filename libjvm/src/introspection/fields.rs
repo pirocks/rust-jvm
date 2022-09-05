@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 
 use libc::time;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -14,6 +14,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
@@ -43,7 +44,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
     for f in class_obj.clone().view().fields() {
         let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
             Ok(field_object) => field_object,
-            Err(WasException {}) => {
+            Err(WasException { exception_obj }) => {
+                todo!();
                 return null_mut();
             }
         };

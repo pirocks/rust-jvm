@@ -2,7 +2,7 @@ use std::os::raw::c_void;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
@@ -20,6 +20,7 @@ use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
+use crate::WasException;
 
 pub mod single_instruction;
 pub mod real_interpreter_state;
@@ -47,7 +48,7 @@ pub struct FrameToRunOn {
 }
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
-pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
@@ -110,12 +111,12 @@ pub enum PostInstructionAction<'gc> {
         res: Option<NewJavaValueHandle<'gc>>
     },
     Exception {
-        exception: WasException
+        exception: WasException<'gc>
     },
     Next {},
 }
 
-pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     // eprintln!("{}",Backtrace::force_capture().to_string());
     let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
@@ -205,7 +206,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<(), WasException> {
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
     if interpreter_state.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst){

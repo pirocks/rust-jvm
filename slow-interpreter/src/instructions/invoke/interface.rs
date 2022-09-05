@@ -2,12 +2,12 @@ use std::num::NonZeroU8;
 
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
+
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaValueCommon, JVMState};
+use crate::{JavaValueCommon, JVMState, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
@@ -50,8 +50,8 @@ pub fn invoke_interface<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut
         Ok(None) => {
             assert!(expected_descriptor.return_type.is_void());
         }
-        Err(WasException {}) => {
-            return PostInstructionAction::Exception { exception: WasException {} };
+        Err(WasException { exception_obj }) => {
+            return PostInstructionAction::Exception { exception: WasException { exception_obj } };
         }
     }
     PostInstructionAction::Next {}

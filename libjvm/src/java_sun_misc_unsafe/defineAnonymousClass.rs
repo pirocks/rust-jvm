@@ -12,7 +12,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};

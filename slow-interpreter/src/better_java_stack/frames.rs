@@ -1,10 +1,10 @@
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
-use another_jit_vm_ir::WasException;
+
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::{NativeJavaValue};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush};
+use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::{JavaFrameIterRefNew};
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
@@ -64,10 +64,10 @@ pub trait HasFrame<'gc> {
 
 pub trait PushableFrame<'gc>: HasFrame<'gc> {
     //todo maybe specialize these based on what is being pushed
-    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException>) -> Result<T, WasException>;
-    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'k> FnOnce(&mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException>) -> Result<T, WasException>;
-    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'k> FnOnce(&mut JavaInterpreterFrame<'gc, 'k>) -> Result<T, WasException>) -> Result<T, WasException>;
-    fn push_frame_native<T>(&mut self, java_frame: NativeFramePush, within_push: impl for<'k> FnOnce(&mut NativeFrame<'gc, 'k>) -> Result<T, WasException>) -> Result<T, WasException>;
+    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
+    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'k> FnOnce(&mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
+    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'k> FnOnce(&mut JavaInterpreterFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
+    fn push_frame_native<T>(&mut self, java_frame: NativeFramePush, within_push: impl for<'k> FnOnce(&mut NativeFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
     fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }

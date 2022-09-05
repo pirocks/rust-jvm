@@ -1,13 +1,13 @@
 pub mod method_type {
     use std::sync::Arc;
 
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle};
+    use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -29,7 +29,7 @@ pub mod method_type {
     }
 
     impl<'gc> MethodType<'gc> {
-        pub fn from_method_descriptor_string<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str: JString<'gc>, class_loader: Option<ClassLoader<'gc>>) -> Result<MethodType<'gc>, WasException> {
+        pub fn from_method_descriptor_string<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str: JString<'gc>, class_loader: Option<ClassLoader<'gc>>) -> Result<MethodType<'gc>, WasException<'gc>> {
             let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             let desc = CMethodDescriptor {
                 arg_types: vec![CClassName::string().into(), CClassName::classloader().into()],
@@ -114,7 +114,7 @@ pub mod method_type {
             self.normal_object.set_var_top_level(jvm, FieldName::field_methodDescriptor(), method_descriptor.to_new());
         }
 
-        pub fn parameter_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, int: jint) -> Result<JClass<'gc>, WasException> {
+        pub fn parameter_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, int: jint) -> Result<JClass<'gc>, WasException<'gc>> {
             let method_type = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             let desc = CMethodDescriptor { arg_types: vec![CPDType::IntType], return_type: CClassName::class().into() };
             let args = vec![self.new_java_value(), NewJavaValue::Int(int)];
@@ -259,11 +259,11 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{JVMState, NewAsObjectOrJavaValue};
+    use crate::{JVMState, NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::java::lang::invoke::lambda_form::LambdaForm;
@@ -287,18 +287,18 @@ pub mod method_handle {
     }
 
     impl<'gc> MethodHandle<'gc> {
-        pub fn lookup<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Lookup<'gc>, WasException> {
+        pub fn lookup<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Lookup<'gc>, WasException<'gc>> {
             let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
             run_static_or_virtual(jvm, int_state, &method_handles_class, MethodName::method_lookup(), &CMethodDescriptor::empty_args(CClassName::method_handles_lookup().into()), todo!())?;
             Ok(todo!()/*int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup()*/)
         }
-        pub fn public_lookup<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Lookup<'gc>, WasException> {
+        pub fn public_lookup<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Lookup<'gc>, WasException<'gc>> {
             let method_handles_class = assert_inited_or_initing_class(jvm, CClassName::method_handles().into());
             run_static_or_virtual(jvm, int_state, &method_handles_class, MethodName::method_publicLookup(), &CMethodDescriptor::empty_args(CClassName::method_handles_lookup().into()), todo!())?;
             Ok(todo!()/*int_state.pop_current_operand_stack(Some(CClassName::method_handles().into())).cast_lookup()*/)
         }
 
-        pub fn internal_member_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MemberName<'gc>, WasException> {
+        pub fn internal_member_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MemberName<'gc>, WasException<'gc>> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             let desc = CMethodDescriptor::empty_args(CClassName::member_name().into());
             let args = vec![self.new_java_value()];
@@ -311,7 +311,7 @@ pub mod method_handle {
             self.normal_object.get_var(jvm, &method_handle_class, FieldName::field_type()).cast_method_type()
         }
 
-        pub fn type_<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException> {
+        pub fn type_<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
             /*let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             int_state.push_current_operand_stack(self.clone().java_value());
             run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_type(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;
@@ -319,15 +319,15 @@ pub mod method_handle {
             todo!()
         }
 
-        pub fn get_form_or_null(&self, jvm: &'gc JVMState<'gc>) -> Result<Option<LambdaForm<'gc>>, WasException> {
+        pub fn get_form_or_null(&self, jvm: &'gc JVMState<'gc>) -> Result<Option<LambdaForm<'gc>>, WasException<'gc>> {
             let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
             let maybe_null = self.normal_object.get_var(jvm, &method_handle_class, FieldName::field_form());
             match maybe_null.unwrap_object() {
                 Some(maybe_null) => Ok(Some(maybe_null.cast_lambda_form())),
-                None => return Err(WasException {}),
+                None => return Err(WasException { exception_obj: todo!() }),
             }
         }
-        pub fn get_form(&self, jvm: &'gc JVMState<'gc>) -> Result<LambdaForm<'gc>, WasException> {
+        pub fn get_form(&self, jvm: &'gc JVMState<'gc>) -> Result<LambdaForm<'gc>, WasException<'gc>> {
             Ok(self.get_form_or_null(jvm)?.unwrap())
         }
     }
@@ -347,7 +347,7 @@ pub mod method_handles {
     pub mod lookup {
         use std::ops::Deref;
 
-        use another_jit_vm_ir::WasException;
+
         use rust_jvm_common::compressed_classfile::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
         use crate::better_java_stack::frames::PushableFrame;
@@ -364,6 +364,7 @@ pub mod method_handles {
         use crate::new_java_values::owned_casts::OwnedCastAble;
         use crate::runtime_class::static_vars;
         use crate::utils::run_static_or_virtual;
+        use crate::WasException;
 
         #[derive(Clone)]
         pub struct Lookup<'gc> {
@@ -384,7 +385,7 @@ pub mod method_handles {
             }
 
             //noinspection DuplicatedCode
-            pub fn find_virtual<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException> {
+            pub fn find_virtual<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException<'gc>> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let args = vec![self.new_java_value(), obj.new_java_value(), name.new_java_value(), mt.new_java_value()];
                 let desc = CMethodDescriptor {
@@ -396,7 +397,7 @@ pub mod method_handles {
             }
 
             //noinspection DuplicatedCode
-            pub fn find_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException> {
+            pub fn find_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException<'gc>> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let desc = CMethodDescriptor {
                     arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into()],
@@ -407,7 +408,7 @@ pub mod method_handles {
                 Ok(res.unwrap().cast_method_handle())
             }
 
-            pub fn find_special<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>, special_caller: JClass<'gc>) -> Result<MethodHandle<'gc>, WasException> {
+            pub fn find_special<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, name: JString<'gc>, mt: MethodType<'gc>, special_caller: JClass<'gc>) -> Result<MethodHandle<'gc>, WasException<'gc>> {
                 let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
                 let desc = CMethodDescriptor {
                     arg_types: vec![CClassName::class().into(), CClassName::string().into(), CClassName::method_type().into(), CClassName::class().into()],
@@ -443,7 +444,7 @@ pub mod lambda_form {
     use crate::new_java_values::owned_casts::OwnedCastAble;
 
     pub mod named_function {
-        use another_jit_vm_ir::WasException;
+
         use crate::better_java_stack::frames::PushableFrame;
 
         use crate::java::lang::invoke::method_type::MethodType;
@@ -451,7 +452,7 @@ pub mod lambda_form {
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-        use crate::NewAsObjectOrJavaValue;
+        use crate::{NewAsObjectOrJavaValue, WasException};
 
         #[derive(Clone)]
         pub struct NamedFunction<'gc> {
@@ -483,7 +484,7 @@ pub mod lambda_form {
                 self.get_member_or_null(jvm).unwrap()
             }
 
-            pub fn method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException> {
+            pub fn method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
                 // java.lang.invoke.LambdaForm.NamedFunction
                 /*let named_function_type = assert_inited_or_initing_class(jvm, CClassName::lambda_from_named_function().into());
                 int_state.push_current_operand_stack(self.clone().java_value());
@@ -702,7 +703,7 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
@@ -712,7 +713,7 @@ pub mod call_site {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::{NewAsObjectOrJavaValue, pushable_frame_todo};
+    use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
     use crate::better_java_stack::frames::PushableFrame;
 
     #[derive(Clone)]
@@ -721,7 +722,7 @@ pub mod call_site {
     }
 
     impl<'gc> CallSite<'gc> {
-        pub fn get_target<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodHandle<'gc>, WasException> {
+        pub fn get_target<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodHandle<'gc>, WasException<'gc>> {
             let call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             let args = vec![self.new_java_value()];
             let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Class(CClassName::method_handle()) };

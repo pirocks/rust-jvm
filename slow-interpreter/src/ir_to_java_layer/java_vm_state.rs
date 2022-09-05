@@ -5,7 +5,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 use another_jit_vm::code_modification::GlobalCodeEditingLock;
 use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, WasException};
+use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::ir_stack::{IRStackMut};
 use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
@@ -18,6 +18,7 @@ use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::exceptions::WasException;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
@@ -64,7 +65,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         self.ir.init_top_level_exit_id(ir_method_id)
     }
 
-    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &mut JavaInterpreterFrame<'vm, 'l>, method_id: MethodId) -> Result<u64, WasException> {
+    pub fn run_method<'l>(&'vm self, jvm: &'vm JVMState<'vm>, int_state: &mut JavaInterpreterFrame<'vm, 'l>, method_id: MethodId) -> Result<u64, WasException<'vm>> {
         // let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         // let view = rc.view();
         // let method_view = view.method_view_i(method_i);
@@ -93,7 +94,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 // int_state.set_throw(Some(obj));
                 // int_state.debug_print_stack_trace(jvm);
                 // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                return Err(WasException {});
+                return Err(WasException { exception_obj: todo!() });
             }
         };
         // int_state.saved_assert_frame_from(assert_data, current_frame_pointer);

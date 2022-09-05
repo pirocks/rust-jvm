@@ -7,7 +7,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
@@ -21,7 +21,7 @@ use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
-use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject};
+use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::java::lang::class::JClass;
 use crate::java::lang::class_loader::ClassLoader;
@@ -38,7 +38,7 @@ use crate::runtime_class::{initialize_class, prepare_class, static_vars};
 use crate::utils::pushable_frame_todo;
 
 //todo only use where spec says
-pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.clone().deref() {
         RuntimeClass::Byte => {
@@ -116,13 +116,13 @@ pub fn try_assert_loaded_class<'gc>(jvm: &'gc JVMState<'gc>, ptype: CPDType) -> 
     jvm.classes.read().unwrap().is_loaded(&ptype)
 }
 
-pub fn check_loaded_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn check_loaded_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     let loader = int_state.current_loader(jvm);
     // assert!(jvm.thread_state.int_state_guard_valid.with(|valid| valid.borrow().clone()));
     check_loaded_class_force_loader(jvm, int_state, &ptype, loader)
 }
 
-pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: &CPDType, loader: LoaderName) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     // todo cleanup how these guards work
     let is_loaded = jvm.classes.write().unwrap().is_loaded(ptype);
     let res = match is_loaded {
@@ -205,7 +205,7 @@ impl LivePoolGetter for DefaultLivePoolGetter {
 
 static mut BOOTSRAP_LOAD_COUNT: usize = 0;
 
-pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     unsafe {
         BOOTSRAP_LOAD_COUNT += 1;
         if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
@@ -235,7 +235,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                     // throwable.print_stack_trace(jvm,int_state).unwrap();
                     todo!();
                     /*int_state.set_throw(Some(throwable.full_object()));*/
-                    return Err(WasException {});
+                    return Err(WasException { exception_obj: todo!() });
                 }
             };
             let class_view = Arc::new(ClassBackedView::from(classfile.clone(), &jvm.string_pool));
@@ -277,7 +277,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                     // throwable.print_stack_trace(jvm,int_state).unwrap();
                     todo!();
                     /*int_state.set_throw(Some(throwable.full_object()));*/
-                    return Err(WasException {});
+                    return Err(WasException { exception_obj: todo!() });
                 }
                 Err(TypeSafetyError::NotSafe(not_safe)) => {
                     dbg!(class_name.0.to_str(&jvm.string_pool));
@@ -341,7 +341,7 @@ pub fn get_static_var_types(class_view: &ClassBackedView) -> HashMap<FieldName, 
 }
 
 //signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
-pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: Option<String>, loader: LoaderName) -> Result<&'gc AllocatedNormalObjectHandle<'gc>, WasException> {
+pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: Option<String>, loader: LoaderName) -> Result<&'gc AllocatedNormalObjectHandle<'gc>, WasException<'gc>> {
     let loader_object = match loader {
         LoaderName::UserDefinedLoader(idx) => NewJavaValueHandle::Object(AllocatedHandle::NormalObject(jvm.classes.read().unwrap().lookup_class_loader(idx).duplicate_discouraged())),
         LoaderName::BootstrapLoader => NewJavaValueHandle::null(),
@@ -365,7 +365,7 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
     Ok(class_object.object_gc_life(jvm))
 }
 
-pub fn check_resolved_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException> {
+pub fn check_resolved_class<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     check_loaded_class(jvm, int_state, ptype)
 }
 

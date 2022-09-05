@@ -1,14 +1,14 @@
 use std::mem::size_of;
 use std::ops::Deref;
 
-use another_jit_vm_ir::WasException;
+
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 
-use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle};
+use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
@@ -57,7 +57,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
 pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {  //todo make sure class pointer is updated correctly
     let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name, field_descriptor.0) {
         Ok(val) => val,
-        Err(WasException {}) => return PostInstructionAction::Exception { exception: WasException {} },
+        Err(WasException { exception_obj }) => return PostInstructionAction::Exception { exception: WasException { exception_obj } },
     } {
         None => {
             todo!()
@@ -68,7 +68,7 @@ pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealI
     PostInstructionAction::Next {}
 }
 
-fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_classfile = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
     //todo handle interfaces in setting as well
     for interfaces in target_classfile.view().interfaces() {

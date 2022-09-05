@@ -13,7 +13,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::{Itertools, repeat_n};
 
 use add_only_static_vec::AddOnlyVec;
-use another_jit_vm_ir::WasException;
+
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
@@ -28,6 +28,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::{AllocatedHandle, check_initing_or_inited_class};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
+use crate::exceptions::WasException;
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
@@ -629,12 +630,12 @@ impl<'gc> JavaValue<'gc> {
             jv => (*jv).clone(),
         }*/
     }
-    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
-    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
@@ -658,7 +659,7 @@ impl<'gc> JavaValue<'gc> {
         })).unwrap_normal_object()
     }
 
-    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedHandle<'gc>, WasException> {
+    pub fn new_vec<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, len: usize, val: NewJavaValue<'gc, '_>, elem_type: CPDType) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
         let mut buf: Vec<NewJavaValue<'gc, '_>> = Vec::with_capacity(len);
         for _ in 0..len {
             buf.push(val.clone());
@@ -927,7 +928,7 @@ impl<'gc, 'l> Object<'gc, 'l> {
         }
     }
 
-    pub fn object_array(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, object_array: Vec<JavaValue<'gc>>, class_type: CPDType) -> Result<Object<'gc, 'gc>, WasException> {
+    pub fn object_array(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, object_array: Vec<JavaValue<'gc>>, class_type: CPDType) -> Result<Object<'gc, 'gc>, WasException<'gc>> {
         Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
     }
 
@@ -998,7 +999,7 @@ impl<'gc> ArrayObject<'gc, '_> {
         self.len
     }
 
-    pub fn new_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, elems: Vec<JavaValue<'gc>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException> {
+    pub fn new_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, elems: Vec<JavaValue<'gc>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException<'gc>> {
         check_resolved_class(jvm, int_state, CPDType::array(type_/*CPRefType::Array(box type_.clone())*/))?;
         Ok(Self {
             whole_array_runtime_class: todo!(),

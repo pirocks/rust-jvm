@@ -12,7 +12,6 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedObject;
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
-use crate::utils::pushable_frame_todo;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
@@ -23,8 +22,8 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
         return object_region_header.class_pointer_cache as jclass;
     }
     let rc = unwrapped.runtime_class(jvm);
-    let class_object = get_or_create_class_object(jvm, rc.cpdtype(), pushable_frame_todo()/*int_state*/);
-    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), todo!()/*int_state*/) as jclass;
+    let class_object = get_or_create_class_object(jvm, rc.cpdtype(), int_state);
+    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass;
     object_region_header.class_pointer_cache = res_class;
     res_class
 }

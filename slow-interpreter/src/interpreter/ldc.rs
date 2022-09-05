@@ -1,12 +1,12 @@
 use itertools::Either;
-use another_jit_vm_ir::WasException;
+
 
 use classfile_view::view::constant_info_view::{ConstantInfoView};
 use rust_jvm_common::compressed_classfile::{CPDType};
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::names::{CClassName};
 
-use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle};
+use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::{PostInstructionAction};
@@ -14,7 +14,7 @@ use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInter
 use crate::java::lang::string::JString;
 use crate::rust_jni::interface::string::intern_safe;
 
-fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, *type_, int_state)?;
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
@@ -28,7 +28,7 @@ fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
 //     int_state.push_current_operand_stack(string.java_value());
 // }
 //
-// pub fn create_string_on_stack(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_string: String) -> Result<(), WasException> {
+// pub fn create_string_on_stack(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_string: String) -> Result<(), WasException<'gc>> {
 //     let java_lang_string = CClassName::string();
 //     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
 //     let str_as_vec = res_string.chars();
@@ -83,8 +83,8 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
                 }
                 CompressedLdcW::Class { type_ } => {
                     match load_class_constant(jvm, int_state.inner(), type_) {
-                        Err(WasException {}) => {
-                            return PostInstructionAction::Exception { exception: WasException {} };
+                        Err(WasException { exception_obj }) => {
+                            return PostInstructionAction::Exception { exception: WasException { exception_obj } };
                         }
                         Ok(res) => {
                             int_state.current_frame_mut().push(res.to_interpreter_jv());

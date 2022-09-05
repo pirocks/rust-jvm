@@ -11,21 +11,21 @@ use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use crate::instructions::invoke::static_::invoke_static_impl;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
-use another_jit_vm_ir::WasException;
-use crate::JavaValueCommon;
+
+use crate::{JavaValueCommon, WasException};
 use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::interface::{get_interpreter_state, get_state, push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::interface::{get_interpreter_state, get_state, get_throw, push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::native_util::{from_object_new};
 use crate::utils::pushable_frame_todo;
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;
 
-unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: jobject, method_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let method_id = from_jmethod_id(method_id);
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -43,11 +43,11 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
     let res = invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
-    todo!();// assert!(int_state.throw().is_none());
+    assert!(get_throw(env).is_none());
     return Ok(res);
 }
 
-pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm: &'gc JVMState<'gc> = get_state(env);

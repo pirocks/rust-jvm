@@ -1,8 +1,8 @@
 use rust_jvm_common::compressed_classfile::names::{CClassName};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::{JVMState};
-use another_jit_vm_ir::WasException;
+use crate::{JVMState, WasException};
+
 
 pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> PostInstructionAction<'gc> {
     let exception_obj = {
@@ -14,5 +14,5 @@ pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
 
     //todo checkcast not array
     todo!();/*int_state.inner().set_throw(allocated_handle.into());*/
-    PostInstructionAction::Exception { exception: WasException{} }
+    PostInstructionAction::Exception { exception: WasException{ exception_obj: todo!() } }
 }

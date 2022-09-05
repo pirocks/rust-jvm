@@ -15,7 +15,7 @@ use libffi::middle::CodePtr;
 use libffi::middle::Type;
 use libloading::Symbol;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
@@ -23,7 +23,7 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue};
+use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
@@ -47,7 +47,7 @@ impl<'gc> NativeLibraries<'gc> {
     }
 }
 
-pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException> {
+pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException<'gc>> {
     let mangled = mangling::mangle(&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
@@ -79,11 +79,11 @@ pub fn call_impl<'gc, 'l, 'k>(
     md: CMethodDescriptor,
     raw: &unsafe extern "C" fn(),
     suppress_runtime_class: bool,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     args.retain(|arg| !matches!(arg,NewJavaValue::Top));
     int_state.debug_assert();
     let mut args_type = if suppress_runtime_class { vec![Type::pointer()] } else { vec![Type::pointer(), Type::pointer()] };
-    let mut exception: Option<WasException> = None;
+    let mut exception: Option<WasException<'gc>> = None;
     let mut arg_boxes = ArgBoxesToFree::new();
     let null_env_placeholder: *mut c_void = null_mut();
     let mut c_args = if suppress_runtime_class {

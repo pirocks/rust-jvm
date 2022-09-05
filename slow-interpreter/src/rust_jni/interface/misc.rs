@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
 
-use another_jit_vm_ir::WasException;
+
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
@@ -29,6 +29,7 @@ use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new};
 use crate::utils::{pushable_frame_todo, throw_npe};
+use crate::WasException;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram, blocking on gc.
@@ -41,13 +42,14 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    let obj = match load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, CPDType::from_ptype(&type_, &jvm.string_pool)) {
-        Err(WasException {}) => {
+    let obj = match load_class_constant_by_type(jvm, int_state, CPDType::from_ptype(&type_, &jvm.string_pool)) {
+        Err(WasException { exception_obj }) => {
+            todo!();
             return null_mut();
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass {
@@ -59,7 +61,8 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
     let obj = match load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, super_name.into()) {
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             return null_mut();
         }
         Ok(res) => res.unwrap_object(),
@@ -200,13 +203,13 @@ fn register_native_with_lib_java_loading<'gc>(jni_context: &NativeLibraries<'gc>
     }
 }
 
-pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException> {
+pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException<'gc>> {
     let mut res = vec![];
     get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException<'gc>> {
     class.view().methods().for_each(|m| {
         res.push((class.clone(), m.method_i()));
     });
@@ -235,13 +238,13 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
     Ok(())
 }
 
-pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException> {
+pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException<'gc>> {
     let mut res = vec![];
     get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
     Ok(res)
 }
 
-fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException> {
+fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException<'gc>> {
     class.view().fields().enumerate().for_each(|(i, _)| {
         res.push((class.clone(), i));
     });

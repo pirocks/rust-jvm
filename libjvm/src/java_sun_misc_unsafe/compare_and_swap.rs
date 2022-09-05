@@ -7,13 +7,14 @@ use std::sync::atomic::AtomicPtr;
 
 use libc::c_void;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
@@ -105,7 +106,7 @@ pub unsafe fn get_obj_and_name<'gc>(
     the_unsafe: jobject,
     target_obj: jobject,
     offset: jlong,
-) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedHandle<'gc>, FieldName), WasException> {
+) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedHandle<'gc>, FieldName), WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));

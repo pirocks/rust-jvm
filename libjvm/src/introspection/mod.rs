@@ -1,3 +1,4 @@
+use std::arch::x86_64::_mm_testc_pd;
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
 use std::ffi::{c_void, CStr};
@@ -10,7 +11,6 @@ use itertools::Itertools;
 use num_cpus::get;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
@@ -26,6 +26,7 @@ use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java::lang::class::JClass;
@@ -53,7 +54,7 @@ pub mod is_x;
 pub mod get_methods;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
+unsafe extern "system" fn JVM_GetClassInterfaces<'gc>(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let j_class = from_jclass(jvm, cls);
@@ -65,10 +66,11 @@ unsafe extern "system" fn JVM_GetClassInterfaces(env: *mut JNIEnv, cls: jclass) 
             let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), pushable_frame_todo())?;
             Ok(class_obj.duplicate_discouraged())
         })
-        .collect::<Result<Vec<_>, WasException>>()
+        .collect::<Result<Vec<_>, WasException<'gc>>>()
     {
         Ok(interface_vec) => interface_vec,
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             return null_mut();
         }
     };
@@ -105,9 +107,12 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     new_local_ref_public_new(
         match JClass::from_type(jvm, pushable_frame_todo(), object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
-            Err(WasException {}) => return null_mut(),
+            Err(WasException { exception_obj }) => {
+                todo!();
+                return null_mut();
+            }
         }.full_object_ref().into(),
-        todo!()/*int_state*/
+        todo!(), /*int_state*/
     )
 }
 
@@ -139,7 +144,10 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         .collect::<Result<Vec<_>, _>>();
     let obj_array = match res_array {
         Ok(obj_array) => obj_array,
-        Err(WasException {}) => return null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return null_mut();
+        }
     };
     let res_jv = JavaValue::new_vec_from_vec(
         jvm,
@@ -154,8 +162,8 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, ofClass).as_runtime_class(jvm);
-    if rc.cpdtype().is_primitive(){
-        return null_mut()
+    if rc.cpdtype().is_primitive() {
+        return null_mut();
     }
     let class_name = rc.unwrap_class_class().class_view.name().unwrap_name();
     let view = rc.view();
@@ -166,14 +174,14 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
     for inner_class in inner_classes.classes() {
         // dbg!(inner_class.complete_name(&jvm.string_pool).unwrap().0.to_str(&jvm.string_pool));
         // dbg!(class_name.0.to_str(&jvm.string_pool));
-        if inner_class.complete_name(&jvm.string_pool) == Some(class_name){
+        if inner_class.complete_name(&jvm.string_pool) == Some(class_name) {
             let target_class_name = inner_class.outer_name(&jvm.string_pool);
             // dbg!(target_class_name.0.to_str(&jvm.string_pool));
-            let class = get_or_create_class_object(jvm,target_class_name.into(),pushable_frame_todo()).unwrap();
+            let class = get_or_create_class_object(jvm, target_class_name.into(), pushable_frame_todo()).unwrap();
             return to_object_new(Some(class.as_allocated_obj()));
         }
     }
-    return null_mut()
+    return null_mut();
 }
 
 #[no_mangle]
@@ -225,7 +233,7 @@ unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray 
         .map(|ptype| get_or_create_class_object(jvm, ptype, pushable_frame_todo())
             .map(|elem| elem.new_java_handle())
         )
-        .collect::<Result<Vec<_>, WasException>>() {
+        .collect::<Result<Vec<_>, WasException<'gc>>>() {
         Ok(jclasses) => jclasses,
         Err(WasException {}) => return null_mut(),
     };
@@ -296,7 +304,10 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
     let int_state = get_interpreter_state(env);
     match Reflection::is_same_class_package(jvm, int_state, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
         Ok(res) => res,
-        Err(WasException {}) => return jboolean::MAX,
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return jboolean::MAX;
+        }
     }
 }
 
@@ -315,13 +326,17 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
-                if let Err(WasException {}) = check_initing_or_inited_class(jvm, int_state, p_type) {
+                if let Err(WasException { exception_obj }) = check_initing_or_inited_class(jvm, int_state, p_type) {
+                    todo!();
                     return null_mut();
                 };
             }
             new_local_ref_public_new(Some(class_object.as_allocated_obj()), todo!()/*int_state*/)
         }
-        Err(WasException {}) => null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            null_mut()
+        }
     }
 }
 

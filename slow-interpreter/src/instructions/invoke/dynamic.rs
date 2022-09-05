@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
@@ -11,7 +11,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaValueCommon, JVMState, NewJavaValueHandle, PushableFrame};
+use crate::{JavaValueCommon, JVMState, NewJavaValueHandle, PushableFrame, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
@@ -33,14 +33,14 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
         Ok(res) => {
             PostInstructionAction::Next {}
         }
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
             panic!();
-            PostInstructionAction::Exception { exception: WasException {} }
+            PostInstructionAction::Exception { exception: WasException { exception_obj } }
         }
     }
 }
 
-fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException> {
+fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException<'gc>> {
     let mut temp: OpaqueFrame<'gc, 'l> = todo!();
     let method_handle_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_handle().into())?;
     let _method_type_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_type().into())?;
@@ -155,13 +155,13 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
 }
 
 //todo this should go in MethodType or something.
-fn desc_from_rust_str<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, desc_str: String) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn desc_from_rust_str<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, desc_str: String) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let desc_str = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(desc_str))?;
     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
     Ok(method_type.new_java_value_handle())
 }
 
-fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc>, WasException> {
+fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc>, WasException<'gc>> {
     let methodref_view = method_ref.clone();
     Ok(match methodref_view.get_reference_data() {
         ReferenceInvokeKind::InvokeStatic(is) => {

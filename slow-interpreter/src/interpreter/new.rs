@@ -1,10 +1,10 @@
-use another_jit_vm_ir::WasException;
+
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle};
+use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::PostInstructionAction;
@@ -16,9 +16,9 @@ use crate::java_values::default_value;
 pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, classname: CClassName) -> PostInstructionAction<'gc> {
     let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), classname.into()) {
         Ok(x) => x,
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
             // int_state.throw().unwrap().lookup_field(jvm, FieldName::field_detailMessage());
-            return PostInstructionAction::Exception { exception: WasException {} };
+            return PostInstructionAction::Exception { exception: WasException { exception_obj } };
         }
     };
     let obj = new_object(jvm, int_state.inner(), &target_classfile);
@@ -32,13 +32,13 @@ pub fn anewarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
         _ => panic!(),
     };
     let type_ = cpdtype.clone();
-    if let Err(WasException {}) = a_new_array_from_name(jvm, int_state, len, type_) {
-        return PostInstructionAction::Exception { exception: WasException {} };
+    if let Err(WasException { exception_obj }) = a_new_array_from_name(jvm, int_state, len, type_) {
+        return PostInstructionAction::Exception { exception: WasException { exception_obj } };
     }
     PostInstructionAction::Next {}
 }
 
-pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, len: i32, elem_type: CPDType) -> Result<(), WasException> {
+pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, len: i32, elem_type: CPDType) -> Result<(), WasException<'gc>> {
     if len < 0 {
         todo!("check array length");
     }
@@ -64,7 +64,7 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     }
     match a_new_array_from_name(jvm, int_state, count, type_) {
         Ok(arr) => PostInstructionAction::Next {},
-        Err(WasException {}) => PostInstructionAction::Exception { exception: WasException {} },
+        Err(WasException { exception_obj }) => PostInstructionAction::Exception { exception: WasException { exception_obj } },
     }
 }
 

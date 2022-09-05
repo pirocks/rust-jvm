@@ -1,8 +1,8 @@
-use another_jit_vm_ir::WasException;
+
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::java::lang::class::JClass;
-use crate::{AllocatedHandle, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo};
+use crate::{AllocatedHandle, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo, WasException};
 use crate::instructions::invoke::virtual_::invoke_virtual;
 use crate::new_java_values::{NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
@@ -33,7 +33,7 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
         todo!()
     }
 
-    fn get_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<JClass<'gc>, WasException> {
+    fn get_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<JClass<'gc>, WasException<'gc>> {
         todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
         /*let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
             arg_types: vec![],
@@ -43,13 +43,13 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
         Ok(int_state.current_frame_mut().pop(Some(rust_jvm_common::compressed_classfile::names::CClassName::class().into())).to_new().cast_class().expect("object can never not have a class"))*/
     }
 
-    fn hash_code<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<i32, WasException> {
+    fn hash_code<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<i32, WasException<'gc>> {
         let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::IntType };
         let res = invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_hashCode(), &desc, vec![self.new_java_value()])?;
         Ok(res.unwrap().unwrap_int_strict())
     }
 
-    fn to_string<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Option<JString<'gc>>, WasException> {
+    fn to_string<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Option<JString<'gc>>, WasException<'gc>> {
         let desc = CMethodDescriptor {
             arg_types: vec![],
             return_type: CClassName::string().into(),

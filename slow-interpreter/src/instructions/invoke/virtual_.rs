@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use itertools::Itertools;
-use another_jit_vm_ir::WasException;
+
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -8,7 +8,7 @@ use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_in
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{MethodName};
 
-use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush};
+use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::{PostInstructionAction, run_function};
@@ -23,7 +23,7 @@ use crate::better_java_stack::frames::PushableFrame;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::interface::misc::get_all_methods;
-use crate::utils::{pushable_frame_todo, run_static_or_virtual};
+use crate::utils::{run_static_or_virtual};
 
 /**
 Should only be used for an actual invoke_virtual instruction.
@@ -80,7 +80,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
             PostInstructionAction::Next {}
         }
         Err(err) => {
-            PostInstructionAction::Exception { exception: WasException {} }
+            PostInstructionAction::Exception { exception: WasException { exception_obj: todo!() } }
         }
     }
 }
@@ -92,7 +92,7 @@ pub fn invoke_virtual_method_i<'gc, 'l>(
     target_class: Arc<RuntimeClass<'gc>>,
     target_method: &MethodView,
     args: Vec<NewJavaValue<'gc, '_>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     invoke_virtual_method_i_impl(jvm, int_state, expected_descriptor, target_class, target_method, args)
 }
 
@@ -103,7 +103,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     target_class: Arc<RuntimeClass<'gc>>,
     target_method: &MethodView,
     args: Vec<NewJavaValue<'gc, '_>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_method_i = target_method.method_i();
     let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
     let method_resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
@@ -130,7 +130,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         return Ok(todo!());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, pushable_frame_todo()/*interpreter_state*/, target_class, target_method_i, args) {
+        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
                 return Ok(res);
             }
@@ -146,9 +146,9 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
                 Ok(res) => {
                     Ok(res)
                 }
-                Err(WasException {}) => {
+                Err(WasException { exception_obj }) => {
                     todo!();/*assert!(interpreter_state.throw().is_some());*/
-                    Err(WasException {})
+                    Err(WasException { exception_obj })
                 }
             }
         })
@@ -180,7 +180,7 @@ pub fn fixup_args<'gc, 'l>(args: Vec<NewJavaValue<'gc, 'l>>, max_locals: u16) ->
     res_args
 }
 
-pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, vmentry: MemberName<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException> {
+pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, vmentry: MemberName<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     // assert_eq!(vmentry.clone().java_value().to_type(), CClassName::member_name().into());
     let flags = vmentry.get_flags(jvm) as u32;
     let ref_kind = ((flags >> REFERENCE_KIND_SHIFT) & REFERENCE_KIND_MASK) as u32;
@@ -270,7 +270,7 @@ pub fn invoke_virtual<'gc, 'l>(
     method_name: MethodName,
     md: &CMethodDescriptor,
     args: Vec<NewJavaValue<'gc, '_>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         panic!() //should have been caught by verifier, though perhaps it is possible to reach this w/ invokedynamic todo
@@ -315,13 +315,13 @@ pub fn invoke_virtual<'gc, 'l>(
         Ok(res) => {
             return Ok(res);
         }
-        Err(WasException {}) => {
-            return Err(WasException {});
+        Err(WasException { exception_obj }) => {
+            return Err(WasException { exception_obj });
         }
     }
 }
 
-pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException> {
+pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_name: MethodName, md: &CMethodDescriptor, c: Arc<RuntimeClass<'gc>>) -> Result<(Arc<RuntimeClass<'gc>>, u16), WasException<'gc>> {
     if let Some(res) = jvm.invoke_virtual_lookup_cache.read().unwrap().lookup(c.clone(), method_name, md.clone()) {
         return Ok(res);
     }

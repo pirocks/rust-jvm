@@ -40,8 +40,6 @@ pub mod ir_stack;
 pub mod ir_to_native;
 
 
-#[derive(Clone, Copy, Debug)]
-pub struct WasException;
 
 pub struct IRVMStateInner<'vm> {
     // each IR function is distinct single java methods may many ir methods

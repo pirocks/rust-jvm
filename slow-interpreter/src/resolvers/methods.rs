@@ -3,8 +3,8 @@ use std::sync::Arc;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use another_jit_vm_ir::WasException;
-use crate::{InterpreterStateGuard, pushable_frame_todo};
+
+use crate::{InterpreterStateGuard, pushable_frame_todo, WasException};
 use crate::java::lang::member_name::MemberName;
 use crate::java::lang::reflect::method::Method;
 use crate::JVMState;
@@ -12,15 +12,15 @@ use runtime_class_stuff::RuntimeClass;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::interface::misc::get_all_methods;
 
-pub fn resolve_invoke_virtual<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_virtual<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     resolve_virtual_impl(jvm, int_state, member_name, false)
 }
 
-pub fn resolve_invoke_interface<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_interface<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     resolve_virtual_impl(jvm, int_state, member_name, true)
 }
 
-fn resolve_virtual_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>, include_interfaces: bool) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {
+fn resolve_virtual_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>, include_interfaces: bool) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);
@@ -45,7 +45,7 @@ fn resolve_virtual_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Int
     Ok(Ok((Method::method_object_from_method_view(jvm, pushable_frame_todo()/*int_state*/, &res_method_view)?, res_method_view.method_i(), runtime_class.clone())))
 }
 
-pub fn resolve_invoke_special<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_special<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);
@@ -65,7 +65,7 @@ pub fn resolve_invoke_special<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ m
     Ok(Ok((Method::method_object_from_method_view(jvm, pushable_frame_todo()/*int_state*/, &method_view)?, method_view.method_i(), runtime_class.clone())))
 }
 
-pub fn resolve_invoke_static<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>, synthetic: &mut bool) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException> {
+pub fn resolve_invoke_static<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, member_name: MemberName<'gc>, synthetic: &mut bool) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     let method_type = member_name.get_type(jvm).cast_method_type();
     let return_type = method_type.get_rtype_as_type(jvm);
     let arg_types = method_type.get_ptypes_as_types(jvm);

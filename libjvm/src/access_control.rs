@@ -3,7 +3,6 @@ use std::ptr::null_mut;
 use by_address::ByAddress;
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
@@ -13,6 +12,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::frames::HasFrame;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java::security::access_control_context::AccessControlContext;
@@ -41,9 +41,10 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     args.push(NewJavaValue::AllocObject(unwrapped_action.as_allocated_obj()));
     let res = match invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_run(), &expected_descriptor, args) {
         Ok(x) => x,
-        Err(WasException{}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             return null_mut();
-        },
+        }
     }.unwrap().unwrap_object();
     todo!();/*if int_state.throw().is_some() {
         return null_mut();
@@ -97,8 +98,11 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext<'vm>(env: *mut JNIEnv
         return null_mut();
     } else {
         match AccessControlContext::new(jvm, int_state, protection_domains) {
-            Ok(access_control_ctx) => new_local_ref_public(todo!()/*access_control_ctx.object().to_gc_managed().into()*/, int_state),
-            Err(WasException {}) => return null_mut(),
+            Ok(access_control_ctx) => new_local_ref_public_new(access_control_ctx.full_object_ref().into(), int_state),
+            Err(WasException { exception_obj }) => {
+                todo!();
+                return null_mut();
+            }
         }
     }
 }

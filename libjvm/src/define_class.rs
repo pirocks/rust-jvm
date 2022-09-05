@@ -4,11 +4,12 @@ use std::io::{Cursor, Write};
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_parser::parse_class_file;
 use classfile_view::view::ClassBackedView;
 use jvmti_jni_bindings::{jbyte, jclass, JNIEnv, jobject, jsize};
 use rust_jvm_common::loading::LoaderName;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::rust_jni::interface::{define_class_safe, get_interpreter_state, get_state};
@@ -38,7 +39,8 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
     to_object_new(
         match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(res) => res,
-            Err(WasException {}) => {
+            Err(WasException { exception_obj }) => {
+                todo!();
                 return null_mut();
             }
         }

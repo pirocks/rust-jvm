@@ -18,9 +18,6 @@
 #![feature(allocator_api)]
 
 
-extern crate core;
-extern crate alloc;
-
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -29,7 +26,7 @@ use std::time::Duration;
 
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
-use another_jit_vm_ir::WasException;
+
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
@@ -38,6 +35,7 @@ use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 
 use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use crate::exceptions::WasException;
 use crate::interpreter::{run_function};
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java::lang::string::JString;
@@ -89,6 +87,7 @@ pub mod known_type_to_address_mappings;
 pub mod string_exit_cache;
 pub mod function_instruction_count;
 pub mod better_java_stack;
+pub mod exceptions;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
@@ -112,7 +111,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
     let java_frame_push = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
-    let _: Result<(), WasException> = int_state.push_frame_java(java_frame_push, |java_native|{
+    let _: Result<(), WasException<'gc>> = int_state.push_frame_java(java_frame_push, |java_native|{
         jvm.include_name_field.store(true, Ordering::SeqCst);
         match run_function(&jvm, java_native) {
             Ok(_) => {
@@ -124,7 +123,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
                 }
                 // panic!();
             }
-            Err(WasException {}) => {
+            Err(WasException { exception_obj }) => {
                 todo!();// let throwable = int_state.throw().unwrap().duplicate_discouraged().cast_throwable();
                 // int_state.set_throw(None);
                 // throwable.print_stack_trace(jvm, int_state).unwrap();
@@ -150,7 +149,7 @@ fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Inter
     }))
 }
 
-fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>) -> Result<(), WasException> {
+fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>) -> Result<(), WasException<'gc>> {
     let frame_for_properties = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame")*/);
     let properties = &jvm.properties;
     let prop_obj = System::props(jvm, int_state);

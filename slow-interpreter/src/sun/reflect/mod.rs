@@ -1,7 +1,7 @@
 pub mod generics;
 
 pub mod reflection {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -10,7 +10,7 @@ pub mod reflection {
     use crate::java::lang::class::JClass;
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::PushableFrame;
+    use crate::{PushableFrame, WasException};
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc> {
@@ -24,7 +24,7 @@ pub mod reflection {
     }
 
     impl<'gc> Reflection<'gc> {
-        pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException> {
+        pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException<'gc>> {
             let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
             todo!();// int_state.push_current_operand_stack(class1.java_value());
             todo!();// int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
@@ -41,10 +41,10 @@ pub mod reflection {
 }
 
 pub mod constant_pool {
-    use another_jit_vm_ir::WasException;
+
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{AllocatedHandle, PushableFrame};
+    use crate::{AllocatedHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::new_object_full;
     use crate::java::lang::class::JClass;
@@ -63,7 +63,7 @@ pub mod constant_pool {
     }
 
     impl<'gc> ConstantPool<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JClass<'gc>) -> Result<ConstantPool<'gc>, WasException<'gc>> {
             let constant_pool_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::constant_pool().into())?;
             let constant_pool_object = new_object_full(jvm, int_state, &constant_pool_classfile);
             let res = constant_pool_object.cast_constant_pool();

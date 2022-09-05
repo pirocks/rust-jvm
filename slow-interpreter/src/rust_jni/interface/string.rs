@@ -10,12 +10,12 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
 
 use crate::class_loading::assert_loaded_class;
-use another_jit_vm_ir::WasException;
+
 use crate::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValueHandle};
-use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFrame};
+use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFrame, WasException};
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object_new, to_object_new};
@@ -45,16 +45,16 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const c_char) ->
     let int_state = get_interpreter_state(env);
     let str = CStr::from_ptr(utf);
     let res = new_local_ref_public_new(
-        match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(str.to_str().unwrap().to_string())) {
             Ok(jstring) => jstring,
-            Err(WasException {}) => {
+            Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         }.intern(jvm, int_state).unwrap()
             .object().as_allocated_obj()
             .into(),
-        todo!()/*int_state*/
+        int_state
     );
     res
 }
@@ -72,7 +72,8 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> js
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, owned_str).unwrap().intern(jvm, int_state) {
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             null_mut()
         }
         Ok(res) => {
@@ -81,7 +82,7 @@ pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> js
     }
 }
 
-pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str_unsafe: jstring) -> Result<jstring, WasException> {
+pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str_unsafe: jstring) -> Result<jstring, WasException<'gc>> {
     let str_obj = match from_object_new(jvm, str_unsafe) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),

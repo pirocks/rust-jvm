@@ -6,7 +6,7 @@ use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel, Sender};
+use std::sync::mpsc::{channel};
 use std::thread::{LocalKey, Scope};
 use std::time::Duration;
 
@@ -16,7 +16,7 @@ use wtf8::Wtf8Buf;
 
 use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::{IRStackMut, OwnedIRStack};
-use another_jit_vm_ir::WasException;
+
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::JavaThreadId;
@@ -30,6 +30,7 @@ use crate::better_java_stack::JavaStack;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::better_java_stack::thread_remote_read_mechanism::{sigaction_setup, SignalAccessibleJavaStackData, ThreadSignalBasedInterrupter};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
+use crate::exceptions::WasException;
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::InterpreterState;
 use crate::interpreter_util::new_object_full;
@@ -194,11 +195,12 @@ impl<'gc> ThreadState<'gc> {
             locals.push(NewJavaValue::Top);
         }
         let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-        let init_frame_guard: Result<(), WasException> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
+        let init_frame_guard: Result<(), WasException<'gc>> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
             assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
-            todo!();// let _old = int_state.register_interpreter_state_guard(jvm);
             match run_function(&jvm, java_frame) {
-                Ok(_) => {}
+                Ok(_) => {
+                    todo!()
+                }
                 Err(_) => todo!(),
             }
             todo!();
@@ -264,7 +266,6 @@ impl<'gc> ThreadState<'gc> {
         let (main_send, main_recv) = channel();
         let res = JavaThread::background_new_with_stack(jvm, Some(main_jthread), false, move |main_thread, opaque_frame| {
             *jvm.thread_state.main_thread.write().unwrap() = main_thread.clone().into();
-            jvm.thread_state.set_current_thread(main_thread.clone());
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             // assert!(match main_thread.interpreter_state.read().unwrap().deref() {
             //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
@@ -303,7 +304,7 @@ impl<'gc> ThreadState<'gc> {
             //todo handle exception exit from main
             int_state.pop_frame(jvm, main_frame_guard, false);
             main_thread.notify_terminated(jvm);
-            todo!();
+            todo!()
         }).expect("todo");
         main_send.send(main_thread_start_info).unwrap();
         res
@@ -405,7 +406,7 @@ impl<'gc> ThreadState<'gc> {
 
         //todo fix loader
         let frame_for_run_call = interpreter_state_guard.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "frame for calling run on a new thread")*/);
-        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
+        if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
             /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
                             .cast_throwable()
                             .print_stack_trace(jvm, &mut interpreter_state_guard)
@@ -413,7 +414,7 @@ impl<'gc> ThreadState<'gc> {
             todo!();
             interpreter_state_guard.set_throw(None);
         };
-        if let Err(WasException {}) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
+        if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
             eprintln!("Exception occurred exiting thread, something is pretty messed up");
             panic!()
         }
@@ -471,7 +472,7 @@ impl<'gc> JavaThread<'gc> {
         jvm: &'gc JVMState<'gc>,
         thread_obj: Option<JThread<'gc>>,
         invisible_to_java: bool,
-        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException> + 'gc,
+        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException<'gc>> + 'gc,
     ) -> Result<T, CannotAllocateStack> {
         let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
@@ -488,7 +489,7 @@ impl<'gc> JavaThread<'gc> {
         jvm: &'gc JVMState<'gc>,
         thread_obj: Option<JThread<'gc>>,
         invisible_to_java: bool,
-        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<(), WasException> + 'gc,
+        to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<(), WasException<'gc>> + 'gc,
     ) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack>{
         let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
@@ -582,7 +583,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException> {
+    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -592,7 +593,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException> {
+    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -636,10 +637,10 @@ pub struct ThreadStatus {
 }
 
 #[derive(Debug)]
-pub enum SuspendError {
+pub enum SuspendError<'gc> {
     AlreadySuspended,
     NotAlive,
-    WasException(WasException),
+    WasException(WasException<'gc>),
 }
 
 #[derive(Debug)]
@@ -647,8 +648,8 @@ pub enum ResumeError {
     NotSuspended,
 }
 
-impl From<WasException> for SuspendError {
-    fn from(we: WasException) -> Self {
+impl <'gc> From<WasException<'gc>> for SuspendError<'gc> {
+    fn from(we: WasException<'gc>) -> Self {
         Self::WasException(we)
     }
 }

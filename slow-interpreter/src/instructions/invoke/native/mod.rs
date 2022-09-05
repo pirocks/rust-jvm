@@ -3,12 +3,12 @@ use std::sync::Arc;
 use by_address::ByAddress;
 use libc::c_void;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
-use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo, WasException};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -81,14 +81,14 @@ pub fn run_native_method<'gc, 'l, 'k>(
             };
             match call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
                 Ok(call_res) => call_res,
-                Err(WasException {}) => {
+                Err(WasException { exception_obj }) => {
                     return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
                 }
             }
         } else {
             let first_call = match call(jvm, native_frame, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
                 Ok(call_res) => call_res,
-                Err(WasException {}) => {
+                Err(WasException { exception_obj }) => {
                     dbg!(mangling::mangle(&jvm.string_pool, &method));
                     return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
                 }
@@ -97,7 +97,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 Some(r) => r,
                 None => match special_call_overrides(jvm, pushable_frame_todo()/*int_state*/, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
-                    Err(WasException {}) => todo!(),
+                    Err(WasException { exception_obj }) => todo!(),
                 },
             }
         };
@@ -114,7 +114,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     }
 }
 
-fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException> {
+fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let mangled = mangling::mangle(&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {

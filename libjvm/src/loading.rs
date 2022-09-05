@@ -1,6 +1,6 @@
 use std::ptr::null_mut;
 
-use another_jit_vm_ir::WasException;
+
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;

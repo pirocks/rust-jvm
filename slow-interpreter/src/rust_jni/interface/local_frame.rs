@@ -106,9 +106,9 @@ pub unsafe extern "C" fn delete_local_ref(env: *mut JNIEnv, obj: jobject) {
         return;
     }
     let interpreter_state = get_interpreter_state(env);
-    let mut top_local_ref = get_top_local_ref_frame(todo!()/*interpreter_state*/).clone();
+    let mut top_local_ref = get_top_local_ref_frame(interpreter_state).clone();
     top_local_ref.remove(&obj);
-    set_local_refs_top_frame(todo!()/*interpreter_state*/, top_local_ref)
+    set_local_refs_top_frame(interpreter_state, top_local_ref)
 }
 
 fn get_top_local_ref_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> HashSet<jobject> {

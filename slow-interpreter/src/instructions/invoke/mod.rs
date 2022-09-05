@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 
-use another_jit_vm_ir::WasException;
+
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use verification::verifier::instructions::branches::get_method_descriptor;
 
-use crate::{JVMState};
+use crate::{JVMState, WasException};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::utils::{lookup_method_parsed};
@@ -19,7 +19,7 @@ pub mod static_;
 pub mod virtual_;
 pub mod dynamic;
 
-fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc>>, MethodName, CMethodDescriptor)>, WasException> {
+fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc>>, MethodName, CMethodDescriptor)>, WasException<'gc>> {
     let view = int_state.current_class_view(jvm);
     let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(&jvm.string_pool, cp as usize, &*view);
     let class_name_ = match class_name_type {

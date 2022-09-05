@@ -9,9 +9,10 @@ use std::sync::RwLock;
 use lazy_static::lazy_static;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
+
 use jvmti_jni_bindings::jmmInterface_1_;
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;
@@ -88,7 +89,7 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
     }
 }
 
-unsafe fn InitAgentProperties(env: *mut JNIEnv, agent_props: jobject) -> Result<jobject, WasException> {
+unsafe fn InitAgentProperties<'gc>(env: *mut JNIEnv, agent_props: jobject) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let props = JavaValue::Object(todo!() /*from_jclass(jvm,agent_props)*/).cast_properties();

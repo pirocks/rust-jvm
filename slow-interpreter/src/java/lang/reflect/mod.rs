@@ -1,13 +1,13 @@
 use itertools::Itertools;
 
-use another_jit_vm_ir::WasException;
+
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
-use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject};
+use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject, WasException};
 use crate::java::lang::class::JClass;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
@@ -71,14 +71,14 @@ fn get_signature<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
     int_state: &mut impl PushableFrame<'gc>,
     method_view: &MethodView,
-) -> Result<Option<JString<'gc>>, WasException> {
+) -> Result<Option<JString<'gc>>, WasException<'gc>> {
     match method_view.generic_signature() {
         None => Ok(None),
         Some(sig) => Ok(Some(JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, sig)?.intern(jvm, int_state)?))
     }
 }
 
-fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let class_type: CPDType = CClassName::class().into();
     let empty_vec = vec![];
     let types_iter = method_view
@@ -103,7 +103,7 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl 
     }))))
 }
 
-fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException> {
+fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let class_type: CPDType = CClassName::class().into();
     let mut res = vec![];
     let parsed = method_view.desc();
@@ -120,14 +120,14 @@ fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
 pub mod method {
     use wtf8::Wtf8Buf;
 
-    use another_jit_vm_ir::WasException;
+
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{JavaValueCommon, NewJavaValue};
+    use crate::{JavaValueCommon, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -155,7 +155,7 @@ pub mod method {
     }
 
     impl<'gc> Method<'gc> {
-        pub fn method_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Method<'gc>, WasException> {
+        pub fn method_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Method<'gc>, WasException<'gc>> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
@@ -206,7 +206,7 @@ pub mod method {
             annotations: NewJavaValueHandle<'gc>,
             parameter_annotations: NewJavaValueHandle<'gc>,
             annotation_default: NewJavaValueHandle<'gc>,
-        ) -> Result<Method<'gc>, WasException> {
+        ) -> Result<Method<'gc>, WasException<'gc>> {
             let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into()).unwrap();
             let method_object = new_object_full(jvm, int_state, &method_class);
             let full_args = vec![method_object.new_java_value(),
@@ -302,14 +302,14 @@ pub mod method {
 }
 
 pub mod constructor {
-    use another_jit_vm_ir::WasException;
+
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{JavaValueCommon, NewJavaValue, PushableFrame};
+    use crate::{JavaValueCommon, NewJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::instructions::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
@@ -336,7 +336,7 @@ pub mod constructor {
     }
 
     impl<'gc> Constructor<'gc> {
-        pub fn constructor_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Constructor<'gc>, WasException> {
+        pub fn constructor_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Constructor<'gc>, WasException<'gc>> {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
@@ -361,7 +361,7 @@ pub mod constructor {
             modifiers: jint,
             slot: jint,
             signature: Option<JString<'gc>>,
-        ) -> Result<Constructor<'gc>, WasException> {
+        ) -> Result<Constructor<'gc>, WasException<'gc>> {
             let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
             let constructor_object = new_object_full(jvm, int_state, &constructor_class);
 
@@ -450,12 +450,12 @@ pub mod constructor {
 }
 
 pub mod field {
-    use another_jit_vm_ir::WasException;
+
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject};
+    use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::java::lang::class::JClass;
@@ -486,7 +486,7 @@ pub mod field {
             slot: jint,
             signature: Option<JString<'gc>>,
             annotations: Vec<NewJavaValue<'gc, '_>>,
-        ) -> Result<Self, WasException> {
+        ) -> Result<Self, WasException<'gc>> {
             let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
             let field_object = new_object_full(jvm, int_state, &field_classfile);
 

@@ -1,13 +1,13 @@
 use std::ptr::null_mut;
-use itertools::Itertools;
 
+use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use another_jit_vm_ir::WasException;
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::instructions::invoke::virtual_::invoke_virtual_method_i;
 use slow_interpreter::instructions::ldc::create_string_on_stack;
 use slow_interpreter::java::lang::string::JString;
@@ -27,7 +27,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     // sun.boot.class.path
     let jvm = get_state(env);
 
-    let user_class_path = jvm.classpath.classpath_base.iter().map(|path|path.to_string_lossy()).join(":");
+    let user_class_path = jvm.classpath.classpath_base.iter().map(|path| path.to_string_lossy()).join(":");
     let res = match (|| {
         add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64".to_string())?;
         add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/jce.jar:/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes".to_string())?;
@@ -39,7 +39,10 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
         Ok(add_prop(env, p0, "java.home".to_string(), "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())?)
     })() {
-        Err(WasException {}) => return null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return null_mut();
+        }
         Ok(res) => res,
     };
     let int_state = get_interpreter_state(env);
@@ -63,7 +66,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     res
 }
 
-unsafe fn add_prop(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Result<jobject, WasException> {
+unsafe fn add_prop<'gc>(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let key = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(key))?.intern(jvm, int_state)?;

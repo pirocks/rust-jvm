@@ -6,8 +6,8 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-use another_jit_vm_ir::WasException;
-use crate::pushable_frame_todo;
+
+use crate::{WasException};
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::misc::get_all_methods;
 use crate::rust_jni::native_util::{from_jclass};
@@ -28,9 +28,10 @@ pub unsafe extern "C" fn get_method_id(env: *mut JNIEnv, clazz: jclass, name: *c
     };
 
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
-    let all_methods = match get_all_methods(jvm, pushable_frame_todo()/*int_state*/, runtime_class, false) {
+    let all_methods = match get_all_methods(jvm, int_state, runtime_class, false) {
         Ok(all_methods) => all_methods,
-        Err(WasException {}) => {
+        Err(WasException { exception_obj }) => {
+            todo!();
             return null_mut();
         }
     };

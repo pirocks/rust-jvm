@@ -2,14 +2,13 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
 use nonnull_const::NonNullConst;
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, read_frame_ir_header};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;
 
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::ir_to_java_layer::java_stack::RuntimeJavaStackFrameRef;
 use crate::JVMState;
 
 pub struct FrameIterFrameRef<'gc, 'k> {
