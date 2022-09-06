@@ -94,21 +94,6 @@ impl<'vm> JavaStackGuard<'vm> {
         self.guard.as_ref().unwrap().assert_interpreter_frame_operand_stack_depths_sorted();
     }
 
-    fn enter_guest(&mut self) {
-        todo!()
-    }
-
-    fn exit_guest(&mut self) {
-        todo!()
-    }
-
-    // within guerst java
-    pub fn within_guest<T>(&mut self, within_native: impl FnOnce(&mut JavaStackGuard<'vm>) -> Result<T, WasException<'vm>>) {
-        self.enter_guest();
-        todo!();
-        self.exit_guest();
-    }
-
     pub fn current_loader(&self, jvm: &'vm JVMState<'vm>) -> LoaderName {
         LoaderName::BootstrapLoader
     }

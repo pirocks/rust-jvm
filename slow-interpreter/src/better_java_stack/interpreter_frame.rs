@@ -30,6 +30,23 @@ pub struct JavaInterpreterFrame<'gc, 'k> {
     //push, pop etc
 }
 
+impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
+    fn enter_guest(&mut self) {
+        todo!()
+    }
+
+    fn exit_guest(&mut self) {
+        todo!()
+    }
+
+    // within guerst java
+    pub fn within_guest<T>(&mut self, within_native: impl FnOnce(&mut JavaStackGuard<'vm>) -> Result<T, WasException<'vm>>) -> Result<T, WasException<'vm>> {
+        self.enter_guest();
+        todo!();
+        self.exit_guest();
+    }
+}
+
 impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {

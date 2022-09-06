@@ -12,7 +12,7 @@ use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use crate::{InterpreterStateGuard, JVMState, MethodResolverImpl};
+use crate::{JVMState, MethodResolverImpl};
 use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
@@ -83,24 +83,26 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         }
         let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = match self.ir.run_method(ir_method_id, &mut frame_to_run_on) {
-            Ok(res) => {
-                // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                res
+        let res = int_state.within_guest(|java_stack_guard|{
+            match self.ir.run_method(ir_method_id, java_stack_guard) {
+                Ok(res) => {
+                    // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                    Ok(res)
+                }
+                Err(err_obj) => {
+                    let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
+                    todo!();
+                    // int_state.set_throw(Some(obj));
+                    // int_state.debug_print_stack_trace(jvm);
+                    // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+                    Err(WasException { exception_obj: todo!() });
+                }
             }
-            Err(err_obj) => {
-                let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
-                todo!();
-                // int_state.set_throw(Some(obj));
-                // int_state.debug_print_stack_trace(jvm);
-                // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                return Err(WasException { exception_obj: todo!() });
-            }
-        };
+        });
         // int_state.saved_assert_frame_from(assert_data, current_frame_pointer);
         int_state.debug_assert();
         // eprintln!("EXIT RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
-        Ok(res)
+        res
     }
 
     pub fn lookup_ir_method_id(&self, opaque_or_not: OpaqueFrameIdOrMethodID) -> IRMethodID {
@@ -293,6 +295,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 }
             }
         }
+
         JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(todo!()/*&mut int_state*/), &ir_vm_exit_event.exit_type)
     }
 }

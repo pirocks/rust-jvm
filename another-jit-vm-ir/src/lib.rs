@@ -202,7 +202,7 @@ impl<'vm> IRVMState<'vm> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut IRFrameMut<'l>) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut JavaStackGuard) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
