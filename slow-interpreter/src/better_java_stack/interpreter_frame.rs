@@ -3,6 +3,7 @@ use std::ptr::NonNull;
 use std::sync::{Arc};
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::RBPAndRSP;
 
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
@@ -32,18 +33,25 @@ pub struct JavaInterpreterFrame<'gc, 'k> {
 
 impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
     fn enter_guest(&mut self) {
-        todo!()
+        //todo should unlock the guard
+        self.debug_assert();
     }
 
     fn exit_guest(&mut self) {
-        todo!()
+        //todo should maybe relock the guard or not
+        self.debug_assert();
     }
 
     // within guerst java
-    pub fn within_guest<T>(&mut self, within_native: impl FnOnce(&mut JavaStackGuard<'vm>) -> Result<T, WasException<'vm>>) -> Result<T, WasException<'vm>> {
+    pub fn within_guest<T>(&mut self, within_native: impl FnOnce(&mut JavaStackGuard<'vm>, RBPAndRSP) -> Result<T, WasException<'vm>>) -> Result<T, WasException<'vm>> {
         self.enter_guest();
-        todo!();
+        let rbp_and_rsp = RBPAndRSP {
+            rbp: self.frame_ptr.as_nonnull(),
+            rsp: self.next_frame_pointer().as_nonnull()
+        };
+        let res = within_native(self.java_stack, rbp_and_rsp);
         self.exit_guest();
+        res
     }
 }
 

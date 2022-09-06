@@ -1,14 +1,15 @@
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::{NonNull};
-use nonnull_const::NonNullConst;
-use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use std::ptr::NonNull;
 
+use nonnull_const::NonNullConst;
+
+use another_jit_vm::{FramePointerOffset, IRMethodID, MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use another_jit_vm::stack::{CannotAllocateStack, OwnedNativeStack};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FRAME_HEADER_IR_METHOD_ID_OFFSET, FRAME_HEADER_METHOD_ID_OFFSET, FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET, FRAME_HEADER_PREV_RBP_OFFSET, FRAME_HEADER_PREV_RIP_OFFSET};
 use rust_jvm_common::MethodId;
 
-use crate::{IRInstructIndex, IRVMState};
+use crate::{HasRBPAndRSP, IRInstructIndex, IRVMState};
 
 // IR knows about stack so we should have a stack
 // will have IR instruct for new frame, so IR also knows about frames
@@ -18,7 +19,7 @@ pub struct OwnedIRStack {
 
 
 impl<'k> OwnedIRStack {
-    pub fn new() -> Result<Self,CannotAllocateStack> {
+    pub fn new() -> Result<Self, CannotAllocateStack> {
         Ok(Self {
             native: OwnedNativeStack::new()?
         })
@@ -42,7 +43,7 @@ impl<'k> OwnedIRStack {
         }
     }
 
-    pub unsafe fn frame_iter<'h, 'vm>(&'_ self, start_frame: NonNullConst<c_void>, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'vm, '_, 'h> {
+    pub unsafe fn frame_iter<'h, 'vm, HandlerExtraData: HasRBPAndRSP>(&'_ self, start_frame: NonNullConst<c_void>, ir_vm_state: &'h IRVMState<'vm, HandlerExtraData>) -> IRFrameIterRef<'vm, '_, 'h, HandlerExtraData> {
         IRFrameIterRef {
             ir_stack: self,
             current_frame_ptr: Some(start_frame),
@@ -96,7 +97,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn push_frame<'vm_lfe>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], _ir_vm_state: &'_ IRVMState<'vm_lfe>) -> IRPushFrameGuard {
+    pub fn push_frame<'vm_life, HandlerExtraData: HasRBPAndRSP>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], _ir_vm_state: &'_ IRVMState<'vm_life, HandlerExtraData>) -> IRPushFrameGuard {
         unsafe {
             // if self.current_rsp != self.owned_ir_stack.native.mmaped_top && self.current_rbp != self.owned_ir_stack.native.mmaped_top {
             //     let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
@@ -126,7 +127,7 @@ impl<'l, 'k> IRStackMut<'l> {
         assert_eq!(frame_guard.return_to_rsp, self.current_rsp);
     }
 
-    pub fn debug_print_stack_strace<'vm, ExtraData>(&self, ir_vm_state: &'_ IRVMState<'vm>) {
+    pub fn debug_print_stack_strace<'vm, ExtraData, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<'vm, HandlerExtraData>) {
         let frame_iter = self.frame_iter(ir_vm_state);
         eprintln!("Start IR stacktrace:");
         for frame in frame_iter {
@@ -140,7 +141,7 @@ impl<'l, 'k> IRStackMut<'l> {
         eprintln!("End IR stacktrace");
     }
 
-    pub fn frame_iter<'h, 'vm>(&'l self, ir_vm_state: &'h IRVMState<'vm>) -> IRFrameIterRef<'vm, 'l, 'h> {
+    pub fn frame_iter<'h, 'vm, HandlerExtraData: HasRBPAndRSP>(&'l self, ir_vm_state: &'h IRVMState<'vm, HandlerExtraData>) -> IRFrameIterRef<'vm, 'l, 'h, HandlerExtraData> {
         unsafe { self.owned_ir_stack.frame_iter(self.current_rbp.into(), ir_vm_state) }
     }
 
@@ -160,7 +161,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn previous_frame_ir_instr<'vm>(&self, ir_vm_state: &IRVMState<'vm>) -> IRInstructIndex {
+    pub fn previous_frame_ir_instr<'vm, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &IRVMState<'vm, HandlerExtraData>) -> IRInstructIndex {
         let current = self.current_frame_ref();
         let prev_rip = current.prev_rip();
         let (ir_method_id_from_ip, ir_instruct) = ir_vm_state.lookup_ip(prev_rip);
@@ -192,13 +193,13 @@ impl Drop for IRPushFrameGuard {
 
 
 // has ref b/c not valid to access this after top level stack has been modified
-pub struct IRFrameIterRef<'vm, 'l, 'h> {
+pub struct IRFrameIterRef<'vm, 'l, 'h, HandlerExtraData: HasRBPAndRSP> {
     ir_stack: &'l OwnedIRStack,
     current_frame_ptr: Option<NonNullConst<c_void>>,
-    ir_vm_state: &'h IRVMState<'vm>,
+    ir_vm_state: &'h IRVMState<'vm, HandlerExtraData>,
 }
 
-impl<'l, 'h, 'vm> Iterator for IRFrameIterRef<'vm, 'l, 'h> {
+impl<'l, 'h, 'vm, HandlerExtraData: HasRBPAndRSP> Iterator for IRFrameIterRef<'vm, 'l, 'h, HandlerExtraData> {
     type Item = IRFrameRef<'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -276,7 +277,7 @@ impl IRFrameRef<'_> {
         res as *mut c_void
     }
 
-    pub fn try_frame_size(&self, ir_vm_state: &IRVMState) -> Option<usize> {
+    pub fn try_frame_size<HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &IRVMState<HandlerExtraData>) -> Option<usize> {
         let ir_method_id = match self.ir_method_id() {
             Some(x) => x,
             None => {
@@ -287,7 +288,7 @@ impl IRFrameRef<'_> {
     }
 
 
-    pub fn frame_size(&self, ir_vm_state: &IRVMState) -> usize {
+    pub fn frame_size<HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &IRVMState<HandlerExtraData>) -> usize {
         match self.try_frame_size(ir_vm_state) {
             None => {
                 DEFAULT_FRAME_SIZE
@@ -303,7 +304,7 @@ impl IRFrameRef<'_> {
         unsafe { data_raw_ptr.read() }
     }
 
-    pub fn all_data<'vm>(&self, ir_vm_state: &'_ IRVMState<'vm>) -> Vec<u64> {
+    pub fn all_data<'vm, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<'vm, HandlerExtraData>) -> Vec<u64> {
         let _frame_size = self.frame_size(ir_vm_state);
         todo!()
     }

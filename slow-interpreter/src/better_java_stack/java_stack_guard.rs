@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use itertools::Itertools;
 
+use another_jit_vm_ir::HasRBPAndRSP;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
-
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 
@@ -225,9 +225,31 @@ impl<'vm> JavaStackGuard<'vm> {
         self.guard.as_ref().unwrap().signal_safe_data()
     }
 
-    pub fn lookup_interpreter_pc_offset_with_frame_pointer(&self, frame_pointer: FramePointer) -> Option<ByteCodeOffset>{
-        let (_, res) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.iter().find(|(current_frame_pointer, _)|current_frame_pointer == &frame_pointer)?.clone();
+    pub fn lookup_interpreter_pc_offset_with_frame_pointer(&self, frame_pointer: FramePointer) -> Option<ByteCodeOffset> {
+        let (_, res) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.iter().find(|(current_frame_pointer, _)| current_frame_pointer == &frame_pointer)?.clone();
         Some(res.current_pc)
+    }
+}
+
+impl<'vm> HasRBPAndRSP for JavaStackGuard<'vm> {
+    fn notify_vm_exit(&self, rbp: NonNull<c_void>, rsp: NonNull<c_void>) {
+        todo!()
+    }
+
+    fn rsp(&self) -> NonNull<c_void> {
+        todo!()
+    }
+
+    fn rbp(&self) -> NonNull<c_void> {
+        todo!()
+    }
+
+    fn ir_stack_ref(&self) -> &OwnedIRStack {
+        &self.guard.as_ref().unwrap().owned_ir_stack
+    }
+
+    fn ir_stack_mut(&mut self) -> &mut OwnedIRStack {
+        &mut self.guard.as_mut().unwrap().owned_ir_stack
     }
 }
 

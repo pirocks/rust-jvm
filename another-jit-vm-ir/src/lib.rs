@@ -26,7 +26,7 @@ use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
 use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
-use crate::ir_stack::{IRFrameMut, IRStackMut};
+use crate::ir_stack::OwnedIRStack;
 use crate::ir_to_native::single_ir_to_native;
 use crate::vm_exit_abi::IRVMExitType;
 use crate::vm_exit_abi::register_structs::InvokeVirtualResolve;
@@ -39,9 +39,16 @@ pub mod vm_exit_abi;
 pub mod ir_stack;
 pub mod ir_to_native;
 
+//todo this trait is a hack should really move this into main crate or something
+pub trait HasRBPAndRSP {
+    fn notify_vm_exit(&self, rbp: NonNull<c_void>, rsp: NonNull<c_void>);
+    fn rsp(&self) -> NonNull<c_void>;
+    fn rbp(&self) -> NonNull<c_void>;
+    fn ir_stack_ref(&self) -> &OwnedIRStack;
+    fn ir_stack_mut(&mut self) -> &mut OwnedIRStack;
+}
 
-
-pub struct IRVMStateInner<'vm> {
+pub struct IRVMStateInner<'vm, HandlerExtraData: HasRBPAndRSP> {
     // each IR function is distinct single java methods may many ir methods
     ir_method_id_max: IRMethodID,
     top_level_return_function_id: Option<IRMethodID>,
@@ -55,12 +62,12 @@ pub struct IRVMStateInner<'vm> {
     // index
     opaque_method_to_or_method_id: HashMap<OpaqueID, IRMethodID>,
     // function_ir_mapping: HashMap<IRMethodID, !>,
-    pub handler: OnceCell<ExitHandlerType<'vm>>,
+    pub handler: OnceCell<ExitHandlerType<'vm, HandlerExtraData>>,
 
     reserved_ir_method_id: HashSet<IRMethodID>,
 }
 
-impl<'vm> IRVMStateInner<'vm> {
+impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMStateInner<'vm, HandlerExtraData> {
     pub fn new() -> Self {
         Self {
             ir_method_id_max: IRMethodID(0),
@@ -100,13 +107,13 @@ impl<'vm> IRVMStateInner<'vm> {
     }
 }
 
-pub struct IRVMState<'vm> {
+pub struct IRVMState<'vm, HandlerExtraData: HasRBPAndRSP> {
     native_vm: VMState<'vm, u64>,
-    pub inner: RwLock<IRVMStateInner<'vm>>,
+    pub inner: RwLock<IRVMStateInner<'vm, HandlerExtraData>>,
 }
 
 //todo make this not an arc for perf
-pub type ExitHandlerType<'vm> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, IRStackMut<'t0>, &'t1 IRVMState<'vm>) -> IRVMExitAction + 'vm>;
+pub type ExitHandlerType<'vm, HandlerExtraData> = Arc<dyn for<'r, 's, 't0, 't1> Fn(&'r IRVMExitEvent<'s>, &mut HandlerExtraData, RBPAndRSP, &'t1 IRVMState<'vm, HandlerExtraData>) -> IRVMExitAction + 'vm>;
 
 
 #[derive(Debug)]
@@ -133,7 +140,13 @@ pub enum IRVMExitAction {
     },
 }
 
-impl<'vm> IRVMState<'vm> {
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct RBPAndRSP {
+    pub rbp: NonNull<c_void>,
+    pub rsp: NonNull<c_void>,
+}
+
+impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
     pub fn lookup_opaque_ir_method_id(&self, opaque_id: OpaqueID) -> IRMethodID {
         let mut guard = self.inner.write().unwrap();
         match guard.opaque_method_to_or_method_id.get(&opaque_id) {
@@ -202,19 +215,19 @@ impl<'vm> IRVMState<'vm> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, ir_stack_frame: &mut JavaStackGuard) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, rbp_and_rsp: RBPAndRSP, handler_extra_data: &mut HandlerExtraData) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
 
-        unsafe { ir_stack_frame.ir_stack.native.validate_frame_pointer(ir_stack_frame.ptr.into()); }
-        assert_eq!(ir_stack_frame.downgrade().ir_method_id().unwrap(), ir_method_id);
+        let RBPAndRSP { rbp, rsp } = rbp_and_rsp;
+        unsafe { handler_extra_data.ir_stack_ref().native.validate_frame_pointer(rbp.into()); }
         let mut initial_registers = SavedRegistersWithoutIP::new_with_all_zero();
-        initial_registers.rbp = ir_stack_frame.ptr.as_ptr() as u64;
-        initial_registers.rsp = unsafe { ir_stack_frame.ptr.as_ptr().sub(ir_stack_frame.downgrade().frame_size(self)) } as u64;
+        initial_registers.rbp = rbp.as_ptr() as u64;
+        initial_registers.rsp = rsp.as_ptr() as u64;
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
-        let ir_stack = &mut ir_stack_frame.ir_stack;
+        let ir_stack = handler_extra_data.ir_stack_mut();
         let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers);
         while let Some(vm_exit_event) = launched_vm.next() {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
@@ -224,16 +237,17 @@ impl<'vm> IRVMState<'vm> {
                 inner: &vm_exit_event,
                 exit_type: exit_input,
             };
-            let ir_stack_mut = IRStackMut::new(
-                ir_stack,
-                NonNull::new(exiting_frame_position_rbp as *mut c_void).unwrap(),
-                NonNull::new(exiting_stack_pointer as *mut c_void).unwrap()
-            );
+            let rbp = NonNull::new(exiting_frame_position_rbp as *mut c_void).unwrap();
+            let rsp = NonNull::new(exiting_stack_pointer as *mut c_void).unwrap();
+            let rbp_and_rsp = RBPAndRSP {
+                rbp,
+                rsp,
+            };
             let read_guard = self.inner.read().unwrap();
 
             let handler = read_guard.handler.get().unwrap().clone();
             drop(read_guard);
-            match (handler.deref())(&event, ir_stack_mut, self) {
+            match (handler.deref())(&event, handler_extra_data, rbp_and_rsp, self) {
                 IRVMExitAction::ExitVMCompletely { return_data: return_value } => {
                     let mut vm_exit_event = vm_exit_event;
                     vm_exit_event.indicate_okay_to_drop();

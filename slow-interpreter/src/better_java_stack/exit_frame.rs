@@ -1,11 +1,12 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use rust_jvm_common::NativeJavaValue;
-use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
+
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
+use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
@@ -14,13 +15,25 @@ use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaExitFrame<'gc, 'k> {
     // Interpreter{
-        java_stack: &'k mut JavaStackGuard<'gc>,
-        frame_pointer: FramePointer,
-        num_locals: u16,
-        max_stack: u16,
-        stack_depth: Option<StackDepth>,
+    java_stack: &'k mut JavaStackGuard<'gc>,
+    frame_pointer: FramePointer,
+    // num_locals: u16,
+    // max_stack: u16,
+    // stack_depth: Option<StackDepth>,
     // }
     // are there any other possible exits?
+}
+
+impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
+    pub fn new(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer) -> Self{
+        Self{
+            java_stack: java_stack_guard,
+            frame_pointer,
+            // num_locals: todo!(),
+            // max_stack: todo!(),
+            // stack_depth: todo!()
+        }
+    }
 }
 
 
@@ -28,7 +41,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.frame_pointer.0.into(),
-            _ir_stack: todo!()/*&self.java_stack.owned_ir_stack*/,
+            _ir_stack: self.java_stack.ir_stack(),
         }
     }
 
@@ -44,20 +57,21 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn num_locals(&self) -> u16 {
-        self.num_locals
+        todo!()/*self.num_locals*/
     }
 
     fn max_stack(&self) -> u16 {
-        self.max_stack
+        todo!()/*self.max_stack*/
     }
 
     fn next_frame_pointer(&self) -> FramePointer {
-        unsafe {
+        todo!()
+        /*unsafe {
             FramePointer(NonNull::new(self.frame_pointer.0.as_ptr()
                 .sub(FRAME_HEADER_END_OFFSET)
                 .sub((self.num_locals as usize * size_of::<NativeJavaValue<'gc>>()) as usize)
                 .sub((self.max_stack as usize * size_of::<NativeJavaValue<'gc>>()) as usize)).unwrap())
-        }
+        }*/
     }
 
     fn debug_assert(&self) {

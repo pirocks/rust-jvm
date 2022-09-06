@@ -3,28 +3,32 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
-use another_jit_vm::code_modification::GlobalCodeEditingLock;
+
 use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState};
+use another_jit_vm::code_modification::GlobalCodeEditingLock;
+use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, RBPAndRSP};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
-use another_jit_vm_ir::ir_stack::{IRStackMut};
-use another_jit_vm_ir::vm_exit_abi::{IRVMExitType};
+use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use crate::{JVMState, MethodResolverImpl};
-use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
 use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+
+use crate::{JVMState, MethodResolverImpl};
+use crate::better_java_stack::exit_frame::JavaExitFrame;
+use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::exceptions::WasException;
-use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
+use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
+use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 
 pub struct JavaVMStateWrapper<'vm> {
-    pub ir: IRVMState<'vm>,
+    pub ir: IRVMState<'vm, JavaStackGuard<'vm>>,
     pub inner: RwLock<JavaVMStateWrapperInner>,
     // should be per thread
     labeler: Labeler,
@@ -49,8 +53,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     pub fn init(&'vm self, jvm: &'vm JVMState<'vm>) {
         self.ir.inner.write().unwrap().handler.get_or_init(|| {
-            let ir_exit_handler: ExitHandlerType<'vm> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut, ir_vm_state: &IRVMState<'vm>| {
-                JavaVMStateWrapper::exit_handler(&jvm, &ir_vm_exit_event, ir_stack_mut)
+            let ir_exit_handler: ExitHandlerType<'vm, JavaStackGuard<'vm>> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, java_stack_guard: &mut JavaStackGuard<'vm>, rbp_and_rsp: RBPAndRSP, ir_vm_state: &IRVMState<'vm, JavaStackGuard<'vm>>| {
+                JavaVMStateWrapper::exit_handler(&jvm, &ir_vm_exit_event, rbp_and_rsp.rbp, java_stack_guard)
             });
             ir_exit_handler
         });
@@ -83,8 +87,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         }
         let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
-        let res = int_state.within_guest(|java_stack_guard|{
-            match self.ir.run_method(ir_method_id, java_stack_guard) {
+        let res = int_state.within_guest(|java_stack_guard, rbp_and_rsp| {
+            match self.ir.run_method(ir_method_id, rbp_and_rsp, java_stack_guard) {
                 Ok(res) => {
                     // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                     Ok(res)
@@ -95,7 +99,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     // int_state.set_throw(Some(obj));
                     // int_state.debug_print_stack_trace(jvm);
                     // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                    Err(WasException { exception_obj: todo!() });
+                    Err(WasException { exception_obj: todo!() })
                 }
             }
         });
@@ -191,7 +195,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             let is_native = jvm.is_native_by_method_id(method_id);
             let reserved_method_id = self.ir.reserve_method_id();
             let (ir_instructions, full_frame_size, byte_code_ir_mapping) = if is_native {
-                let ir_instr = native_to_ir(resolver, &self.labeler,method_id, reserved_method_id);
+                let ir_instr = native_to_ir(resolver, &self.labeler, method_id, reserved_method_id);
                 (ir_instr, NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(method_id) }.full_frame_size(), None)
             } else {
                 let mut java_function_frame_guard = jvm.java_function_frame_data.write().unwrap();
@@ -269,7 +273,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     method_id,
                     new_frame_size: full_frame_size,
                 });
-                jvm.itables.lock().unwrap().update(prev_address.into(),new_address.into());
+                jvm.itables.lock().unwrap().update(prev_address.into(), new_address.into());
             }
             drop(write_guard);
         }
@@ -277,25 +281,11 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     }
 
     #[inline(never)]
-    fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, ir_stack_mut: IRStackMut) -> IRVMExitAction {
-        let mmaped_top = ir_stack_mut.owned_ir_stack.native.mmaped_top;
+    fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, rbp: NonNull<c_void>, java_stack_guard: &mut JavaStackGuard<'vm>) -> IRVMExitAction {
+        let mmaped_top = java_stack_guard.ir_stack().native.mmaped_top;
         let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
         let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
-        unsafe {
-            if NonNull::new(exiting_stack_pointer).unwrap() != mmaped_top {
-                let offset = exiting_frame_position_rbp.offset_from(exiting_stack_pointer).abs() as usize;
-                let frame_ref = ir_stack_mut.current_frame_ref();
-                if let Some(expected_current_frame_size) = frame_ref.try_frame_size(&jvm.java_vm_state.ir) {
-                    if offset != expected_current_frame_size {
-                        dbg!(offset);
-                        dbg!(expected_current_frame_size);
-                        dbg!(jvm.method_table.read().unwrap().lookup_method_string(frame_ref.method_id().unwrap(), &jvm.string_pool));
-                        panic!()
-                    }
-                }
-            }
-        }
-
-        JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(todo!()/*&mut int_state*/), &ir_vm_exit_event.exit_type)
+        let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp));
+        JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut exit_frame), &ir_vm_exit_event.exit_type)
     }
 }

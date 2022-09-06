@@ -27,7 +27,9 @@ use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
+use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
@@ -564,7 +566,7 @@ pub fn top_level_return(jvm: &JVMState, return_value: u64) -> IRVMExitAction {
 }
 
 #[inline(never)]
-pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID, len: i32, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
+pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, len: i32, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("AllocateObjectArray");
     }
@@ -572,6 +574,7 @@ pub fn allocate_object_array<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Inter
     assert!(len >= 0);
     // int_state.debug_print_stack_trace(jvm);
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
+    //todo fix current_loader
     let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let array_size = object_array.size();
@@ -594,7 +597,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     // dbg!(exception_as_string.to_rust_string(jvm));
     // let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
     let mut this_frame = true;
-    for current_frame in int_state.frame_iter() {
+    for current_frame in int_state.frame_iter::<JavaStackGuard<'gc>>() {
         if this_frame && ignore_this_frame {
             this_frame = false;
             continue;

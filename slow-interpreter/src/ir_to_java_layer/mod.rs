@@ -71,7 +71,7 @@ impl JavaVMStateWrapperInner {
         // let exit_guard = jvm.perf_metrics.vm_exit_start();
         match vm_exit_type {
             RuntimeVMExitInput::AllocateObjectArray { type_, len, return_to_ptr, res_address, pc: _ } => {
-                return exit_impls::allocate_object_array(jvm, todo!()/*int_state.unwrap()*/, *type_, *len, *return_to_ptr, *res_address);
+                return exit_impls::allocate_object_array(jvm, int_state.unwrap(), *type_, *len, *return_to_ptr, *res_address);
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
             RuntimeVMExitInput::RunStaticNative { method_id, arg_start, num_args, res_ptr, return_to_ptr, pc: _ } => {

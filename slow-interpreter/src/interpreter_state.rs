@@ -7,8 +7,9 @@ use std::sync::{Arc, MutexGuard};
 
 use itertools::Itertools;
 use nonnull_const::NonNullConst;
-use another_jit_vm::stack::CannotAllocateStack;
 
+use another_jit_vm::stack::CannotAllocateStack;
+use another_jit_vm_ir::HasRBPAndRSP;
 use another_jit_vm_ir::ir_stack::{IRFrameIterRef, IRPushFrameGuard, IRStackMut};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use jvmti_jni_bindings::jobject;
@@ -18,6 +19,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, MethodResolverImpl};
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
@@ -352,7 +354,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
         self.current_frame().method_i(jvm)
     }
 
-    pub fn frame_iter(&self) -> JavaFrameIterRef<'gc, '_, '_> {
+    pub fn frame_iter<HandlerExtraData: HasRBPAndRSP>(&self) -> JavaFrameIterRef<'gc, '_, '_, JavaStackGuard<'gc>> {
         match self {
             InterpreterStateGuard::RemoteInterpreterState { .. } => todo!(),
             InterpreterStateGuard::LocalInterpreterState { int_state, jvm, .. } => {
@@ -369,7 +371,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     pub fn debug_print_stack_trace(&self, jvm: &'gc JVMState<'gc>) {
         let full = false;
         let pc = self.current_frame().pc;
-        let iter = self.frame_iter();
+        let iter: JavaFrameIterRef<'gc, '_,'_, JavaStackGuard<'gc>> = self.frame_iter::<JavaStackGuard<'gc>>();
         for (i, stack_entry) in iter.enumerate() {
             if stack_entry.try_class_pointer(jvm).is_some()
             {
@@ -399,7 +401,7 @@ impl<'gc, 'interpreter_guard> InterpreterStateGuard<'gc, 'interpreter_guard> {
     }
 
     pub fn cloned_stack_snapshot(&self, jvm: &'gc JVMState<'gc>) -> Vec<StackEntry> {
-        self.frame_iter().map(|frame| {
+        self.frame_iter::<JavaStackGuard<'gc>>().map(|frame| {
             if frame.is_opaque() {
                 StackEntry::Opaque { opaque_id: OpaqueFrameIdOrMethodID::from_native(frame.frame_view.ir_ref.raw_method_id()).unwrap_opaque().unwrap() }
             } else if frame.is_native_method() {
@@ -456,13 +458,13 @@ pub struct SavedAssertState {
     data: Vec<*const c_void>,
 }
 
-pub struct JavaFrameIterRef<'vm, 'l, 'h> {
-    ir: IRFrameIterRef<'vm, 'l, 'h>,
+pub struct JavaFrameIterRef<'vm, 'l, 'h, HandlerExtraData: HasRBPAndRSP> {
+    ir: IRFrameIterRef<'vm, 'l, 'h, HandlerExtraData>,
     jvm: &'vm JVMState<'vm>,
     current_pc: Option<ByteCodeOffset>,
 }
 
-impl<'vm, 'l, 'h> Iterator for JavaFrameIterRef<'vm, 'l, 'h> {
+impl<'vm, 'l, 'h, HandlerExtraData: HasRBPAndRSP> Iterator for JavaFrameIterRef<'vm, 'l, 'h, HandlerExtraData> {
     type Item = StackEntryRef<'vm, 'l>;
 
     fn next(&mut self) -> Option<Self::Item> {
