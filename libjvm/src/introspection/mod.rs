@@ -23,6 +23,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassNa
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
@@ -105,14 +106,14 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     new_local_ref_public_new(
-        match JClass::from_type(jvm, pushable_frame_todo(), object_class.unwrap_array_type().clone()) {
+        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         }.full_object_ref().into(),
-        todo!(), /*int_state*/
+        int_state
     )
 }
 
@@ -263,27 +264,26 @@ pub mod methods;
 pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    todo!();
-    /*let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
+    let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
     let this_native_fn_frame = stack.next().unwrap();
-    assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque());
+    assert!(this_native_fn_frame.is_native_method() || this_native_fn_frame.is_opaque_method());
     let mut parent_frame = stack.next().unwrap();
-    if parent_frame.is_native_method() || parent_frame.is_opaque() {
+    if parent_frame.is_native_method() || parent_frame.is_opaque_method() {
         parent_frame = stack.next().unwrap();
     }
-    if parent_frame.is_native_method() || parent_frame.is_opaque() {
+    if parent_frame.is_native_method() || parent_frame.is_opaque_method() {
         parent_frame = stack.next().unwrap();
     }
-    assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque());
+    assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque_method());
     let possibly_class_pointer = stack.find_map(|entry| {
         let class_pointer = entry.try_class_pointer(jvm)?;
         let view = class_pointer.view();
-        let method_view = view.method_view_i(entry.method_i(jvm));
-        if method_view.is_native() || entry.is_opaque() {
+        let method_view = view.method_view_i(entry.method_i());
+        if method_view.is_native() || entry.is_opaque_method() {
             return None;
         }
         if let Some(name) = view.name().try_unwrap_name() {
-            if name == CClassName::method() && view.method_view_i(entry.method_i(jvm)).name() == MethodName::method_invoke() {
+            if name == CClassName::method() && view.method_view_i(entry.method_i()).name() == MethodName::method_invoke() {
                 return None;
             }
         }
@@ -294,8 +294,8 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     } else {
         return null_mut();
     };
-    let jclass = load_class_constant_by_type(jvm, pushable_frame_todo(), type_).unwrap();
-    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)*/
+    let jclass = load_class_constant_by_type(jvm, int_state, type_).unwrap();
+    new_local_ref_public_new(jclass.try_unwrap_object_alloc().unwrap().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -322,7 +322,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
         .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
         .unwrap_or(LoaderName::BootstrapLoader);
 
-    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, pushable_frame_todo(), loader_name);
+    let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, int_state, loader_name);
     match class_lookup_result {
         Ok(class_object) => {
             if init != 0 {
@@ -331,7 +331,7 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
                     return null_mut();
                 };
             }
-            new_local_ref_public_new(Some(class_object.as_allocated_obj()), todo!()/*int_state*/)
+            new_local_ref_public_new(Some(class_object.as_allocated_obj()), int_state)
         }
         Err(WasException { exception_obj }) => {
             todo!();

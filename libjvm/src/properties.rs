@@ -47,7 +47,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     };
     let int_state = get_interpreter_state(env);
     let prop_obj = from_object_new(jvm, p0).unwrap();
-    let key = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string("user.dir".to_string())).unwrap();
+    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("user.dir".to_string())).unwrap();
     let properties = prop_obj.cast_properties();
     let table = properties.table(jvm);
     let table_array = table.unwrap_object_nonnull().unwrap_array();
@@ -69,8 +69,8 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
 unsafe fn add_prop<'gc>(env: *mut JNIEnv, p: jobject, key: String, val: String) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let key = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(key))?.intern(jvm, int_state)?;
-    let val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
+    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(key))?.intern(jvm, int_state)?;
+    let val = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
     let prop_obj = match from_object_new(jvm, p) {
         Some(x) => x,
         None => return throw_npe_res(jvm, int_state),
@@ -90,5 +90,5 @@ unsafe fn add_prop<'gc>(env: *mut JNIEnv, p: jobject, key: String, val: String) 
         meth,
         vec![NewJavaValue::AllocObject(normal_object_handle.as_allocated_obj()), key.new_java_value_handle().as_njv(), val.new_java_value_handle().as_njv()],
     )?.unwrap().unwrap_object();
-    Ok(new_local_ref_public_new(p.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/))
+    Ok(new_local_ref_public_new(p.as_ref().map(|handle| handle.as_allocated_obj()), int_state))
 }

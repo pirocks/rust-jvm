@@ -86,7 +86,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             frame_to_run_on.set_ir_method_id(ir_method_id);
         }
         let method_id = frame_to_run_on.downgrade().method_id().unwrap();
-        assert!(jvm.thread_state.int_state_guard_valid.with(|inner| inner.borrow().clone()));
         let res = int_state.within_guest(|java_stack_guard, rbp_and_rsp| {
             match self.ir.run_method(ir_method_id, rbp_and_rsp, java_stack_guard) {
                 Ok(res) => {
@@ -285,7 +284,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         let mmaped_top = java_stack_guard.ir_stack().native.mmaped_top;
         let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
         let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
-        let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp));
+        let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp), NonNull::new(exiting_stack_pointer).unwrap());
         JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut exit_frame), &ir_vm_exit_event.exit_type)
     }
 }

@@ -667,7 +667,7 @@ pub fn field_object_from_view<'gc, 'l>(
     f: FieldView,
 ) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let field_class_name_ = class_obj.clone().cpdtype();
-    let parent_runtime_class = load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, field_class_name_)?;
+    let parent_runtime_class = load_class_constant_by_type(jvm, int_state, field_class_name_)?;
 
     let field_name = f.field_name();
 
@@ -680,11 +680,11 @@ pub fn field_object_from_view<'gc, 'l>(
     let slot = f.field_i() as i32;
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let field_name_str = field_name.0.to_str(&jvm.string_pool);
-    let name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
-    let type_ = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
+    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
+    let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
     let signature = match signature {
         None => None,
-        Some(signature) => Some(JString::from_rust(jvm, pushable_frame_todo(), signature)?),
+        Some(signature) => Some(JString::from_rust(jvm, int_state, signature)?),
     };
 
     let annotations_ = vec![]; //todo impl annotations.

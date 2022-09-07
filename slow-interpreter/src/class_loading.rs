@@ -139,7 +139,7 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                         CPDType::IntType => Arc::new(RuntimeClass::Int),
                         CPDType::LongType => Arc::new(RuntimeClass::Long),
                         CPDType::Class(class_name) => {
-                            let java_string = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
+                            let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
                             class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
                         }
                         CPDType::Array { base_type: sub_type, num_nested_arrs } => {

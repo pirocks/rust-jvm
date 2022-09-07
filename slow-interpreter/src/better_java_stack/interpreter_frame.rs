@@ -119,8 +119,9 @@ impl<'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
-    pub fn from_frame_pointer_interpreter<T>(jvm: &'gc JVMState<'gc>, java_stack_guard: &mut JavaStackGuard<'gc>, frame_pointer: FramePointer,
+    pub fn from_frame_pointer_interpreter<T>(java_stack_guard: &mut JavaStackGuard<'gc>, frame_pointer: FramePointer,
                                              within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+        let jvm = java_stack_guard.jvm();
         let mut res = JavaInterpreterFrame {
             java_stack: java_stack_guard,
             frame_ptr: frame_pointer,

@@ -19,7 +19,7 @@ use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFr
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::native_util::{from_object_new, to_object_new};
-use crate::utils::{pushable_frame_todo, throw_npe, throw_npe_res};
+use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
     get_rust_str(env, str, |rust_str| {
@@ -71,13 +71,13 @@ pub unsafe fn new_string_with_len(env: *mut JNIEnv, utf: *const c_char, len: usi
 pub unsafe fn new_string_with_string(env: *mut JNIEnv, owned_str: Wtf8Buf) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, owned_str).unwrap().intern(jvm, int_state) {
+    match JString::from_rust(jvm, int_state, owned_str).unwrap().intern(jvm, int_state) {
         Err(WasException { exception_obj }) => {
             todo!();
             null_mut()
         }
         Ok(res) => {
-            new_local_ref_public_new(res.new_java_value_handle().as_njv().unwrap_object_alloc(), todo!()/*int_state*/)
+            new_local_ref_public_new(res.new_java_value_handle().as_njv().unwrap_object_alloc(), int_state)
         }
     }
 }

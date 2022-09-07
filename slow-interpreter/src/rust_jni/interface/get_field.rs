@@ -122,7 +122,7 @@ pub unsafe extern "C" fn get_object_field(env: *mut JNIEnv, obj: jobject, field_
         Ok(res) => res,
     };
 
-    new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(java_value.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_id_raw: *mut _jfieldID) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

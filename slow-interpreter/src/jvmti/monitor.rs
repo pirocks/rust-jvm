@@ -6,7 +6,6 @@ use std::time::Duration;
 use jvmti_jni_bindings::{jlong, jrawMonitorID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_MONITOR, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvmti::{get_interpreter_state, get_state};
-use crate::pushable_frame_todo;
 use crate::threading::safepoints::Monitor2;
 
 pub unsafe fn monitor_to_raw(monitor: &Monitor2) -> jrawMonitorID {
@@ -162,7 +161,7 @@ pub unsafe extern "C" fn raw_monitor_wait(env: *mut jvmtiEnv, monitor_id: jrawMo
         Some(m) => m,
     };
     let duration = if millis == 0 { None } else { Some(Duration::from_millis(millis as u64)) }; //todo dup, everywhere we call wait
-    monitor.wait(jvm, pushable_frame_todo()/*int_state*/, duration).unwrap(); //todo handle interrupted waits at a later date
+    monitor.wait(jvm, todo!()/*int_state*/, duration).unwrap(); //todo handle interrupted waits at a later date
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

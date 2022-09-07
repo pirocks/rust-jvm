@@ -186,8 +186,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
             return throw_npe(jvm, int_state);
         }
     };
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    if let Err(WasException { exception_obj }) = check_loaded_class(jvm, &mut temp/*int_state*/, clazz.cpdtype()) {
+    if let Err(WasException { exception_obj }) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
         todo!();
         return null_mut();
     };
@@ -229,5 +228,5 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
     run_constructor(jvm, int_state, clazz, full_args, &signature);
-    new_local_ref_public_new(Some(obj.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }

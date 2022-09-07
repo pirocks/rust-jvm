@@ -12,10 +12,9 @@ use std::time::Duration;
 
 use libloading::Symbol;
 use num_integer::Integer;
-use wtf8::Wtf8Buf;
 
 use another_jit_vm::stack::CannotAllocateStack;
-use another_jit_vm_ir::ir_stack::{IRStackMut, OwnedIRStack};
+use another_jit_vm_ir::ir_stack::{OwnedIRStack};
 
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -23,7 +22,7 @@ use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main, set_properties};
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::JavaStack;
@@ -36,8 +35,6 @@ use crate::interpreter_state::InterpreterState;
 use crate::interpreter_util::new_object_full;
 use crate::invoke_interface::get_invoke_interface_new;
 use crate::java::lang::class_loader::ClassLoader;
-use crate::java::lang::string::JString;
-use crate::java::lang::system::System;
 use crate::java::lang::thread::JThread;
 use crate::java::lang::thread_group::JThreadGroup;
 use crate::jit::MethodResolverImpl;
@@ -45,7 +42,6 @@ use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 use crate::threading::safepoints::{Monitor2, SafePoint};
-use crate::utils::pushable_frame_todo;
 
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
@@ -199,28 +195,21 @@ impl<'gc> ThreadState<'gc> {
             assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
             match run_function(&jvm, java_frame) {
                 Ok(_) => {
-                    todo!()
                 }
                 Err(_) => todo!(),
             }
-            todo!();
-            /*if int_state.throw().is_some() {
-                unimplemented!()
-            }*/
-            set_properties(jvm, todo!()).expect("todo");
-            //todo read and copy props here
-            let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
-            let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
-            System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
-
-            let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
-            let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
-            System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
-            todo!()
+            Ok(())
         });
-        //todo should handle exceptions here
-        todo!(); // int_state.pop_frame(jvm, init_frame_guard, false);
-        if !jvm.config.compiled_mode_active {}
+        /*set_properties(jvm, todo!()).expect("todo");
+        //todo read and copy props here
+        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
+        System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
+
+        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
+        System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
+        todo!()*/
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread<'gc>> {
@@ -267,22 +256,8 @@ impl<'gc> ThreadState<'gc> {
         let res = JavaThread::background_new_with_stack(jvm, Some(main_jthread), false, move |main_thread, opaque_frame| {
             *jvm.thread_state.main_thread.write().unwrap() = main_thread.clone().into();
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-            // assert!(match main_thread.interpreter_state.read().unwrap().deref() {
-            //     InterpreterState::LegacyInterpreter { call_stack, .. } => call_stack.is_empty(),
-            //     InterpreterState::Jit { .. } => {}//todo!()
-            // });
-            let mut guard = main_thread.interpreter_state.lock().unwrap();
-            let mut int_state = InterpreterStateGuard::LocalInterpreterState {
-                int_state: IRStackMut::from_stack_start(&mut guard.call_stack.inner),
-                thread: main_thread.clone(),
-                registered: false,
-                jvm,
-                current_exited_pc: None,
-                throw: None,
-            }/*InterpreterStateGuard::new(jvm, main_thread.clone(), &mut main_thread.interpreter_state.lock().unwrap())*/;
             main_thread.notify_alive(jvm); //is this too early?
-            let _old = int_state.register_interpreter_state_guard(jvm);
-            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, &mut int_state)); // technically this is to late and should have been called earlier, but needs to be on this thread.
+            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, todo!()/*opaque_frame*/)); // technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, opaque_frame);
 
             assert!(!jvm.live.load(Ordering::SeqCst));
@@ -294,15 +269,13 @@ impl<'gc> ThreadState<'gc> {
             //from the jvmti spec:
             //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
             if let Some(jvmti) = jvm.jvmti_state() {
-                jvmti.built_in_jdwp.thread_start(jvm, &mut int_state, main_thread.thread_object())
+                jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, main_thread.thread_object())
             }
-            let push_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread temp stack frame")*/); //todo think this is correct, check
-            //handle any exceptions from here
-            int_state.pop_frame(jvm, push_guard, false);
-            let main_frame_guard = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame")*/);
-            run_main(args, jvm, pushable_frame_todo()/*&mut int_state*/).unwrap();
+            opaque_frame.push_frame_opaque(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame"), |opaque_frame|{
+                run_main(args, jvm, opaque_frame).unwrap();
+                Ok(())
+            }).unwrap();
             //todo handle exception exit from main
-            int_state.pop_frame(jvm, main_frame_guard, false);
             main_thread.notify_terminated(jvm);
             todo!()
         }).expect("todo");
@@ -387,40 +360,29 @@ impl<'gc> ThreadState<'gc> {
 
     fn thread_start_impl<'l>(jvm: &'gc JVMState<'gc>, java_thread: Arc<JavaThread<'gc>>, loader_name: LoaderName) {
         let java_thread_clone: Arc<JavaThread<'gc>> = java_thread.clone();
-        let mut state = java_thread_clone.interpreter_state.lock().unwrap();
-        // let mut interpreter_state_guard: InterpreterStateGuard = InterpreterStateGuard::new(jvm, java_thread_clone.clone(), state); // { int_state: , thread: &java_thread };
-        let mut interpreter_state_guard = InterpreterStateGuard::LocalInterpreterState {
-            int_state: IRStackMut::from_stack_start(&mut state.call_stack.inner),
-            thread: java_thread.clone(),
-            registered: false,
-            jvm,
-            current_exited_pc: None,
-            throw: None,
-        };
-        let should_be_nothing = interpreter_state_guard.register_interpreter_state_guard(jvm);
-        assert!(should_be_nothing.old.is_none());
+        unsafe {
+            JavaStackGuard::new_from_empty_stack(jvm, java_thread_clone.clone(), &Arc::into_raw(java_thread_clone.clone()).as_ref().unwrap().java_stack, move |opaque_frame| {
+                if let Some(jvmti) = jvm.jvmti_state() {
+                    jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, java_thread.clone().thread_object())
+                }
 
-        if let Some(jvmti) = jvm.jvmti_state() {
-            jvmti.built_in_jdwp.thread_start(jvm, &mut interpreter_state_guard, java_thread.clone().thread_object())
+                //todo fix loader
+                if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, opaque_frame) {
+                    /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
+                                    .cast_throwable()
+                                    .print_stack_trace(jvm, &mut interpreter_state_guard)
+                                    .expect("Exception occured while printing exception. Something is pretty messed up");*/
+                    todo!();
+                    todo!();// interpreter_state_guard.set_throw(None);
+                };
+                if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, opaque_frame) {
+                    eprintln!("Exception occurred exiting thread, something is pretty messed up");
+                    panic!()
+                }
+                Ok(())
+            }).unwrap();
         }
-
-        //todo fix loader
-        let frame_for_run_call = interpreter_state_guard.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "frame for calling run on a new thread")*/);
-        if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().run(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
-            /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
-                            .cast_throwable()
-                            .print_stack_trace(jvm, &mut interpreter_state_guard)
-                            .expect("Exception occured while printing exception. Something is pretty messed up");*/
-            todo!();
-            interpreter_state_guard.set_throw(None);
-        };
-        if let Err(WasException { exception_obj }) = java_thread.thread_object.read().unwrap().as_ref().unwrap().exit(jvm, pushable_frame_todo()/*&mut interpreter_state_guard*/) {
-            eprintln!("Exception occurred exiting thread, something is pretty messed up");
-            panic!()
-        }
-
-        interpreter_state_guard.pop_frame(jvm, frame_for_run_call, false);
-        java_thread.notify_terminated(jvm);
+        java_thread_clone.notify_terminated(jvm);
     }
 
     pub fn get_all_threads(&self) -> RwLockReadGuard<HashMap<JavaThreadId, Arc<JavaThread<'gc>>>> {

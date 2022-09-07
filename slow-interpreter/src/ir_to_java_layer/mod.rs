@@ -119,7 +119,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::allocate_object(jvm, todo!()/*int_state.unwrap()*/, type_, *return_to_ptr, res_address)
             }
             RuntimeVMExitInput::NewString { return_to_ptr, res, compressed_wtf8, pc: _ } => {
-                exit_impls::new_string(&jvm, todo!()/*int_state.unwrap()*/, *return_to_ptr, *res, *compressed_wtf8)
+                exit_impls::new_string(&jvm, int_state.unwrap(), *return_to_ptr, *res, *compressed_wtf8)
             }
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr, pc: _ } => {
                 exit_impls::new_class(jvm, todo!()/*int_state.unwrap()*/, *type_, *res, *return_to_ptr)
@@ -128,13 +128,13 @@ impl JavaVMStateWrapperInner {
                 exit_impls::new_class_register(jvm, todo!()/*int_state.unwrap()*/, *type_, *res, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, method_number, native_method_restart_point, native_method_res, pc: _ } => {
-                exit_impls::invoke_virtual_resolve(jvm, todo!()/*int_state.unwrap()*/, *return_to_ptr, *object_ref_ptr, *method_shape_id, MethodNumber(*method_number), *native_method_restart_point, *native_method_res)
+                exit_impls::invoke_virtual_resolve(jvm, int_state.unwrap(), *return_to_ptr, *object_ref_ptr, *method_shape_id, MethodNumber(*method_number), *native_method_restart_point, *native_method_res)
             }
             RuntimeVMExitInput::MonitorEnter { obj_ptr, return_to_ptr, pc: _ } => {
-                exit_impls::monitor_enter(jvm, todo!()/*int_state.unwrap()*/, *obj_ptr, *return_to_ptr)
+                exit_impls::monitor_enter(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr, pc: _ } => {
-                exit_impls::monitor_exit(jvm, todo!()/*int_state.unwrap()*/, *obj_ptr, *return_to_ptr)
+                exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::MonitorEnterRegister { obj_ptr, return_to_ptr, pc } => {
                 exit_impls::monitor_enter(jvm, todo!()/*int_state.unwrap()*/, *obj_ptr, *return_to_ptr)
@@ -172,7 +172,7 @@ impl JavaVMStateWrapperInner {
                 multi_allocate_array(jvm, todo!()/*int_state.unwrap()*/, *elem_type, *num_arrays, *len_start, *return_to_ptr, *res_address)
             }
             RuntimeVMExitInput::RunNativeSpecialNew { method_id, return_to_ptr } => {
-                run_native_special_new(jvm, todo!()/*int_state*/, *method_id, *return_to_ptr)
+                run_native_special_new(jvm, int_state, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::RunNativeStaticNew { method_id, return_to_ptr } => {
                 run_native_static_new(jvm, todo!()/*int_state*/, *method_id, *return_to_ptr)
@@ -181,20 +181,22 @@ impl JavaVMStateWrapperInner {
                 let int_state = int_state.unwrap();
                 let expected_method_id = int_state.frame_ref().method_id();
                 assert_eq!(expected_method_id, Some(*method_id));
-                match run_function_interpreted(jvm, todo!()/*int_state*/) {
-                    Ok(res) => {
-                        let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
-                        saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
-                        let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
-                        IRVMExitAction::RestartWithRegisterState { diff }
-                    }
-                    Err(WasException { exception_obj }) => {
-                        todo!();
-                        IRVMExitAction::Exception {
-                            throwable: todo!()/*int_state.throw().unwrap().ptr*/
+                int_state.to_interpreter_frame(|java_interpreter_frame|{
+                    match run_function_interpreted(jvm, java_interpreter_frame) {
+                        Ok(res) => {
+                            let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
+                            saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
+                            let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
+                            IRVMExitAction::RestartWithRegisterState { diff }
+                        }
+                        Err(WasException { exception_obj }) => {
+                            todo!();
+                            IRVMExitAction::Exception {
+                                throwable: todo!()/*int_state.throw().unwrap().ptr*/
+                            }
                         }
                     }
-                }
+                })
             }
             RuntimeVMExitInput::AssertInstanceOf { res, value, cpdtype_id, return_to_ptr, pc, expected } => {
                 exit_impls::assert_instance_of(jvm, todo!()/*int_state.unwrap()*/, res, value, cpdtype_id, return_to_ptr, *expected)

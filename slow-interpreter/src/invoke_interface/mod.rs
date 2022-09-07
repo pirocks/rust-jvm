@@ -4,10 +4,11 @@ use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, J
 use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 
 use crate::{InterpreterStateGuard, JVMState};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::jvmti::get_jvmti_interface;
 
-pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame<'gc,'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();
     match guard.as_ref() {
         None => {

@@ -15,6 +15,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::loading::{LoaderIndex, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
+use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::exceptions::WasException;
@@ -99,7 +100,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc,'k>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()
@@ -113,9 +114,8 @@ fn JVM_GetClassDeclaredConstructors_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_s
         let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
         object_array.push(constructor.new_java_value_handle())
     });
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::constructor().into())).unwrap();
     let unallocated = UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array.iter().map(|handle| handle.as_njv()).collect_vec() });
     let res = jvm.allocate_object(unallocated);
-    Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/) })
+    Ok(unsafe { new_local_ref_public_new(Some(res.as_allocated_obj()), int_state) })
 }

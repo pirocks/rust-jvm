@@ -28,7 +28,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new};
-use crate::utils::{pushable_frame_todo, throw_npe};
+use crate::utils::{throw_npe};
 use crate::WasException;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
@@ -60,14 +60,14 @@ pub unsafe extern "C" fn get_superclass(env: *mut JNIEnv, sub: jclass) -> jclass
         Some(n) => n,
     };
     let _inited_class = assert_loaded_class(jvm, super_name.clone().into());
-    let obj = match load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, super_name.into()) {
+    let obj = match load_class_constant_by_type(jvm, int_state, super_name.into()) {
         Err(WasException { exception_obj }) => {
             todo!();
             return null_mut();
         }
         Ok(res) => res.unwrap_object(),
     };
-    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(obj.as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jclass, sup: jclass) -> jboolean {
@@ -119,7 +119,7 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     let state = get_state(env);
     let int_state = get_interpreter_state(env); //todo maybe this should have an optionable version
-    let interface = get_invoke_interface(state, todo!()/*int_state*/);
+    let interface = get_invoke_interface(state, int_state);
     *vm = Box::into_raw(box interface); //todo do something about this leak
     0 as jint
 }

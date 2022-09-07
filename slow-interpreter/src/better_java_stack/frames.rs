@@ -1,7 +1,7 @@
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::{NativeJavaValue};
+use rust_jvm_common::{MethodI, NativeJavaValue};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
@@ -11,6 +11,7 @@ use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java_values::native_to_new_java_value_rtype;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
@@ -59,6 +60,25 @@ pub trait HasFrame<'gc> {
         let data = ir_frame_ref.data(num_locals + from_start as usize);//todo replace this with a layout lookup thing again
         let native_jv = NativeJavaValue { as_u64: data };
         native_to_new_java_value_rtype(native_jv, expected_type, self.jvm())
+    }
+
+    fn is_native_method(&self) -> bool {
+        match self.frame_ref().method_id() {
+            None => false,
+            Some(method_id) => {
+                self.jvm().is_native_by_method_id(method_id)
+            }
+        }
+    }
+
+    fn is_opaque_method(&self) -> bool{
+        let opaque_frame_or_method_id = OpaqueFrameIdOrMethodID::from_native(self.frame_ref().raw_method_id());
+        opaque_frame_or_method_id.is_opaque()
+    }
+
+    fn method_i(&self) -> MethodI{
+        let method_id = self.frame_ref().method_id().unwrap();
+        self.jvm().method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }
 }
 

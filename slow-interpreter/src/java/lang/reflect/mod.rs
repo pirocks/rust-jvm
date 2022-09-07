@@ -322,7 +322,6 @@ pub mod constructor {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::utils::pushable_frame_todo;
 
     pub struct Constructor<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -340,7 +339,7 @@ pub mod constructor {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo this doesn't cover the full generality of this, b/c we could be calling on int.class or array classes
-                load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, field_class_type)?.cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, field_class_type)?.cast_class().unwrap()
             };
 
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;

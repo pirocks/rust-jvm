@@ -1,8 +1,9 @@
-use std::mem::size_of;
 use std::ptr::NonNull;
 
+use libc::c_void;
+
+use another_jit_vm::FramePointerOffset;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
-use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
@@ -17,6 +18,7 @@ pub struct JavaExitFrame<'gc, 'k> {
     // Interpreter{
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
+    stack_pointer: NonNull<c_void>,
     // num_locals: u16,
     // max_stack: u16,
     // stack_depth: Option<StackDepth>,
@@ -25,14 +27,23 @@ pub struct JavaExitFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
-    pub fn new(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer) -> Self{
-        Self{
+    pub fn new(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer, stack_pointer: NonNull<c_void>) -> Self {
+        Self {
             java_stack: java_stack_guard,
             frame_pointer,
             // num_locals: todo!(),
             // max_stack: todo!(),
             // stack_depth: todo!()
+            stack_pointer,
         }
+    }
+
+    pub fn to_interpreter_frame<T>(&mut self, within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> T) -> T {
+        JavaInterpreterFrame::from_frame_pointer_interpreter(self.java_stack, self.frame_pointer, |frame| { Ok(within_interpreter(frame)) }).unwrap()
+    }
+
+    pub fn read_target(&self, frame_point_offset: FramePointerOffset) -> NativeJavaValue<'gc> {
+        unsafe { self.frame_pointer.as_const_ptr().sub(frame_point_offset.0).cast::<NativeJavaValue<'gc>>().read() }
     }
 }
 
@@ -65,7 +76,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn next_frame_pointer(&self) -> FramePointer {
-        todo!()
+        FramePointer(self.stack_pointer)
         /*unsafe {
             FramePointer(NonNull::new(self.frame_pointer.0.as_ptr()
                 .sub(FRAME_HEADER_END_OFFSET)
@@ -94,11 +105,11 @@ impl<'gc, 'k> PushableFrame<'gc> for JavaExitFrame<'gc, 'k> {
         })
     }
 
-    fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
-        todo!()
+    fn push_frame_java<T>(&mut self, java_frame_push: JavaFramePush, within_push: impl for<'l> FnOnce(&mut JavaInterpreterFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+        self.java_stack.push_java_frame(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame| within_push(java_frame))
     }
 
-    fn push_frame_native<T>(&mut self, java_frame: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
-        todo!()
+    fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+        self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), native_frame_push, |native_frame| within_push(native_frame))
     }
 }

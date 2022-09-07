@@ -11,7 +11,7 @@ use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
-use crate::{InterpreterStateGuard, JavaThread, JVMState};
+use crate::{InterpreterStateGuard, JavaThread, JVMState, OpaqueFrame};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::invoke_interface::get_invoke_interface;
@@ -143,17 +143,18 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn thread_start<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, 'l>, jthread: JThread<'gc>) {
+    pub fn thread_start<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut OpaqueFrame<'gc, 'l>, jthread: JThread<'gc>) {
         if *self.thread_start_enabled.read().unwrap() {
-            let event_handling_frame = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"thread_start")*/);
+            todo!();
+            /*let event_handling_frame = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"thread_start")*/, |_|todo!());
             while !jvm.vm_live() {} //todo ofc theres a better way of doing this, but we are required to wait for vminit by the spec.
             assert!(jvm.vm_live());
             unsafe {
                 let thread = new_local_ref_public(todo!()/*jthread.object().to_gc_managed().into()*/, todo!()/*int_state*/);
                 let event = ThreadStartEvent { thread };
-                self.ThreadStart(jvm, int_state, event);
+                self.ThreadStart(jvm, todo!()/*int_state*/, event);
             }
-            int_state.pop_frame(jvm, event_handling_frame, false); //todo check for pending excpetion anyway
+            todo!();// int_state.pop_frame(jvm, event_handling_frame, false); //todo check for pending excpetion anyway*/
         }
     }
 
@@ -443,7 +444,7 @@ impl SharedLibJVMTI {
             let agent_load_symbol = self.lib.get::<fn(vm: *mut JavaVM, options: *mut c_char, reserved: *mut c_void) -> jint>("Agent_OnLoad".as_bytes()).unwrap();
             let agent_load_fn_ptr = agent_load_symbol.deref();
             let args = CString::new("transport=dt_socket,server=y,suspend=y,address=5005").unwrap().into_raw(); //todo parse these at jvm startup
-            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, int_state);
+            let interface: *const JNIInvokeInterface_ = get_invoke_interface(jvm, todo!()/*int_state*/);
             agent_load_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, args, std::ptr::null_mut()) as jvmtiError
             //todo leak
         }

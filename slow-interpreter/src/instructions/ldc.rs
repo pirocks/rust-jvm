@@ -16,7 +16,6 @@ use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
-use crate::utils::pushable_frame_todo;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     load_class_constant_by_type(jvm, int_state, type_)
@@ -29,7 +28,7 @@ pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: 
 
 fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, s: &StringView) -> NewJavaValueHandle<'gc> {
     let res_string = s.string();
-    let before_intern = JString::from_rust(jvm, pushable_frame_todo(), res_string).expect("todo");
+    let before_intern = JString::from_rust(jvm, int_state, res_string).expect("todo");
     let string = intern_safe(jvm, before_intern.full_object().into());
     string.new_java_value_handle()
 }

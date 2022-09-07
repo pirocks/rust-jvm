@@ -32,7 +32,7 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     }
 
     fn jvm(&self) -> &'gc JVMState<'gc> {
-        todo!()
+        self.java_stack.jvm()
     }
 
     fn num_locals(&self) -> u16 {

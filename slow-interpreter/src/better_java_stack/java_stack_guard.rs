@@ -144,7 +144,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        JavaInterpreterFrame::from_frame_pointer_interpreter(jvm, self, next_frame_pointer, |within| {
+        JavaInterpreterFrame::from_frame_pointer_interpreter(self, next_frame_pointer, |within| {
             within_pushed(within)
         })
     }

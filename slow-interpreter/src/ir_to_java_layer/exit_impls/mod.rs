@@ -236,29 +236,33 @@ pub fn get_static<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 }
 
 #[inline(never)]
-pub fn monitor_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn monitor_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("MonitorExit");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    monitor.unlock(jvm, todo!()/*int_state*/).unwrap();
+    int_state.to_interpreter_frame(|interpreter_frame| {
+        monitor.unlock(jvm, interpreter_frame).unwrap();
+    });
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 #[inline(never)]
-pub fn monitor_enter<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn monitor_enter<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("MonitorEnter");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    monitor.lock(jvm, todo!()/*pushable_frame_todo()*//*int_state*/).unwrap();
+    int_state.to_interpreter_frame(|interpreter_frame|{
+        monitor.lock(jvm, interpreter_frame).unwrap();
+    });
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 #[inline(never)]
-pub fn invoke_virtual_resolve<'gc>(
+pub fn invoke_virtual_resolve<'gc, 'k>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    int_state: &mut JavaExitFrame<'gc, 'k>,
     return_to_ptr: *const c_void,
     object_ref_ptr: *const c_void,
     method_shape_id: MethodShapeID,
@@ -286,7 +290,7 @@ pub fn invoke_virtual_resolve<'gc>(
             let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(method_shape_id);
             let res = invoke_virtual_full(
                 jvm,
-                pushable_frame_todo()/*int_state*/,
+                int_state,
                 method_number,
                 name,
                 &desc,
@@ -407,7 +411,7 @@ pub fn new_class_register<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpre
 }
 
 #[inline(never)]
-pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, return_to_ptr: *const c_void, res: *mut c_void, compressed_wtf8: CompressedWtf8String) -> IRVMExitAction {
+pub fn new_string<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, return_to_ptr: *const c_void, res: *mut c_void, compressed_wtf8: CompressedWtf8String) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("NewString");
     }
@@ -416,7 +420,7 @@ pub fn new_string<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         None => {
             drop(read_guard);
             let wtf8buf = compressed_wtf8.to_wtf8(&jvm.wtf8_pool);
-            let jstring = JString::from_rust(jvm, pushable_frame_todo(), wtf8buf).expect("todo exceptions").intern(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+            let jstring = JString::from_rust(jvm, int_state, wtf8buf).expect("todo exceptions").intern(jvm, int_state).unwrap();
             jvm.string_exit_cache.write().unwrap().register_entry(compressed_wtf8, jstring.clone());
             let jv = jstring.new_java_value();
             jv.to_native()

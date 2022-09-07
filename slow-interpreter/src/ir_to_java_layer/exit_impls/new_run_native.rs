@@ -12,27 +12,27 @@ use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{InterpreterStateGuard, JavaValueCommon, JVMState};
+use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
 use crate::utils::pushable_frame_todo;
 
 #[inline(never)]
-pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut InterpreterStateGuard<'vm, '_>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
     let int_state = int_state.unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
     let method_view = view.method_view_i(method_i);
     let mut args = vec![];
-    let current_frame = int_state.current_frame();
     //todo dup
     let memory_layout = NativeStackframeMemoryLayout { num_locals: jvm.num_local_vars_native(method_id) };
-    let nth_local = current_frame.frame_view.read_target(memory_layout.local_var_entry(0));
+    let nth_local = int_state.read_target(memory_layout.local_var_entry(0));
     let rtype: RuntimeType = RuntimeType::Ref(RuntimeRefType::Class(CClassName::object()));
     args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
     let mut i = 0;
     for arg_type in method_view.desc().arg_types.iter() {
-        let nth_local = current_frame.frame_view.read_target(memory_layout.local_var_entry((i + 1) as u16));
+        let nth_local = int_state.read_target(memory_layout.local_var_entry((i + 1) as u16));
         let rtype: RuntimeType = arg_type.to_runtime_type().unwrap();
         if arg_type.is_double_or_long() {
             i += 1;
@@ -40,14 +40,13 @@ pub fn run_native_special_new<'vm>(jvm: &'vm JVMState<'vm>, int_state: Option<&m
         args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
         i += 1;
     }
-    let res = match run_native_method(jvm, pushable_frame_todo()/*int_state*/, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
         Err(NativeMethodWasException { prev_rip }) => {
-            // let current_pc = jvm.java_vm_state.lookup_ip(prev_rip).unwrap().1;
-            // int_state.set_current_pc(Some(current_pc));
-            let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
+            todo!()
+            /*let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
             int_state.set_throw(None);//todo should move this into throw impl
-            return throw_impl(jvm, int_state, throw_obj, true);
+            return throw_impl(jvm, int_state, throw_obj, true);*/
         }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();

@@ -57,5 +57,5 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),
     }));
-    new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
