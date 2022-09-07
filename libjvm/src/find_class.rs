@@ -17,6 +17,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use rust_jvm_common::ptype::PType::Ref;
 use rust_jvm_common::runtime_type::RuntimeType;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
@@ -35,7 +36,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    let loader_obj = todo!()/*int_state.previous_frame().unwrap().local_vars(jvm).get(0, RuntimeType::object()).cast_class_loader()*/;
+    let loader_obj = int_state.frame_iter().next()/*previous_frame()*/.unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
     todo!();/*let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
