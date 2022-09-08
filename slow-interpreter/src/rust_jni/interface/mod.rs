@@ -546,7 +546,7 @@ pub fn define_class_safe<'gc, 'l>(
     runtime_class.set_status(ClassStatus::INITIALIZING);
     initialize_class(runtime_class.clone(), jvm, int_state)?;
     runtime_class.set_status(ClassStatus::INITIALIZED);
-    Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), pushable_frame_todo()/*int_state*/, current_loader).unwrap().new_java_handle())
+    Ok(get_or_create_class_object_force_loader(jvm, class_name.into(), int_state, current_loader).unwrap().new_java_handle())
 }
 
 pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize) -> jclass {
@@ -565,7 +565,7 @@ pub unsafe extern "C" fn define_class(env: *mut JNIEnv, name: *const ::std::os::
     }
     //todo dupe with JVM_DefineClass and JVM_DefineClassWithSource
     to_object_new(
-        match define_class_safe(jvm, pushable_frame_todo()/*int_state*/, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
+        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(class_) => class_,
             Err(_) => todo!(),
         }

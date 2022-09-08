@@ -8,7 +8,6 @@ use libc::memset;
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
-use another_jit_vm_ir::ir_stack::read_frame_ir_header;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
@@ -17,8 +16,7 @@ use jvmti_jni_bindings::{jint, jlong};
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
-use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
@@ -27,15 +25,14 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use stage0::compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
-use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
+use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::virtual_::virtual_method_lookup;
-use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
+use crate::instructions::special::{instance_of_exit_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
@@ -51,21 +48,20 @@ pub mod multi_allocate_array;
 pub mod new_run_native;
 
 #[inline(never)]
-pub fn array_out_of_bounds<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> IRVMExitAction {
+pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("ArrayOutOfBounds");
     }
-    assert!(int_state.throw().is_none());
-    let save = int_state.current_pc();
+    todo!();/*let save = int_state.current_pc();*/
     let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, pushable_frame_todo()/*int_state*/).unwrap();
     let throwable = array_out_of_bounds.object().cast_throwable();
-    int_state.set_current_pc(save);
-    assert!(int_state.current_pc().is_some());
+    todo!();/*int_state.set_current_pc(save);
+    assert!(int_state.current_pc().is_some());*/
     throw_impl(&jvm, int_state, throwable.new_java_value_handle(), false)
 }
 
 #[inline(never)]
-pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_ptr: *const c_void) -> IRVMExitAction {
+pub fn throw_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, exception_obj_ptr: *const c_void) -> IRVMExitAction {
     let throw = jvm.perf_metrics.vm_exit_throw();
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("Throw");
@@ -74,7 +70,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, CClassName::object().into(), jvm);
     let throwable = exception_obj_handle.cast_throwable();
     // throwable.print_stack_trace(jvm, int_state).unwrap();
-    assert!(int_state.current_pc().is_some());
+    todo!();/*assert!(int_state.current_pc().is_some());*/
     throw_impl(&jvm, int_state, throwable.new_java_value_handle(), false)
 }
 
@@ -148,7 +144,7 @@ fn resolved_entry_from_method_id(jvm: &JVMState, resolver: MethodResolverImpl, r
 }
 
 #[inline(never)]
-pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
+pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
     let checkcast = jvm.perf_metrics.vm_exit_checkcast();
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("CheckCast");
@@ -165,7 +161,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         if res_int == 0 {
             dbg!(cpdtype.jvm_representation(&jvm.string_pool));
             dbg!(handle.runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
-            int_state.debug_print_stack_trace(jvm);
+            /*int_state.debug_print_stack_trace(jvm);*/
             todo!()
         }
 
@@ -177,7 +173,7 @@ pub fn check_cast<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 }
 
 #[inline(never)]
-pub fn instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
+pub fn instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InstanceOf");
     }
@@ -185,8 +181,7 @@ pub fn instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     let value = unsafe { (*value).cast::<NativeJavaValue>().read() };
     let value = native_to_new_java_value(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
+    check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     unsafe { (*((*res) as *mut NativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -194,7 +189,7 @@ pub fn instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
 
 
 #[inline(never)]
-pub fn assert_instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void, expected: bool) -> IRVMExitAction {
+pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void, expected: bool) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InstanceOf");
     }
@@ -213,7 +208,7 @@ pub fn assert_instance_of<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Inte
 }
 
 #[inline(never)]
-pub fn get_static<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, value_ptr: *mut c_void, field_name: FieldName, cpdtype_id: CPDTypeID, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value_ptr: *mut c_void, field_name: FieldName, cpdtype_id: CPDTypeID, return_to_ptr: *const c_void) -> IRVMExitAction {
     let get_static = jvm.perf_metrics.vm_exit_get_static();
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("GetStatic");
@@ -225,7 +220,7 @@ pub fn get_static<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
     // todo doesn't handle interfaces and the like
     unsafe {
         if libc::rand() < 1_000 {
-            int_state.debug_print_stack_trace(jvm);
+            todo!();/*int_state.debug_print_stack_trace(jvm);*/
         }
     }
     unsafe {
@@ -377,14 +372,14 @@ fn invoke_virtual_full<'gc>(
     resolved_vtable_entry.resolved().unwrap()
 }
 
-fn new_class_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID) -> NewJavaValueHandle<'gc> {
+fn new_class_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID) -> NewJavaValueHandle<'gc> {
     let cpdtype = jvm.cpdtype_table.write().unwrap().get_cpdtype(type_).clone();
-    let jclass = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
+    let jclass = JClass::from_type(jvm, int_state, cpdtype).unwrap();
     jclass.new_java_value_handle()
 }
 
 #[inline(never)]
-pub fn new_class<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID, res: *mut c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn new_class<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, res: *mut c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("NewClass");
     }
@@ -397,7 +392,7 @@ pub fn new_class<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateG
 }
 
 #[inline(never)]
-pub fn new_class_register<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: CPDTypeID, res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn new_class_register<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("NewClassRegister");
     }
@@ -440,14 +435,14 @@ pub fn new_string<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
 
 
 #[inline(never)]
-pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, type_: &CPDTypeID, return_to_ptr: *const c_void, res_address: &*mut NonNull<c_void>) -> IRVMExitAction {
+pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName, type_: &CPDTypeID, return_to_ptr: *const c_void, res_address: &*mut NonNull<c_void>) -> IRVMExitAction {
     let guard = jvm.perf_metrics.vm_exit_allocate_obj();
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("AllocateObject");
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
     let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
-    let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), None);
+    let object_type = runtime_class_to_allocated_object_type(jvm, rc.clone(), current_loader, None);
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
     unsafe {
@@ -458,8 +453,8 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn trace_instruction_after<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, method_id: MethodId, return_to_ptr: *const c_void, bytecode_offset: ByteCodeOffset) -> IRVMExitAction {
-    assert_eq!(Some(method_id), int_state.current_frame().frame_view.ir_ref.method_id());
+pub fn trace_instruction_after<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, method_id: MethodId, return_to_ptr: *const c_void, bytecode_offset: ByteCodeOffset) -> IRVMExitAction {
+    todo!();// assert_eq!(Some(method_id), int_state.current_frame().frame_view.ir_ref.method_id());
     // int_state.debug_print_stack_trace(jvm);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
@@ -470,7 +465,7 @@ pub fn trace_instruction_after<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Int
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
     }
-    dump_frame_contents(jvm, int_state);
+    dump_frame_contents(jvm, todo!()/*int_state*/);
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
@@ -488,11 +483,11 @@ pub fn trace_instruction_before(jvm: &JVMState, method_id: MethodId, return_to_p
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn log_whole_frame<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("LogWholeFrame");
     }
-    let current_frame = int_state.current_frame();
+    todo!();/*let current_frame = int_state.current_frame();
     dbg!(current_frame.pc);
     let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -502,7 +497,7 @@ pub fn log_whole_frame<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Interpreter
     dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
     dbg!(method_view.desc_str().to_str(&jvm.string_pool));
     current_frame.ir_stack_entry_debug_print();
-    dump_frame_contents(jvm, int_state);
+    dump_frame_contents(jvm, int_state);*/
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
@@ -592,15 +587,15 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, exception_obj_handle: NewJavaValueHandle<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
+pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, exception_obj_handle: NewJavaValueHandle<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
     // assert!(int_state.current_pc().is_some() || ignore_this_frame);
-    int_state.set_throw(None);
+    todo!();/*int_state.set_throw(None);*/
     let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
     let throwable = exception_object_handle.cast_throwable();
     // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     // dbg!(exception_as_string.to_rust_string(jvm));
     // let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
-    let mut this_frame = true;
+    todo!();/*let mut this_frame = true;
     for current_frame in int_state.frame_iter::<JavaStackGuard<'gc>>() {
         if this_frame && ignore_this_frame {
             this_frame = false;
@@ -664,7 +659,7 @@ pub fn throw_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
         }
         this_frame = false;
     }
-    jvm.perf_metrics.display();
+    jvm.perf_metrics.display();*/
     todo!()
 }
 

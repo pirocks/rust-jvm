@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-use crate::{InterpreterStateGuard, JVMState, WasException};
+use crate::{JVMState, PushableFrame, WasException};
 use crate::class_loading::{assert_inited_or_initing_class};
 
 use crate::new_java_values::NewJavaValueHandle;
@@ -10,7 +10,7 @@ use crate::runtime_class::static_vars;
 
 pub(crate) fn get_static_impl<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut InterpreterStateGuard<'gc,'l>,
+    int_state: &mut impl PushableFrame<'gc>,
     field_class_name: CClassName,
     field_name: FieldName
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {

@@ -232,7 +232,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
         .map(|byte| NewJavaValue::Byte(byte as i8))
         .collect_vec();
     let res = JavaValue::new_vec_from_vec(jvm, java_bytes_vec, CPDType::ByteType);
-    new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

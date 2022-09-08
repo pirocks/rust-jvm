@@ -4,13 +4,14 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, JVMTI_VERSION_1_2, jvmtiEnv};
 use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 
-use crate::{JVMState};
+use crate::JVMState;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::rust_jni::interface::jni::{initial_jni_interface};
 use crate::rust_jni::interface::jvmti::get_jvmti_interface;
 
-pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame<'gc,'l>) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame<'gc, 'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();
     match guard.as_ref() {
         None => {
@@ -33,7 +34,7 @@ pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame
     *jvm.native.invoke_interface.read().unwrap().as_ref().unwrap()
 }
 
-pub fn get_invoke_interface_new<'gc, 'l>(jvm: &JVMState, opaque_frame: &mut OpaqueFrame<'gc,'l>) -> *const JNIInvokeInterface_ {
+pub fn get_invoke_interface_new<'gc, 'l>(jvm: &JVMState, opaque_frame: &mut OpaqueFrame<'gc, 'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();
     match guard.as_ref() {
         None => {
@@ -73,8 +74,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
         (penv as *mut *mut jvmtiEnv).write(get_jvmti_interface(state, int_state));
     } else {
         //todo fix this.
-        let res_ptr = null_mut()/*get_interface(state, int_state)*/;
-        (penv as *mut *mut *const JNINativeInterface_).write(res_ptr);
+        (penv as *mut *mut *const JNINativeInterface_).write(Box::into_raw(box (Box::into_raw(box initial_jni_interface()) as *const JNINativeInterface_)));
     }
 
     JNI_OK as i32

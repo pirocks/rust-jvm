@@ -52,6 +52,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
             Err(_) => todo!(),
         }
             .unwrap_object().unwrap().as_allocated_obj().into(),
-        todo!()/*int_state,*/
+        int_state
     )
 }

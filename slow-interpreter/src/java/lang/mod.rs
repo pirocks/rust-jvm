@@ -269,7 +269,6 @@ pub mod class {
 
     use crate::{AllocatedHandle, JVMState, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
     use crate::instructions::ldc::load_class_constant_by_type;
@@ -346,9 +345,8 @@ pub mod class {
         }
 
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader: ClassLoader<'gc>) -> Result<Self, WasException<'gc>> {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
-            let res = AllocatedHandle::NormalObject(new_object(jvm, &mut temp/*int_state*/, &class_class));
+            let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_class));
             run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), loader.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
             Ok(res.cast_class())
         }

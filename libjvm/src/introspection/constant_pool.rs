@@ -396,7 +396,7 @@ unsafe fn ConstantPoolGetUTF8At_impl<'gc>(env: *mut JNIEnv, constantPoolOop: job
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Utf8(utf8) => Ok(to_object_new(JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, utf8.str.clone())?.full_object_ref().into())),
+        ConstantInfoView::Utf8(utf8) => Ok(to_object_new(JString::from_rust(jvm, int_state, utf8.str.clone())?.full_object_ref().into())),
         _ => {
             return throw_illegal_arg_res(jvm, int_state);
         }

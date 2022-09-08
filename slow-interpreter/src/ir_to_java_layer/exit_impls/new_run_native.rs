@@ -90,6 +90,7 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
             //         return IRVMExitAction::Exception { throwable: int_state.throw().unwrap().ptr };
             //     },
             // };
+            exception_obj.print_stack_trace(jvm, int_state).unwrap();
             todo!()
             // let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
             // int_state.set_throw(None);
