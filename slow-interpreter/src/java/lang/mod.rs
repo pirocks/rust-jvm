@@ -469,8 +469,7 @@ pub mod class_loader {
                 &CMethodDescriptor { arg_types: vec![CClassName::string().into()], return_type: CClassName::class().into() },
                 vec![self.new_java_value(), name.new_java_value()],
             )?.unwrap();
-            todo!()/*assert!(int_state.throw().is_none())*/;
-            Ok(res.cast_class().unwrap()/*int_state.pop_current_operand_stack(Some(CClassName::class().into())).to_new().cast_class().unwrap()*/)
+            Ok(res.cast_class().unwrap())
         }
 
         /*as_object_or_java_value!();*/

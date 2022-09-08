@@ -3,7 +3,7 @@ use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use crate::better_java_stack::{FramePointer, StackDepth};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::{JVMState, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
@@ -54,8 +54,8 @@ impl<'gc, 'k> HasFrame<'gc> for OpaqueFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> u16 {
-        0
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
+        Err(IsOpaque {})
     }
 
     fn max_stack(&self) -> u16 {

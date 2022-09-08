@@ -14,7 +14,6 @@ use crate::java::NewAsObjectOrJavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
-use crate::utils::pushable_frame_todo;
 
 /*
 // unofficial modifier flags, used by HotSpot:
@@ -74,7 +73,7 @@ fn get_signature<'gc, 'l>(
 ) -> Result<Option<JString<'gc>>, WasException<'gc>> {
     match method_view.generic_signature() {
         None => Ok(None),
-        Some(sig) => Ok(Some(JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, sig)?.intern(jvm, int_state)?))
+        Some(sig) => Ok(Some(JString::from_rust(jvm, int_state, sig)?.intern(jvm, int_state)?))
     }
 }
 
@@ -95,7 +94,7 @@ fn exception_types_table<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl 
 
     let mut exception_table = vec![]; //types_iter
     for ptype in types_iter {
-        exception_table.push(JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, ptype)?.new_java_value_handle())
+        exception_table.push(JClass::from_type(jvm, int_state, ptype)?.new_java_value_handle())
     }
     Ok(NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(class_type)).unwrap(),
@@ -108,7 +107,7 @@ fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
     let mut res = vec![];
     let parsed = method_view.desc();
     for param_type in &parsed.arg_types {
-        res.push(JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, param_type.clone())?.new_java_value_handle());
+        res.push(JClass::from_type(jvm, int_state, param_type.clone())?.new_java_value_handle());
     }
     let not_owned_elems = res.iter().map(|handle| handle.as_njv()).collect_vec();
     let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(class_type)).unwrap();
@@ -141,7 +140,6 @@ pub mod method {
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::utils::pushable_frame_todo;
 
     pub struct Method<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -159,7 +157,7 @@ pub mod method {
             let clazz = {
                 let field_class_type = method_view.classview().type_();
                 //todo so if we are calling this on int.class that is caught by the unimplemented above.
-                load_class_constant_by_type(jvm, pushable_frame_todo()/*int_state*/, field_class_type)?.cast_class().unwrap()
+                load_class_constant_by_type(jvm, int_state, field_class_type)?.cast_class().unwrap()
             };
             let name = {
                 let name = method_view.name();
@@ -167,12 +165,12 @@ pub mod method {
                     todo!()
                     // return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
                 }
-                JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
+                JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
             };
             let parameter_types = parameters_type_objects(jvm, int_state, &method_view)?;
             let return_type = {
                 let cpdtype = method_view.desc().return_type.clone(); //todo this is a spurious clone
-                JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, cpdtype)?
+                JClass::from_type(jvm, int_state, cpdtype)?
             };
             let exception_types = exception_types_table(jvm, int_state, &method_view)?;
             let modifiers = get_modifiers(&method_view);

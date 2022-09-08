@@ -21,6 +21,7 @@ use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
@@ -37,16 +38,15 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
     let loader_obj = int_state.frame_iter().next()/*previous_frame()*/.unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
-    todo!();/*let current_loader = loader_obj.to_jvm_loader(jvm);
+    let current_loader = loader_obj.to_jvm_loader(jvm);
     let mut guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
-            let mut temp : OpaqueFrame<'gc, '_> = todo!();
-            let runtime_class = match bootstrap_load(jvm, &mut temp/*int_state*/, class_name.into()) {
+            let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
                 Ok(x) => x,
-                Err(WasException {}) => {
-                    assert!(int_state.throw().is_some());
+                Err(WasException { exception_obj }) => {
+                    todo!();
                     return null_mut();
                 }
             };
@@ -59,7 +59,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
         Some(runtime_class) => runtime_class.clone(),
     };
     let mut guard = jvm.classes.write().unwrap();
-    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())*/
+    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())
 }
 
 #[no_mangle]
@@ -92,8 +92,8 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
         None => null_mut(),
         Some(view) => {
             // todo what if name is long/int etc.
-            let res = get_or_create_class_object(jvm, class_name.into(), pushable_frame_todo()/*int_state*/).unwrap(); //todo handle exception
-            new_local_ref_public_new(res.as_allocated_obj().into(), todo!()/*int_state*/)
+            let res = get_or_create_class_object(jvm, class_name.into(), int_state).unwrap(); //todo handle exception
+            new_local_ref_public_new(res.as_allocated_obj().into(), int_state)
         }
     }
 }

@@ -12,6 +12,8 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
+use slow_interpreter::better_java_stack::frames::HasFrame;
+use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
@@ -29,12 +31,11 @@ struct OwnedStackEntry<'gc> {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobject) {
+unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable: jobject) {
     //todo handle opaque frames properly
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    todo!()
-    /*let stacktrace = int_state.frame_iter().collect_vec();
+    let stacktrace = int_state.frame_iter().collect_vec();
     let stack_entry_objs = stacktrace
         .iter()
         .map(|stack_entry| {
@@ -44,7 +45,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             };
 
             let declaring_class_view = declaring_class.view();
-            let method_view = declaring_class_view.method_view_i(stack_entry.method_i(jvm));
+            let method_view = declaring_class_view.method_view_i(stack_entry.method_i());
             let file = match declaring_class_view.sourcefile_attr() {
                 None => Wtf8Buf::from_string("unknown_source".to_string()),
                 Some(sourcefile) => sourcefile.file(),
@@ -74,9 +75,9 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
         .into_iter()
         .flatten()
         .map(|OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }| {
-            let declaring_class_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, class_name_wtf8)?;
-            let method_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, method_name_wtf8)?;
-            let source_file_name = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, source_file_name_wtf8)?;
+            let declaring_class_name = JString::from_rust(jvm, int_state, class_name_wtf8)?;
+            let method_name = JString::from_rust(jvm, int_state, method_name_wtf8)?;
+            let source_file_name = JString::from_rust(jvm, int_state, source_file_name_wtf8)?;
 
             Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
         })
@@ -91,7 +92,7 @@ unsafe extern "system" fn JVM_FillInStackTrace(env: *mut JNIEnv, throwable: jobj
             }
         }),
         stack_entry_objs,
-    );*/
+    );
 }
 
 #[no_mangle]

@@ -82,7 +82,6 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         unimplemented!()
     }
     let target_class_name = target_class.unwrap_class_type();
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
@@ -166,7 +165,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         }
     };
 
-    new_local_ref_public_new(res.as_ref().map(|obj| obj.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(res.as_ref().map(|obj| obj.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

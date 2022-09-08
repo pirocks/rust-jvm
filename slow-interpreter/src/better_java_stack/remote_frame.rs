@@ -1,7 +1,7 @@
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::HasFrame;
+use crate::better_java_stack::frames::{HasFrame, IsOpaque};
 use crate::JVMState;
 
 pub struct RemoteFrame<'gc, 'k> {
@@ -32,8 +32,8 @@ impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> u16 {
-        self.num_locals
+    fn num_locals(&self) -> Result<u16,IsOpaque> {
+        Ok(self.num_locals)
     }
 
     fn max_stack(&self) -> u16 {

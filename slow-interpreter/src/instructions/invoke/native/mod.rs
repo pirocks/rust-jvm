@@ -8,7 +8,7 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
-use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo, WasException};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, WasException};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -95,7 +95,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
             };
             match first_call {
                 Some(r) => r,
-                None => match special_call_overrides(jvm, pushable_frame_todo()/*int_state*/, &class.view().method_view_i(method_i), args) {
+                None => match special_call_overrides(jvm, native_frame, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
                     Err(WasException { exception_obj }) => todo!(),
                 },
@@ -139,7 +139,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
             Some(class) => class,
         };
         let ptype = jclass.as_runtime_class(jvm).cpdtype();
-        check_initing_or_inited_class(jvm, /*int_state*/pushable_frame_todo(), ptype)?;
+        check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
         Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, todo!()/*int_state*/, args)?.into()
@@ -151,7 +151,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         //todo not really sure what to do here, for now nothing
         None
     } else if &mangled == "Java_sun_misc_Perf_createLong" {
-        Some(HeapByteBuffer::new(jvm, todo!()/*int_state*/, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.new_java_value_handle())
+        Some(HeapByteBuffer::new(jvm, int_state, vec![0, 0, 0, 0, 0, 0, 0, 0], 0, 8)?.new_java_value_handle())
         //todo this is incorrect and should be implemented properly.
     } else if &mangled == "Java_sun_misc_Unsafe_pageSize" {
         Some(NewJavaValueHandle::Int(4096)) //todo actually get page size

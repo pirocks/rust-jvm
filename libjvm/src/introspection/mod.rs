@@ -64,7 +64,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces<'gc>(env: *mut JNIEnv, cls: jcl
         .view()
         .interfaces()
         .map(|interface| {
-            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), pushable_frame_todo())?;
+            let class_obj = get_or_create_class_object(jvm, interface.interface_name().into(), int_state)?;
             Ok(class_obj.duplicate_discouraged())
         })
         .collect::<Result<Vec<_>, WasException<'gc>>>()
@@ -78,7 +78,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces<'gc>(env: *mut JNIEnv, cls: jcl
     let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CClassName::class().into()));
     let elems = interface_vec.iter().map(|handle| NewJavaValue::AllocObject(handle.as_allocated_obj())).collect_vec();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }));
-    new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -113,7 +113,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
                 return null_mut();
             }
         }.full_object_ref().into(),
-        int_state
+        int_state,
     )
 }
 
@@ -226,19 +226,23 @@ unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jin
 //      * @return  the execution stack.
 //      */
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassContext(env: *mut JNIEnv) -> jobjectArray {
+unsafe extern "system" fn JVM_GetClassContext<'gc>(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    todo!()
-    /*let jclasses = match int_state.cloned_stack_snapshot(jvm).into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype()))
-        .map(|ptype| get_or_create_class_object(jvm, ptype, pushable_frame_todo())
+    let cloned_stack_iter = int_state.frame_iter().collect_vec();
+    let classes = cloned_stack_iter.into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype())).collect_vec();
+    let jclasses = match classes.into_iter()
+        .map(|ptype| get_or_create_class_object(jvm, ptype, int_state)
             .map(|elem| elem.new_java_handle())
         )
         .collect::<Result<Vec<_>, WasException<'gc>>>() {
         Ok(jclasses) => jclasses,
-        Err(WasException {}) => return null_mut(),
+        Err(WasException { exception_obj }) => {
+            todo!();
+            return null_mut();
+        }
     };
-    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)*/
+    new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
 }
 
 #[no_mangle]

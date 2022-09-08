@@ -10,7 +10,7 @@ use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
-use crate::{JavaValue, JVMState, WasException};
+use crate::{JavaValue, JVMState, PushableFrame, WasException};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::run_function_interpreted;
@@ -89,13 +89,13 @@ impl JavaVMStateWrapperInner {
                 to_recompile,
                 restart_point, pc: _
             } => {
-                exit_impls::compile_function_and_recompile_current(jvm, todo!()/*int_state.unwrap()*/, *current_method_id, *to_recompile, *restart_point)
+                exit_impls::compile_function_and_recompile_current(jvm, int_state.unwrap().current_loader(jvm), *current_method_id, *to_recompile, *restart_point)
             }
             RuntimeVMExitInput::PutStatic { field_id, value_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::put_static(jvm, field_id, value_ptr, return_to_ptr)
             }
             RuntimeVMExitInput::InitClassAndRecompile { class_type, current_method_id, restart_point, pc: _ } => {
-                exit_impls::init_class_and_recompile(jvm, todo!()/*int_state.unwrap()*/, *class_type, *current_method_id, *restart_point)
+                exit_impls::init_class_and_recompile(jvm, int_state.unwrap(), *class_type, *current_method_id, *restart_point)
             }
             RuntimeVMExitInput::AllocatePrimitiveArray { .. } => todo!(),
             RuntimeVMExitInput::LogFramePointerOffsetValue { value, return_to_ptr, pc: _ } => {
@@ -156,7 +156,7 @@ impl JavaVMStateWrapperInner {
                 // exit_impls::run_native_special(jvm, todo!()/*int_state.unwrap()*/, *res_ptr, *arg_start, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, method_shape_id, method_number, interface_id, pc: _ } => {
-                exit_impls::invoke_interface_resolve(jvm, todo!()/*int_state.unwrap()*/, *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id, *interface_id, *method_number)
+                exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id, *interface_id, *method_number)
             }
             RuntimeVMExitInput::Throw { exception_obj_ptr, pc: _ } => {
                 exit_impls::throw_exit(&jvm, todo!()/*int_state.unwrap()*/, *exception_obj_ptr)
@@ -175,7 +175,7 @@ impl JavaVMStateWrapperInner {
                 run_native_special_new(jvm, int_state, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::RunNativeStaticNew { method_id, return_to_ptr } => {
-                run_native_static_new(jvm, todo!()/*int_state*/, *method_id, *return_to_ptr)
+                run_native_static_new(jvm, int_state, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::RunInterpreted { method_id, return_to_ptr } => {
                 let int_state = int_state.unwrap();

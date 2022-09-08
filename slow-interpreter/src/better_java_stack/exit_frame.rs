@@ -9,7 +9,7 @@ use rust_jvm_common::NativeJavaValue;
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -67,7 +67,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> u16 {
+    fn num_locals(&self) -> Result<u16,IsOpaque> {
         todo!()/*self.num_locals*/
     }
 

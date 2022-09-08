@@ -11,7 +11,7 @@ use jvmti_jni_bindings::jlong;
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::interpreter_state::NativeFrameInfo;
@@ -79,7 +79,7 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
         todo!()
     }
 
-    fn num_locals(&self) -> u16 {
+    fn num_locals(&self) -> Result<u16,IsOpaque> {
         todo!()
     }
 

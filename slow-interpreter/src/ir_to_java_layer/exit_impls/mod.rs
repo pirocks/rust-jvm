@@ -21,6 +21,7 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedD
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use stage0::compiler_common::MethodResolver;
@@ -28,7 +29,7 @@ use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, InterpreterStateGuard, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
@@ -80,7 +81,7 @@ pub fn throw_exit<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterState
 #[inline(never)]
 pub fn invoke_interface_resolve<'gc>(
     jvm: &'gc JVMState<'gc>,
-    int_state: &mut InterpreterStateGuard<'gc, '_>,
+    int_state: &mut JavaExitFrame<'gc, '_>,
     return_to_ptr: *const c_void,
     native_method_restart_point: RestartPointID,
     native_method_res: *mut c_void,
@@ -92,7 +93,7 @@ pub fn invoke_interface_resolve<'gc>(
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InvokeInterfaceResolve");
     }
-    let caller_method_id = int_state.current_frame().frame_view.ir_ref.method_id().unwrap();
+    let caller_method_id = int_state.frame_ref().method_id().unwrap();
     let obj_native_jv = unsafe { (object_ref).cast::<NativeJavaValue>().read() };
     let obj_jv_handle = native_to_new_java_value(obj_native_jv, CPDType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
@@ -513,13 +514,12 @@ pub fn log_frame_pointer_offset_value(jvm: &JVMState, value: u64, return_to_ptr:
 }
 
 #[inline(never)]
-pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, class_type: CPDTypeID, current_method_id: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
+pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'l>, class_type: CPDTypeID, current_method_id: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let inited = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
+    let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
@@ -550,11 +550,11 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &
 }
 
 #[inline(never)]
-pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
+pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("CompileFunctionAndRecompileCurrent");
     }
-    let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
+    let method_resolver = MethodResolverImpl { jvm, loader: current_loader };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, to_recompile, false);
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
     let restart_point = jvm.java_vm_state.lookup_restart_point(current_method_id, restart_point);

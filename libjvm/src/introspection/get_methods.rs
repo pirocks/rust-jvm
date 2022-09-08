@@ -51,7 +51,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
     let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -59,7 +59,6 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
     let mut object_array = vec![];
     let methods_owned = methods
@@ -80,7 +79,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::method().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(
         UnAllocatedObjectArray { whole_array_runtime_class, elems: object_array }));
-    unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), todo!()/*int_state*/)) }
+    unsafe { Ok(new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)) }
 }
 
 #[no_mangle]

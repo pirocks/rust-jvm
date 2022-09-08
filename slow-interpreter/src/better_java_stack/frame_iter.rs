@@ -9,7 +9,7 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;
 
 use crate::better_java_stack::FramePointer;
-use crate::better_java_stack::frames::HasFrame;
+use crate::better_java_stack::frames::{HasFrame, IsOpaque};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::JVMState;
 
@@ -35,8 +35,9 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> u16 {
-        todo!()
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
+        let method_id = self.frame_ref().method_id().ok_or(IsOpaque{})?;
+        Ok(self.jvm().num_local_var_slots(method_id))
     }
 
     fn max_stack(&self) -> u16 {

@@ -13,7 +13,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::{JavaThread, JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
@@ -74,8 +74,8 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> u16 {
-        self.num_locals
+    fn num_locals(&self) -> Result<u16,IsOpaque> {
+        Ok(self.num_locals)
     }
 
     fn max_stack(&self) -> u16 {
