@@ -29,7 +29,7 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
-use crate::rust_jni::interface::with_interface;
+use crate::rust_jni::interface::jni::with_jni_interface;
 use crate::rust_jni::native_util::from_object_new;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
 
@@ -108,7 +108,7 @@ pub fn call_impl<'gc, 'l, 'k>(
         args_type.push(to_native_type(&t));
         c_args.push(to_native(int_state, &mut arg_boxes, (*j).clone(), &t));
     }
-    let res = with_interface(jvm, int_state, &mut exception, |env| {
+    let res = with_jni_interface(jvm, int_state, &mut exception, |env| {
         c_args[0] = Arg::new(&env);
         let cif = Cif::new(args_type.into_iter(), match &md.return_type {
             CompressedParsedDescriptorType::BooleanType => Type::u8(),

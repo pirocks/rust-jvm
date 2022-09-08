@@ -18,7 +18,7 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::reflect::method::Method;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValue;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;

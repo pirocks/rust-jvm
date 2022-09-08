@@ -63,6 +63,10 @@ impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         Some(rc)
     }
+
+    pub fn try_pc(&self) -> Option<ByteCodeOffset> {
+        self.pc
+    }
 }
 
 pub struct PreviousFramePointerIter<'vm, 'k> {

@@ -11,9 +11,9 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
-use crate::{JavaValueCommon, JVMState};
+use crate::{JavaValueCommon, JVMState, WasException};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
-use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
+use crate::instructions::invoke::native::{run_native_method};
 use crate::java_values::native_to_new_java_value_rtype;
 
 #[inline(never)]
@@ -40,7 +40,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
     }
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(NativeMethodWasException { prev_rip }) => {
+        Err(WasException { exception_obj }) => {
             todo!()
             /*let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
             int_state.set_throw(None);//todo should move this into throw impl
@@ -78,7 +78,7 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
     }
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
-        Err(NativeMethodWasException { prev_rip }) => {
+        Err(WasException { exception_obj }) => {
             // match jvm.java_vm_state.lookup_ip(prev_rip) {
             //     Some((_method_id, current_pc)) => {
             //         int_state.set_current_pc(Some(current_pc));

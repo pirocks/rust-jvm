@@ -88,6 +88,7 @@ pub mod string_exit_cache;
 pub mod function_instruction_count;
 pub mod better_java_stack;
 pub mod exceptions;
+pub mod jmm;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

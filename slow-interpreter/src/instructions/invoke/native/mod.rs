@@ -53,7 +53,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
     args: Vec<NewJavaValue<'gc, 'k>>,
-) -> Result<Option<NewJavaValueHandle<'gc>>, NativeMethodWasException> {
+) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let view = &class.view();
     assert_inited_or_initing_class(jvm, view.type_());
     let method = view.method_view_i(method_i);
@@ -82,7 +82,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
             match call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
                 Ok(call_res) => call_res,
                 Err(WasException { exception_obj }) => {
-                    return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
+                    return Err(WasException { exception_obj });
                 }
             }
         } else {
@@ -90,7 +90,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 Ok(call_res) => call_res,
                 Err(WasException { exception_obj }) => {
                     dbg!(mangling::mangle(&jvm.string_pool, &method));
-                    return Err(todo!()/*NativeMethodWasException { prev_rip }*/);
+                    return Err(WasException { exception_obj });
                 }
             };
             match first_call {
@@ -108,8 +108,8 @@ pub fn run_native_method<'gc, 'l, 'k>(
         Ok(res) => {
             Ok(res)
         }
-        Err(_) => {
-            Err(NativeMethodWasException { prev_rip: todo!() })
+        Err(WasException{ exception_obj }) => {
+            Err(WasException { exception_obj })
         }
     }
 }

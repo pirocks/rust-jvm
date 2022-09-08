@@ -38,6 +38,10 @@ impl<'gc, 'k> OpaqueFrame<'gc, 'k> {
             stack_depth: None,
         }
     }
+
+    pub(crate) fn stack_guard(&mut self) -> &mut JavaStackGuard<'gc> {
+        self.java_stack
+    }
 }
 
 

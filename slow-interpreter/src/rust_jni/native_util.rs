@@ -10,7 +10,7 @@ use crate::java::lang::class::JClass;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedObject;
-use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {

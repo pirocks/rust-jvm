@@ -17,7 +17,8 @@ use crate::jvm_state::JVMState;
 use method_table::from_jmethod_id;
 use crate::better_java_stack::frames::PushableFrame;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::interface::{get_interpreter_state, get_state, get_throw, push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::interface::{get_interpreter_state, get_state, push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::rust_jni::interface::jni::get_throw;
 use crate::rust_jni::native_util::{from_object_new};
 
 pub mod call_nonstatic;

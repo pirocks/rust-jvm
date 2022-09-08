@@ -6,7 +6,7 @@ use crate::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
 use crate::jvmti::event_callbacks::DebuggerEventConsumer;
-use crate::jvmti::get_state;
+use crate::rust_jni::interface::jvmti::get_state;
 use crate::rust_jni::native_util::from_jclass;
 use crate::threading::JavaThread;
 

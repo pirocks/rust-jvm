@@ -2,7 +2,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{_jobject, JNIEnv, jstring};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::string::intern_impl_unsafe;
 
 #[no_mangle]

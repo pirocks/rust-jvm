@@ -10,7 +10,7 @@ use slow_interpreter::java::lang::class_loader::ClassLoader;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::sun::misc::launcher::ext_class_loader::ExtClassLoader;

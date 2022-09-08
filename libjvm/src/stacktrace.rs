@@ -18,7 +18,7 @@ use slow_interpreter::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 
@@ -56,7 +56,7 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
                     //todo have a lookup function for this
                     let mut cur_line = -1;
                     for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
-                        if let Some(pc) = stack_entry.try_pc(jvm) {
+                        if let Some(pc) = stack_entry.try_pc() {
                             if (*start_pc) <= pc.0 {
                                 cur_line = *line_number as jint;
                             }

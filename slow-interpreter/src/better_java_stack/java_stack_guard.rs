@@ -18,7 +18,7 @@ use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJava
 use crate::exceptions::WasException;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::rust_jni::interface::PerStackJNIInterface;
+use crate::rust_jni::interface::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaStackGuard<'vm> {
@@ -26,7 +26,7 @@ pub struct JavaStackGuard<'vm> {
     guard: Option<MutexGuard<'vm, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>,
     pub java_thread: Arc<JavaThread<'vm>>,
-    per_stack_interface: PerStackJNIInterface,
+    per_stack_interface: PerStackInterfaces,
     current_frame_pointer: FramePointer,
 }
 
@@ -39,7 +39,7 @@ impl<'vm> JavaStackGuard<'vm> {
         &mut self.guard.as_mut().unwrap().owned_ir_stack
     }
 
-    pub(crate) fn stack_jni_interface(&mut self) -> &mut PerStackJNIInterface {
+    pub(crate) fn stack_jni_interface(&mut self) -> &mut PerStackInterfaces {
         &mut self.per_stack_interface
     }
 
@@ -67,7 +67,7 @@ impl<'vm> JavaStackGuard<'vm> {
             guard: Some(guard),
             jvm,
             java_thread,
-            per_stack_interface: PerStackJNIInterface::new(),
+            per_stack_interface: PerStackInterfaces::new(),
             current_frame_pointer: FramePointer(mmapped_top),
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);

@@ -2,7 +2,7 @@ use jvmti_jni_bindings::{jclass, JNIEnv, jobject, JVM_CALLER_DEPTH};
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::interpreter_util::new_object;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_jclass, to_object_new};
 use crate::JVM_GetCallerClass;
 

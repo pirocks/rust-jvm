@@ -16,11 +16,10 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::util::properties::Properties;
 use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jmm::initial_jmm;
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, to_object};
 use slow_interpreter::utils::pushable_frame_todo;
-
-use crate::jvm_management::management_impl::get_jmm_interface;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {
@@ -73,7 +72,7 @@ unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::ra
     eprintln!("Attempt to get jmm which is unsupported");
     JMM.with(|refcell: &RefCell<Option<*const jmmInterface_1_>>| {
         if refcell.borrow().is_none() {
-            *refcell.borrow_mut() = Some(Box::leak(box get_jmm_interface()));
+            *refcell.borrow_mut() = Some(Box::into_raw(box initial_jmm()));
         }
         *refcell.borrow().as_ref().unwrap()
     }) as *mut c_void

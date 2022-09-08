@@ -8,7 +8,7 @@ use jvmti_jni_bindings::{jint, jthread, JVMTI_THREAD_MAX_PRIORITY, JVMTI_THREAD_
 use crate::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::jvmti::{get_jvmti_interface, get_state};
+use crate::rust_jni::interface::jvmti::{get_jvmti_interface, get_state};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::JavaThread;
 
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
             assert!(should_be_nothing.old.is_none());
             jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, todo!()/*&mut int_state*/, java_thread.thread_object());
 
-            let jvmti = get_jvmti_interface(jvm, &mut int_state);
+            let jvmti = get_jvmti_interface(jvm, todo!()/*&mut int_state*/);
             let jni_env = todo!()/*get_interface(jvm, todo!()/*&mut int_state*/, )*/;
             let frame_for_agent = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"agent_frame")*/);
             proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);

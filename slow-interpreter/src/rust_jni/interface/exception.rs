@@ -1,6 +1,7 @@
 use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jthrowable};
 use crate::NewAsObjectOrJavaValue;
-use crate::rust_jni::interface::{get_interpreter_state, get_state, get_throw};
+use crate::rust_jni::interface::{get_interpreter_state, get_state};
+use crate::rust_jni::interface::jni::get_throw;
 
 use crate::rust_jni::interface::local_frame::{new_local_ref_public_new};
 

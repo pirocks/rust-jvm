@@ -6,7 +6,8 @@ use std::sync::atomic::Ordering;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
+use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::runtime_type::{RuntimeType};
 
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
@@ -20,7 +21,8 @@ use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
-use crate::WasException;
+use crate::{NewAsObjectOrJavaValue, WasException};
+use crate::instructions::special::instance_of_exit_impl_impl_impl;
 
 pub mod single_instruction;
 pub mod real_interpreter_state;
@@ -164,29 +166,28 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 }
                 return Ok(res);
             }
-            PostInstructionAction::Exception { .. } => {
-                todo!();/*real_interpreter_state.inner().set_current_pc(None);*/
-                /*assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
+            PostInstructionAction::Exception { exception: WasException{ exception_obj } } => {
+                // real_interpreter_state.inner().set_current_pc(None);
+                assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
                     start_pc,
                     end_pc,
                     handler_pc,
                     catch_type
                 } in code.exception_table.iter() {
-                    let rc = real_interpreter_state.inner().throw().unwrap().runtime_class(jvm);
+                    let rc = exception_obj.full_object_ref().runtime_class(jvm);
                     // dump_frame(&mut real_interpreter_state,&method,code);
                     if *start_pc <= current_offset && current_offset < *end_pc {
                         let matches_class = match catch_type {
                             None => true,
                             Some(class_name) => {
-                                let throw = AllocatedHandle::NormalObject(real_interpreter_state.inner().throw().unwrap().duplicate_discouraged());
+                                let throw = exception_obj.normal_object.as_allocated_obj().duplicate_discouraged();
                                 instance_of_exit_impl_impl_impl(jvm, CompressedParsedRefType::Class(*class_name), rc, &throw) == 1
                             }
                         };
                         if matches_class {
                             current_offset = *handler_pc;
-                            let throw_obj = real_interpreter_state.inner().throw().unwrap().duplicate_discouraged().new_java_handle();
-                            real_interpreter_state.inner().set_throw(None);
+                            let throw_obj = exception_obj.normal_object.duplicate_discouraged().new_java_handle();
                             real_interpreter_state.current_stack_depth_from_start = 0;
                             real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
                             continue 'outer;
@@ -196,7 +197,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 if let Some(monitor) = should_sync{
                     monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
                 }
-                return Err(WasException {});*/
+                return Err(WasException { exception_obj });
             }
             PostInstructionAction::Next { .. } => {
                 current_offset.0 += current_instruct.instruction_size;

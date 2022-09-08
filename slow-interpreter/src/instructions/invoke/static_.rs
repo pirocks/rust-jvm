@@ -14,7 +14,7 @@ use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::find_target_method;
-use crate::instructions::invoke::native::{NativeMethodWasException, run_native_method};
+use crate::instructions::invoke::native::{run_native_method};
 use crate::instructions::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
@@ -140,8 +140,8 @@ pub fn invoke_static_impl<'l, 'gc>(
                 Ok(res) => {
                     Ok(res)
                 }
-                Err(_) => {
-                    Err(WasException { exception_obj: todo!() })
+                Err(WasException{ exception_obj }) => {
+                    Err(WasException { exception_obj })
                 }
             }
         });
@@ -150,8 +150,8 @@ pub fn invoke_static_impl<'l, 'gc>(
             Ok(res) => {
                 Ok(res)
             }
-            Err(NativeMethodWasException { prev_rip }) => {
-                Err(WasException { exception_obj: todo!() })
+            Err(WasException { exception_obj }) => {
+                Err(WasException { exception_obj })
             }
         };
     }

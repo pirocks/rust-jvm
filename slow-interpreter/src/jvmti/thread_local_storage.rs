@@ -3,7 +3,7 @@ use std::os::raw::c_void;
 use jvmti_jni_bindings::{jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvmti::from_object;
-use crate::jvmti::get_state;
+use crate::rust_jni::interface::jvmti::get_state;
 
 ///Get Thread Local Storage
 ///

@@ -1,8 +1,8 @@
 use std::ffi::c_void;
 
 use jvmti_jni_bindings::{jlong, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_MUST_POSSESS_CAPABILITY, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OUT_OF_MEMORY};
+use crate::rust_jni::interface::jvmti::get_state;
 
-use crate::jvmti::get_state;
 
 pub unsafe extern "C" fn allocate(env: *mut jvmtiEnv, size: jlong, mem_ptr: *mut *mut ::std::os::raw::c_uchar) -> jvmtiError {
     let jvm = get_state(env);

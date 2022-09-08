@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::*;
+use crate::rust_jni::interface::jvmti::get_state;
 
-use crate::jvmti::get_state;
 
 pub const JVMTI_INTERFACE_MAJOR_VERSION: u32 = 1;
 pub const JVMTI_INTERFACE_MINOR_VERSION: u32 = 2;

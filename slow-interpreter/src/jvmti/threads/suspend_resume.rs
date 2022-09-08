@@ -4,9 +4,9 @@ use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_E
 use crate::interpreter_state::InterpreterStateGuard;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::jvmti::{get_interpreter_state, get_state};
 use crate::{JavaThread, pushable_frame_todo};
 use crate::java::lang::thread::JThread;
+use crate::rust_jni::interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
 use crate::threading::{ResumeError, SuspendError};
 

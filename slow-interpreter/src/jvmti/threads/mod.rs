@@ -4,8 +4,9 @@ use jvmti_jni_bindings::*;
 use crate::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
-use crate::jvmti::{get_interpreter_state, get_state, universal_error};
+use crate::jvmti::{universal_error};
 use crate::pushable_frame_todo;
+use crate::rust_jni::interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 
 #[macro_export]

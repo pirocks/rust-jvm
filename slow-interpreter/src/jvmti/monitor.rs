@@ -4,8 +4,8 @@ use std::os::raw::c_char;
 use std::time::Duration;
 
 use jvmti_jni_bindings::{jlong, jrawMonitorID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_MONITOR, jvmtiError_JVMTI_ERROR_NONE};
+use crate::rust_jni::interface::jvmti::{get_interpreter_state, get_state};
 
-use crate::jvmti::{get_interpreter_state, get_state};
 use crate::threading::safepoints::Monitor2;
 
 pub unsafe fn monitor_to_raw(monitor: &Monitor2) -> jrawMonitorID {

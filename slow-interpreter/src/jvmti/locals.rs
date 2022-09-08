@@ -5,7 +5,7 @@ use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEn
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
-use crate::jvmti::{get_interpreter_state, get_state};
+use crate::rust_jni::interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::interface::local_frame::new_local_ref_public;
 use crate::stack_entry::StackEntry;
 use crate::threading::JavaThread;

@@ -34,12 +34,12 @@ use slow_interpreter::java::lang::class::JClass;
 use slow_interpreter::java::lang::class_not_found_exception::ClassNotFoundException;
 use slow_interpreter::java::lang::string::JString;
 use slow_interpreter::java::NewAsObjectOrJavaValue;
-use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
+use slow_interpreter::java_values::{ArrayObject, ExceptionReturn, JavaValue, Object};
 use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
-use slow_interpreter::rust_jni::interface::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::interface::util::class_object_to_runtime_class;
@@ -338,8 +338,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
             new_local_ref_public_new(Some(class_object.as_allocated_obj()), int_state)
         }
         Err(WasException { exception_obj }) => {
-            todo!();
-            null_mut()
+            *get_throw(env) = Some(WasException { exception_obj });
+            ExceptionReturn::invalid_default()
         }
     }
 }
