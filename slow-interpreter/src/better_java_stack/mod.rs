@@ -47,7 +47,7 @@ impl FramePointer {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct StackDepth(u16);
+pub struct StackDepth(pub u16);
 
 //needs to keep track of operand stack for interpreter
 //      needs to be viewable by other threads
@@ -90,7 +90,7 @@ impl<'gc> JavaStack<'gc> {
     }
 
     pub fn assert_interpreter_frame_operand_stack_depths_sorted(&self) {
-        assert!(self.interpreter_frame_operand_stack_depths.iter().map(|(frame_ptr, _)| *frame_ptr).is_sorted());
+        assert!(self.interpreter_frame_operand_stack_depths.iter().rev().map(|(frame_ptr, _)| *frame_ptr).is_sorted());
     }
 
     pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {

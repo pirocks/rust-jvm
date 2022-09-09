@@ -10,7 +10,7 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{JavaThread, JavaValueCommon, JVMState, MethodResolverImpl};
-use crate::better_java_stack::{FramePointer, JavaStack};
+use crate::better_java_stack::{FramePointer, InterpreterFrameState, JavaStack, StackDepth};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -144,16 +144,19 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        JavaInterpreterFrame::from_frame_pointer_interpreter(self, next_frame_pointer, |within| {
+        self.notify_frame_push(current_frame_pointer);
+        let res = JavaInterpreterFrame::from_frame_pointer_interpreter(self, next_frame_pointer, |within| {
             within_pushed(within)
-        })
+        });
+        self.notify_frame_pop(current_frame_pointer);
+        res
     }
 
-    pub fn push_frame_native<'k, T>(&'k mut self,
-                                    current_frame_pointer: FramePointer,
-                                    next_frame_pointer: FramePointer,
-                                    stack_entry: NativeFramePush,
-                                    within_pushed: impl FnOnce(&mut NativeFrame<'vm, 'k>) -> Result<T, WasException<'vm>>,
+    pub fn push_frame_native<'k, 'gc, T>(&'k mut self,
+                                         current_frame_pointer: FramePointer,
+                                         next_frame_pointer: FramePointer,
+                                         stack_entry: NativeFramePush,
+                                         within_pushed: impl for<'k2> FnOnce(&mut NativeFrame<'vm, 'k2>) -> Result<T, WasException<'vm>>,
     ) -> Result<T, WasException<'vm>> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
@@ -187,9 +190,11 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
+        self.notify_frame_push(current_frame_pointer);
         let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
-        let res = within_pushed(&mut frame)?;
-        Ok(res)
+        let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
+        self.notify_frame_pop(current_frame_pointer);
+        res
     }
 
     pub fn push_opaque_frame<'k, T>(&'k mut self,
@@ -215,10 +220,12 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
+        self.notify_frame_push(current_frame_pointer);
         let mut frame = OpaqueFrame::new_from_frame_pointer(self, next_frame_pointer);
-        let res = within_pushed(&mut frame)?;
+        let res = within_pushed(&mut frame);
+        self.notify_frame_pop(current_frame_pointer);
         //todo zero the rest
-        Ok(res)
+        res
     }
 
     pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
@@ -228,6 +235,35 @@ impl<'vm> JavaStackGuard<'vm> {
     pub fn lookup_interpreter_pc_offset_with_frame_pointer(&self, frame_pointer: FramePointer) -> Option<ByteCodeOffset> {
         let (_, res) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.iter().find(|(current_frame_pointer, _)| current_frame_pointer == &frame_pointer)?.clone();
         Some(res.current_pc)
+    }
+
+    pub(crate) fn notify_frame_pop(&mut self, pop_to: FramePointer) {
+        loop {
+            let last = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last();
+            match last {
+                Some((last_frame, _)) => {
+                    if pop_to >= *last_frame {
+                        self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.pop().unwrap();
+                    } else {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+    }
+
+    pub(crate) fn notify_frame_push(&mut self, push_address: FramePointer) {
+        self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.push((push_address, InterpreterFrameState {
+            stack_depth: StackDepth(0),
+            current_pc: ByteCodeOffset(0),
+        }))
+    }
+
+    pub(crate) fn update_stack_depth(&mut self, current_pc: ByteCodeOffset, frame_pointer: FramePointer, stack_depth: StackDepth) {
+        let (current_frame_pointer, state_mut) = self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.last_mut().unwrap();
+        state_mut.stack_depth = stack_depth;
+        state_mut.current_pc = current_pc;
     }
 }
 

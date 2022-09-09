@@ -8,11 +8,11 @@ use another_jit_vm_ir::RBPAndRSP;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{MethodI, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodI, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::better_java_stack::{FramePointer, JavaStackGuard};
+use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
 use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::{JavaThread, JVMState, OpaqueFrame, StackEntryPush, WasException};
@@ -23,7 +23,7 @@ use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 //todo need to merge real interpreter state into this and update operand stack depth as needed with java stack guard
 pub struct JavaInterpreterFrame<'gc, 'k> {
-    java_stack: &'k mut JavaStackGuard<'gc>,
+    pub(crate) java_stack: &'k mut JavaStackGuard<'gc>,
     frame_ptr: FramePointer,
     num_locals: u16,
     max_stack: u16,
@@ -52,6 +52,10 @@ impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
         let res = within_native(self.java_stack, rbp_and_rsp);
         self.exit_guest();
         res
+    }
+
+    pub(crate) fn update_stack_depth(&mut self, current_pc: ByteCodeOffset, stack_depth: StackDepth) {
+        self.java_stack.update_stack_depth(current_pc, self.frame_ptr, stack_depth);
     }
 }
 

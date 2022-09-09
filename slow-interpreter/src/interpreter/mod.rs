@@ -22,6 +22,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
 use crate::{NewAsObjectOrJavaValue, WasException};
+use crate::better_java_stack::StackDepth;
 use crate::instructions::special::instance_of_exit_impl_impl_impl;
 
 pub mod single_instruction;
@@ -131,20 +132,20 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let function_counter = jvm.function_execution_count.for_function(method_id);
     let mut current_offset = ByteCodeOffset(0);
     let mut real_interpreter_state = RealInterpreterStateGuard::new(jvm, interpreter_state);
-    let should_sync = if method.is_synchronized(){
-        if method.is_static(){
+    let should_sync = if method.is_synchronized() {
+        if method.is_static() {
             //todo
             let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc);
             let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
-            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            monitor.lock(jvm, real_interpreter_state.inner()).unwrap();
             Some(monitor)
-        }else {
-            let obj = real_interpreter_state.current_frame_mut().local_get(0,RuntimeType::object());
+        } else {
+            let obj = real_interpreter_state.current_frame_mut().local_get(0, RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
-            monitor.lock(jvm,real_interpreter_state.inner()).unwrap();
+            monitor.lock(jvm, real_interpreter_state.inner()).unwrap();
             Some(monitor)
         }
-    }else {
+    } else {
         None
     };
     'outer: loop {
@@ -155,18 +156,20 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
         //     eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
         //     // println!("{}", Backtrace::force_capture());
         // }
+        let stack_depth = StackDepth(real_interpreter_state.current_stack_depth_from_start);
+        real_interpreter_state.inner().update_stack_depth(current_offset, stack_depth);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
             PostInstructionAction::NextOffset { offset_change } => {
                 let next_offset = current_offset.0 as i32 + offset_change;
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
-                if let Some(monitor) = should_sync{
-                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
+                if let Some(monitor) = should_sync {
+                    monitor.unlock(jvm, real_interpreter_state.inner()).unwrap();
                 }
                 return Ok(res);
             }
-            PostInstructionAction::Exception { exception: WasException{ exception_obj } } => {
+            PostInstructionAction::Exception { exception: WasException { exception_obj } } => {
                 // real_interpreter_state.inner().set_current_pc(None);
                 assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
                 for CompressedExceptionTableElem {
@@ -194,8 +197,8 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                         }
                     }
                 }
-                if let Some(monitor) = should_sync{
-                    monitor.unlock(jvm,real_interpreter_state.inner()).unwrap();
+                if let Some(monitor) = should_sync {
+                    monitor.unlock(jvm, real_interpreter_state.inner()).unwrap();
                 }
                 return Err(WasException { exception_obj });
             }
@@ -210,7 +213,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
-    if interpreter_state.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst){
+    if interpreter_state.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
         todo!()
     }
     Ok(())
