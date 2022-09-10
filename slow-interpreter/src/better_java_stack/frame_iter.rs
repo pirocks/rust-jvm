@@ -16,6 +16,7 @@ use crate::JVMState;
 pub struct FrameIterFrameRef<'gc, 'k> {
     java_stack: &'k JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
+    is_interpreted: bool,
     pc: Option<ByteCodeOffset>,
 }
 
@@ -67,6 +68,10 @@ impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
     pub fn try_pc(&self) -> Option<ByteCodeOffset> {
         self.pc
     }
+
+    pub fn is_interpreted(&self) -> bool{
+        self.is_interpreted
+    }
 }
 
 pub struct PreviousFramePointerIter<'vm, 'k> {
@@ -115,12 +120,15 @@ impl<'vm, 'k> Iterator for JavaFrameIterRefNew<'vm, 'k> {
         self.helper.next().map(|ir_frame_ref| {
             let prev_rip = NonNullConst::new(ir_frame_ref.prev_rip()).unwrap();
             let current_frame_pointer = FramePointer(NonNull::new(ir_frame_ref.ptr.as_ptr() as *mut c_void).unwrap());
+            let mut is_interpreted = false;
             if self.current_pc.is_none() {
-                self.current_pc = self.java_stack_guard.lookup_interpreter_pc_offset_with_frame_pointer(current_frame_pointer)
+                self.current_pc = self.java_stack_guard.lookup_interpreter_pc_offset_with_frame_pointer(current_frame_pointer);
+                is_interpreted = true;
             }
             let res = FrameIterFrameRef {
                 java_stack: self.java_stack_guard,
                 frame_pointer: current_frame_pointer,
+                is_interpreted,
                 pc: self.current_pc,
             };
             self.current_rip = Some(prev_rip);

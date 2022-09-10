@@ -134,7 +134,7 @@ impl InterpreterJavaValue {
 pub struct RealInterpreterStateGuard<'gc, 'l, 'k> {
     interpreter_state: &'k mut JavaInterpreterFrame<'gc, 'l>,
     jvm: &'gc JVMState<'gc>,
-    pub current_stack_depth_from_start: u16,
+    pub(crate) current_stack_depth_from_start: u16,
 }
 
 impl<'gc, 'l, 'k> RealInterpreterStateGuard<'gc, 'l, 'k> {
@@ -165,6 +165,11 @@ pub struct InterpreterFrame<'gc, 'l, 'k, 'j> {
 impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
     pub fn inner(&'_ mut self) -> &mut RealInterpreterStateGuard<'gc, 'l, 'k>{
         self.inner
+    }
+
+    pub fn pop_all(&mut self) {
+        self.inner.current_stack_depth_from_start = 0;
+        self.inner.interpreter_state.pop_all();
     }
 
     pub fn pop(&mut self, runtime_type: RuntimeType) -> InterpreterJavaValue {

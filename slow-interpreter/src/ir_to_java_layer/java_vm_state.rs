@@ -26,6 +26,7 @@ use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub struct JavaVMStateWrapper<'vm> {
     pub ir: IRVMState<'vm, JavaStackGuard<'vm>>,
@@ -94,11 +95,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 }
                 Err(err_obj) => {
                     let obj = jvm.gc.register_root_reentrant(jvm, err_obj);
-                    todo!();
-                    // int_state.set_throw(Some(obj));
-                    // int_state.debug_print_stack_trace(jvm);
                     // eprintln!("EXIT RUN METHOD: {}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-                    Err(WasException { exception_obj: todo!() })
+                    Err(WasException { exception_obj: obj.cast_throwable() })
                 }
             }
         });

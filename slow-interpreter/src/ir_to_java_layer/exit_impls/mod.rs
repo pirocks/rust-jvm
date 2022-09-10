@@ -8,6 +8,7 @@ use libc::memset;
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
+use another_jit_vm_ir::ir_stack::read_frame_ir_header;
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
@@ -16,7 +17,8 @@ use jvmti_jni_bindings::{jint, jlong};
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
+use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
@@ -32,11 +34,12 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::instructions::fields::get_static_impl;
 use crate::instructions::invoke::virtual_::virtual_method_lookup;
-use crate::instructions::special::{instance_of_exit_impl};
+use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::java::lang::class::JClass;
+use crate::java::lang::throwable::Throwable;
 use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
@@ -57,7 +60,7 @@ pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut Jav
     let throwable = array_out_of_bounds.object().cast_throwable();
     todo!();/*int_state.set_current_pc(save);
     assert!(int_state.current_pc().is_some());*/
-    throw_impl(&jvm, int_state, throwable.new_java_value_handle(), false)
+    throw_impl(&jvm, int_state, throwable, false)
 }
 
 #[inline(never)]
@@ -71,7 +74,7 @@ pub fn throw_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
     let throwable = exception_obj_handle.cast_throwable();
     // throwable.print_stack_trace(jvm, int_state).unwrap();
     todo!();/*assert!(int_state.current_pc().is_some());*/
-    throw_impl(&jvm, int_state, throwable.new_java_value_handle(), false)
+    throw_impl(&jvm, int_state, throwable, false)
 }
 
 #[inline(never)]
@@ -249,7 +252,7 @@ pub fn monitor_enter<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitF
         eprintln!("MonitorEnter");
     }
     let monitor = jvm.monitor_for(obj_ptr);
-    int_state.to_interpreter_frame(|interpreter_frame|{
+    int_state.to_interpreter_frame(|interpreter_frame| {
         monitor.lock(jvm, interpreter_frame).unwrap();
     });
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
@@ -587,16 +590,12 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, exception_obj_handle: NewJavaValueHandle<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
-    // assert!(int_state.current_pc().is_some() || ignore_this_frame);
-    todo!();/*int_state.set_throw(None);*/
-    let exception_object_handle = exception_obj_handle.unwrap_object_nonnull();
-    let throwable = exception_object_handle.cast_throwable();
+pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, throwable: Throwable<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
     // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     // dbg!(exception_as_string.to_rust_string(jvm));
-    // let exception_obj_rc = &throwable.normal_object.runtime_class(jvm);
-    todo!();/*let mut this_frame = true;
-    for current_frame in int_state.frame_iter::<JavaStackGuard<'gc>>() {
+    let exception_obj_rc = throwable.normal_object.runtime_class(jvm);
+    let mut this_frame = true;
+    for current_frame in int_state.frame_iter() {
         if this_frame && ignore_this_frame {
             this_frame = false;
             continue;
@@ -608,15 +607,18 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
             Some(rc) => rc
         };
         let view = rc.view();
-        let method_i = current_frame.method_i(jvm);
+        let method_i = current_frame.method_i();
         let method_view = view.method_view_i(method_i);
         if let Some(code) = method_view.code_attribute() {
-            let current_pc = match current_frame.try_pc(jvm) {
+            let current_pc = match current_frame.try_pc() {
                 None => {
                     return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
                 }
                 Some(current_pc) => current_pc
             };
+            if current_frame.is_interpreted(){
+                return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
+            }
             for CompressedExceptionTableElem {
                 start_pc,
                 end_pc,
@@ -631,13 +633,14 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
                     eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
-                    let ir_method_id = current_frame.frame_view.ir_ref.ir_method_id().unwrap();
-                    let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
+                    let ir_method_id = current_frame.frame_ref().ir_method_id().unwrap();
+                    let method_id = current_frame.frame_ref().method_id().unwrap();
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);
-                    let handler_rbp = current_frame.frame_view.ir_ref.frame_ptr();
-                    let frame_size = current_frame.frame_view.ir_ref.frame_size(&jvm.java_vm_state.ir);
+                    let handler_rbp = current_frame.frame_ref().frame_ptr();
+                    let frame_size = current_frame.frame_ref().frame_size(&jvm.java_vm_state.ir);
                     let handler_rsp = unsafe { handler_rbp.as_ptr().sub(frame_size) };
-                    let method_resolver = MethodResolverImpl { jvm, loader: current_frame.loader(jvm) };
+                    let loader = LoaderName::BootstrapLoader;//todo
+                    let method_resolver = MethodResolverImpl { jvm, loader };
                     let frame_layout = method_resolver.lookup_method_layout(method_id);
                     let to_write_offset = frame_layout.operand_stack_start();
                     todo!();
@@ -659,7 +662,7 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
         }
         this_frame = false;
     }
-    jvm.perf_metrics.display();*/
+    jvm.perf_metrics.display();
     todo!()
 }
 

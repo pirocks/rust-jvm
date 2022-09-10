@@ -14,6 +14,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::{JavaValueCommon, JVMState, WasException};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::instructions::invoke::native::{run_native_method};
+use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
 
 #[inline(never)]
@@ -91,10 +92,7 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
             //     },
             // };
             exception_obj.print_stack_trace(jvm, int_state).unwrap();
-            todo!()
-            // let exception_obj_handle = int_state.throw().unwrap().duplicate_discouraged();
-            // int_state.set_throw(None);
-            // return throw_impl(jvm, int_state, exception_obj_handle.new_java_handle(), true);
+            return throw_impl(jvm, int_state, exception_obj, true);
         }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();

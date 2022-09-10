@@ -150,6 +150,10 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
         self.current_operand_stack_depth += 1;
     }
 
+    pub fn pop_all(&mut self) {
+        self.current_operand_stack_depth = 0;
+    }
+
     pub fn pop_os(&mut self, expected_type: RuntimeType) -> InterpreterJavaValue {
         if self.current_operand_stack_depth == 0 {
             panic!()

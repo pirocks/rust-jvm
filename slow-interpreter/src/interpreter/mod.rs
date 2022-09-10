@@ -191,7 +191,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                         if matches_class {
                             current_offset = *handler_pc;
                             let throw_obj = exception_obj.normal_object.duplicate_discouraged().new_java_handle();
-                            real_interpreter_state.current_stack_depth_from_start = 0;
+                            real_interpreter_state.current_frame_mut().pop_all();
                             real_interpreter_state.current_frame_mut().push(throw_obj.to_interpreter_jv());
                             continue 'outer;
                         }

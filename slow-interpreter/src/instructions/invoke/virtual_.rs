@@ -80,7 +80,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
             PostInstructionAction::Next {}
         }
         Err(err) => {
-            PostInstructionAction::Exception { exception: WasException { exception_obj: todo!() } }
+            PostInstructionAction::Exception { exception: WasException { exception_obj: err.exception_obj } }
         }
     }
 }
@@ -147,7 +147,6 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
                     Ok(res)
                 }
                 Err(WasException { exception_obj }) => {
-                    todo!();/*assert!(interpreter_state.throw().is_some());*/
                     Err(WasException { exception_obj })
                 }
             }

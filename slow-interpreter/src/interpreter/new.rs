@@ -5,7 +5,6 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle, WasException};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
@@ -69,8 +68,7 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
 }
 
 pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, dims: u8, type_: CPDType) -> PostInstructionAction<'gc> {
-    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
-    if let Err(_) = check_resolved_class(jvm, &mut temp/*int_state.inner()*/, type_) {
+    if let Err(_) = check_resolved_class(jvm, int_state.inner(), type_) {
         return todo!();
     };
     let mut elem_type = type_;
@@ -81,8 +79,7 @@ pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mu
     }
     dimensions.reverse();
     let array_type = type_;
-    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
-    let rc = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, array_type).unwrap();
+    let rc = check_initing_or_inited_class(jvm, int_state.inner(), array_type).unwrap();
     let default = default_value(elem_type);
     let res = multi_new_array_impl(jvm, array_type, dimensions.as_slice(), default.as_njv());
     int_state.current_frame_mut().push(res.to_interpreter_jv());

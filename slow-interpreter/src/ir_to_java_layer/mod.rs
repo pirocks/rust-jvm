@@ -16,6 +16,7 @@ use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
+use crate::ir_to_java_layer::exit_impls::throw_impl;
 
 pub mod java_stack;
 pub mod vm_exit_abi;
@@ -181,22 +182,20 @@ impl JavaVMStateWrapperInner {
                 let int_state = int_state.unwrap();
                 let expected_method_id = int_state.frame_ref().method_id();
                 assert_eq!(expected_method_id, Some(*method_id));
-                int_state.to_interpreter_frame(|java_interpreter_frame|{
-                    match run_function_interpreted(jvm, java_interpreter_frame) {
-                        Ok(res) => {
-                            let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
-                            saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
-                            let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
-                            IRVMExitAction::RestartWithRegisterState { diff }
-                        }
-                        Err(WasException { exception_obj }) => {
-                            todo!();
-                            IRVMExitAction::Exception {
-                                throwable: todo!()/*int_state.throw().unwrap().ptr*/
-                            }
-                        }
+                return match int_state.to_interpreter_frame(|java_interpreter_frame| {
+                    let res = run_function_interpreted(jvm, java_interpreter_frame)?;
+                    let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();
+                    saved_registers_without_ipdiff.rax = res.map(|res| res.to_interpreter_jv().to_raw());
+                    let diff = SavedRegistersWithIPDiff { rip: Some(*return_to_ptr), saved_registers_without_ip: saved_registers_without_ipdiff };
+                    Ok(IRVMExitAction::RestartWithRegisterState { diff })
+                }) {
+                    Ok(ir_vm_exit_action) => {
+                        ir_vm_exit_action
                     }
-                })
+                    Err(WasException { exception_obj }) => {
+                        throw_impl(jvm, int_state, exception_obj, true)
+                    }
+                };
             }
             RuntimeVMExitInput::AssertInstanceOf { res, value, cpdtype_id, return_to_ptr, pc, expected } => {
                 exit_impls::assert_instance_of(jvm, todo!()/*int_state.unwrap()*/, res, value, cpdtype_id, return_to_ptr, *expected)

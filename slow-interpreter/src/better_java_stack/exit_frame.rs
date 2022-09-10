@@ -90,7 +90,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
-        todo!()
+        JavaFrameIterRefNew::new(self.java_stack,self.frame_pointer)
     }
 }
 
