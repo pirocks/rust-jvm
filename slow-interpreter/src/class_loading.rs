@@ -226,7 +226,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
             let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                 Ok(x) => x,
                 Err(_) => {
-                    let class_name_wtf8 = Wtf8Buf::from_string(dbg!(class_name.0.to_str(&jvm.string_pool).to_string()));
+                    let class_name_wtf8 = Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).to_string());
                     let class_name_string = JString::from_rust(jvm, int_state, class_name_wtf8)?;
 
                     let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.full_object();
