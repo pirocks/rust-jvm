@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 memoffset = "0.6"
 rangemap = "1"
-nix = "0.25"
+nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
 libc = "0.2"
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
 

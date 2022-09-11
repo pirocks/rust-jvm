@@ -2,14 +2,16 @@ all places that where previously panics should have warnings
 
 should views hold arc refs, rcs or regular refs
 
-distinguish between ptype and actual jvm type.
 use private static volatile Map<Class<?>,String[]> fieldFilterMap;
-        private static volatile Map<Class<?>,String[]> methodFilterMap;
+private static volatile Map<Class<?>,String[]> methodFilterMap;
 in sun.reflect.Reflection
 
 have function entry tracing as well as instruction
 
-RUSTFLAGS=-Clink-arg=-Wl,--allow-multiple-definition;
-
-
 remove unused random layouts
+
+make remote stacktrace reading actually work
+
+make hidden object fields a thing and intrinsic add for classes
+
+make intrinsic instance of
