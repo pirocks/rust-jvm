@@ -22,8 +22,8 @@ use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, run_main};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::{InterpreterStateGuard, JVMState, NewJavaValue, pushable_frame_todo, run_main};
+use crate::better_java_stack::frames::{HasJavaStack, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::JavaStack;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -545,7 +545,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
-    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
+    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
@@ -555,7 +555,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
+    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>) -> Result<(), WasException<'gc>> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -564,7 +564,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>, without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }
@@ -572,7 +572,7 @@ impl<'gc> JavaThread<'gc> {
         if self.underlying_thread.is_this_thread() {
             todo!();/*assert_eq!(self.java_tid, int_state.thread().java_tid);*/
             if !without_self_suspend {
-                safepoint_check(jvm, todo!()/*int_state*/)?;
+                safepoint_check(jvm, pushable_frame_todo()/*int_state*/)?;
             }
         }
         Ok(())

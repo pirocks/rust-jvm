@@ -132,7 +132,7 @@ pub unsafe extern "C" fn monitor_enter(env: *mut JNIEnv, obj: jobject) -> jint {
         Some(x) => x,
         None => return JNI_ERR,
     }
-        .monitor_lock(jvm, todo!()/*interpreter_state*/);
+        .monitor_lock(jvm, pushable_frame_todo()/*interpreter_state*/);
     JNI_OK as i32
 }
 
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn monitor_exit(env: *mut JNIEnv, obj: jobject) -> jint {
         Some(x) => x,
         None => return JNI_ERR,
     }
-        .monitor_unlock(jvm, todo!()/*int_state*/);
+        .monitor_unlock(jvm, pushable_frame_todo()/*int_state*/);
     JNI_OK as i32
 }
 

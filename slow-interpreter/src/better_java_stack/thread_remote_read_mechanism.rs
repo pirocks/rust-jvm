@@ -3,7 +3,7 @@ use std::hint;
 use std::ptr::null_mut;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 
-use libc::{c_int, c_void};
+use libc::{c_int, c_void, siginfo_t};
 use nix::sys::pthread::{Pthread, pthread_sigqueue, SigVal};
 use nix::sys::signal::{SaFlags, SigAction, sigaction, SigHandler, Signal, SigSet};
 
@@ -70,7 +70,7 @@ extern "C" fn handler(sig: c_int, info: *mut nix::libc::siginfo_t, ucontext: *mu
     };
 }
 
-unsafe fn handler_impl(info: *mut nix::libc::siginfo_t, ucontext: *mut c_void) {
+unsafe fn handler_impl(info: *mut siginfo_t, ucontext: *mut c_void) {
     let si_value = (info.as_ref().unwrap().si_value().sival_ptr as *const SignalAccessibleJavaStackData).as_ref().unwrap();
     if let Err(err) = std::panic::catch_unwind(|| {
         assert!(!si_value.interpreter_should_safepoint_check.load(Ordering::SeqCst));

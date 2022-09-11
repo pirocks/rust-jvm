@@ -3,7 +3,7 @@ use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use crate::better_java_stack::{FramePointer, StackDepth};
-use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::{JVMState, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
@@ -103,5 +103,11 @@ impl<'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k> {
 
     fn push_frame_native<T>(&mut self, java_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame| within_push(java_frame))
+    }
+}
+
+impl <'gc> HasJavaStack<'gc> for OpaqueFrame<'gc, '_>{
+    fn java_stack(&self) -> &JavaStackGuard<'gc> {
+        self.java_stack
     }
 }

@@ -14,7 +14,7 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
     let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
-    monitor.wait(jvm, todo!()/*int_state*/, duration);
+    monitor.wait(jvm, int_state, duration);
 }
 
 #[no_mangle]

@@ -26,10 +26,9 @@ use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frames::{HasJavaStack, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
-use crate::interpreter_state::InterpreterStateGuard;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
@@ -939,13 +938,13 @@ impl<'gc, 'l> Object<'gc, 'l> {
         }
     }
 
-    pub fn monitor_unlock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'k>) {
-        self.monitor().unlock(jvm, todo!()/*int_state*/).unwrap();
+    pub fn monitor_unlock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>) {
+        self.monitor().unlock(jvm, int_state).unwrap();
     }
 
-    pub fn monitor_lock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'k>) {
+    pub fn monitor_lock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>) {
         let monitor_to_lock = self.monitor();
-        monitor_to_lock.lock(jvm, todo!()/*int_state*/).unwrap();
+        monitor_to_lock.lock(jvm, int_state).unwrap();
     }
 }
 

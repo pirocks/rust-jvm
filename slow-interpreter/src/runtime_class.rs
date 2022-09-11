@@ -57,8 +57,8 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
 
     //todo these java frames may have to be converted to native?
     // let new_function_frame = int_state.push_frame(new_stack);
-    int_state.push_frame_java(new_frame, |java_stack_gaurd| {
-        let res = run_function(jvm, java_stack_gaurd)?;
+    int_state.push_frame_java(new_frame, |java_stack_guard| {
+        let res = run_function(jvm, java_stack_guard)?;
         assert!(res.is_none());
         if !jvm.config.compiled_mode_active {}
         Ok(runtime_class)

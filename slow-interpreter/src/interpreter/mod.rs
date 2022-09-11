@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, Comp
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::runtime_type::{RuntimeType};
 
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, HasJavaStack, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
@@ -21,7 +21,7 @@ use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
-use crate::{NewAsObjectOrJavaValue, WasException};
+use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
 use crate::better_java_stack::StackDepth;
 use crate::instructions::special::instance_of_exit_impl_impl_impl;
 
@@ -210,10 +210,10 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<(), WasException<'gc>> {
-    let thread = interpreter_state.thread().clone();
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasJavaStack<'gc>) -> Result<(), WasException<'gc>> {
+    let thread = interpreter_state.java_thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
-    if interpreter_state.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
+    if interpreter_state.java_stack().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
         todo!()
     }
     Ok(())
@@ -245,7 +245,7 @@ pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
             /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
             todo!()
         };
-        monitor.lock(jvm, todo!()/*pushable_frame_todo()*//*int_state*/).unwrap();
+        monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
         monitor.into()
     } else {
         None

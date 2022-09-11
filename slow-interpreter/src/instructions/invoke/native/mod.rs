@@ -69,7 +69,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     let corrected_args = correct_args(owned_args_clone.as_slice());
     let within_frame = |native_frame: &mut NativeFrame<'gc, '_>| {
         if let Some(m) = monitor.as_ref() {
-            m.lock(jvm, todo!()/*native_frame*/).unwrap();
+            m.lock(jvm, native_frame).unwrap();
         }
         let prev_rip = native_frame.frame_ref().prev_rip();
         let result: Option<NewJavaValueHandle<'gc>> = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {

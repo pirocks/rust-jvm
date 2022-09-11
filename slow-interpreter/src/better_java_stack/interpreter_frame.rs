@@ -1,10 +1,9 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
-use std::sync::{Arc};
+use std::sync::Arc;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use another_jit_vm_ir::RBPAndRSP;
-
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use runtime_class_stuff::RuntimeClass;
@@ -12,13 +11,12 @@ use rust_jvm_common::{ByteCodeOffset, MethodI, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
+use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
-use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
-use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
-use crate::{JavaThread, JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
+use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
-use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
+use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 //todo need to merge real interpreter state into this and update operand stack depth as needed with java stack guard
@@ -47,7 +45,7 @@ impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
         self.enter_guest();
         let rbp_and_rsp = RBPAndRSP {
             rbp: self.frame_ptr.as_nonnull(),
-            rsp: self.next_frame_pointer().as_nonnull()
+            rsp: self.next_frame_pointer().as_nonnull(),
         };
         let res = within_native(self.java_stack, rbp_and_rsp);
         self.exit_guest();
@@ -78,7 +76,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> Result<u16,IsOpaque> {
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
         Ok(self.num_locals)
     }
 
@@ -187,14 +185,10 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
     pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
-
-    pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
-        self.java_stack.signal_safe_data()
-    }
-
-    pub fn thread(&self) -> Arc<JavaThread<'gc>> {
-        self.java_stack.java_thread.clone()
-    }
 }
 
-
+impl<'gc, 'k> HasJavaStack<'gc> for JavaInterpreterFrame<'gc, 'k> {
+    fn java_stack(&self) -> &JavaStackGuard<'gc> {
+        self.java_stack
+    }
+}

@@ -138,10 +138,10 @@ impl JavaVMStateWrapperInner {
                 exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::MonitorEnterRegister { obj_ptr, return_to_ptr, pc } => {
-                exit_impls::monitor_enter(jvm, todo!()/*int_state.unwrap()*/, *obj_ptr, *return_to_ptr)
+                exit_impls::monitor_enter(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::MonitorExitRegister { obj_ptr, return_to_ptr, pc } => {
-                exit_impls::monitor_exit(jvm, todo!()/*int_state.unwrap()*/, *obj_ptr, *return_to_ptr)
+                exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_name, cpdtype_id, return_to_ptr, pc: _ } => {
                 exit_impls::get_static(jvm, todo!()/*int_state.unwrap()*/, *value_ptr, *field_name, *cpdtype_id, *return_to_ptr)

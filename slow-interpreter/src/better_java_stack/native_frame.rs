@@ -11,7 +11,7 @@ use jvmti_jni_bindings::jlong;
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
-use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::interpreter_state::NativeFrameInfo;
@@ -121,5 +121,11 @@ impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
 
     fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), native_frame_push, |native_frame| within_push(native_frame))
+    }
+}
+
+impl <'gc,'k> HasJavaStack<'gc> for NativeFrame<'gc, 'k> {
+    fn java_stack(&self) -> &JavaStackGuard<'gc> {
+        self.java_stack
     }
 }

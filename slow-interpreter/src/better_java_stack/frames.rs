@@ -1,11 +1,12 @@
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use std::sync::Arc;
 
-use rust_jvm_common::loading::LoaderName;
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use rust_jvm_common::{MethodI, NativeJavaValue};
+use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
-use crate::better_java_stack::frame_iter::{JavaFrameIterRefNew};
+use crate::{JavaThread, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
+use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
@@ -16,16 +17,14 @@ use crate::java_values::native_to_new_java_value_rtype;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 #[derive(Debug)]
-pub struct IsOpaque{
-
-}
+pub struct IsOpaque {}
 
 pub trait HasFrame<'gc> {
     fn frame_ref(&self) -> IRFrameRef;
     fn frame_mut(&mut self) -> IRFrameMut;
     fn jvm(&self) -> &'gc JVMState<'gc>;
     //todo should just only implement this on some frames so no error needed
-    fn num_locals(&self) -> Result<u16,IsOpaque>;
+    fn num_locals(&self) -> Result<u16, IsOpaque>;
     fn max_stack(&self) -> u16;
     fn next_frame_pointer(&self) -> FramePointer;
     fn debug_assert(&self);
@@ -76,12 +75,12 @@ pub trait HasFrame<'gc> {
         }
     }
 
-    fn is_opaque_method(&self) -> bool{
+    fn is_opaque_method(&self) -> bool {
         let opaque_frame_or_method_id = OpaqueFrameIdOrMethodID::from_native(self.frame_ref().raw_method_id());
         opaque_frame_or_method_id.is_opaque()
     }
 
-    fn method_i(&self) -> MethodI{
+    fn method_i(&self) -> MethodI {
         let method_id = self.frame_ref().method_id().unwrap();
         self.jvm().method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }
@@ -96,4 +95,16 @@ pub trait PushableFrame<'gc>: HasFrame<'gc> {
     fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
+}
+
+pub trait HasJavaStack<'gc> {
+    fn java_stack(&self) -> &JavaStackGuard<'gc>;
+
+    fn java_thread(&self) -> Arc<JavaThread<'gc>> {
+        self.java_stack().java_thread.clone()
+    }
+
+    // fn signal_safe_data(&self) -> &'k SignalAccessibleJavaStackData {
+    //     self.java_stack().signal_safe_data()
+    // }
 }
