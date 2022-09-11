@@ -39,7 +39,7 @@ pub struct JavaCompilerMethodAndFrameData {
     pub current_method_id: MethodId,
     pub local_vars: usize,
     pub should_synchronize: bool,
-    pub is_static: bool
+    pub is_static: bool,
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -55,7 +55,7 @@ impl JavaCompilerMethodAndFrameData {
             current_method_id: method_id,
             local_vars: code.max_locals as usize,
             should_synchronize: method_view.is_synchronized(),
-            is_static: method_view.is_static()
+            is_static: method_view.is_static(),
         }
     }
 
@@ -112,7 +112,7 @@ impl YetAnotherLayoutImpl {
         }
     }
 
-    pub fn operand_stack_start(&self) -> FramePointerOffset{
+    pub fn operand_stack_start(&self) -> FramePointerOffset {
         FramePointerOffset(FRAME_HEADER_END_OFFSET + (self.max_locals) as usize * size_of::<u64>())
     }
 

@@ -1,5 +1,7 @@
 use iced_x86::code_asm::CodeAssembler;
+
 use another_jit_vm::{DoubleRegister, FloatRegister, Register};
+
 use crate::FloatCompareMode;
 
 pub fn float_compare(assembler: &mut CodeAssembler, value1: FloatRegister, value2: FloatRegister, res: Register, one: Register, zero: Register, m_one: Register, compare_mode: FloatCompareMode) {

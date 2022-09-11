@@ -2,8 +2,7 @@ pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
-    use crate::{check_initing_or_inited_class, InterpreterStateGuard, JVMState, NewJavaValue, pushable_frame_todo};
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
+    use crate::{check_initing_or_inited_class, JVMState, NewJavaValue, PushableFrame};
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -22,12 +21,10 @@ pub mod concurrent_hash_map {
     }
 
     impl<'gc> ConcurrentHashMap<'gc> {
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) -> Self {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
-
-            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CClassName::concurrent_hash_map().into()).unwrap();
-            let concurrent_hash_map = new_object_full(jvm, &mut temp/*int_state*/, &concurrent_hash_map_class);
-            run_constructor(jvm, pushable_frame_todo()/*int_state*/, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Self {
+            let concurrent_hash_map_class = check_initing_or_inited_class(jvm, int_state, CClassName::concurrent_hash_map().into()).unwrap();
+            let concurrent_hash_map = new_object_full(jvm, int_state, &concurrent_hash_map_class);
+            run_constructor(jvm, int_state, concurrent_hash_map_class, vec![concurrent_hash_map.new_java_value()], &CMethodDescriptor::void_return(vec![])).unwrap();
             NewJavaValueHandle::Object(concurrent_hash_map).cast_concurrent_hash_map().expect("error creating hashmap")
         }
 
@@ -39,25 +36,25 @@ pub mod concurrent_hash_map {
             self.normal_object.get_var_top_level(jvm, FieldName::field_sizeCtl())
         }
 
-        pub fn put_if_absent(&mut self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, key: NewJavaValue<'gc, '_>, value: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
+        pub fn put_if_absent(&mut self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, key: NewJavaValue<'gc, '_>, value: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
             let desc = CMethodDescriptor {
                 arg_types: vec![CPDType::object(), CPDType::object()],
                 return_type: CPDType::object(),
             };
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
             let args = vec![self.normal_object.new_java_value(), key, value];
-            let res = run_static_or_virtual(jvm, pushable_frame_todo()/*int_state*/, &properties_class, MethodName::method_putIfAbsent(), &desc, args).unwrap();
+            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_putIfAbsent(), &desc, args).unwrap();
             res.unwrap()
         }
 
-        pub fn get(&self, jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>, key: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
+        pub fn get(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, key: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
             let desc = CMethodDescriptor {
                 arg_types: vec![CPDType::object()],
                 return_type: CPDType::object(),
             };
             let properties_class = assert_inited_or_initing_class(jvm, CClassName::concurrent_hash_map().into());
             let args = vec![self.normal_object.new_java_value(), key];
-            let res = run_static_or_virtual(jvm, pushable_frame_todo()/*int_state*/, &properties_class, MethodName::method_get(), &desc, args).unwrap();
+            let res = run_static_or_virtual(jvm, int_state, &properties_class, MethodName::method_get(), &desc, args).unwrap();
             res.unwrap()
         }
 

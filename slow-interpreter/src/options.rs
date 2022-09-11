@@ -151,8 +151,8 @@ impl JVMOptions {
     }
 
     #[cfg(test)]
-    pub fn test_options() -> JVMOptions{
-        JVMOptions{
+    pub fn test_options() -> JVMOptions {
+        JVMOptions {
             main_class_name: ClassName::Str("Main".to_string()),
             classpath: Classpath::from_dirs(vec![]),
             args: vec![],
@@ -165,7 +165,7 @@ impl JVMOptions {
             debug_print_exceptions: false,
             assertions_enabled: false,
             instruction_trace_options: InstructionTraceOptions::TraceNone,
-            exit_trace_options: ExitTracingOptions::TraceNone
+            exit_trace_options: ExitTracingOptions::TraceNone,
         }
     }
 }

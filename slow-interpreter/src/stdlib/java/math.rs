@@ -1,5 +1,4 @@
 pub mod big_integer {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};

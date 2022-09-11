@@ -279,7 +279,6 @@ impl CompressedClassName {
     pub const fn class_signature() -> Self {
         Self::from_raw_id(SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE as AddOnlyVecIDType)
     }
-
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -475,7 +474,7 @@ enum PredefinedStrings {
     method_putIfAbsent,
     method_get,
     method_destructiveMulAdd,
-    SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE
+    SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE,
 }
 
 impl PredefinedStrings {

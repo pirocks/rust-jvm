@@ -3,13 +3,15 @@ pub mod heap_byte_buffer {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
-    use crate::class_loading::assert_inited_or_initing_class;
-
-    use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::java_values::{JavaValue};
-    use crate::jvm_state::JVMState;
-    use crate::new_java_values::{NewJavaValueHandle};
     use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
+    use crate::class_loading::assert_inited_or_initing_class;
+    use crate::interpreter_util::{new_object_full, run_constructor};
+    use crate::java_values::JavaValue;
+    use crate::jvm_state::JVMState;
+    use crate::new_java_values::NewJavaValueHandle;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::java_value_common::JavaValueCommon;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
     pub struct HeapByteBuffer<'gc> {
@@ -42,10 +44,6 @@ pub mod heap_byte_buffer {
 
         // as_object_or_java_value!();
     }
-
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::new_java_values::java_value_common::JavaValueCommon;
-    use crate::new_java_values::owned_casts::OwnedCastAble;
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {

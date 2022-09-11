@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::{jlong, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
-use crate::rust_jni::jni_interface::jvmti::get_state;
 
+use crate::rust_jni::jvmti_interface::get_state;
 
 ///Get Tag
 ///

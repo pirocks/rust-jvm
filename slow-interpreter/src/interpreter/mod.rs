@@ -2,16 +2,18 @@ use std::os::raw::c_void;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
-
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
+use common::special::instance_of_exit_impl_impl_impl;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
-use rust_jvm_common::runtime_type::{RuntimeType};
+use rust_jvm_common::runtime_type::RuntimeType;
 
+use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
 use crate::better_java_stack::frames::{HasFrame, HasJavaStack, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::StackDepth;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
@@ -21,9 +23,6 @@ use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
-use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
-use crate::better_java_stack::StackDepth;
-use common::special::instance_of_exit_impl_impl_impl;
 
 pub mod single_instruction;
 pub mod real_interpreter_state;

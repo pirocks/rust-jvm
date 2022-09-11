@@ -6,23 +6,23 @@ use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel};
+use std::sync::mpsc::channel;
 use std::thread::{LocalKey, Scope};
 use std::time::Duration;
 
 use libloading::Symbol;
 use num_integer::Integer;
+use wtf8::Wtf8Buf;
 
 use another_jit_vm::stack::CannotAllocateStack;
-use another_jit_vm_ir::ir_stack::{OwnedIRStack};
-
+use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::{Thread, Threads};
 
-use crate::{InterpreterStateGuard, JVMState, NewJavaValue, pushable_frame_todo, run_main};
+use crate::{JString, JVMState, NewJavaValue, pushable_frame_todo, run_main, set_properties, System};
 use crate::better_java_stack::frames::{HasJavaStack, PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::JavaStack;
@@ -31,16 +31,15 @@ use crate::better_java_stack::thread_remote_read_mechanism::{sigaction_setup, Si
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class, check_loaded_class};
 use crate::exceptions::WasException;
 use crate::interpreter::{run_function, safepoint_check};
-use crate::interpreter_state::InterpreterState;
 use crate::interpreter_util::new_object_full;
+use crate::jit::MethodResolverImpl;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;
+use crate::rust_jni::jvmti_interface::event_callbacks::ThreadJVMTIEnabledStatus;
+use crate::stack_entry::StackEntryPush;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
-use crate::jit::MethodResolverImpl;
-use crate::rust_jni::jvmti_interface::event_callbacks::ThreadJVMTIEnabledStatus;
-use crate::new_java_values::NewJavaValueHandle;
-use crate::stack_entry::StackEntryPush;
 use crate::threading::safepoints::{Monitor2, SafePoint};
 
 pub struct ThreadState<'gc> {
@@ -52,16 +51,6 @@ pub struct ThreadState<'gc> {
     current_java_thread: &'static LocalKey<RefCell<Option<Arc<JavaThread<'static>>>>>,
     pub system_thread_group: RwLock<Option<JThreadGroup<'gc>>>,
     monitors: RwLock<Vec<Arc<Monitor2>>>,
-    pub(crate) int_state_guard: &'static LocalKey<RefCell<Option<*mut InterpreterStateGuard<'static, 'static>>>>,
-    pub(crate) int_state_guard_valid: &'static LocalKey<RefCell<bool>>,
-}
-
-thread_local! {
-    static INT_STATE_GUARD: RefCell<Option<*mut InterpreterStateGuard<'static,'static>>> = RefCell::new(None);
-}
-
-thread_local! {
-    static INT_STATE_GUARD_VALID: RefCell<bool> = RefCell::new(false);
 }
 
 pub struct MainThreadStartInfo {
@@ -78,8 +67,6 @@ impl<'gc> ThreadState<'gc> {
             current_java_thread: &CURRENT_JAVA_THREAD,
             system_thread_group: RwLock::new(None),
             monitors: RwLock::new(vec![]),
-            int_state_guard: &INT_STATE_GUARD,
-            int_state_guard_valid: &INT_STATE_GUARD_VALID,
         }
     }
 
@@ -186,22 +173,20 @@ impl<'gc> ThreadState<'gc> {
         let init_frame_guard: Result<(), WasException<'gc>> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
             assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
             match run_function(&jvm, java_frame) {
-                Ok(_) => {
-                }
+                Ok(_) => {}
                 Err(_) => todo!(),
             }
             Ok(())
         });
-        /*set_properties(jvm, todo!()).expect("todo");
+        set_properties(jvm, int_state).expect("todo");
         //todo read and copy props here
-        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("java.home".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
-        System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/".to_string())).expect("todo");
+        System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
-        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
-        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string("true".to_string())).expect("todo");
-        System::props(jvm, todo!()).set_property(jvm, java_frame, key, value).expect("todo");
-        todo!()*/
+        let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
+        let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
+        System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
     }
 
     pub fn get_main_thread(&self) -> Arc<JavaThread<'gc>> {
@@ -249,7 +234,7 @@ impl<'gc> ThreadState<'gc> {
             *jvm.thread_state.main_thread.write().unwrap() = main_thread.clone().into();
             main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             main_thread.notify_alive(jvm); //is this too early?
-            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, todo!()/*opaque_frame*/)); // technically this is to late and should have been called earlier, but needs to be on this thread.
+            jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, opaque_frame)); // technically this is to late and should have been called earlier, but needs to be on this thread.
             ThreadState::jvm_init_from_main_thread(jvm, opaque_frame);
 
             assert!(!jvm.live.load(Ordering::SeqCst));
@@ -263,7 +248,7 @@ impl<'gc> ThreadState<'gc> {
             if let Some(jvmti) = jvm.jvmti_state() {
                 jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, main_thread.thread_object())
             }
-            opaque_frame.push_frame_opaque(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame"), |opaque_frame|{
+            opaque_frame.push_frame_opaque(StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "main thread main frame"), |opaque_frame| {
                 run_main(args, jvm, opaque_frame).unwrap();
                 Ok(())
             }).unwrap();
@@ -402,7 +387,6 @@ pub struct JavaThread<'vm> {
     stack_signal_safe_data: Arc<SignalAccessibleJavaStackData>,
     underlying_thread: Thread<'vm>,
     thread_object: RwLock<Option<JThread<'vm>>>,
-    pub interpreter_state: Mutex<InterpreterState<'vm>>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
@@ -433,12 +417,12 @@ impl<'gc> JavaThread<'gc> {
         thread_obj: Option<JThread<'gc>>,
         invisible_to_java: bool,
         to_run: impl for<'l, 'k> FnOnce(Arc<JavaThread<'gc>>, &'l mut OpaqueFrame<'gc, 'k>) -> Result<(), WasException<'gc>> + 'gc,
-    ) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack>{
+    ) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack> {
         let java_thread = Self::new(jvm, thread_obj, invisible_to_java)?;
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
         //todo should run on actual thread.
         let java_thread_clone = java_thread.clone();
-        java_thread_clone.get_underlying().start_thread(box move |_|{
+        java_thread_clone.get_underlying().start_thread(box move |_| {
             JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
                 jvm.thread_state.set_current_thread(java_thread.clone());
                 java_thread.notify_alive(jvm);
@@ -463,14 +447,13 @@ impl<'gc> JavaThread<'gc> {
             }
         };
         let underlying = jvm.thread_state.threads.create_thread(name.into());
-        let java_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new()?, stack_signal_safe_data.clone()));
+        let java_stack = Mutex::new(JavaStack::new(OwnedIRStack::new()?, stack_signal_safe_data.clone()));
         let res = Arc::new(JavaThread {
             java_tid,
             java_stack,
             stack_signal_safe_data,
             underlying_thread: underlying,
             thread_object: RwLock::new(thread_obj),
-            interpreter_state: Mutex::new(InterpreterState::new(jvm).unwrap()),
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
@@ -591,7 +574,7 @@ pub enum ResumeError {
     NotSuspended,
 }
 
-impl <'gc> From<WasException<'gc>> for SuspendError<'gc> {
+impl<'gc> From<WasException<'gc>> for SuspendError<'gc> {
     fn from(we: WasException<'gc>) -> Self {
         Self::WasException(we)
     }

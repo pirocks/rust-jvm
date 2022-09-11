@@ -19,7 +19,6 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::verifier::stackmapframes::get_stack_map_frames;
 use crate::verifier::TypeSafetyError;
 
-
 #[allow(unreachable_code)]
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
@@ -194,7 +193,7 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
         return_type,
         vf,
         debug,
-        max_locals: frame_size as u16
+        max_locals: frame_size as u16,
     };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;

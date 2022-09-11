@@ -1,4 +1,3 @@
-
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
@@ -10,16 +9,12 @@ use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::common::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::new_object;
-use crate::stdlib::java::lang::string::JString;
-use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
-
-fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
-    load_class_constant_by_type(jvm, int_state, type_)
-}
+use crate::stdlib::java::lang::string::JString;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;
@@ -45,7 +40,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
     let (constructor_i, final_target_class) = find_target_method(jvm, todo!()/*interpreter_state*/, MethodName::constructor_init(), &expected_descriptor, string_class);
     let java_frame_push = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
-    let _: Result<(), WasException<'gc>> = interpreter_state.push_frame_java(java_frame_push, |java_frame|{
+    let _: Result<(), WasException<'gc>> = interpreter_state.push_frame_java(java_frame_push, |java_frame| {
         match run_function(jvm, java_frame) {
             Ok(_) => {}
             Err(_) => todo!(),

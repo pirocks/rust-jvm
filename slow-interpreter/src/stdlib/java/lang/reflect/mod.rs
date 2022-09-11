@@ -1,6 +1,5 @@
 use itertools::Itertools;
 
-
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
@@ -8,12 +7,12 @@ use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject, WasException};
-use crate::stdlib::java::lang::class::JClass;
-use crate::stdlib::java::lang::string::JString;
-use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::string::JString;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 /*
 // unofficial modifier flags, used by HotSpot:
@@ -119,7 +118,6 @@ fn parameters_type_objects<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
 pub mod method {
     use wtf8::Wtf8Buf;
 
-
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
@@ -131,15 +129,15 @@ pub mod method {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::stdlib::java::lang::class::JClass;
+    use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
 
     pub struct Method<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -300,7 +298,6 @@ pub mod method {
 }
 
 pub mod constructor {
-
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
@@ -311,15 +308,15 @@ pub mod constructor {
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::stdlib::java::lang::class::JClass;
+    use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
 
     pub struct Constructor<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -447,7 +444,6 @@ pub mod constructor {
 }
 
 pub mod field {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -455,12 +451,12 @@ pub mod field {
     use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::stdlib::java::lang::string::JString;
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
+    use crate::stdlib::java::lang::class::JClass;
+    use crate::stdlib::java::lang::string::JString;
 
     pub struct Field<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,

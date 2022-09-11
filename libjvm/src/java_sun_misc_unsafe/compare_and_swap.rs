@@ -7,7 +7,6 @@ use std::sync::atomic::AtomicPtr;
 
 use libc::c_void;
 
-
 use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};

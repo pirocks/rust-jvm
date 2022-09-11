@@ -6,7 +6,6 @@ use std::sync::{Arc, Mutex, RwLock};
 
 use by_address::ByAddress;
 
-
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNIInvokeInterface_, JNINativeMethod, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
@@ -27,7 +26,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new};
-use crate::utils::{throw_npe};
+use crate::utils::throw_npe;
 use crate::WasException;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {

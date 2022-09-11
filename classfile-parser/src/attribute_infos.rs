@@ -1,3 +1,4 @@
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::{
     Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry,
     MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo,
@@ -5,7 +6,6 @@ use rust_jvm_common::classfile::{
 use rust_jvm_common::classfile::AttributeType::Unknown;
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -292,11 +292,11 @@ fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Anno
     Ok(annotations)
 }
 
-pub fn runtime_annotations_to_bytes(annotations: Vec<Annotation>) -> Vec<u8>{
+pub fn runtime_annotations_to_bytes(annotations: Vec<Annotation>) -> Vec<u8> {
     let mut res = vec![];
     let num_annotations = annotations.len() as u16;
     res.extend_from_slice(&num_annotations.to_be_bytes());
-    for annotation in annotations{
+    for annotation in annotations {
         res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
     }
     res
@@ -326,7 +326,7 @@ fn parse_runtime_parameter_annotations_impl(p: &mut dyn ParsingContext) -> Resul
     Ok(parameter_annotations)
 }
 
-pub fn parameter_annotations_to_bytes(param_annotations: Vec<Vec<Annotation>>) -> Vec<u8>{
+pub fn parameter_annotations_to_bytes(param_annotations: Vec<Vec<Annotation>>) -> Vec<u8> {
     let mut res = vec![];
     let num_parameters = param_annotations.len() as u8;
     res.push(num_parameters);
@@ -425,7 +425,7 @@ fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType,
     Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
 }
 
-pub fn annotation_default_to_bytes(annotations: AnnotationDefault) -> Vec<u8>{
+pub fn annotation_default_to_bytes(annotations: AnnotationDefault) -> Vec<u8> {
     element_value_to_bytes(annotations.default_value)
 }
 

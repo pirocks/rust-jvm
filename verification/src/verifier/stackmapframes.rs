@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
 use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::code::{CompressedAppendFrame, CompressedChopFrame, CompressedFullFrame, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;

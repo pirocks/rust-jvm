@@ -12,7 +12,7 @@ use another_jit_vm::Register;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
-use jvmti_jni_bindings::{jclass};
+use jvmti_jni_bindings::jclass;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -257,7 +257,7 @@ impl MemoryRegions {
         }
     }
 
-    pub fn get_region_header_raw_ptr(&self, id: AllocatedTypeID) -> *const AtomicPtr<RegionHeader>{
+    pub fn get_region_header_raw_ptr(&self, id: AllocatedTypeID) -> *const AtomicPtr<RegionHeader> {
         let other_arc = self.current_region_header[id.0 as usize].clone();
         Arc::into_raw(other_arc)
     }
@@ -297,7 +297,7 @@ impl MemoryRegions {
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         assert_ne!(size, 0);
-        self.current_region_header[region_type.0 as usize].store(region.as_ptr(),Ordering::SeqCst);
+        self.current_region_header[region_type.0 as usize].store(region.as_ptr(), Ordering::SeqCst);
         let res_ptr = unsafe {
             match RegionHeader::get_allocation(region) {
                 Some(x) => x,
@@ -387,7 +387,7 @@ impl MemoryRegions {
                 interface_ids_list: to_allocate_type.interfaces_ptr(),
                 interface_ids_list_len: to_allocate_type.interfaces_len(),
                 inheritance_bit_path_ptr: to_allocate_type.inheritance_bit_vec(),
-                class_pointer_cache: null_mut()
+                class_pointer_cache: null_mut(),
             });
         }
         region_header_ptr

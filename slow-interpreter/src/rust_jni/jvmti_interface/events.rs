@@ -2,12 +2,12 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use jvmti_jni_bindings::*;
-use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
+use crate::rust_jni::jvmti_interface::get_state;
 use crate::rust_jni::jvmti_interface::event_callbacks::DebuggerEventConsumer;
-use crate::rust_jni::jni_interface::jvmti::get_state;
 use crate::rust_jni::native_util::from_jclass;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::threading::JavaThread;
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {

@@ -1,9 +1,8 @@
 use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_OBJECT, jvmtiError_JVMTI_ERROR_NONE};
 
-use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
-use crate::rust_jni::jvmti_interface::{universal_error};
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state, universal_error};
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::WasException;
 
 ///Get Object Hash Code

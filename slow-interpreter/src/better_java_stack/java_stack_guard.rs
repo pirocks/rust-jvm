@@ -98,11 +98,6 @@ impl<'vm> JavaStackGuard<'vm> {
         LoaderName::BootstrapLoader
     }
 
-    fn current_frame_ptr(&self) -> FramePointer {
-        todo!("current_frame_pointer needs updating")
-        /*self.current_frame_pointer*/
-    }
-
     pub fn jvm(&self) -> &'vm JVMState<'vm> {
         self.jvm
     }

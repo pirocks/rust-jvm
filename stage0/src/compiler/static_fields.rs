@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::NativeJavaValue;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
-use crate::compiler::fields::{runtime_type_to_size};
+use crate::compiler::fields::runtime_type_to_size;
 use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn putstatic<'vm>(
@@ -88,12 +88,12 @@ pub fn getstatic<'vm>(
             //         }
             //     }]))
             let class_class = rc.unwrap_class_class();
-            match get_static_from_class_class(method_frame_data, current_instr_data, field_name, restart_point.clone(), class_class){
+            match get_static_from_class_class(method_frame_data, current_instr_data, field_name, restart_point.clone(), class_class) {
                 None => {
                     panic!()
                 }
                 Some(res) => {
-                    return Either::Right(res)
+                    return Either::Right(res);
                 }
             }
         }
@@ -105,23 +105,23 @@ fn get_static_from_class_class<'vm>(
     current_instr_data: &CurrentInstructionCompilerData,
     field_name: FieldName,
     restart_point: IRInstr,
-    class_class: &RuntimeClassClass<'vm>
+    class_class: &RuntimeClassClass<'vm>,
 ) -> Option<impl Iterator<Item=IRInstr>> {
     let static_field_number_and_field_type = match class_class.static_field_numbers.get(&field_name) {
         Some(static_field_number_and_field_type) => static_field_number_and_field_type,
         None => {
             if let Some(parent) = class_class.parent.as_ref() {
-                if let Some(res) = get_static_from_class_class(method_frame_data,current_instr_data, field_name, restart_point.clone(), parent.unwrap_class_class()){
-                    return Some(res)
+                if let Some(res) = get_static_from_class_class(method_frame_data, current_instr_data, field_name, restart_point.clone(), parent.unwrap_class_class()) {
+                    return Some(res);
                 }
             }
             for interface_class in class_class.interfaces.iter() {
-                if let Some(res) = get_static_from_class_class(method_frame_data,current_instr_data, field_name, restart_point.clone(), interface_class.unwrap_class_class()){
-                    return Some(res)
+                if let Some(res) = get_static_from_class_class(method_frame_data, current_instr_data, field_name, restart_point.clone(), interface_class.unwrap_class_class()) {
+                    return Some(res);
                 }
             }
-            return  None
-        },
+            return None;
+        }
     };
     let raw_ptr = class_class.static_vars.raw_ptr();
     let static_number = static_field_number_and_field_type.static_number.0;

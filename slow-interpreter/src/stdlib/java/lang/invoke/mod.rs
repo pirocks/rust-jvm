@@ -1,7 +1,6 @@
 pub mod method_type {
     use std::sync::Arc;
 
-
     use jvmti_jni_bindings::jint;
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
@@ -13,14 +12,14 @@ pub mod method_type {
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::new_object;
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::stdlib::java::lang::class::JClass;
     use crate::stdlib::java::lang::class_loader::ClassLoader;
     use crate::stdlib::java::lang::invoke::method_type_form::MethodTypeForm;
     use crate::stdlib::java::lang::string::JString;
     use crate::stdlib::java::NewAsObjectOrJavaValue;
-    use crate::java_values::JavaValue;
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -170,10 +169,10 @@ pub mod method_type_form {
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::new_object;
-    use crate::stdlib::java::lang::invoke::method_type::MethodType;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::stdlib::java::lang::invoke::method_type::MethodType;
 
     #[derive(Clone)]
     pub struct MethodTypeForm<'gc> {
@@ -225,7 +224,7 @@ pub mod method_type_form {
             method_handles: NewJavaValue<'gc, '_>,
             lambda_forms: NewJavaValue<'gc, '_>,
         ) -> MethodTypeForm<'gc> {
-            let mut temp : OpaqueFrame<'gc, '_> = todo!();
+            let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
             let res_handle = AllocatedHandle::NormalObject(new_object(jvm, pushable_frame_todo()/*int_state*/, &method_type_form));
             let res = res_handle.cast_method_type_form();
@@ -259,20 +258,19 @@ pub mod method_type_form {
 }
 
 pub mod method_handle {
-
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
 
     use crate::{JVMState, NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
     use crate::stdlib::java::lang::invoke::method_handles::lookup::Lookup;
     use crate::stdlib::java::lang::invoke::method_type::MethodType;
     use crate::stdlib::java::lang::member_name::MemberName;
-    use crate::java_values::JavaValue;
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -347,22 +345,21 @@ pub mod method_handles {
     pub mod lookup {
         use std::ops::Deref;
 
-
         use rust_jvm_common::compressed_classfile::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
-        use crate::better_java_stack::frames::PushableFrame;
 
+        use crate::better_java_stack::frames::PushableFrame;
         use crate::class_loading::assert_inited_or_initing_class;
-        use crate::stdlib::java::lang::class::JClass;
-        use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
-        use crate::stdlib::java::lang::invoke::method_type::MethodType;
-        use crate::stdlib::java::lang::string::JString;
-        use crate::stdlib::java::NewAsObjectOrJavaValue;
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
         use crate::new_java_values::owned_casts::OwnedCastAble;
         use crate::runtime_class::static_vars;
+        use crate::stdlib::java::lang::class::JClass;
+        use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
+        use crate::stdlib::java::lang::invoke::method_type::MethodType;
+        use crate::stdlib::java::lang::string::JString;
+        use crate::stdlib::java::NewAsObjectOrJavaValue;
         use crate::utils::run_static_or_virtual;
         use crate::WasException;
 
@@ -437,22 +434,20 @@ pub mod method_handles {
 pub mod lambda_form {
     use rust_jvm_common::compressed_classfile::names::FieldName;
 
-    use crate::stdlib::java::lang::invoke::lambda_form::name::Name;
-    use crate::stdlib::java::lang::member_name::MemberName;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::stdlib::java::lang::invoke::lambda_form::name::Name;
+    use crate::stdlib::java::lang::member_name::MemberName;
 
     pub mod named_function {
-
+        use crate::{NewAsObjectOrJavaValue, WasException};
         use crate::better_java_stack::frames::PushableFrame;
-
-        use crate::stdlib::java::lang::invoke::method_type::MethodType;
-        use crate::stdlib::java::lang::member_name::MemberName;
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-        use crate::{NewAsObjectOrJavaValue, WasException};
+        use crate::stdlib::java::lang::invoke::method_type::MethodType;
+        use crate::stdlib::java::lang::member_name::MemberName;
 
         #[derive(Clone)]
         pub struct NamedFunction<'gc> {
@@ -496,11 +491,11 @@ pub mod lambda_form {
 
         impl<'gc> NewAsObjectOrJavaValue<'gc> for NamedFunction<'gc> {
             fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-                todo!()
+                self.normal_object
             }
 
             fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-                todo!()
+                &self.normal_object
             }
         }
     }
@@ -511,12 +506,12 @@ pub mod lambda_form {
         use jvmti_jni_bindings::jint;
         use rust_jvm_common::compressed_classfile::names::FieldName;
 
-        use crate::stdlib::java::lang::invoke::lambda_form::basic_type::BasicType;
-        use crate::stdlib::java::lang::invoke::lambda_form::named_function::NamedFunction;
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
         use crate::NewJavaValueHandle;
+        use crate::stdlib::java::lang::invoke::lambda_form::basic_type::BasicType;
+        use crate::stdlib::java::lang::invoke::lambda_form::named_function::NamedFunction;
 
         #[derive(Clone)]
         pub struct Name<'gc> {
@@ -590,10 +585,10 @@ pub mod lambda_form {
         use jvmti_jni_bindings::jchar;
         use jvmti_jni_bindings::jint;
 
-        use crate::stdlib::java::lang::class::JClass;
-        use crate::JString;
+        use crate::{JString, NewAsObjectOrJavaValue};
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+        use crate::stdlib::java::lang::class::JClass;
 
         #[derive(Clone)]
         pub struct BasicType<'gc> {
@@ -669,6 +664,16 @@ pub mod lambda_form {
                 self.get_name_or_null(jvm).unwrap()
             }
         }
+
+        impl<'gc> NewAsObjectOrJavaValue<'gc> for BasicType<'gc> {
+            fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+                self.normal_object
+            }
+
+            fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+                &self.normal_object
+            }
+        }
     }
 
     #[derive(Clone)]
@@ -703,18 +708,17 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
+    use crate::{NewAsObjectOrJavaValue, WasException};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter::common::invoke::virtual_::invoke_virtual;
-    use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::{NewAsObjectOrJavaValue, WasException};
-    use crate::better_java_stack::frames::PushableFrame;
+    use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
 
     #[derive(Clone)]
     pub struct CallSite<'gc> {

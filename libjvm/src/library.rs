@@ -8,8 +8,8 @@ use std::str::FromStr;
 
 use jvmti_jni_bindings::{JavaVM, JNI_VERSION_1_8, JNIInvokeInterface_};
 use sketch_jvm_version_of_utf8::{JVMString, PossiblyJVMString, ValidationError};
-use slow_interpreter::rust_jni::invoke_interface::get_state_invoke_interface;
 use slow_interpreter::jvm_state::{JVM, JVMState};
+use slow_interpreter::rust_jni::invoke_interface::get_state_invoke_interface;
 
 static mut INVOKE_INTERFACE: *const JNIInvokeInterface_ = null();
 

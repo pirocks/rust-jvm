@@ -2,12 +2,11 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
-
 use gc_memory_layout_common::layout::ObjectMemoryLayout;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use inheritance_tree::ClassID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType};
+use rust_jvm_common::compressed_classfile::CompressedParsedDescriptorType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 

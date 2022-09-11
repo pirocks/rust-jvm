@@ -25,93 +25,93 @@ impl PerfMetrics {
         }
     }
 
-    pub fn vm_exit_start(&self) -> VMExitGuard{
-        if self.enabled{
+    pub fn vm_exit_start(&self) -> VMExitGuard {
+        if self.enabled {
             // let enter_instant = self.exit_times.enter();
             // VMExitGuard::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             VMExitGuard::Disabled
         }
     }
 
     pub fn vm_exit_get_static(&self) -> GetStaticGuardType {
-        if self.enabled{
+        if self.enabled {
             // let enter_instant = self.get_static_times.enter();
             // GetStaticGuardType::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             GetStaticGuardType::Disabled
         }
     }
 
     pub fn vm_exit_checkcast(&self) -> CheckCastGuardType {
-        if self.enabled{
+        if self.enabled {
             // let enter_instant = self.checkcast_times.enter();
             // CheckCastGuardType::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             CheckCastGuardType::Disabled
         }
     }
 
     pub fn vm_exit_throw(&self) -> ThrowGuardType {
-        if self.enabled{
+        if self.enabled {
             // let enter_instant = self.throw_times.enter();
             // ThrowGuardType::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             ThrowGuardType::Disabled
         }
     }
 
     pub fn vm_exit_allocate_obj(&self) -> AllocateObjectGuardType {
-        if self.enabled{
+        if self.enabled {
             // let enter_instant = self.allocate_object_times.enter();
             // AllocateObjectGuardType::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             AllocateObjectGuardType::Disabled
         }
     }
 
-    pub fn compilation_start(&self) -> CompilationGuard{
-        if self.enabled{
+    pub fn compilation_start(&self) -> CompilationGuard {
+        if self.enabled {
             // let enter_instant = self.compilations.enter();
             // CompilationGuard::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             CompilationGuard::Disabled
         }
     }
 
-    pub fn verifier_start(&self) -> VerifyGuard{
-        if self.enabled{
+    pub fn verifier_start(&self) -> VerifyGuard {
+        if self.enabled {
             // let enter_instant = self.verifier.enter();
             // VerifyGuard::Enabled {
             //     enter_instant,
             //     metrics: self
             // }
             todo!()
-        }else {
+        } else {
             VerifyGuard::Disabled
         }
     }
@@ -136,12 +136,12 @@ impl PerfMetrics {
     }
 }
 
-pub enum CompilationGuard<'l>{
-    Enabled{
+pub enum CompilationGuard<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for CompilationGuard<'_> {
@@ -157,12 +157,12 @@ impl Drop for CompilationGuard<'_> {
     }
 }
 
-pub enum VerifyGuard<'l>{
-    Enabled{
+pub enum VerifyGuard<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for VerifyGuard<'_> {
@@ -178,12 +178,12 @@ impl Drop for VerifyGuard<'_> {
     }
 }
 
-pub enum  VMExitGuard<'l>{
-    Enabled{
+pub enum VMExitGuard<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for VMExitGuard<'_> {
@@ -199,12 +199,12 @@ impl Drop for VMExitGuard<'_> {
     }
 }
 
-pub enum CheckCastGuardType<'l>{
-    Enabled{
+pub enum CheckCastGuardType<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for CheckCastGuardType<'_> {
@@ -221,12 +221,12 @@ impl Drop for CheckCastGuardType<'_> {
 }
 
 
-pub enum GetStaticGuardType<'l>{
-    Enabled{
+pub enum GetStaticGuardType<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for GetStaticGuardType<'_> {
@@ -243,12 +243,12 @@ impl Drop for GetStaticGuardType<'_> {
 }
 
 
-pub enum ThrowGuardType<'l>{
-    Enabled{
+pub enum ThrowGuardType<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for ThrowGuardType<'_> {
@@ -264,12 +264,12 @@ impl Drop for ThrowGuardType<'_> {
     }
 }
 
-pub enum AllocateObjectGuardType<'l>{
-    Enabled{
+pub enum AllocateObjectGuardType<'l> {
+    Enabled {
         enter_instant: !/*StdInstantMicros*/,
-        metrics: &'l PerfMetrics
+        metrics: &'l PerfMetrics,
     },
-    Disabled
+    Disabled,
 }
 
 impl Drop for AllocateObjectGuardType<'_> {

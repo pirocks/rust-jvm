@@ -188,7 +188,7 @@ pub enum IRVMExitType {
         obj: Register,
         java_pc: ByteCodeOffset,
     },
-    MonitorExitRegister{
+    MonitorExitRegister {
         obj: Register,
         java_pc: ByteCodeOffset,
     },
@@ -352,7 +352,7 @@ impl IRVMExitType {
                 assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(GetStatic::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::Todo { java_pc} => {
+            IRVMExitType::Todo { java_pc } => {
                 assembler.mov(rax, RawVMExitType::Todo as u64).unwrap();
                 assembler.mov(Todo::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
@@ -445,7 +445,7 @@ impl IRVMExitType {
                 assembler.lea(MultiAllocateArray::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(MultiAllocateArray::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::RunStaticNativeNew { method_id} => {
+            IRVMExitType::RunStaticNativeNew { method_id } => {
                 assembler.mov(rax, RawVMExitType::RunStaticNativeNew as u64).unwrap();
                 assembler.mov(RunStaticNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
                 // assembler.mov(RunStaticNativeNew::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
@@ -490,7 +490,6 @@ impl IRVMExitType {
                 assembler.lea(MonitorExitRegister::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(MonitorExitRegister::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-
         }
     }
 

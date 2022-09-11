@@ -773,7 +773,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
         CompressedInstructionInfo::lcmp => {
-            two_two_word_in_one_word_out(method_frames,current_index)
+            two_two_word_in_one_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::lconst_0 => {
             two_word_const(method_frames, current_index)
@@ -873,14 +873,14 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
         CompressedInstructionInfo::lneg => {
             two_word_in_two_word_out(method_frames, current_index);
         }
-        CompressedInstructionInfo::lookupswitch(LookupSwitch{ pairs, default }) => {
+        CompressedInstructionInfo::lookupswitch(LookupSwitch { pairs, default }) => {
             let frame = method_frames.nth_frame_mut(current_offset);
-            frame.assert_operand_stack_entry_is(0,SimplifiedVType::OneWord);
+            frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
             let mut operand_stack = frame.operand_stack();
             operand_stack.pop().unwrap().unwrap();
             let default = ByteCodeOffset((current_offset.0 as i32 + *default) as u16);
             method_frames.nth_frame_mut(default).assert_operand_stack_is(operand_stack.clone());
-            for (_,offset) in pairs{
+            for (_, offset) in pairs {
                 let offset = ByteCodeOffset((current_offset.0 as i32 + *offset) as u16);
                 method_frames.nth_frame_mut(offset).assert_operand_stack_is(operand_stack.clone());
             }
@@ -995,14 +995,14 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             let operand_stack = frame.operand_stack();
             next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
         }
-        CompressedInstructionInfo::tableswitch(box TableSwitch{ default, low:_, high:_, offsets }) => {
+        CompressedInstructionInfo::tableswitch(box TableSwitch { default, low: _, high: _, offsets }) => {
             let frame = method_frames.nth_frame_mut(current_offset);
-            frame.assert_operand_stack_entry_is(0,SimplifiedVType::OneWord);
+            frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
             let mut operand_stack = frame.operand_stack();
             operand_stack.pop().unwrap().unwrap();
             let default = ByteCodeOffset((current_offset.0 as i32 + *default) as u16);
             method_frames.nth_frame_mut(default).assert_operand_stack_is(operand_stack.clone());
-            for offset in offsets{
+            for offset in offsets {
                 let offset = ByteCodeOffset((current_offset.0 as i32 + *offset) as u16);
                 method_frames.nth_frame_mut(offset).assert_operand_stack_is(operand_stack.clone());
             }

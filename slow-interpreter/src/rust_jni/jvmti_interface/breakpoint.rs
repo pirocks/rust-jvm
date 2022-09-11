@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 
 use jvmti_jni_bindings::{jlocation, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use method_table::from_jmethod_id;
 use rust_jvm_common::ByteCodeOffset;
 
-use method_table::from_jmethod_id;
-use crate::rust_jni::jni_interface::jvmti::get_state;
+use crate::rust_jni::jvmti_interface::get_state;
 
 pub unsafe extern "C" fn set_breakpoint(env: *mut jvmtiEnv, method: jmethodID, location: jlocation) -> jvmtiError {
     let jvm = get_state(env);

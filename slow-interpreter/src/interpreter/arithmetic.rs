@@ -1,11 +1,12 @@
 use std::num::Wrapping;
 use std::ops::Rem;
+
 use num_traits::Zero;
 
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-
 use crate::jvm_state::JVMState;
 
 pub fn fmul<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
@@ -116,7 +117,7 @@ pub fn iadd<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
 pub fn idiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
-    if value2 == 0{
+    if value2 == 0 {
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Int(((value1 as i64) / (value2 as i64)) as i32));
@@ -139,7 +140,7 @@ pub fn ineg<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
 pub fn irem<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
-    if value2 == 0{
+    if value2 == 0 {
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Int(value1 % value2));
@@ -210,7 +211,7 @@ pub fn ladd<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
 pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
-    if value2 == 0{
+    if value2 == 0 {
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
         todo!()
     }
@@ -221,7 +222,7 @@ pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
 pub fn lrem<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
-    if value2 == 0{
+    if value2 == 0 {
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
     }
     current_frame.push(InterpreterJavaValue::Long(value1 % value2));

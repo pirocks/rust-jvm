@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::sync::RwLock;
+
 use crate::class_list::ClassList;
 use crate::paths::{BitPath256, DoesNotFit, InheritanceClassIDPath, InheritanceTreePath};
 
@@ -14,8 +15,8 @@ pub mod bit_vec_path;
 #[cfg(test)]
 pub mod test;
 
-pub struct InheritanceTree{
-    inner: RwLock<InheritanceTreeInner>
+pub struct InheritanceTree {
+    inner: RwLock<InheritanceTreeInner>,
 }
 
 impl InheritanceTree {
@@ -25,12 +26,12 @@ impl InheritanceTree {
         }
     }
 
-    pub fn insert(&self, class_id_path: &InheritanceClassIDPath) -> Result<BitPath256,DoesNotFit> {
+    pub fn insert(&self, class_id_path: &InheritanceClassIDPath) -> Result<BitPath256, DoesNotFit> {
         let mut write_guard = self.inner.write().unwrap();
         write_guard.insert(class_id_path).to_bit_path256()
     }
 
-    pub fn max_bit_depth(&self) -> usize{
+    pub fn max_bit_depth(&self) -> usize {
         self.inner.read().unwrap().max_bit_depth()
     }
 }
@@ -46,7 +47,7 @@ impl InheritanceTreeInner {
             top_node: InheritanceTreeNode {
                 class_id: object_class_id,
                 sub_classes: ClassList::new_4_stage(),
-                subclass_locations: SubClassLocations::new()
+                subclass_locations: SubClassLocations::new(),
             }
         }
     }
@@ -61,19 +62,19 @@ impl InheritanceTreeInner {
         res
     }
 
-    pub fn max_bit_depth(&self) -> usize{
+    pub fn max_bit_depth(&self) -> usize {
         self.top_node.max_bit_depth()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SubClassLocations{
+pub struct SubClassLocations {
     inner: HashMap<ClassID, Vec<Bit>>,
 }
 
-impl SubClassLocations{
-    pub fn new() -> Self{
-        Self{
+impl SubClassLocations {
+    pub fn new() -> Self {
+        Self {
             inner: HashMap::new()
         }
     }
@@ -96,15 +97,15 @@ impl SubClassLocations{
 pub struct InheritanceTreeNode {
     class_id: ClassID,
     sub_classes: ClassList,
-    subclass_locations: SubClassLocations
+    subclass_locations: SubClassLocations,
 }
 
-impl InheritanceTreeNode{
-    pub fn new(class_id: ClassID) -> Self{
-        Self{
+impl InheritanceTreeNode {
+    pub fn new(class_id: ClassID) -> Self {
+        Self {
             class_id,
             sub_classes: ClassList::new_4_stage(),
-            subclass_locations: SubClassLocations::new()
+            subclass_locations: SubClassLocations::new(),
         }
     }
 
@@ -123,7 +124,7 @@ impl InheritanceTreeNode{
             return if rest.is_empty() {
                 Some(already_present_path)
             } else {
-                match next_node.lookup_class_id_path(&rest){
+                match next_node.lookup_class_id_path(&rest) {
                     None => {
                         None
                     }
@@ -131,7 +132,7 @@ impl InheritanceTreeNode{
                         Some(already_present_path.concat(&next_path))
                     }
                 }
-            }
+            };
         }
         None
     }
@@ -141,25 +142,24 @@ impl InheritanceTreeNode{
         let (class_id, rest) = class_id_path.split_1();
         let already_present_path = if let Some(already_present_path) = self.subclass_locations.lookup_class_id_non_recursive(class_id) {
             already_present_path
-        }else {
+        } else {
             let path = self.sub_classes.insert(class_id);
             self.sub_classes.inheritance_tree_node_at_path_mut(&path);
-            self.subclass_locations.insert(class_id,path);
+            self.subclass_locations.insert(class_id, path);
             self.subclass_locations.lookup_class_id_non_recursive(class_id).unwrap()
         };
 
-        if rest.is_empty(){
-            return
-        }else {
+        if rest.is_empty() {
+            return;
+        } else {
             let next_node = self.sub_classes.inheritance_tree_node_at_path_mut(&already_present_path);
             next_node.insert(&rest)
         }
     }
 
-    pub fn max_bit_depth(&self) -> usize{
+    pub fn max_bit_depth(&self) -> usize {
         self.sub_classes.max_bit_depth()
     }
-
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]

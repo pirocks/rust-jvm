@@ -1,14 +1,12 @@
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
 
 use jvmti_jni_bindings::_jmethodID;
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{MethodId, MethodTableIndex};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-
-use runtime_class_stuff::RuntimeClass;
 
 pub mod interface_table;
 

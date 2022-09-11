@@ -2,9 +2,9 @@ use std::slice::Iter;
 
 use num_traits::FromPrimitive;
 
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::classfile::instruction_info_nums::InstructionTypeNum;
-use rust_jvm_common::ByteCodeOffset;
 
 use crate::ClassfileParsingError;
 

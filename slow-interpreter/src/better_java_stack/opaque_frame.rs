@@ -1,20 +1,22 @@
 use std::ptr::NonNull;
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use crate::better_java_stack::{FramePointer, StackDepth};
-use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
+
 use crate::{JVMState, StackEntryPush, WasException};
+use crate::better_java_stack::{FramePointer};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
+use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct OpaqueFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
-    stack_depth: Option<StackDepth>,
+    //todo opaque frames might need operand stack at some point
+    // stack_depth: Option<StackDepth>,
     //get/set/etc
 }
 
@@ -27,7 +29,7 @@ impl<'gc, 'k> OpaqueFrame<'gc, 'k> {
         Self {
             java_stack,
             frame_pointer: frame_ptr,
-            stack_depth: None,
+            // stack_depth: None,
         }
     }
 
@@ -35,12 +37,8 @@ impl<'gc, 'k> OpaqueFrame<'gc, 'k> {
         Self {
             java_stack,
             frame_pointer,
-            stack_depth: None,
+            // stack_depth: None,
         }
-    }
-
-    pub(crate) fn stack_guard(&mut self) -> &mut JavaStackGuard<'gc> {
-        self.java_stack
     }
 }
 
@@ -106,7 +104,7 @@ impl<'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k> {
     }
 }
 
-impl <'gc> HasJavaStack<'gc> for OpaqueFrame<'gc, '_>{
+impl<'gc> HasJavaStack<'gc> for OpaqueFrame<'gc, '_> {
     fn java_stack(&self) -> &JavaStackGuard<'gc> {
         self.java_stack
     }

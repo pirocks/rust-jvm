@@ -37,14 +37,14 @@ use crate::interpreter::common::invoke::virtual_::virtual_method_lookup;
 use crate::interpreter::common::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
-use crate::stdlib::java::lang::class::JClass;
-use crate::stdlib::java::lang::throwable::Throwable;
 use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::runtime_class::static_vars;
+use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::throwable::Throwable;
 use crate::utils::{lookup_method_parsed, pushable_frame_todo};
 
 pub mod multi_allocate_array;
@@ -162,7 +162,6 @@ pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
             /*int_state.debug_print_stack_trace(jvm);*/
             todo!()
         }
-
     }
     drop(checkcast);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
@@ -609,7 +608,7 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                 }
                 Some(current_pc) => current_pc
             };
-            if current_frame.is_interpreted(){
+            if current_frame.is_interpreted() {
                 return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
             }
             for CompressedExceptionTableElem {

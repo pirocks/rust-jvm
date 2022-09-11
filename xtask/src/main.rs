@@ -1,10 +1,11 @@
 use std::{env, fs};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use anyhow::anyhow;
 
+use anyhow::anyhow;
 use clap::Parser;
 use xshell::{cmd, Shell};
+
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config, XTaskConfig};
 
 #[derive(Parser)]
@@ -34,7 +35,7 @@ pub enum OptsInner {
     Dist {},
 }
 
-fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) ->anyhow::Result<()> {
+fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) -> anyhow::Result<()> {
     let mut config = load_or_create_xtask_config(workspace_dir)?;
     changer(&mut config);
     write_xtask_config(workspace_dir, config)?;

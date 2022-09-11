@@ -282,7 +282,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         let mmaped_top = java_stack_guard.ir_stack().native.mmaped_top;
         let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
         let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
-        let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp), NonNull::new(exiting_stack_pointer).unwrap(),ir_vm_exit_event.exit_type.exiting_pc());
+        let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp), NonNull::new(exiting_stack_pointer).unwrap(), ir_vm_exit_event.exit_type.exiting_pc());
         JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut exit_frame), &ir_vm_exit_event.exit_type)
     }
 }

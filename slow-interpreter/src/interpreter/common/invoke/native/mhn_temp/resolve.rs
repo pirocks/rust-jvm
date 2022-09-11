@@ -1,20 +1,19 @@
 use itertools::Either;
 
-
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;
+use crate::interpreter::common::invoke::dynamic::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::interpreter::common::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::mhn_temp::init::init;
 use crate::interpreter_util::new_object;
-use crate::stdlib::java::lang::member_name::MemberName;
 use crate::java_values::ByAddressAllocatedObject;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::interpreter::common::invoke::dynamic::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
 use crate::rust_jni::jni_interface::misc::get_all_fields;
+use crate::stdlib::java::lang::member_name::MemberName;
 use crate::utils::unwrap_or_npe;
 
 pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

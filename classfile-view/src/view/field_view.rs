@@ -1,4 +1,5 @@
 use wtf8::Wtf8Buf;
+
 use rust_jvm_common::compressed_classfile::{CompressedFieldInfo, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
 
@@ -25,7 +26,7 @@ impl FieldView<'_> {
     }
 
     pub fn signature_attribute(&self) -> Option<Wtf8Buf> {
-        self.view.underlying_class.fields[self.i as usize].signature_attribute_i().map(|i|self.view.underlying_class.constant_pool[i as usize].extract_string_from_utf8())
+        self.view.underlying_class.fields[self.i as usize].signature_attribute_i().map(|i| self.view.underlying_class.constant_pool[i as usize].extract_string_from_utf8())
     }
     pub fn from(c: &ClassBackedView, i: usize) -> FieldView {
         FieldView { view: c, i: i as u16 }

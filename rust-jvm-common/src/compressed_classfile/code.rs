@@ -414,13 +414,13 @@ impl CompressedInstructionInfo {
                 format!("{:?}", self)
             }
             CompressedInstructionInfo::instanceof(type_) => {
-                format!("instanceof:{}",type_.jvm_representation(string_pool))
+                format!("instanceof:{}", type_.jvm_representation(string_pool))
             }
             CompressedInstructionInfo::invokedynamic(_) => {
                 "invokedynamic".to_string()
             }
             CompressedInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => {
-                format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool),count)
+                format!("invokeinterface:{}/{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool), count)
             }
             CompressedInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => {
                 format!("invokespecial:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
@@ -429,7 +429,7 @@ impl CompressedInstructionInfo {
                 format!("invokestatic:{}/{}/{}", classname_ref_type.unwrap_name().0.to_str(string_pool), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
-                format!("invokevirtual:{}/{}/{}", classname_ref_type.try_unwrap_name().map(|name|name.0.to_str(string_pool)).unwrap_or("array".to_string()), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
+                format!("invokevirtual:{}/{}/{}", classname_ref_type.try_unwrap_name().map(|name| name.0.to_str(string_pool)).unwrap_or("array".to_string()), descriptor.jvm_representation(string_pool), method_name.0.to_str(string_pool))
             }
             CompressedInstructionInfo::ior => {
                 format!("{:?}", self)
@@ -571,7 +571,7 @@ impl CompressedInstructionInfo {
                 }
             }
             CompressedInstructionInfo::ldc2_w(ldc_type) => {
-                match ldc_type{
+                match ldc_type {
                     CompressedLdc2W::Long(long) => {
                         format!("ldc2_w:long:{}", long)
                     }
@@ -1400,48 +1400,48 @@ pub enum CompressedLdcW {
     LiveObject(LiveObjectIndex),
 }
 
-impl PartialEq for CompressedLdcW{
+impl PartialEq for CompressedLdcW {
     fn eq(&self, other: &Self) -> bool {
         match self {
             CompressedLdcW::String { str } => {
-                if let CompressedLdcW::String { str: other_str } = other{
-                    return str == other_str
+                if let CompressedLdcW::String { str: other_str } = other {
+                    return str == other_str;
                 }
                 false
             }
             CompressedLdcW::Class { type_ } => {
-                if let CompressedLdcW::Class { type_: other_type } = other{
-                    return type_ == other_type
+                if let CompressedLdcW::Class { type_: other_type } = other {
+                    return type_ == other_type;
                 }
                 false
             }
             CompressedLdcW::Float { float } => {
-                if let CompressedLdcW::Float { float: other_float } = other{
-                    return float == other_float
+                if let CompressedLdcW::Float { float: other_float } = other {
+                    return float == other_float;
                 }
                 false
             }
             CompressedLdcW::Integer { integer } => {
-                if let CompressedLdcW::Integer { integer: other_integer } = other{
-                    return integer == other_integer
+                if let CompressedLdcW::Integer { integer: other_integer } = other {
+                    return integer == other_integer;
                 }
                 false
             }
             CompressedLdcW::MethodType {} => {
-                if let CompressedLdcW::MethodType {} = other{
-                    return true
+                if let CompressedLdcW::MethodType {} = other {
+                    return true;
                 }
                 false
             }
             CompressedLdcW::MethodHandle {} => {
-                if let CompressedLdcW::MethodHandle {} = other{
-                    return true
+                if let CompressedLdcW::MethodHandle {} = other {
+                    return true;
                 }
                 false
             }
             CompressedLdcW::LiveObject(LiveObjectIndex(index)) => {
-                if let CompressedLdcW::LiveObject(LiveObjectIndex(other_index)) = other{
-                    return index == other_index
+                if let CompressedLdcW::LiveObject(LiveObjectIndex(other_index)) = other {
+                    return index == other_index;
                 }
                 false
             }

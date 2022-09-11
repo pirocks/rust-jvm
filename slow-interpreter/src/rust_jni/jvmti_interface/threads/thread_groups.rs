@@ -4,8 +4,8 @@ use jvmti_jni_bindings::{jint, jthreadGroup, jvmtiEnv, jvmtiError, jvmtiError_JV
 
 use crate::java_values::JavaValue;
 use crate::NewAsObjectOrJavaValue;
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 
 ///Get Thread Group Info
 ///

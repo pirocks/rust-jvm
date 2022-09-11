@@ -3,6 +3,7 @@ use another_jit_vm_ir::compiler::IRInstr;
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::MethodId;
+
 use crate::compiler_common::MethodResolver;
 
 pub fn intrinsic_get_class<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {

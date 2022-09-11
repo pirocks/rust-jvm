@@ -1,13 +1,14 @@
 use std::sync::Arc;
+
 use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
-use crate::interpreter_state::InterpreterStateGuard;
+use crate::{JavaThread, pushable_frame_todo};
+use crate::better_java_stack::native_frame::NativeFrame;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
-use crate::{JavaThread, pushable_frame_todo};
-use crate::stdlib::java::lang::thread::JThread;
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
+use crate::stdlib::java::lang::thread::JThread;
 use crate::threading::{ResumeError, SuspendError};
 
 ///Suspend Thread List
@@ -69,7 +70,7 @@ pub unsafe extern "C" fn suspend_thread_list(env: *mut jvmtiEnv, request_count: 
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-unsafe fn suspend_thread_impl<'gc, 'l>(thread_object_raw: jthread, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> jvmtiError {
+unsafe fn suspend_thread_impl<'gc, 'l>(thread_object_raw: jthread, jvm: &'gc JVMState<'gc>, int_state: &'_ mut NativeFrame<'gc, 'l>) -> jvmtiError {
     let jthread: JThread<'gc> = get_thread_or_error!(jvm, thread_object_raw);
     let java_thread: Arc<JavaThread<'gc>> = jthread.get_java_thread(jvm);
     let result = java_thread.suspend_thread(jvm, pushable_frame_todo()/*int_state*/, false);

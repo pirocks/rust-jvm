@@ -68,6 +68,6 @@ unsafe fn new_array<'gc, 'l>(env: *mut JNIEnv, len: i32, elem_type: CPDType) -> 
     let object_array = UnAllocatedObject::new_array(rc, the_vec);
     new_local_ref_public_new(
         Some(jvm.allocate_object(object_array).as_allocated_obj()),
-        int_state
+        int_state,
     )
 }

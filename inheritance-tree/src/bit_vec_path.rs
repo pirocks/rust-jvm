@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ptr::NonNull;
 
-use crate::{BitPath256};
+use crate::BitPath256;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct BitVecPathID(u64);
@@ -30,7 +30,7 @@ impl BitVecPaths {
         new_id
     }
 
-    pub fn get_ptr_from_id(&self, id: BitVecPathID) -> NonNull<BitPath256>{
+    pub fn get_ptr_from_id(&self, id: BitVecPathID) -> NonNull<BitPath256> {
         self.vals[id.0 as usize]
     }
 }

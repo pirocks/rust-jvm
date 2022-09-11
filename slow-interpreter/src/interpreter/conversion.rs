@@ -1,7 +1,7 @@
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-
 use crate::jvm_state::JVMState;
 
 pub fn i2l<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {

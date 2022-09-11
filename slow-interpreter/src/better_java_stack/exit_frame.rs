@@ -19,7 +19,7 @@ pub struct JavaExitFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
     stack_pointer: NonNull<c_void>,
-    current_pc: Option<ByteCodeOffset>
+    current_pc: Option<ByteCodeOffset>,
     // num_locals: u16,
     // max_stack: u16,
     // stack_depth: Option<StackDepth>,
@@ -36,7 +36,7 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
             // max_stack: todo!(),
             // stack_depth: todo!()
             stack_pointer,
-            current_pc
+            current_pc,
         }
     }
 
@@ -73,7 +73,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> Result<u16,IsOpaque> {
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
         todo!()/*self.num_locals*/
     }
 
@@ -96,7 +96,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
-        JavaFrameIterRefNew::new(self.java_stack,self.frame_pointer, self.current_pc)
+        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer, self.current_pc)
     }
 }
 

@@ -7,7 +7,6 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
@@ -23,10 +22,6 @@ use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::stdlib::java::lang::class::JClass;
-use crate::stdlib::java::lang::class_loader::ClassLoader;
-use crate::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
-use crate::stdlib::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
@@ -35,6 +30,10 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::runtime_class::{initialize_class, prepare_class, static_vars};
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::class_loader::ClassLoader;
+use crate::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
+use crate::stdlib::java::lang::string::JString;
 
 //todo only use where spec says
 pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {

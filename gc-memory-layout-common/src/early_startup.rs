@@ -1,9 +1,8 @@
-
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::NonNull;
-use crate::memory_regions::RegionHeader;
 
+use crate::memory_regions::RegionHeader;
 
 pub const MEGABYTE: usize = 1024 * 1024;
 pub const GIGABYTE: usize = 1024 * MEGABYTE;
@@ -36,7 +35,7 @@ pub struct Regions {
 }
 
 impl Regions {
-    pub fn base_regions_address(&self, region: Region) -> NonNull<c_void>{
+    pub fn base_regions_address(&self, region: Region) -> NonNull<c_void> {
         match region {
             Region::Small => self.small_regions,
             Region::Medium => self.medium_regions,
@@ -78,7 +77,7 @@ pub fn get_regions() -> Regions {
     res
 }
 
-#[derive(Copy, Clone,Eq, PartialEq,Hash,Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Region {
     Small,
     Medium,
@@ -86,8 +85,8 @@ pub enum Region {
     ExtraLarge,
 }
 
-impl Region{
-    pub fn bigger(&self) -> Region{
+impl Region {
+    pub fn bigger(&self) -> Region {
         match self {
             Region::Small => Region::Medium,
             Region::Medium => Region::Large,
@@ -111,7 +110,7 @@ pub fn region_pointer_to_region(ptr: u64) -> Region {
     if shifted == EXTRA_LARGE_REGION_BASE as u64 {
         return Region::ExtraLarge;
     }
-    eprintln!("{:X}",ptr);
+    eprintln!("{:X}", ptr);
     panic!()
 }
 

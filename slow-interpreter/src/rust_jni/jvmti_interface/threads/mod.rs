@@ -1,13 +1,13 @@
 use std::ffi::CString;
 
 use jvmti_jni_bindings::*;
-use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 use crate::java_values::JavaValue;
-use crate::rust_jni::jvmti_interface::{universal_error};
 use crate::pushable_frame_todo;
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jvmti_interface::universal_error;
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 #[macro_export]
 macro_rules! get_thread_or_error {

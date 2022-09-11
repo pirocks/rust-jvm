@@ -49,7 +49,7 @@ impl RuntimeType {
         Self::Ref(RuntimeRefType::Class(CClassName::object()))
     }
 
-    pub fn compatible_with_dumb(&self, other: &RuntimeType) -> bool{
+    pub fn compatible_with_dumb(&self, other: &RuntimeType) -> bool {
         match self {
             RuntimeType::IntType => {
                 matches!(other, RuntimeType::IntType)
@@ -108,7 +108,7 @@ impl RuntimeType {
         }
     }
 
-    pub fn try_back_to_cpdtype(&self) -> Option<CPDType>{
+    pub fn try_back_to_cpdtype(&self) -> Option<CPDType> {
         Some(match self {
             RuntimeType::IntType => CPDType::IntType,
             RuntimeType::FloatType => CPDType::FloatType,

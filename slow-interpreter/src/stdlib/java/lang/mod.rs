@@ -1,15 +1,14 @@
 pub mod invoke;
 
 pub mod throwable {
-
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-    use crate::better_java_stack::frames::PushableFrame;
 
+    use crate::{NewAsObjectOrJavaValue, WasException};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::{NewAsObjectOrJavaValue, WasException};
     use crate::utils::run_static_or_virtual;
 
     pub struct Throwable<'gc> {
@@ -43,7 +42,6 @@ pub mod throwable {
 }
 
 pub mod stack_trace_element {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -52,12 +50,12 @@ pub mod stack_trace_element {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
 
     pub struct StackTraceElement<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -93,7 +91,6 @@ pub mod stack_trace_element {
 }
 
 pub mod member_name {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -102,6 +99,8 @@ pub mod member_name {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::stdlib::java::lang::class::JClass;
     use crate::stdlib::java::lang::invoke::method_type::MethodType;
     use crate::stdlib::java::lang::reflect::constructor::Constructor;
@@ -109,8 +108,6 @@ pub mod member_name {
     use crate::stdlib::java::lang::reflect::method::Method;
     use crate::stdlib::java::lang::string::JString;
     use crate::stdlib::java::NewAsObjectOrJavaValue;
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::new_java_values::owned_casts::OwnedCastAble;
     use crate::utils::run_static_or_virtual;
 
     #[derive(Clone)]
@@ -262,7 +259,6 @@ pub mod member_name {
 pub mod class {
     use std::sync::Arc;
 
-
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -273,12 +269,12 @@ pub mod class {
     use crate::class_objects::get_or_create_class_object;
     use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::stdlib::java::lang::class_loader::ClassLoader;
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::stdlib::java::lang::class_loader::ClassLoader;
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::utils::run_static_or_virtual;
 
     pub struct JClass<'gc> {
@@ -399,7 +395,6 @@ pub mod class {
 }
 
 pub mod class_loader {
-
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
     use rust_jvm_common::loading::LoaderName;
@@ -407,13 +402,13 @@ pub mod class_loader {
     use crate::{AllocatedHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::stdlib::java::lang::class::JClass;
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::utils::run_static_or_virtual;
 
     pub struct ClassLoader<'gc> {
@@ -488,7 +483,6 @@ pub mod string {
     use itertools::Itertools;
     use wtf8::Wtf8Buf;
 
-
     use jvmti_jni_bindings::{jchar, jint};
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
@@ -497,11 +491,11 @@ pub mod string {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::utils::run_static_or_virtual;
     use crate::utils::string_obj_to_string;
 
@@ -551,7 +545,7 @@ pub mod string {
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
-            run_constructor(jvm, int_state , string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
+            run_constructor(jvm, int_state, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }
 
@@ -699,7 +693,6 @@ pub mod thread {
 
     use wtf8::Wtf8Buf;
 
-
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CPDType};
@@ -710,15 +703,15 @@ pub mod thread {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
     use crate::interpreter_util::{new_object, run_constructor};
+    use crate::java_values::JavaValue;
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::new_java_values::NewJavaValueHandle;
     use crate::stdlib::java::lang::class_loader::ClassLoader;
     use crate::stdlib::java::lang::string::JString;
     use crate::stdlib::java::lang::thread_group::JThreadGroup;
     use crate::stdlib::java::NewAsObjectOrJavaValue;
-    use crate::java_values::JavaValue;
-    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-    use crate::new_java_values::NewJavaValueHandle;
     use crate::threading::JavaThread;
-    use crate::utils::{run_static_or_virtual};
+    use crate::utils::run_static_or_virtual;
 
     pub struct JThread<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -888,7 +881,6 @@ pub mod thread {
 pub mod thread_group {
     use std::sync::Arc;
 
-
     use jvmti_jni_bindings::{jboolean, jint};
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
@@ -896,12 +888,12 @@ pub mod thread_group {
     use crate::{AllocatedHandle, JavaValueCommon, JVMState, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::stdlib::java::lang::string::JString;
-    use crate::stdlib::java::lang::thread::JThread;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
+    use crate::stdlib::java::lang::string::JString;
+    use crate::stdlib::java::lang::thread::JThread;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
 
     pub struct JThreadGroup<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1001,7 +993,6 @@ pub mod thread_group {
 }
 
 pub mod class_not_found_exception {
-
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
@@ -1009,9 +1000,9 @@ pub mod class_not_found_exception {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object_full, run_constructor};
-    use crate::stdlib::java::lang::string::JString;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::stdlib::java::lang::string::JString;
 
     pub struct ClassNotFoundException<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -1027,7 +1018,7 @@ pub mod class_not_found_exception {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: JString<'gc>) -> Result<ClassNotFoundException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::class_not_found_exception().into())?;
             let this = new_object_full(jvm, int_state, &class_not_found_class);
-            run_constructor(jvm, int_state , class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value(), class.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
             Ok(this.cast_class_not_found_exception())
         }
     }
@@ -1046,43 +1037,50 @@ pub mod class_not_found_exception {
 pub mod null_pointer_exception {
     use wtf8::Wtf8Buf;
 
-
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
-    use crate::better_java_stack::frames::PushableFrame;
 
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::stdlib::java::lang::string::JString;
-    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::utils::pushable_frame_todo;
-    use crate::WasException;
+    use crate::stdlib::java::lang::string::JString;
+    use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
     pub struct NullPointerException<'gc> {
-        normal_object: GcManagedObject<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_null_pointer_exception(&self) -> NullPointerException<'gc> {
-            NullPointerException { normal_object: self.unwrap_object_nonnull() }
+    impl<'gc> NewJavaValueHandle<'gc> {
+        pub fn cast_null_pointer_exception(self) -> NullPointerException<'gc> {
+            NullPointerException { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
         }
     }
 
     impl<'gc> NullPointerException<'gc> {
-
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NullPointerException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::null_pointer_exception().into())?;
-            let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
-            let message = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
-            run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), message.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::string().into()]))?;
-            Ok(this.cast_null_pointer_exception())
+            let this = new_object(jvm, int_state, &class_not_found_class);
+            let message = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
+            let desc = CMethodDescriptor::void_return(vec![CClassName::string().into()]);
+            run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value(), message.new_java_value()], &desc)?;
+            Ok(this.new_java_handle().cast_null_pointer_exception())
+        }
+    }
+
+    impl<'gc> NewAsObjectOrJavaValue<'gc> for NullPointerException<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            &self.normal_object
         }
     }
 }
 
 pub mod array_out_of_bounds_exception {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::CClassName;
@@ -1100,7 +1098,6 @@ pub mod array_out_of_bounds_exception {
     }
 
     impl<'gc> ArrayOutOfBoundsException<'gc> {
-
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<ArrayOutOfBoundsException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::array_out_of_bounds_exception().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class);
@@ -1131,7 +1128,6 @@ pub mod array_out_of_bounds_exception {
 }
 
 pub mod illegal_argument_exception {
-
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::names::CClassName;
 
@@ -1160,7 +1156,6 @@ pub mod illegal_argument_exception {
     }
 
     impl<'gc> IllegalArgumentException<'gc> {
-
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<IllegalArgumentException<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::illegal_argument_exception().into())?;
             let this = new_object_full(jvm, pushable_frame_todo()/*int_state*/, &class_not_found_class);
@@ -1171,7 +1166,7 @@ pub mod illegal_argument_exception {
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for IllegalArgumentException<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-            todo!()
+            self.normal_object.unwrap_normal_object()
         }
 
         fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
@@ -1181,7 +1176,6 @@ pub mod illegal_argument_exception {
 }
 
 pub mod long {
-
     use jvmti_jni_bindings::jlong;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -1239,17 +1233,14 @@ pub mod long {
 }
 
 pub mod int {
-
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
-    use crate::better_java_stack::opaque_frame::OpaqueFrame;
+    use crate::{JavaValueCommon, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::interpreter_state::InterpreterStateGuard;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::JavaValue;
-    use crate::{JavaValueCommon, pushable_frame_todo, WasException};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
@@ -1272,13 +1263,10 @@ pub mod int {
     }
 
     impl<'gc, 'l> Int<'gc> {
-        // as_object_or_java_value!();
-
-        pub fn new<'todo>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>, param: jint) -> Result<Int<'gc>, WasException<'gc>> {
-            let mut temp: OpaqueFrame<'gc, '_> = todo!();
-            let class_not_found_class = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, CClassName::int().into())?;
-            let this = new_object(jvm, pushable_frame_todo()/*int_state*/, &class_not_found_class).to_jv();
-            run_constructor(jvm, pushable_frame_todo()/*int_state*/, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Int(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
+        pub fn new<'todo>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, param: jint) -> Result<Int<'gc>, WasException<'gc>> {
+            let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::int().into())?;
+            let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
+            run_constructor(jvm, int_state, class_not_found_class, todo!()/*vec![this.clone(), JavaValue::Int(param)]*/, &CMethodDescriptor::void_return(vec![CPDType::IntType]))?;
             /*Ok(this.cast_int())*/
             todo!()
         }
@@ -1300,18 +1288,17 @@ pub mod int {
 }
 
 pub mod short {
-
     use jvmti_jni_bindings::jshort;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Short<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1354,18 +1341,17 @@ pub mod short {
 }
 
 pub mod byte {
-
     use jvmti_jni_bindings::jbyte;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Byte<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1408,18 +1394,17 @@ pub mod byte {
 }
 
 pub mod boolean {
-
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Boolean<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1464,18 +1449,17 @@ pub mod boolean {
 }
 
 pub mod char {
-
     use jvmti_jni_bindings::jchar;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Char<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1494,7 +1478,6 @@ pub mod char {
     }
 
     impl<'gc> Char<'gc> {
-
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jchar) -> Result<Char<'gc>, WasException<'gc>> {
             let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::character().into())?;
             let this = new_object(jvm, int_state, &class_not_found_class).to_jv();
@@ -1519,18 +1502,17 @@ pub mod char {
 }
 
 pub mod float {
-
     use jvmti_jni_bindings::jfloat;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
+    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 
     pub struct Float<'gc> {
         normal_object: GcManagedObject<'gc>,
@@ -1573,19 +1555,18 @@ pub mod float {
 }
 
 pub mod double {
-
     use jvmti_jni_bindings::jdouble;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-    use crate::better_java_stack::frames::PushableFrame;
 
+    use crate::{NewAsObjectOrJavaValue, WasException};
+    use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
-    use crate::{NewAsObjectOrJavaValue, WasException};
 
     pub struct Double<'gc> {
         normal_object: GcManagedObject<'gc>,

@@ -1,8 +1,8 @@
 use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::InterpreterFrame;
-
 use crate::jvm_state::JVMState;
 
 pub fn invoke_lookupswitch<'gc, 'j, 'k, 'l>(ls: &LookupSwitch, jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {

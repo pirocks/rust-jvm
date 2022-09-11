@@ -7,7 +7,7 @@ use wtf8::Wtf8Buf;
 pub struct CompressedWtf8String(pub usize);
 
 impl CompressedWtf8String {
-    pub fn to_wtf8(&self, pool: &Wtf8Pool) -> Wtf8Buf{
+    pub fn to_wtf8(&self, pool: &Wtf8Pool) -> Wtf8Buf {
         pool.inner.read().unwrap().indices_to_buf.get(self).unwrap().clone()
     }
 }
@@ -27,7 +27,7 @@ impl Wtf8Pool {
         Self {
             inner: RwLock::new(Wtf8PoolInner {
                 indices_to_buf: Default::default(),
-                buf_to_indices: Default::default()
+                buf_to_indices: Default::default(),
             })
         }
     }
@@ -35,8 +35,8 @@ impl Wtf8Pool {
     pub fn add_entry(&self, wtf8: impl Into<Wtf8Buf>) -> CompressedWtf8String {
         let wtf8 = wtf8.into();
         let mut guard = self.inner.write().unwrap();
-        if let Some(res) =  guard.buf_to_indices.get(&wtf8).cloned(){
-            return res
+        if let Some(res) = guard.buf_to_indices.get(&wtf8).cloned() {
+            return res;
         }
         let index = guard.indices_to_buf.len();
         let res = CompressedWtf8String(index);

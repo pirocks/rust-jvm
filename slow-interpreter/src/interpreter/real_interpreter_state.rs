@@ -1,6 +1,8 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
+
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle};
 use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
@@ -15,7 +17,7 @@ pub enum InterpreterJavaValue {
 }
 
 impl InterpreterJavaValue {
-    pub fn null() -> Self{
+    pub fn null() -> Self {
         Self::Object(None)
     }
 
@@ -75,7 +77,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_int(&self) -> i32{
+    pub fn unwrap_int(&self) -> i32 {
         match self {
             InterpreterJavaValue::Int(int) => {
                 *int
@@ -86,7 +88,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_object(&self) -> Option<NonNull<c_void>>{
+    pub fn unwrap_object(&self) -> Option<NonNull<c_void>> {
         match self {
             InterpreterJavaValue::Object(o) => {
                 *o
@@ -97,7 +99,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_long(&self) -> i64{
+    pub fn unwrap_long(&self) -> i64 {
         match self {
             InterpreterJavaValue::Long(long) => {
                 *long
@@ -108,7 +110,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_float(&self) -> f32{
+    pub fn unwrap_float(&self) -> f32 {
         match self {
             InterpreterJavaValue::Float(float) => {
                 *float
@@ -119,7 +121,7 @@ impl InterpreterJavaValue {
         }
     }
 
-    pub fn unwrap_double(&self) -> f64{
+    pub fn unwrap_double(&self) -> f64 {
         match self {
             InterpreterJavaValue::Double(double) => {
                 *double
@@ -163,7 +165,7 @@ pub struct InterpreterFrame<'gc, 'l, 'k, 'j> {
 }
 
 impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
-    pub fn inner(&'_ mut self) -> &mut RealInterpreterStateGuard<'gc, 'l, 'k>{
+    pub fn inner(&'_ mut self) -> &mut RealInterpreterStateGuard<'gc, 'l, 'k> {
         self.inner
     }
 
@@ -192,13 +194,13 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
         operand_stack.interpreter_get(i, rtype)*/
     }
 
-    pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue)  {
+    pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue) {
         let jvm = self.inner.jvm;
         let new_java_value_handle = local.to_new_java_handle(jvm);
         self.inner.interpreter_state.local_set_njv(i, new_java_value_handle.as_njv())
     }
 
-    pub fn operand_stack_depth(&self) -> u16{
+    pub fn operand_stack_depth(&self) -> u16 {
         self.inner.current_stack_depth_from_start
     }
 }

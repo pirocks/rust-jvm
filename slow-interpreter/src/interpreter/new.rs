@@ -1,4 +1,3 @@
-
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;

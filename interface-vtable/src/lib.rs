@@ -8,16 +8,18 @@ use std::mem::size_of;
 use std::ops::Deref;
 use std::ptr::{NonNull, slice_from_raw_parts, slice_from_raw_parts_mut};
 use std::sync::Arc;
+
 use by_address::ByAddress;
-use iced_x86::code_asm::{CodeAssembler};
+use iced_x86::code_asm::CodeAssembler;
 use itertools::Itertools;
 use memoffset::offset_of;
+
 use another_jit_vm::{IRMethodID, Register};
 use method_table::interface_table::{InterfaceID, InterfaceTable};
+use runtime_class_stuff::RuntimeClass;
 use runtime_class_stuff::method_numbers::MethodNumber;
-use runtime_class_stuff::{RuntimeClass};
-use rust_jvm_common::compressed_classfile::{CPDTypeOrderWrapper};
-use rust_jvm_common::compressed_classfile::names::{CClassName};
+use rust_jvm_common::compressed_classfile::CPDTypeOrderWrapper;
+use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
 pub mod lookup_cache;
@@ -97,7 +99,7 @@ impl ITableEntry {
         unsafe {
             ITableEntry::Ref {
                 interface_id: raw.interface_id,
-                vtable: &mut*slice_from_raw_parts_mut(raw.vtable_ptr, raw.vtable_len),
+                vtable: &mut *slice_from_raw_parts_mut(raw.vtable_ptr, raw.vtable_len),
             }
         }
     }
@@ -287,12 +289,12 @@ pub fn generate_itable_access(
     temp_3: Register,
     address: Register,
 ) {
-    assert_ne!(temp_1,temp_2);
-    assert_ne!(temp_1,temp_3);
-    assert_ne!(temp_2,temp_3);
-    assert_ne!(address,temp_3);
-    assert_ne!(address,temp_2);
-    assert_ne!(address,temp_1);
+    assert_ne!(temp_1, temp_2);
+    assert_ne!(temp_1, temp_3);
+    assert_ne!(temp_2, temp_3);
+    assert_ne!(address, temp_3);
+    assert_ne!(address, temp_2);
+    assert_ne!(address, temp_1);
     let ptr_val = temp_1;
     let mut interface_found = assembler.create_label();
     let mut loop_start = assembler.create_label();

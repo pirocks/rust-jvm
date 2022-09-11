@@ -1,4 +1,5 @@
 use wtf8::Wtf8Buf;
+
 use classfile_parser::attribute_infos::{annotation_default_to_bytes, parameter_annotations_to_bytes, runtime_annotations_to_bytes};
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
 use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};

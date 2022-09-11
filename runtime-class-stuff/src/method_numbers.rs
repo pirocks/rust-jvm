@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use itertools::Itertools;
 
-
-use classfile_view::view::{ClassView};
+use classfile_view::view::ClassView;
 use rust_jvm_common::method_shape::{MethodShape, ShapeOrderWrapperOwned};
 
 use crate::RuntimeClass;
@@ -53,7 +53,7 @@ fn get_method_numbers_recurse<'gc>(class_view: &Arc<dyn ClassView>, parent: &Opt
         get_method_numbers_recurse(&class_class.class_view, &None, class_class.interfaces.as_slice(), method_number_mappings);
     }
 
-    for method_shape in class_view.methods().map(|method|ShapeOrderWrapperOwned(method.method_shape())).sorted() {
+    for method_shape in class_view.methods().map(|method| ShapeOrderWrapperOwned(method.method_shape())).sorted() {
         method_number_mappings.sink_method(method_shape.0);
     }
 }

@@ -37,7 +37,7 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     }
 
     fn num_locals(&self) -> Result<u16, IsOpaque> {
-        let method_id = self.frame_ref().method_id().ok_or(IsOpaque{})?;
+        let method_id = self.frame_ref().method_id().ok_or(IsOpaque {})?;
         Ok(self.jvm().num_local_var_slots(method_id))
     }
 
@@ -69,7 +69,7 @@ impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
         self.pc
     }
 
-    pub fn is_interpreted(&self) -> bool{
+    pub fn is_interpreted(&self) -> bool {
         self.is_interpreted
     }
 }

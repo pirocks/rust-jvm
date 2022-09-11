@@ -1,9 +1,11 @@
 use std::ptr::null_mut;
+
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::NativeJavaValue;
+
 use crate::{JavaValue, NewJavaValue};
 
-pub trait JavaValueCommon<'gc>{
+pub trait JavaValueCommon<'gc> {
     fn as_njv(&self) -> NewJavaValue<'gc, '_>;
 
     fn to_jv(&self) -> JavaValue<'gc> {

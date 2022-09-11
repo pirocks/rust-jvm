@@ -5,18 +5,17 @@ use std::ptr::null_mut;
 use std::sync::{Arc, Mutex};
 use std::thread::Scope;
 
-
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use gc_memory_layout_common::early_startup::get_regions;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use xtask::{load_xtask_config, XTaskConfig};
 
+use crate::{JVMState, StackEntryPush};
 use crate::better_java_stack::{JavaStack, JavaStackGuard};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::java_values::GC;
-use crate::{JVMState, StackEntryPush};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::loading::Classpath;
 use crate::options::JVMOptions;
 use crate::stack_entry::JavaFramePush;
@@ -38,7 +37,8 @@ pub fn within<'gc>(scope: &'_ Scope<'_, 'gc>, xtask: &XTaskConfig, gc: &GC, stri
     unsafe {
         let jvm: &'gc JVMState<'gc> = transmute(&jvm);
         jvm.java_vm_state.init(jvm);
-        func(jvm); }
+        func(jvm);
+    }
 }
 
 fn this_dir() -> PathBuf {
@@ -55,20 +55,19 @@ pub fn test() {
     let xtask = load_xtask_config(&workspace_dir).unwrap().expect("No xtask config found.");
     unsafe {
         with_jvm(&xtask, |jvm| {
-            let new_stack = Mutex::new(JavaStack::new(jvm, OwnedIRStack::new().unwrap(), Arc::new(SignalAccessibleJavaStackData::new())));
-            JavaStackGuard::new_from_empty_stack(jvm, transmute(&new_stack), |opaque_frame|{
+            let new_stack = Mutex::new(JavaStack::new(OwnedIRStack::new().unwrap(), Arc::new(SignalAccessibleJavaStackData::new())));
+            JavaStackGuard::new_from_empty_stack(jvm, transmute(&new_stack), |opaque_frame| {
                 opaque_frame.debug_assert();
-                opaque_frame.push_frame(StackEntryPush::Java(JavaFramePush{
+                opaque_frame.push_frame(StackEntryPush::Java(JavaFramePush {
                     method_id: 0,
                     local_vars: vec![],
-                    operand_stack: vec![]
-                }), |new_guard|{
+                    operand_stack: vec![],
+                }), |new_guard| {
                     let res: jobject = null_mut();
                     Ok(res)
                 }).unwrap();
                 Ok(())
             }).unwrap();
-
         })
     }
 }

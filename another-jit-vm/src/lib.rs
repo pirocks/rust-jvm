@@ -420,7 +420,7 @@ impl<'vm, T> VMState<'vm, T> {
                     xsave_area: [0; 64],
                 },
             },
-            intrinsic_helpers: IntrinsicHelpers::new()
+            intrinsic_helpers: IntrinsicHelpers::new(),
         };
         let self_: &'l VMState<'vm, T> = self;
         let iterator: LaunchedVM<'vm, 'l, T> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, pending_exit: false };

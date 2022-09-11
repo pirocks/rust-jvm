@@ -1,7 +1,6 @@
 use std::mem::size_of;
 use std::ops::Deref;
 
-
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};

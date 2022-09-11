@@ -1,4 +1,5 @@
 use crate::{AllocatedHandle, NewJavaValueHandle};
+use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::invoke::call_site::CallSite;
 use crate::stdlib::java::lang::invoke::lambda_form::basic_type::BasicType;
@@ -21,7 +22,6 @@ use crate::stdlib::java::util::concurrent::concurrent_hash_map::ConcurrentHashMa
 use crate::stdlib::java::util::concurrent::concurrent_hash_map::node::Node;
 use crate::stdlib::java::util::hashtable::entry::Entry;
 use crate::stdlib::java::util::properties::Properties;
-use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::stdlib::sun::misc::unsafe_::Unsafe;
 use crate::stdlib::sun::reflect::generics::tree::class_signature::ClassSignature;
 
@@ -96,7 +96,7 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     fn cast_array_out_of_bounds_exception(self) -> ArrayOutOfBoundsException<'gc> {
         ArrayOutOfBoundsException { normal_object: self.normal_object() }
     }
-    fn cast_class_signature(self) -> ClassSignature<'gc>{
+    fn cast_class_signature(self) -> ClassSignature<'gc> {
         ClassSignature { normal_object: self.normal_object() }
     }
 }

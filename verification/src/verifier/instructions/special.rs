@@ -2,17 +2,17 @@ use std::rc::Rc;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 
-use crate::{OperandStack};
+use crate::OperandStack;
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::codecorrectness::can_pop;

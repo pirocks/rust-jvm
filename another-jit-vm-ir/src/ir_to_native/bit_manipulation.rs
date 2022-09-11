@@ -1,6 +1,8 @@
 use iced_x86::code_asm;
 use iced_x86::code_asm::{cl, CodeAssembler};
+
 use another_jit_vm::Register;
+
 use crate::{BitwiseLogicType, Size};
 
 pub fn binary_bit_xor(assembler: &mut CodeAssembler, res: Register, a: Register, size: Size) {

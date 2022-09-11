@@ -3,8 +3,6 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-
-
 /// Parse a single key-value pair
 fn parse_key_val(s: &str) -> Result<(String, String), Box<dyn Error + Send + Sync>>
 {
@@ -28,5 +26,5 @@ pub struct JVMArgs {
     #[clap(short, long, help = "properties", parse(try_from_str = parse_key_val), number_of_values = 1)]
     properties: Vec<(String, String)>,
     #[clap(short, long, help = "args")]
-    args: Vec<String>
+    args: Vec<String>,
 }

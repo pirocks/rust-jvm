@@ -4,10 +4,9 @@ use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::Arc;
+
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::jlong;
-
-
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
@@ -15,7 +14,7 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
-use crate::class_loading::{assert_loaded_class};
+use crate::class_loading::assert_loaded_class;
 use crate::java_values::{GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
@@ -37,7 +36,7 @@ impl Drop for AllocatedArrayObjectHandle<'_> {
     }
 }
 
-impl <'gc>AllocatedArrayObjectHandle<'gc>{
+impl<'gc> AllocatedArrayObjectHandle<'gc> {
     pub fn allocated_type(&self) -> AllocatedObjectType {
         let jvm = self.jvm;
         let ptr = self.ptr;
@@ -87,7 +86,7 @@ impl <'gc>AllocatedArrayObjectHandle<'gc>{
         let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
         let native_jv = unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).read() };
         let cpdtype = self.elem_cpdtype();
-        native_to_new_java_value(native_jv,cpdtype, jvm)
+        native_to_new_java_value(native_jv, cpdtype, jvm)
     }
 
     pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
@@ -175,7 +174,7 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     }
 
     pub fn get_var(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
-        let FieldNumberAndFieldType{ number, cpdtype }  = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
+        let FieldNumberAndFieldType { number, cpdtype } = &current_class_pointer.unwrap_class_class().field_numbers.get(&field_name).unwrap();
         self.raw_get_var(jvm, *number, *cpdtype)
     }
 
@@ -232,7 +231,7 @@ impl<'gc> AllocatedHandle<'gc> {
         rc.cpdtype().is_array()
     }
 
-    pub fn unwrap_array(&self) -> &'_ AllocatedArrayObjectHandle<'gc>{
+    pub fn unwrap_array(&self) -> &'_ AllocatedArrayObjectHandle<'gc> {
         match self {
             AllocatedHandle::Array(arr) => arr,
             AllocatedHandle::NormalObject(_) => panic!()
@@ -284,7 +283,7 @@ impl<'gc> AllocatedHandle<'gc> {
             AllocatedHandle::Array(arr) => {
                 let fix_this = arr.jvm.gc.register_root_reentrant(arr.jvm, arr.ptr);
                 std::mem::forget(fix_this);
-                AllocatedHandle::Array(AllocatedArrayObjectHandle{ jvm: arr.jvm, ptr: arr.ptr })
+                AllocatedHandle::Array(AllocatedArrayObjectHandle { jvm: arr.jvm, ptr: arr.ptr })
             }
             AllocatedHandle::NormalObject(handle) => {
                 AllocatedHandle::NormalObject(handle.duplicate_discouraged())
@@ -298,7 +297,6 @@ impl Debug for AllocatedHandle<'_> {
         todo!()
     }
 }
-
 
 
 pub struct AllocatedObjectHandleByAddress<'gc>(pub AllocatedHandle<'gc>);
@@ -356,7 +354,7 @@ impl<'gc, 'l> AllocatedObject<'gc, 'l> {
         }
     }
 
-    pub fn duplicate_discouraged(&self) -> AllocatedHandle<'gc>{
+    pub fn duplicate_discouraged(&self) -> AllocatedHandle<'gc> {
         match self {
             AllocatedObject::Handle(handle) => {
                 match handle {
@@ -389,7 +387,7 @@ impl<'gc, 'l> AllocatedObject<'gc, 'l> {
         self.ptr().as_ptr() as usize
     }
 
-    pub fn ptr(&self) -> NonNull<c_void>{
+    pub fn ptr(&self) -> NonNull<c_void> {
         match self {
             AllocatedObject::Handle(handle) => handle.ptr(),
             AllocatedObject::NormalObject(obj) => obj.ptr,

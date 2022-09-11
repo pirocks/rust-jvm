@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
@@ -12,10 +11,10 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use crate::interpreter::common::invoke::find_target_method;
-use crate::interpreter::common::invoke::native::{run_native_method};
-use crate::interpreter::common::invoke::virtual_::setup_virtual_args2;
 use crate::interpreter::{PostInstructionAction, run_function};
+use crate::interpreter::common::invoke::find_target_method;
+use crate::interpreter::common::invoke::native::run_native_method;
+use crate::interpreter::common::invoke::virtual_::setup_virtual_args2;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
@@ -65,7 +64,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
 
 pub fn invoke_special_impl<'k, 'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
-    int_state:  &mut impl PushableFrame<'gc>,
+    int_state: &mut impl PushableFrame<'gc>,
     parsed_descriptor: &CMethodDescriptor,
     target_m_i: u16,
     final_target_class: Arc<RuntimeClass<'gc>>,
@@ -87,7 +86,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
         // jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
-        int_state.push_frame_java(next_entry, |java_frame|{
+        int_state.push_frame_java(next_entry, |java_frame| {
             match run_function(jvm, java_frame) {
                 Ok(res) => {
                     Ok(res)
@@ -97,6 +96,5 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
                 }
             }
         })
-
     }
 }

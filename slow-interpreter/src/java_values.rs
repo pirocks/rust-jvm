@@ -1,4 +1,3 @@
-use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
@@ -10,10 +9,9 @@ use std::ptr::{NonNull, null, null_mut};
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use itertools::{Itertools, repeat_n};
+use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
-
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
@@ -638,11 +636,6 @@ impl<'gc> JavaValue<'gc> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         let elems = bytes.into_iter().map(|byte| NewJavaValue::Byte(byte as i8)).collect_vec();
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
-    }
-
-    fn new_object_impl(runtime_class: &Arc<RuntimeClass<'gc>>) -> ObjectFieldsAndClass<'gc, 'gc> {
-        let fields = repeat_n(JavaValue::Top, runtime_class.unwrap_class_class().num_vars()).map(|jv| UnsafeCell::new(jv.to_native())).collect_vec();
-        ObjectFieldsAndClass { fields: todo!(), class_pointer: runtime_class.clone() }
     }
 
     pub fn new_object(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {

@@ -54,7 +54,7 @@ pub fn merged_code_is_type_safe(env: &mut Environment, merged_code: &[MergedCode
                 FrameResult::AfterGoto => match i.info {
                     CInstructionInfo::EndOfCode => return Result::Ok(()),
                     _ => {
-                        return Err(Java5Maybe)
+                        return Err(Java5Maybe);
                         /*let class = env.method.class;
                         let class_view = get_class(&env.vf, &class).unwrap();
                         let method_view = class_view.method_view_i(env.method.method_index as u16);
@@ -227,6 +227,7 @@ pub fn start_is_member_of(start: ByteCodeOffset, merged_instructs: &[MergedCodeI
         StackMap(s) => s.offset == start,
     })
 }
+
 #[allow(unreachable_code)]
 pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafetyError> {
     if h.start < h.end {

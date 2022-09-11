@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::ffi::{CStr};
+use std::ffi::CStr;
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
@@ -36,27 +36,27 @@ use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::exceptions::WasException;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::interpreter_util::new_object;
+use crate::java_values::{ByAddressAllocatedObject, JavaValue};
+use crate::new_java_values::NewJavaValueHandle;
+use crate::runtime_class::{initialize_class, prepare_class, static_vars};
 use crate::rust_jni::invoke_interface::get_env;
+use crate::rust_jni::jni_interface::call::VarargProvider;
+use crate::rust_jni::jni_interface::jmm::initial_jmm;
+use crate::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, initial_jni_interface};
+use crate::rust_jni::jvmti_interface::initial_jvmti;
+use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
 use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::reflect::method::Method;
 use crate::stdlib::java::lang::string::JString;
-use crate::java_values::{ByAddressAllocatedObject, JavaValue};
-use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::{initialize_class, prepare_class, static_vars};
-use crate::rust_jni::jni_interface::call::VarargProvider;
-use crate::rust_jni::jni_interface::jmm::initial_jmm;
-use crate::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, initial_jni_interface};
-use crate::rust_jni::jni_interface::jvmti::initial_jvmti;
-use crate::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use crate::utils::{pushable_frame_todo, throw_npe};
 
 pub struct PerStackInterfaces {
     jni: JNINativeInterface_,
     jmm: jmmInterface_1_,
     jvmti: jvmtiInterface_1_,
-    invoke_interface: JNIInvokeInterface_
+    invoke_interface: JNIInvokeInterface_,
 }
 
 impl PerStackInterfaces {
@@ -65,7 +65,7 @@ impl PerStackInterfaces {
             jni: initial_jni_interface(),
             jmm: initial_jmm(),
             jvmti: initial_jvmti(),
-            invoke_interface: initial_invoke_interface()
+            invoke_interface: initial_invoke_interface(),
         }
     }
 
@@ -73,15 +73,15 @@ impl PerStackInterfaces {
         &mut self.jni
     }
 
-    pub fn jmm_inner_mut(&mut self) -> &mut JmmInterface{
+    pub fn jmm_inner_mut(&mut self) -> &mut JmmInterface {
         &mut self.jmm
     }
 
-    pub fn jvmti_inner_mut(&mut self) -> &mut jvmtiInterface_1_{
+    pub fn jvmti_inner_mut(&mut self) -> &mut jvmtiInterface_1_ {
         &mut self.jvmti
     }
 
-    pub fn invoke_interface_mut(&mut self) -> &mut JNIInvokeInterface_{
+    pub fn invoke_interface_mut(&mut self) -> &mut JNIInvokeInterface_ {
         &mut self.invoke_interface
     }
 }

@@ -4,22 +4,21 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
+use method_table::from_jmethod_id;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::MethodId;
 
+use crate::{JavaValueCommon, WasException};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
-
-use crate::{JavaValueCommon, WasException};
 use crate::jvm_state::JVMState;
-use method_table::from_jmethod_id;
-use crate::better_java_stack::frames::PushableFrame;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state, push_type_to_operand_stack, push_type_to_operand_stack_new};
 use crate::rust_jni::jni_interface::jni::get_throw;
-use crate::rust_jni::native_util::{from_object_new};
+use crate::rust_jni::native_util::from_object_new;
 
 pub mod call_nonstatic;
 pub mod call_nonvirtual;

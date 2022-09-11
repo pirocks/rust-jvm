@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;

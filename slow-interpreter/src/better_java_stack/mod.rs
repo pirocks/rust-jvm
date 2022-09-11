@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -8,7 +9,6 @@ use nonnull_const::NonNullConst;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use rust_jvm_common::ByteCodeOffset;
 
-use crate::{AllocatedHandle, JVMState};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
@@ -61,11 +61,10 @@ pub struct StackDepth(pub u16);
 // todo if in guest then can send stack pointer.
 // need a in guest/not in guest atomic, per thread atomic.
 pub struct JavaStack<'gc> {
-    jvm: &'gc JVMState<'gc>,
+    phantom: PhantomData<&'gc ()>,
     owned_ir_stack: OwnedIRStack,
     //todo is a sorted vec by frame pointer need some better data structure
     interpreter_frame_operand_stack_depths: Vec<(FramePointer, InterpreterFrameState)>,
-    throw: Option<AllocatedHandle<'gc>>,
     //todo this should probably be in some kind of thread state thing
     thread_stack_data: Arc<SignalAccessibleJavaStackData>,
     has_been_used: bool,
@@ -78,12 +77,11 @@ pub struct InterpreterFrameState {
 }
 
 impl<'gc> JavaStack<'gc> {
-    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
+    pub fn new(owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
         Self {
-            jvm,
+            phantom: Default::default(),
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
-            throw: None,
             thread_stack_data,
             has_been_used: false,
         }

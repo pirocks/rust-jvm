@@ -11,9 +11,9 @@ use crate::class_loading::assert_loaded_class;
 use crate::class_objects::get_or_create_class_object;
 use crate::java_values::JavaValue;
 use crate::jvm_state::{Classes, JVMState};
-use crate::rust_jni::jvmti_interface::{universal_error};
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jvmti_interface::universal_error;
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 use crate::utils::pushable_frame_todo;
 

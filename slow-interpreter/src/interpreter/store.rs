@@ -1,8 +1,9 @@
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::{InterpreterFrame};
+use crate::interpreter::real_interpreter_state::InterpreterFrame;
 use crate::JVMState;
 
 fn generic_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16, runtime_type: RuntimeType) -> PostInstructionAction<'gc> {
@@ -37,47 +38,47 @@ pub fn fstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: Interpret
 }
 
 
-pub fn castore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn castore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::CharType;
     generic_array_store::<u16>(current_frame, array_sub_type)
 }
 
-pub fn fastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn fastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::FloatType;
     generic_array_store::<u32>(current_frame, array_sub_type)
 }
 
-pub fn dastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn dastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::DoubleType;
     generic_array_store::<u64>(current_frame, array_sub_type)
 }
 
-pub fn bastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn bastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ByteType;
     generic_array_store::<u8>(current_frame, array_sub_type)
 }
 
-pub fn lastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn lastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::LongType;
     generic_array_store::<u64>(current_frame, array_sub_type)
 }
 
-pub fn sastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn sastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ShortType;
     generic_array_store::<u64>(current_frame, array_sub_type)
 }
 
-pub fn iastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn iastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::IntType;
     generic_array_store::<u32>(current_frame, array_sub_type)
 }
 
-pub fn aastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc>{
+pub fn aastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::object();
     generic_array_store::<u64>(current_frame, array_sub_type)
 }
 
-trait CastFromU64{
+trait CastFromU64 {
     fn cast(as_u64: u64) -> Self;
 }
 
@@ -106,7 +107,7 @@ impl CastFromU64 for u8 {
 }
 
 
-fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc>{
+fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(array_sub_type.to_runtime_type().unwrap()).to_raw();
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let arrar_ref_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {

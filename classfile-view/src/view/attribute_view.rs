@@ -1,4 +1,5 @@
 use std::sync::Arc;
+
 use wtf8::Wtf8Buf;
 
 use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
@@ -150,13 +151,13 @@ impl InnerClassView<'_> {
     pub fn inner_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
         let inner_name_index = self.class.inner_name_index as usize;
         let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();
-        CompressedClassName(class_pool.add_name(inner_class_name.into_string().unwrap(),false))
+        CompressedClassName(class_pool.add_name(inner_class_name.into_string().unwrap(), false))
     }
 
     pub fn outer_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
         let outer_class_name_index = self.backing_class.underlying_class.extract_class_from_constant_pool(self.class.outer_class_info_index).name_index;
         let outer_class_name = self.backing_class.underlying_class.constant_pool[outer_class_name_index as usize].extract_string_from_utf8();
-        CompressedClassName(class_pool.add_name(outer_class_name.as_str().unwrap(),false))
+        CompressedClassName(class_pool.add_name(outer_class_name.as_str().unwrap(), false))
     }
 
     pub fn complete_name(&self, class_pool: &CompressedClassfileStringPool) -> Option<CClassName> {
@@ -169,7 +170,7 @@ impl InnerClassView<'_> {
         let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();
         let class_name = format!("{}${}", outer_class_name.as_str().unwrap(), inner_class_name.as_str().unwrap());
         parse_class_name(class_name.as_str()).unwrap_class_type();
-        Some(CompressedClassName(class_pool.add_name(class_name,false)))
+        Some(CompressedClassName(class_pool.add_name(class_name, false)))
     }
 }
 

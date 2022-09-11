@@ -7,7 +7,7 @@ use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
 use crate::{JVMState, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::rust_jni::jni_interface::jvmti::get_jvmti_interface;
+use crate::rust_jni::jvmti_interface::get_jvmti_interface;
 
 pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame<'gc, 'l>) -> *const JNIInvokeInterface_ {
     let mut guard = jvm.native.invoke_interface.write().unwrap();

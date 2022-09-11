@@ -4,7 +4,6 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jint, JNI_OK, JNIEnv, jobject};
 
 use crate::better_java_stack::native_frame::NativeFrame;
-use crate::InterpreterStateGuard;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::allocated_objects::AllocatedObject;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
@@ -20,7 +19,7 @@ use crate::rust_jni::native_util::{from_object_new, to_object, to_object_new};
 ///
 pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> jobject {
     let interpreter_state = get_interpreter_state(env);
-    let popped = pop_current_native_local_refs(todo!()/*interpreter_state*/); //.pop().expect("Attempted to pop local native frame, but no such local frame exists");
+    let popped = pop_current_native_local_refs(interpreter_state); //.pop().expect("Attempted to pop local native frame, but no such local frame exists");
     if result.is_null() {
         null_mut()
     } else {
@@ -119,14 +118,14 @@ fn set_local_refs_top_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l
     *interpreter_state.frame_info_mut().native_local_refs.last_mut().unwrap() = new
 }
 
-fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>) -> HashSet<jobject> {
+fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> HashSet<jobject> {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs(),
     }*/
 }
 
-fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &'_ mut InterpreterStateGuard<'gc, 'l>, to_push: HashSet<jobject>) {
+fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>, to_push: HashSet<jobject>) {
     todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
         /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
         InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push),

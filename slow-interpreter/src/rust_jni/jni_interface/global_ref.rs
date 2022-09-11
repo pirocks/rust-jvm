@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::{JNIEnv, jobject, jweak};
-use crate::rust_jni::jni_interface::get_state;
 
+use crate::rust_jni::jni_interface::get_state;
 use crate::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 
 static mut TIMES: usize = 0;
@@ -18,7 +18,7 @@ pub unsafe extern "C" fn new_global_ref(env: *mut JNIEnv, lobj: jobject) -> jobj
             Box::leak(Box::new(o.clone()));
         }
     }
-    to_object_new(obj.as_ref().map(|handle|handle.as_allocated_obj()))
+    to_object_new(obj.as_ref().map(|handle| handle.as_allocated_obj()))
 }
 
 pub unsafe extern "C" fn new_weak_global_ref(env: *mut JNIEnv, lobj: jobject) -> jweak {

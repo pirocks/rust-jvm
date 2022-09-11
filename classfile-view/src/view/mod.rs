@@ -4,7 +4,7 @@ use std::sync::{Arc, RwLock};
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use classfile_parser::attribute_infos::{runtime_annotations_to_bytes};
+use classfile_parser::attribute_infos::runtime_annotations_to_bytes;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
@@ -58,8 +58,8 @@ pub trait ClassView: HasAccessFlags {
     fn type_(&self) -> CPDType;
     fn super_name(&self) -> Option<CompressedClassName>;
     fn methods(&self) -> MethodIterator;
-    fn virtual_methods(&self) -> Box<dyn Iterator<Item=MethodView<'_>> + '_>{
-        box self.methods().filter(|method|!method.is_static())
+    fn virtual_methods(&self) -> Box<dyn Iterator<Item=MethodView<'_>> + '_> {
+        box self.methods().filter(|method| !method.is_static())
     }
     fn method_view_i(&self, i: u16) -> MethodView;
     fn num_methods(&self) -> usize;
@@ -188,7 +188,7 @@ impl ClassView for ClassBackedView {
             .attributes
             .iter()
             .find(|attr| matches!(attr.attribute_type, AttributeType::Signature(_)))
-            .map(|attr| match &attr.attribute_type{
+            .map(|attr| match &attr.attribute_type {
                 AttributeType::Signature(signature) => {
                     signature.signature_index
                 }
@@ -217,7 +217,7 @@ impl ClassView for ClassBackedView {
     }
 
     fn lookup_field(&self, name: FieldName) -> Option<FieldView> {
-        self.backing_class.fields.iter().enumerate().filter(|(_,field)|field.name == name.0).map(|(i,_)|FieldView::from(self,i)).exactly_one().ok()
+        self.backing_class.fields.iter().enumerate().filter(|(_, field)| field.name == name.0).map(|(i, _)| FieldView::from(self, i)).exactly_one().ok()
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {

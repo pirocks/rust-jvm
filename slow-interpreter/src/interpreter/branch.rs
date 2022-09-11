@@ -1,8 +1,8 @@
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-
 use crate::jvm_state::JVMState;
 
 pub fn goto_<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, target: i32) -> PostInstructionAction<'gc> {

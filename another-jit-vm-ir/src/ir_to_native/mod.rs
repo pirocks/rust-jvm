@@ -49,7 +49,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::CopyRegister { from, to } => {
             assembler.mov(to.to_native_64(), from.to_native_64()).unwrap();
-        },
+        }
         IRInstr::Add { res, a, size } => {
             ir_add(assembler, *res, *a, *size)
         }
@@ -494,9 +494,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             dst_base_addr,
             len,
             temp_register_1,
-            temp_register_2:_,
+            temp_register_2: _,
             temp_register_3,
-            vector_temp_register:_
+            vector_temp_register: _
         } => {
             let i = temp_register_1.clone();
             let temp = temp_register_3.to_native_64();
@@ -504,11 +504,11 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             let mut loop_end = assembler.create_label();
             assembler.xor(i.to_native_64(), i.to_native_64()).unwrap();
             assembler.set_label(&mut loop_start).unwrap();
-            assembler.cmp(len.to_native_64(),i.to_native_64()).unwrap();
+            assembler.cmp(len.to_native_64(), i.to_native_64()).unwrap();
             assembler.je(loop_end.clone()).unwrap();
-            assembler.mov(temp, src_base_addr.to_native_64() + 8*i.to_native_64()).unwrap();
-            assembler.mov(dst_base_addr.to_native_64() + 8*i.to_native_64(), temp).unwrap();
-            assembler.add(i.to_native_64(),1).unwrap();
+            assembler.mov(temp, src_base_addr.to_native_64() + 8 * i.to_native_64()).unwrap();
+            assembler.mov(dst_base_addr.to_native_64() + 8 * i.to_native_64(), temp).unwrap();
+            assembler.add(i.to_native_64(), 1).unwrap();
             assembler.jmp(loop_start).unwrap();
             assembler.set_label(&mut loop_end).unwrap();
             assembler.nop().unwrap();
@@ -542,16 +542,16 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::AssertEqual { a, b, size } => {
             match size {
                 Size::Byte => {
-                    assembler.cmp(a.to_native_8(),b.to_native_8()).unwrap();
+                    assembler.cmp(a.to_native_8(), b.to_native_8()).unwrap();
                 }
                 Size::X86Word => {
-                    assembler.cmp(a.to_native_16(),b.to_native_16()).unwrap();
+                    assembler.cmp(a.to_native_16(), b.to_native_16()).unwrap();
                 }
                 Size::X86DWord => {
-                    assembler.cmp(a.to_native_32(),b.to_native_32()).unwrap();
+                    assembler.cmp(a.to_native_32(), b.to_native_32()).unwrap();
                 }
                 Size::X86QWord => {
-                    assembler.cmp(a.to_native_64(),b.to_native_64()).unwrap();
+                    assembler.cmp(a.to_native_64(), b.to_native_64()).unwrap();
                 }
             }
             let mut after = assembler.create_label();
@@ -567,14 +567,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     let second_arg = rsi;
                     let third_arg = rdx;
                     assert_eq!(integer_args.len(), 3);
-                    let args = vec![first_arg, second_arg,third_arg];
-                    assert!(!integer_args.iter().any(|reg|args.contains(&reg.to_native_64())));
+                    let args = vec![first_arg, second_arg, third_arg];
+                    assert!(!integer_args.iter().any(|reg| args.contains(&reg.to_native_64())));
                     assert!(integer_args.len() <= args.len());
-                    for (from_arg, to_arg) in integer_args.iter().zip(args.iter()){
+                    for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
-                },
+                }
                 IntrinsicHelperType::InstanceOf => todo!(),
             }
         }

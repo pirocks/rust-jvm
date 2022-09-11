@@ -1,14 +1,14 @@
 use std::ffi::c_void;
 use std::mem::size_of;
-use memoffset::offset_of;
-use another_jit_vm::FramePointerOffset;
 
+use memoffset::offset_of;
+
+use another_jit_vm::FramePointerOffset;
 use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::{RuntimeClassClass};
+use runtime_class_stuff::RuntimeClassClass;
 use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::NativeJavaValue;
-
 
 pub struct ObjectMemoryLayout {
     max_field_number_exclusive: u32,
@@ -32,7 +32,7 @@ impl ObjectMemoryLayout {
 }
 
 pub struct ArrayMemoryLayout {
-    sub_type:Option<CPDType>,
+    sub_type: Option<CPDType>,
 }
 
 impl ArrayMemoryLayout {
@@ -43,8 +43,8 @@ impl ArrayMemoryLayout {
             sub_type: Some(sub_type)
         }
     }
-    pub fn from_unknown_cpdtype() -> Self{
-        Self{
+    pub fn from_unknown_cpdtype() -> Self {
+        Self {
             sub_type: None
         }
     }
@@ -88,21 +88,21 @@ const MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION: usize = 256 * size_of::<
 
 
 pub struct NativeStackframeMemoryLayout {
-    pub num_locals: u16// num_locals does include top native functions, to allow same ircall mechanism
+    pub num_locals: u16,// num_locals does include top native functions, to allow same ircall mechanism
 }
 
 impl NativeStackframeMemoryLayout {
     pub fn local_var_entry(&self, i: u16) -> FramePointerOffset {
         assert!(i < self.num_locals as u16);
-        FramePointerOffset(size_of::<FrameHeader>() + i as usize*size_of::<jlong>())
+        FramePointerOffset(size_of::<FrameHeader>() + i as usize * size_of::<jlong>())
     }
 
-    pub fn data_entry(&self) -> FramePointerOffset{
-        FramePointerOffset(size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>())
+    pub fn data_entry(&self) -> FramePointerOffset {
+        FramePointerOffset(size_of::<FrameHeader>() + self.num_locals as usize * size_of::<jlong>())
     }
 
     pub fn full_frame_size(&self) -> usize {
-        size_of::<FrameHeader>() + self.num_locals as usize*size_of::<jlong>() + size_of::<jlong>() //extra jlong for extra native data entry
+        size_of::<FrameHeader>() + self.num_locals as usize * size_of::<jlong>() + size_of::<jlong>() //extra jlong for extra native data entry
     }
 }
 

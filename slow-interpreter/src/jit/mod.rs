@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicPtr;
 
 use wtf8::Wtf8Buf;
-use another_jit_vm::IRMethodID;
 
+use another_jit_vm::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
@@ -204,7 +204,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
     }
 
     fn allocated_object_type_id(&self, rc: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedTypeID {
-        let allocated_object_type = runtime_class_to_allocated_object_type(self.jvm,rc, loader,arr_len);
+        let allocated_object_type = runtime_class_to_allocated_object_type(self.jvm, rc, loader, arr_len);
         let mut guard = self.jvm.gc.memory_region.lock().unwrap();
         guard.lookup_or_add_type(&allocated_object_type)
     }

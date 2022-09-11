@@ -1,14 +1,11 @@
-use std::ffi::c_void;
-use gc_memory_layout_common::memory_regions::{MemoryRegions};
-
-
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{AllocatedHandle, InterpreterStateGuard, JavaValueCommon, JVMState};
+use crate::{AllocatedHandle, JavaValueCommon, JVMState};
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::java_values::ByAddressAllocatedObject;
 
-pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>) {
+pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc, 'l>) {
     unsafe {
         if !IN_TO_STRING {
             dump_frame_contents_impl(jvm, int_state)
@@ -16,8 +13,8 @@ pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Int
     }
 }
 
-pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, '_>) {
-    if !int_state.current_frame().full_frame_available(jvm) {
+pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc, '_>) {
+    /*if !int_state.current_frame().full_frame_available(jvm) {
         let current_frame = int_state.current_frame();
         let local_vars = current_frame.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
@@ -80,12 +77,14 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut In
             }
         }
     }
-    eprintln!()
+    eprintln!()*/
+    todo!()
 }
 
 static mut IN_TO_STRING: bool = false;
 
-fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGuard<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
+#[allow(unused)]
+fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaInterpreterFrame<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
     let obj_type = obj.runtime_class(jvm).cpdtype();
     unsafe {
         if obj_type == CClassName::string().into() {
@@ -118,7 +117,7 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGu
             let as_string = big_integer.to_string(jvm, _int_state).unwrap().unwrap().to_rust_string(jvm);
             eprint!("#{}: {:?}(biginteger:{})\t", i, ptr, as_string);
         }*/ else {
-            if obj_type.short_representation(&jvm.string_pool).as_str() == "StringBuilder"{
+            if obj_type.short_representation(&jvm.string_pool).as_str() == "StringBuilder" {
                 let region_header = MemoryRegions::find_object_region_header(obj.ptr());
                 // dbg!("");
                 // dbg!(region_header as *mut RegionHeader);
@@ -126,7 +125,7 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut InterpreterStateGu
                 // dbg!(region_header.itable_ptr);
             }
             let ptr = obj.ptr();
-                eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), "");
+            eprint!("#{}: {:?}({})({})\t", i, ptr, obj_type.short_representation(&jvm.string_pool), "");
         }
     }
 }

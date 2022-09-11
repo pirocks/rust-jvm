@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 use crate::compressed_classfile::CPDType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]

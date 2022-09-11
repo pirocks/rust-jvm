@@ -147,7 +147,7 @@ impl ExitRegisterStruct for RunNativeSpecial {
 
 pub struct Todo;
 
-impl Todo{
+impl Todo {
     pub const JAVA_PC: Register = Register(6);
 }
 
@@ -543,7 +543,6 @@ impl ExitRegisterStruct for NPE {
 }
 
 
-
 pub struct ArrayOutOfBounds;
 
 impl ArrayOutOfBounds {
@@ -564,7 +563,7 @@ impl RunInterpreted {
     pub const RESTART_IP: Register = Register(3);
 }
 
-impl ExitRegisterStruct  for RunInterpreted {
+impl ExitRegisterStruct for RunInterpreted {
     fn all_registers() -> HashSet<Register> {
         HashSet::from([Register(0), Self::METHOD_ID, Self::RESTART_IP])
     }

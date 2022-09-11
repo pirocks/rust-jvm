@@ -52,7 +52,7 @@ impl Size {
         Self::X86QWord
     }
 
-    pub fn lengthen_runtime_type(&self) -> Self{
+    pub fn lengthen_runtime_type(&self) -> Self {
         match self {
             Size::Byte => Self::X86DWord,
             Size::X86Word => Self::X86DWord,
@@ -195,7 +195,7 @@ pub enum IRInstr {
     },
     CallIntrinsicHelper {
         intrinsic_helper_type: IntrinsicHelperType,
-        integer_args: Vec<Register>
+        integer_args: Vec<Register>,
     },
     NOP,
     DebuggerBreakpoint,

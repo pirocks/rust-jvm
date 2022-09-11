@@ -9,16 +9,15 @@ use jvmti_jni_bindings::{jboolean, jchar, JNI_TRUE, JNIEnv, jobject, jsize, jstr
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use sketch_jvm_version_of_utf8::JVMString;
 
+use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFrame, WasException};
 use crate::class_loading::assert_loaded_class;
-
-use crate::stdlib::java::lang::string::JString;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::{NewJavaValueHandle};
-use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, PushableFrame, WasException};
+use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
-use crate::rust_jni::jni_interface::local_frame::{new_local_ref_public_new};
+use crate::rust_jni::jni_interface::local_frame::new_local_ref_public_new;
 use crate::rust_jni::native_util::{from_object_new, to_object_new};
+use crate::stdlib::java::lang::string::JString;
 use crate::utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
@@ -54,7 +53,7 @@ pub unsafe extern "C" fn new_string_utf(env: *mut JNIEnv, utf: *const c_char) ->
         }.intern(jvm, int_state).unwrap()
             .object().as_allocated_obj()
             .into(),
-        int_state
+        int_state,
     );
     res
 }

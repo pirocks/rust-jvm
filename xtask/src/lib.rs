@@ -84,7 +84,7 @@ fn validate_or_download_jdk(deps_dir: PathBuf, sh: &Shell, bootstrap_jdk_dir: Op
             }
             cmd!(sh, "wget {OPENJDK_8_DOWNLOAD_URL}").run()?;
             cmd!(sh, "tar xvf {DOWNLOADED_FILE_NAME}").run()?;
-            return Ok(Some(deps_dir.join(EXTRACTED_JDK_DIR_NAME)))
+            return Ok(Some(deps_dir.join(EXTRACTED_JDK_DIR_NAME)));
         }
         Ok(None)
     }

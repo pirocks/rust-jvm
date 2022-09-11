@@ -12,7 +12,6 @@ use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -26,14 +25,13 @@ use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::create_class_object;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
-use slow_interpreter::rust_jni::jni_interface::{define_class_safe};
+use slow_interpreter::rust_jni::jni_interface::define_class_safe;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
@@ -73,7 +71,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
     let class_view = ClassBackedView::from(parsed.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
         let class_name_representation = PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation();
-        File::create(format!("{}.class",class_name_representation)).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        File::create(format!("{}.class", class_name_representation)).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
     }
     match define_class_safe(jvm, int_state, parsed, current_loader, class_view) {
         Ok(res) => res,
@@ -84,7 +82,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
 fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, args: &mut Vec<NewJavaValueHandle<'gc>>, unpatched: &mut Classfile) {
     let array = args[3].as_njv().to_handle_discouraged().unwrap_object().unwrap();
     let array = array.unwrap_array();
-    let cp_entry_patches = array.array_iterator().map(|obj|obj.unwrap_object()).collect_vec();
+    let cp_entry_patches = array.array_iterator().map(|obj| obj.unwrap_object()).collect_vec();
     assert_eq!(cp_entry_patches.len(), unpatched.constant_pool.len());
     cp_entry_patches.into_iter().enumerate().for_each(|(i, maybe_patch)| match maybe_patch {
         None => {}

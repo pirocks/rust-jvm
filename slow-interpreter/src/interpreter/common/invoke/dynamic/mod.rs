@@ -16,6 +16,7 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
 use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
@@ -24,7 +25,6 @@ use crate::stdlib::java::lang::invoke::method_type::MethodType;
 use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
-use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub mod resolvers;
 
@@ -190,3 +190,37 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
         }
     })
 }
+/*
+fn resolved_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc,'l>, cp: u16) -> Result<Option<(Arc<RuntimeClass<'gc>>, MethodName, CMethodDescriptor)>, WasException<'gc>> {
+    let view = int_state.current_class_view(jvm);
+    let (class_name_type, expected_method_name, expected_descriptor) = get_method_descriptor(&jvm.string_pool, cp as usize, &*view);
+    let class_name_ = match class_name_type {
+        CPDType::Class(c) => c,
+        CPDType::Array { .. } => {
+            if expected_method_name == MethodName::method_clone() {
+                //todo replace with proper native impl
+                let temp = match int_state.pop_os(CClassName::object().into()).unwrap_object() {
+                    Some(x) => x,
+                    None => {
+                        todo!();
+                        /*throw_npe_res(jvm, int_state)?;*/
+                        unreachable!()
+                    }
+                };
+                todo!()
+                // let ArrayObject { elem_type, .. } = temp.unwrap_array();
+                // let array_object = ArrayObject::new_array(jvm, int_state, temp.unwrap_array().array_iterator(jvm).collect_vec(), elem_type.clone(), jvm.thread_state.new_monitor("monitor for cloned object".to_string()))?;
+                // int_state.push_os(todo!()/*JavaValue::Object(Some(jvm.allocate_object(todo!()/*Object::Array(array_object)*/)))*/);
+                // return Ok(None);
+            } else {
+                unimplemented!();
+            }
+        }
+        _ => panic!(),
+    };
+    //todo should I be trusting these descriptors, or should i be using the runtime class on top of the operant stack
+    let resolved_class = check_initing_or_inited_class(jvm, int_state, class_name_.into())?;
+    Ok((resolved_class, expected_method_name, expected_descriptor).into())
+}
+
+*/

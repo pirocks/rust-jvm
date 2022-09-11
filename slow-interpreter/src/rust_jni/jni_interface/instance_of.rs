@@ -1,9 +1,9 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 
-use crate::interpreter::common::special::{instance_of_exit_impl};
+use crate::interpreter::common::special::instance_of_exit_impl;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
-use crate::rust_jni::native_util::{from_object_new};
+use crate::rust_jni::native_util::from_object_new;
 use crate::utils::throw_illegal_arg;
 
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
@@ -18,6 +18,6 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
         }
         Some(ref_type) => ref_type,
     };
-    let res = instance_of_exit_impl(jvm,  type_.to_cpdtype(), java_obj.as_ref());
+    let res = instance_of_exit_impl(jvm, type_.to_cpdtype(), java_obj.as_ref());
     (res != 0) as jboolean
 }

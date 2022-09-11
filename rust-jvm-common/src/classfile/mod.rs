@@ -3,8 +3,8 @@ use std::hash::Hasher;
 use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
 
-use crate::classnames::class_name;
 use crate::ByteCodeOffset;
+use crate::classnames::class_name;
 use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::ptype::PType;
 
@@ -904,8 +904,8 @@ pub enum InstructionInfo {
     EndOfCode,
 }
 
-impl InstructionInfo{
-    pub fn size(&self) -> u16{
+impl InstructionInfo {
+    pub fn size(&self) -> u16 {
         match self {
             InstructionInfo::aaload => todo!(),
             InstructionInfo::aastore => todo!(),
@@ -1163,8 +1163,8 @@ pub struct Classfile {
     pub attributes: Vec<AttributeInfo>,
 }
 
-impl Classfile{
-    pub fn into_bytes(self) -> Vec<u8>{
+impl Classfile {
+    pub fn into_bytes(self) -> Vec<u8> {
         let mut _res = vec![];
         todo!();
         _res

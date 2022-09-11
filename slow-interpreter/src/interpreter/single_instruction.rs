@@ -7,18 +7,19 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::better_java_stack::frames::HasFrame;
 
+use crate::JVMState;
+use crate::better_java_stack::frames::HasFrame;
 use crate::function_instruction_count::FunctionExecutionCounter;
+use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
+use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
+use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::common::invoke::dynamic::invoke_dynamic;
 use crate::interpreter::common::invoke::interface::invoke_interface;
 use crate::interpreter::common::invoke::special::invoke_special;
 use crate::interpreter::common::invoke::static_::run_invoke_static;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual_instruction;
 use crate::interpreter::common::special::invoke_instanceof;
-use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
-use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
-use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
 use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
@@ -34,7 +35,6 @@ use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dsto
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
 use crate::interpreter::wide::wide;
-use crate::{JVMState};
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,

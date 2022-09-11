@@ -1,19 +1,17 @@
 use std::ptr::null_mut;
 
-
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
-use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::jni_interface::local_frame::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
+use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::misc::launcher::ext_class_loader::ExtClassLoader;
 use slow_interpreter::stdlib::sun::misc::launcher::Launcher;
 use slow_interpreter::utils::pushable_frame_todo;
@@ -38,7 +36,7 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc,'l>, loader_name: LoaderName) -> jobject {
+unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, loader_name: LoaderName) -> jobject {
     new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object().to_gc_managed()), int_state)
 }
 
@@ -114,7 +112,7 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
         }
             .object().to_gc_managed()
             .into()*/,
-        int_state
+        int_state,
     );
 }
 

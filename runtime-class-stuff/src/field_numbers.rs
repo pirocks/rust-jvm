@@ -1,9 +1,12 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+
 use itertools::Itertools;
+
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::FieldName;
+
 use crate::RuntimeClass;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -26,7 +29,7 @@ pub fn get_field_numbers_static(class_view: &Arc<ClassBackedView>, parent: &Opti
     ((start_field_number + field_numbers.len()) as u32, field_numbers)
 }
 
-fn get_field_numbers_impl_impl(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>, static_: bool) -> (usize, impl Iterator<Item=(usize,(FieldName, CPDType))>) {
+fn get_field_numbers_impl_impl(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>, static_: bool) -> (usize, impl Iterator<Item=(usize, (FieldName, CPDType))>) {
     let start_field_number = parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0);
     let enumerated_field_view = class_view.fields().filter(|field| {
         let is_static = field.is_static();

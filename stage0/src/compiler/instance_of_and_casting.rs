@@ -44,7 +44,7 @@ pub fn checkcast_impl<'vm>(
         a: ptr_register,
         label: checkcast_succeeds,
         size: Size::pointer(),
-        b: zero_register
+        b: zero_register,
     });
 
 

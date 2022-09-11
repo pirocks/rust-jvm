@@ -12,7 +12,7 @@ unsafe impl Send for JNIInvokeInterface_ {}
 unsafe impl Sync for JNIInvokeInterface_ {}
 
 pub trait JavaPrimitiveType {
-    fn to_raw(&self) -> u64{
+    fn to_raw(&self) -> u64 {
         todo!()
     }
 }

@@ -8,13 +8,14 @@ use std::sync::Arc;
 
 use bimap::BiMap;
 use by_address::ByAddress;
-use itertools::{Itertools};
-use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use itertools::Itertools;
 
+use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout};
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
@@ -22,6 +23,7 @@ use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 use rust_jvm_common::vtype::VType;
 
+use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value_rtype};
@@ -29,8 +31,6 @@ use crate::jit::state::Opaque;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
-use runtime_class_stuff::RuntimeClass;
-use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct RuntimeClassClassId(usize);
@@ -342,7 +342,7 @@ pub struct NativeFramePush<'gc, 'k> {
 }
 
 #[derive(Clone)]
-pub struct OpaqueFramePush{
+pub struct OpaqueFramePush {
     pub(crate) opaque_id: OpaqueID,
     pub(crate) native_local_refs: Vec<HashSet<jobject>>,
 }
@@ -351,14 +351,14 @@ pub struct OpaqueFramePush{
 pub enum StackEntryPush<'gc, 'k> {
     Java(JavaFramePush<'gc, 'k>),
     // a native function call frame
-    Native(NativeFramePush<'gc,'k>),
+    Native(NativeFramePush<'gc, 'k>),
     Opaque(OpaqueFramePush),
 }
 
 impl<'gc, 'k> StackEntryPush<'gc, 'k> {
-    pub fn new_native_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> NativeFramePush<'gc,'k> {
+    pub fn new_native_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> NativeFramePush<'gc, 'k> {
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer, method_i);
-        NativeFramePush{
+        NativeFramePush {
             method_id,
             native_local_refs: vec![HashSet::new()],
             local_vars: args,
@@ -366,7 +366,7 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
         }
     }
 
-    pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> JavaFramePush<'gc,'k> {
+    pub fn new_java_frame(jvm: &'gc JVMState<'gc>, class_pointer: Arc<RuntimeClass<'gc>>, method_i: u16, args: Vec<NewJavaValue<'gc, 'k>>) -> JavaFramePush<'gc, 'k> {
         let max_locals = class_pointer.view().method_view_i(method_i).code_attribute().unwrap().max_locals;
         assert_eq!(args.len(), max_locals as usize);
         let method_id = jvm.method_table.write().unwrap().get_method_id(class_pointer.clone(), method_i);
@@ -378,7 +378,7 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
         let method_view = class_view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
         let operand_stack = (0..code.max_stack).map(|_| NewJavaValue::Top).collect_vec();
-        JavaFramePush{
+        JavaFramePush {
             method_id,
             local_vars: args,
             operand_stack,
@@ -390,8 +390,9 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
         assert!(operand_stack.is_empty());
         assert_eq!(loader, LoaderName::BootstrapLoader);// loader should be set from thread loader for new threads
         let opaque_id = jvm.opaque_ids.write().unwrap().new_opaque_id(debug_str);
-        OpaqueFramePush{
-            opaque_id, native_local_refs: vec![]
+        OpaqueFramePush {
+            opaque_id,
+            native_local_refs: vec![],
         }
     }
 }

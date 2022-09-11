@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
@@ -11,7 +10,10 @@ use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, Opa
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
-use crate::interpreter::common::invoke::virtual_::{invoke_virtual};
+use crate::interpreter::common::invoke::virtual_::invoke_virtual;
+use crate::java_values::{ExceptionReturn, JavaValue};
+use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::boolean::Boolean;
 use crate::stdlib::java::lang::byte::Byte;
@@ -22,9 +24,6 @@ use crate::stdlib::java::lang::illegal_argument_exception::IllegalArgumentExcept
 use crate::stdlib::java::lang::int::Int;
 use crate::stdlib::java::lang::long::Long;
 use crate::stdlib::java::lang::short::Short;
-use crate::java_values::{ExceptionReturn, JavaValue};
-use crate::new_java_values::NewJavaValueHandle;
-use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     // dbg!(class.view().name().unwrap_name().0.to_str(&jvm.string_pool));
@@ -138,19 +137,19 @@ pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
     Ok(match java_value {
         //todo what about that same object optimization
         JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Int(param) => Int::new(jvm, todo!()/*int_state*/, param)?.object().into(),
+        JavaValue::Int(param) => Int::new(jvm, int_state, param)?.object().into(),
         JavaValue::Short(param) => Short::new(jvm, int_state, param)?.object().into(),
         JavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Boolean(param) => Boolean::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
+        JavaValue::Boolean(param) => Boolean::new(jvm, int_state, param)?.object().into(),
         JavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Float(param) => Float::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
-        JavaValue::Double(param) => Double::new(jvm, pushable_frame_todo()/*int_state*/, param)?.object().into(),
+        JavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
+        JavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
         JavaValue::Object(obj) => todo!(), /*obj*/
         JavaValue::Top => panic!(),
     })
 }
 
-pub fn pushable_frame_todo<'any1, 'any2, 'any3>() -> &'any3 mut OpaqueFrame<'any1,'any2>{
+pub fn pushable_frame_todo<'any1, 'any2, 'any3>() -> &'any3 mut OpaqueFrame<'any1, 'any2> {
     todo!()
 }
 

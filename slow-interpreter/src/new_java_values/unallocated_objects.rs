@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use runtime_class_stuff::{RuntimeClass};
+
+use runtime_class_stuff::RuntimeClass;
 use runtime_class_stuff::field_numbers::FieldNumber;
+
 use crate::NewJavaValue;
 
 #[derive(Clone)]

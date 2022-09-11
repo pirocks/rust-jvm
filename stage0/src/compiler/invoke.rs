@@ -215,7 +215,7 @@ pub fn invokevirtual<'vm>(
                 },
                 java_pc: current_instr_data.current_offset,
             },
-            java_pc: current_instr_data.current_offset
+            java_pc: current_instr_data.current_offset,
         },
         IRInstr::IRCall {
             temp_register_1: Register(1),

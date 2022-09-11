@@ -6,7 +6,7 @@ use num_traits::FromPrimitive;
 use add_only_static_vec::AddOnlyId;
 
 use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedDescriptorType, CPDType, NonArrayCompressedParsedDescriptorType};
-use crate::compressed_classfile::names::{CompressedClassName};
+use crate::compressed_classfile::names::CompressedClassName;
 
 const CPDTYPE_MAX_DISCRIMINANT: u8 = 10;
 
@@ -120,9 +120,11 @@ impl NativeCPDType {
                     NonArrayCompressedParsedDescriptorTypeNativeDiscriminant::FloatType => NonArrayCompressedParsedDescriptorType::FloatType,
                     NonArrayCompressedParsedDescriptorTypeNativeDiscriminant::DoubleType => NonArrayCompressedParsedDescriptorType::DoubleType,
                     NonArrayCompressedParsedDescriptorTypeNativeDiscriminant::VoidType => NonArrayCompressedParsedDescriptorType::VoidType,
-                    NonArrayCompressedParsedDescriptorTypeNativeDiscriminant::Class => NonArrayCompressedParsedDescriptorType::Class(CompressedClassName(CompressedClassfileString{ id: AddOnlyId(
-                        self.0 as u32
-                    ) })),
+                    NonArrayCompressedParsedDescriptorTypeNativeDiscriminant::Class => NonArrayCompressedParsedDescriptorType::Class(CompressedClassName(CompressedClassfileString {
+                        id: AddOnlyId(
+                            self.0 as u32
+                        )
+                    })),
                 };
                 CompressedParsedDescriptorType::Array {
                     base_type: non_array_base_type,
@@ -153,27 +155,27 @@ pub mod to_native_from_native_test {
     use crate::compressed_classfile::names::CClassName;
 
     #[test]
-    pub fn test_array(){
+    pub fn test_array() {
         let cpdtype = CPDType::array(CPDType::array(CPDType::LongType));
         let native_cpdtype = cpdtype.to_native();
         assert_eq!(native_cpdtype.to_cpdtype(), cpdtype);
 
         let cpdtype = CPDType::array(CPDType::array(CClassName::throwable().into()));
-        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+        assert_eq!(cpdtype.to_native().to_cpdtype(), cpdtype);
     }
 
     #[test]
-    pub fn test_class(){
+    pub fn test_class() {
         let cpdtype: CPDType = CClassName::object().into();
-        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+        assert_eq!(cpdtype.to_native().to_cpdtype(), cpdtype);
 
         let cpdtype: CPDType = CClassName::method().into();
-        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+        assert_eq!(cpdtype.to_native().to_cpdtype(), cpdtype);
     }
 
     #[test]
-    pub fn test_primitive(){
+    pub fn test_primitive() {
         let cpdtype: CPDType = CPDType::VoidType;
-        assert_eq!(cpdtype.to_native().to_cpdtype(),cpdtype);
+        assert_eq!(cpdtype.to_native().to_cpdtype(), cpdtype);
     }
 }

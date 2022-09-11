@@ -9,8 +9,8 @@ pub struct StringExitCache<'gc> {
 }
 
 impl<'gc> StringExitCache<'gc> {
-    pub fn new() -> Self{
-        Self{
+    pub fn new() -> Self {
+        Self {
             inner: Default::default()
         }
     }
@@ -19,7 +19,7 @@ impl<'gc> StringExitCache<'gc> {
         self.inner.get(&wtf8)
     }
 
-    pub fn register_entry(&mut self, wtf8: CompressedWtf8String, jstring: JString<'gc>){
+    pub fn register_entry(&mut self, wtf8: CompressedWtf8String, jstring: JString<'gc>) {
         self.inner.insert(wtf8, jstring);
     }
 }

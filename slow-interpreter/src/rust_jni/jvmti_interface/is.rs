@@ -1,7 +1,7 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNI_FALSE, JNI_TRUE, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_INVALID_CLASS, jvmtiError_JVMTI_ERROR_NONE};
 
 use crate::jvm_state::JVMState;
-use crate::rust_jni::jni_interface::jvmti::get_state;
+use crate::rust_jni::jvmti_interface::get_state;
 use crate::rust_jni::native_util::try_from_jclass;
 
 ///Is Array Class

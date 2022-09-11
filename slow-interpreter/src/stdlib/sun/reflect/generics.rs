@@ -1,7 +1,9 @@
-pub mod tree{
-    pub mod class_signature{
+pub mod tree {
+    pub mod class_signature {
         use itertools::Itertools;
+
         use rust_jvm_common::compressed_classfile::names::FieldName;
+
         use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue};
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
@@ -18,7 +20,7 @@ pub mod tree{
                     .unwrap()
                     .unwrap_array()
                     .array_iterator()
-                    .map(|njvh|njvh.unwrap_object())
+                    .map(|njvh| njvh.unwrap_object())
                     .collect_vec()
             }
         }

@@ -1,6 +1,5 @@
 use itertools::Either;
 
-
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -11,11 +10,11 @@ use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter::common::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::reflect::constructor::Constructor;
 use crate::stdlib::java::lang::reflect::method::Method;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
-use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<(), WasException<'gc>> {
     //two params, is a static function.

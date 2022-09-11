@@ -12,7 +12,6 @@ use libffi::middle::CodePtr;
 use libffi::middle::Type;
 use libloading::Symbol;
 
-
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};

@@ -2,11 +2,11 @@ use std::ffi::CString;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jclass, jint, jlocation, jmethodID, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
+use method_table::from_jmethod_id;
 
 use crate::class_objects::get_or_create_class_object;
-use method_table::from_jmethod_id;
-use crate::rust_jni::jni_interface::jvmti::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::utils::pushable_frame_todo;
 
 pub unsafe extern "C" fn get_method_name(env: *mut jvmtiEnv, method: jmethodID, name_ptr: *mut *mut ::std::os::raw::c_char, signature_ptr: *mut *mut ::std::os::raw::c_char, generic_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {

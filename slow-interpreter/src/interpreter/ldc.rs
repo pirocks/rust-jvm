@@ -1,18 +1,17 @@
 use itertools::Either;
 
-
-use classfile_view::view::constant_info_view::{ConstantInfoView};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use classfile_view::view::constant_info_view::ConstantInfoView;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::names::{CClassName};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_objects::get_or_create_class_object;
-use crate::interpreter::{PostInstructionAction};
+use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
-use crate::stdlib::java::lang::string::JString;
 use crate::rust_jni::jni_interface::string::intern_safe;
+use crate::stdlib::java::lang::string::JString;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, *type_, int_state)?;
@@ -59,7 +58,7 @@ fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
 //     Ok(())
 // }
 //
-pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc>{
+pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc> {
     let mut current_frame = int_state.current_frame_mut();
     match ldc2w {
         CompressedLdc2W::Long(l) => {

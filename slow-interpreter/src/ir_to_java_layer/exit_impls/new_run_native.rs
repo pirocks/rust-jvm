@@ -13,7 +13,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValueCommon, JVMState, WasException};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
-use crate::interpreter::common::invoke::native::{run_native_method};
+use crate::interpreter::common::invoke::native::run_native_method;
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
 

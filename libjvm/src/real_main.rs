@@ -91,6 +91,6 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object();
     let thread_state = &jvm_ref.thread_state;
-    let main_thread: Arc<JavaThread> = ThreadState::bootstrap_main_thread(jvm_ref, &thread_state.threads, MainThreadStartInfo {args});
+    let main_thread: Arc<JavaThread> = ThreadState::bootstrap_main_thread(jvm_ref, &thread_state.threads, MainThreadStartInfo { args });
     main_thread.get_underlying().join();
 }

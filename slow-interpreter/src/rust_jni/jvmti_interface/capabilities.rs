@@ -2,8 +2,8 @@ use std::mem::size_of;
 use std::os::raw::c_void;
 
 use jvmti_jni_bindings::*;
-use crate::rust_jni::jni_interface::jvmti::get_state;
 
+use crate::rust_jni::jvmti_interface::get_state;
 
 // can_access_local_variables              = 1
 // can_generate_single_step_events         = 1

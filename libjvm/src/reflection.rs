@@ -18,6 +18,15 @@ use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loade
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
+use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_interface::util::class_object_to_runtime_class;
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;
 use slow_interpreter::stdlib::java::lang::char::Char;
@@ -27,16 +36,6 @@ use slow_interpreter::stdlib::java::lang::integer::Integer;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::jvmti_interface::event_callbacks::JVMTIEvent::ClassPrepare;
-use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::jni_interface::util::class_object_to_runtime_class;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::utils::{run_static_or_virtual, string_obj_to_string, throw_npe};
 
 #[no_mangle]

@@ -1,4 +1,5 @@
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::frames::{HasFrame, IsOpaque};
@@ -9,7 +10,6 @@ pub struct RemoteFrame<'gc, 'k> {
     frame_ptr: FramePointer,
     num_locals: u16,
     max_stack: u16,
-    current_operand_stack_depth: u16,
 }
 // don't have the function call vec thing
 
@@ -32,7 +32,7 @@ impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
         self.java_stack.jvm()
     }
 
-    fn num_locals(&self) -> Result<u16,IsOpaque> {
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
         Ok(self.num_locals)
     }
 

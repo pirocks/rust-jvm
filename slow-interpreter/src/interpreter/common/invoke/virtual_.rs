@@ -1,29 +1,29 @@
 use std::sync::Arc;
-use itertools::Itertools;
 
+use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{MethodName};
+use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
+use crate::better_java_stack::frames::PushableFrame;
+use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::run_native_method;
-use crate::interpreter::{PostInstructionAction, run_function};
-use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
-use crate::stdlib::java::lang::member_name::MemberName;
+use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolverImpl;
-use crate::new_java_values::{NewJavaValueHandle};
-use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::runtime_type::{RuntimeType};
-use crate::better_java_stack::frames::PushableFrame;
-use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::jni_interface::misc::get_all_methods;
-use crate::utils::{run_static_or_virtual};
+use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
+use crate::stdlib::java::lang::member_name::MemberName;
+use crate::utils::run_static_or_virtual;
 
 /**
 Should only be used for an actual invoke_virtual instruction.
@@ -141,7 +141,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         let args = fixup_args(args, max_locals);
         let java_frame_push = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        interpreter_state.push_frame_java(java_frame_push, |java_frame|{
+        interpreter_state.push_frame_java(java_frame_push, |java_frame| {
             match run_function(jvm, java_frame) {
                 Ok(res) => {
                     Ok(res)

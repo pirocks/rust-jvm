@@ -1,10 +1,11 @@
 use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::NonNull;
+
 use nonnull_const::NonNullConst;
+
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use another_jit_vm::stack::CannotAllocateStack;
-
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use rust_jvm_common::{MethodId, NativeJavaValue};
 use rust_jvm_common::opaque_id_table::OpaqueID;
@@ -58,18 +59,18 @@ impl OpaqueFrameIdOrMethodID {
         }
     }
 
-    pub fn is_opaque(&self) -> bool{
+    pub fn is_opaque(&self) -> bool {
         match self {
             OpaqueFrameIdOrMethodID::Opaque { .. } => true,
             OpaqueFrameIdOrMethodID::Method { .. } => false
         }
     }
 
-    pub fn unwrap_opaque(&self) -> Option<OpaqueID>{
+    pub fn unwrap_opaque(&self) -> Option<OpaqueID> {
         match self {
             OpaqueFrameIdOrMethodID::Opaque { opaque_id } => {
-                return Some(*opaque_id)
-            },
+                return Some(*opaque_id);
+            }
             OpaqueFrameIdOrMethodID::Method { .. } => panic!()
         }
     }
@@ -93,7 +94,7 @@ impl JavaStackPosition {
 }
 
 impl<'vm> OwnedJavaStack<'vm> {
-    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>) -> Result<Self,CannotAllocateStack> {
+    pub fn new(java_vm_state: &'vm JavaVMStateWrapper<'vm>) -> Result<Self, CannotAllocateStack> {
         let inner = OwnedIRStack::new()?;
         Ok(Self {
             java_vm_state,
@@ -122,7 +123,6 @@ impl<'vm> OwnedJavaStack<'vm> {
 }
 
 
-
 pub struct RuntimeJavaStackFrameRef<'vm, 'l> {
     pub(crate) ir_ref: IRFrameRef<'l>,
     pub(crate) jvm: &'vm JVMState<'vm>,
@@ -131,7 +131,7 @@ pub struct RuntimeJavaStackFrameRef<'vm, 'l> {
 impl<'vm> RuntimeJavaStackFrameRef<'vm, '_> {
     pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm> {
         let res = self.ir_ref.read_at_offset(offset);
-        NativeJavaValue{as_u64:res}
+        NativeJavaValue { as_u64: res }
         /*match rtype {
             RuntimeType::IntType => JavaValue::Int(res as i32),
             RuntimeType::FloatType => JavaValue::Float(f32::from_le_bytes((res as u32).to_le_bytes())),

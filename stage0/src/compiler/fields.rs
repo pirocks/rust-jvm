@@ -76,12 +76,12 @@ pub fn putfield<'vm>(
             let to_put_value_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 0);
             let field_size = field_type_to_register_size(field_type);
             Either::Right(array_into_iter([restart_point]).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
-                Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_put_value_offset, ))
+                Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_put_value_offset))
             } else {
                 Either::Right(iter::empty())
             })
                 .chain(if resolver.debug_checkcast_assertions() {
-                    Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, cpd_type, object_ptr_offset, ))
+                    Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, cpd_type, object_ptr_offset))
                 } else {
                     Either::Right(iter::empty())
                 })
@@ -151,7 +151,7 @@ pub fn getfield<'vm>(
             Either::Right(array_into_iter([
                 restart_point]).chain(
                 if resolver.debug_checkcast_assertions() {
-                    Either::Right(checkcast_impl(resolver,method_frame_data,  recompile_conditions, restart_point_generator, &mut current_instr_data, cpd_type, object_ptr_offset, ))
+                    Either::Right(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, cpd_type, object_ptr_offset))
                 } else {
                     Either::Left(iter::empty())
                 }
@@ -176,7 +176,7 @@ pub fn getfield<'vm>(
                 IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
             ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
-                Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_get_value_offset, ))
+                Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_get_value_offset))
             } else {
                 Either::Right(array_into_iter([]))
             }))

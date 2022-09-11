@@ -20,13 +20,7 @@ use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::stdlib::java::lang::class::JClass;
-use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
-use slow_interpreter::stdlib::java::lang::reflect::method::Method;
-use slow_interpreter::stdlib::java::lang::string::JString;
-use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -37,6 +31,11 @@ use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_publi
 use slow_interpreter::rust_jni::jni_interface::misc::get_all_methods;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
+use slow_interpreter::stdlib::java::lang::class::JClass;
+use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
+use slow_interpreter::stdlib::java::lang::reflect::method::Method;
+use slow_interpreter::stdlib::java::lang::string::JString;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {
@@ -51,7 +50,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc,'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
     let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unimplemented!()
@@ -99,7 +98,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc,'k>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'k>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
     if class_type.is_array() || class_type.is_primitive() {
         dbg!(class_type.is_primitive());
         unimplemented!()

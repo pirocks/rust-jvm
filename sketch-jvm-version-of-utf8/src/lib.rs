@@ -1,6 +1,6 @@
+use std::string::FromUtf8Error;
 
 use wtf8::{CodePoint, Wtf8Buf};
-use std::string::FromUtf8Error;
 
 pub mod wtf8_pool;
 

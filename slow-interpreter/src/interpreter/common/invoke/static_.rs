@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
@@ -13,14 +12,14 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use crate::interpreter::common::invoke::find_target_method;
-use crate::interpreter::common::invoke::native::{run_native_method};
-use crate::interpreter::common::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::{PostInstructionAction, run_function};
+use crate::interpreter::common::invoke::find_target_method;
+use crate::interpreter::common::invoke::native::run_native_method;
+use crate::interpreter::common::invoke::virtual_::{call_vmentry, fixup_args};
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stack_entry::{StackEntryPush};
+use crate::stack_entry::StackEntryPush;
 
 // todo this doesn't handle sig poly
 pub fn run_invoke_static<'gc, 'l, 'k>(
@@ -135,15 +134,15 @@ pub fn invoke_static_impl<'l, 'gc>(
         let max_locals = target_method.code_attribute().unwrap().max_locals;
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
-        return interpreter_state.push_frame_java(next_entry,|next_frame|{
+        return interpreter_state.push_frame_java(next_entry, |next_frame| {
             return match run_function(jvm, next_frame) {
                 Ok(res) => {
                     Ok(res)
                 }
-                Err(WasException{ exception_obj }) => {
+                Err(WasException { exception_obj }) => {
                     Err(WasException { exception_obj })
                 }
-            }
+            };
         });
     } else {
         return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {

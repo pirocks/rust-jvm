@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(unused_unsafe)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 #![feature(c_variadic)]
@@ -27,20 +27,19 @@ use std::time::Duration;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
-
-use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
-use crate::exceptions::WasException;
-use crate::interpreter::run_function;
-use crate::interpreter_state::InterpreterStateGuard;
 use stdlib::java::lang::string::JString;
 use stdlib::java::lang::system::System;
 use stdlib::java::NewAsObjectOrJavaValue;
+use stdlib::sun::misc::launcher::Launcher;
+
+use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::class_loading::{check_initing_or_inited_class, check_loaded_class, check_loaded_class_force_loader};
+use crate::exceptions::WasException;
+use crate::interpreter::run_function;
 use crate::java_values::JavaValue;
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
@@ -49,7 +48,6 @@ use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use crate::stack_entry::{StackEntry, StackEntryPush};
-use stdlib::sun::misc::launcher::Launcher;
 use crate::threading::{JavaThread, ThreadState};
 use crate::utils::pushable_frame_todo;
 
@@ -87,7 +85,7 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");
     let main_loader = loader_obj.to_jvm_loader(jvm);
 
-    ThreadState::debug_assertions(jvm,int_state, loader_obj);
+    ThreadState::debug_assertions(jvm, int_state, loader_obj);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
@@ -98,13 +96,13 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     assert!(Arc::ptr_eq(&jvm.thread_state.get_current_thread(), &main_thread));
     let num_vars = main_view.method_view_i(main_i as u16).code_attribute().unwrap().max_locals;
     let main_method_id = jvm.method_table.write().unwrap().get_method_id(main.clone(), main_i);
-    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id,false);
+    jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: main_loader }, main_method_id, false);
     let mut initial_local_var_array = vec![NewJavaValue::Top; num_vars as usize];
     let local_var_array = setup_program_args(&jvm, int_state, args);
     jvm.local_var_array.set(local_var_array.duplicate_discouraged()).unwrap();
     initial_local_var_array[0] = local_var_array.new_java_value();
     let java_frame_push = StackEntryPush::new_java_frame(jvm, main.clone(), main_i as u16, initial_local_var_array);
-    let _: Result<(), WasException<'gc>> = int_state.push_frame_java(java_frame_push, |java_native|{
+    let _: Result<(), WasException<'gc>> = int_state.push_frame_java(java_frame_push, |java_native| {
         jvm.include_name_field.store(true, Ordering::SeqCst);
         match run_function(&jvm, java_native) {
             Ok(_) => {
@@ -141,20 +139,22 @@ fn setup_program_args<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
     }))
 }
 
-fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc, '_>) -> Result<(), WasException<'gc>> {
-    let frame_for_properties = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm, int_state.current_loader(jvm), vec![], "properties setting frame")*/);
-    let properties = &jvm.properties;
-    let prop_obj = System::props(jvm, int_state);
-    assert_eq!(properties.len() % 2, 0);
-    for i in 0..properties.len() / 2 {
-        let key_i = 2 * i;
-        let value_i = 2 * i + 1;
-        let key = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
-        let value = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
-        prop_obj.set_property(jvm, pushable_frame_todo()/*int_state*/, key, value)?;
-    }
-    int_state.pop_frame(jvm, frame_for_properties, false);
-    Ok(())
+fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
+    let loader = int_state.current_loader(jvm);
+    let frame_to_push = StackEntryPush::new_completely_opaque_frame(jvm, loader, vec![], "properties setting frame");
+    int_state.push_frame_opaque(frame_to_push, |opaque_frame| {
+        let properties = &jvm.properties;
+        let prop_obj = System::props(jvm, opaque_frame);
+        assert_eq!(properties.len() % 2, 0);
+        for i in 0..properties.len() / 2 {
+            let key_i = 2 * i;
+            let value_i = 2 * i + 1;
+            let key = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
+            let value = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
+            prop_obj.set_property(jvm, opaque_frame, key, value)?;
+        }
+        Ok(())
+    })
 }
 
 fn locate_main_method(pool: &CompressedClassfileStringPool, main: &Arc<dyn ClassView>) -> u16 {

@@ -1,8 +1,6 @@
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-
 use crate::jvm_state::JVMState;
-
 
 pub fn fconst_0<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     current_frame.push(InterpreterJavaValue::Float(0.0));

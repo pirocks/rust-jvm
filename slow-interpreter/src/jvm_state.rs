@@ -4,7 +4,6 @@ use std::collections::hash_map::RandomState;
 use std::ffi::{c_void, OsString};
 use std::iter;
 use std::iter::FromIterator;
-use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::null_mut;
 use std::rc::Rc;
@@ -57,19 +56,18 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
-use crate::interpreter_state::InterpreterStateGuard;
-use crate::rust_jni::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
-use crate::stdlib::java::lang::class_loader::ClassLoader;
-use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
 use crate::leaked_interface_arrays::InterfaceArrays;
-use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
+use crate::rust_jni::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
+use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
+use crate::stdlib::java::lang::class_loader::ClassLoader;
+use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::string_exit_cache::StringExitCache;
 use crate::threading::safepoints::Monitor2;
 use crate::threading::ThreadState;
@@ -137,7 +135,7 @@ pub struct JVMState<'gc> {
     pub inheritance_tree: InheritanceTree,
     pub bit_vec_paths: RwLock<BitVecPaths>,
     pub interface_arrays: RwLock<InterfaceArrays>,
-    pub local_var_array: OnceCell<AllocatedHandle<'gc>>
+    pub local_var_array: OnceCell<AllocatedHandle<'gc>>,
 }
 
 
@@ -258,7 +256,7 @@ impl<'gc> Classes<'gc> {
 
 
 impl<'gc> JVMState<'gc> {
-    pub fn new(jvm_options: JVMOptions, scope: &'gc Scope<'gc,'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
+    pub fn new(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, Self) {
         let JVMOptions {
             main_class_name,
             classpath,
@@ -354,7 +352,7 @@ impl<'gc> JVMState<'gc> {
             inheritance_tree,
             bit_vec_paths: bt_vec_paths,
             interface_arrays: RwLock::new(InterfaceArrays::new()),
-            local_var_array: Default::default()
+            local_var_array: Default::default(),
         };
         (args, jvm)
     }
@@ -589,15 +587,6 @@ impl<'gc> JVMState<'gc> {
         (method_number_mappings.current_method_number, method_number_mappings.mapping)
     }
 
-    pub unsafe fn get_int_state<'l, 'interpreter_guard>(&self) -> &'interpreter_guard mut InterpreterStateGuard<'l, 'interpreter_guard> {
-        assert!(self.thread_state.int_state_guard_valid.with(|elem| elem.borrow().clone()));
-        let ptr = self.thread_state.int_state_guard.with(|elem| elem.borrow().clone().unwrap());
-        let res = transmute::<&mut InterpreterStateGuard<'static, 'static>, &mut InterpreterStateGuard<'l, 'interpreter_guard>>(ptr.as_mut().unwrap()); //todo make this less sketch maybe
-        assert!(res.registered());
-        assert!(res.thread().thread_status.read().unwrap().alive);
-        res
-    }
-
     pub fn get_loader_obj(&self, loader: LoaderName) -> Option<ClassLoader<'gc>> {
         match loader {
             LoaderName::UserDefinedLoader(loader_idx) => {
@@ -678,7 +667,7 @@ pub struct NativeLibraries<'gc> {
 }
 
 impl<'gc> NativeLibraries<'gc> {
-    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc,'_>, path: &OsString, name: String) {
+    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc, '_>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
         let interface: *const JNIInvokeInterface_ = get_invoke_interface_new(jvm, opaque_frame);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
@@ -746,7 +735,7 @@ impl<'gc> JVMState<'gc> {
     pub fn monitor_for(&self, obj_ptr: *const c_void) -> Arc<Monitor2> {
         assert!(obj_ptr != null_mut());
         let mut monitors_guard = self.object_monitors.write().unwrap();
-        match monitors_guard.get(&obj_ptr){
+        match monitors_guard.get(&obj_ptr) {
             None => {
                 let new_monitor = self.thread_state.new_monitor("".to_string());
                 monitors_guard.insert(obj_ptr, new_monitor.clone());

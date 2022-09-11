@@ -1,6 +1,7 @@
 use std::cmp::max;
 use std::hash::Hash;
 use std::ops::{Deref, DerefMut};
+
 use crate::{Bit, ClassID, InheritanceTreeNode};
 use crate::paths::InheritanceTreePath;
 

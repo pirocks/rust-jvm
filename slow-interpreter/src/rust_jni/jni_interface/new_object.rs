@@ -2,14 +2,14 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
+use method_table::from_jmethod_id;
 
+use crate::{JavaValueCommon, JVMState};
 use crate::interpreter::common::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
-use crate::{JavaValueCommon, JVMState};
-use method_table::from_jmethod_id;
-use crate::rust_jni::jni_interface::call::VarargProvider;
-use crate::rust_jni::jni_interface::local_frame::{new_local_ref_public_new};
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state, push_type_to_operand_stack_new};
+use crate::rust_jni::jni_interface::call::VarargProvider;
+use crate::rust_jni::jni_interface::local_frame::new_local_ref_public_new;
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut args: VaList) -> jobject {
     new_object_impl(env, _clazz, jmethod_id, VarargProvider::VaList(&mut args))
@@ -39,7 +39,7 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     for type_ in &parsed.arg_types {
         args_handle.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
-    for arg in args_handle.iter(){
+    for arg in args_handle.iter() {
         args.push(arg.as_njv());
     }
     if let Err(_) = invoke_special_impl(jvm, int_state, &parsed, method_i, class.clone(), args) {

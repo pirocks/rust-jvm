@@ -161,7 +161,7 @@ impl MethodInfo {
         None
     }
 
-    pub fn runtime_visible_annotations(&self) -> Option<& RuntimeVisibleAnnotations> {
+    pub fn runtime_visible_annotations(&self) -> Option<&RuntimeVisibleAnnotations> {
         for attr in self.attributes.iter() {
             if let AttributeType::RuntimeVisibleAnnotations(annotations) = &attr.attribute_type {
                 return Some(annotations);

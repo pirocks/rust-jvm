@@ -153,7 +153,7 @@ pub fn intrinsic_array_copy<'gc>(
         res: src_pos,
         a: array_layout.elem_size() as i32,
         size: Size::pointer(),
-        signed: Signed::Signed
+        signed: Signed::Signed,
     });
     res.push(IRInstr::Add {
         res: src_address_register,
@@ -174,7 +174,7 @@ pub fn intrinsic_array_copy<'gc>(
         res: dst_pos,
         a: array_layout.elem_size() as i32,
         size: Size::pointer(),
-        signed: Signed::Signed
+        signed: Signed::Signed,
     });
     res.push(IRInstr::Add {
         res: dst_address_register,
@@ -186,7 +186,7 @@ pub fn intrinsic_array_copy<'gc>(
         res: length,
         a: array_layout.elem_size() as i32,
         size: Size::pointer(),
-        signed: Signed::Signed //todo this should probe be not this
+        signed: Signed::Signed, //todo this should probe be not this
     });
 
     let copy_label = labeler.local_label();

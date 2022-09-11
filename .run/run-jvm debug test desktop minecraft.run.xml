@@ -1,20 +1,23 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="run-jvm debug test desktop minecraft" type="CargoCommandRunConfiguration" factoryName="Cargo Command" singleton="false">
-    <option name="command" value="run  --   --main net.minecraft.server.MinecraftServer  --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args this is an arg    --classpath $PROJECT_DIR$/resources/test $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security $USER_HOME$/Desktop/test/unzipped-jar $USER_HOME$/Desktop/test/server.jar --debug-exceptions --args nogui     " />
-    <option name="workingDirectory" value="file://$PROJECT_DIR$" />
-    <option name="channel" value="DEFAULT" />
-    <option name="requiredFeatures" value="true" />
-    <option name="allFeatures" value="false" />
-    <option name="emulateTerminal" value="false" />
-    <option name="withSudo" value="false" />
-    <option name="buildTarget" value="REMOTE" />
-    <option name="backtrace" value="FULL" />
-    <envs>
-      <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/" />
-      <env name="JAVA_HOME" value="$USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/" />
-    </envs>
-    <option name="isRedirectInput" value="false" />
-    <option name="redirectInputPath" value="" />
-    <method v="2" />
-  </configuration>
+    <configuration default="false" name="run-jvm debug test desktop minecraft" type="CargoCommandRunConfiguration"
+                   factoryName="Cargo Command" singleton="false">
+        <option name="command"
+                value="run  --   --main net.minecraft.server.MinecraftServer  --libjava $USER_HOME$/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --args this is an arg    --classpath $PROJECT_DIR$/resources/test $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes $USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security $USER_HOME$/Desktop/test/unzipped-jar $USER_HOME$/Desktop/test/server.jar --debug-exceptions --args nogui     "/>
+        <option name="workingDirectory" value="file://$PROJECT_DIR$"/>
+        <option name="channel" value="DEFAULT"/>
+        <option name="requiredFeatures" value="true"/>
+        <option name="allFeatures" value="false"/>
+        <option name="emulateTerminal" value="false"/>
+        <option name="withSudo" value="false"/>
+        <option name="buildTarget" value="REMOTE"/>
+        <option name="backtrace" value="FULL"/>
+        <envs>
+            <env name="LD_LIBRARY_PATH" value="$PROJECT_DIR$/target/debug/deps/"/>
+            <env name="JAVA_HOME"
+                 value="$USER_HOME$/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/"/>
+        </envs>
+        <option name="isRedirectInput" value="false"/>
+        <option name="redirectInputPath" value=""/>
+        <method v="2"/>
+    </configuration>
 </component>

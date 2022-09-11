@@ -2,6 +2,7 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::MethodId;
+
 use crate::compiler_common::MethodResolver;
 
 pub fn intrinsic_compare_and_swap_long<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
@@ -40,7 +41,7 @@ pub fn intrinsic_compare_and_swap_long<'gc>(resolver: &impl MethodResolver<'gc>,
         IRInstr::Add {
             res: target_obj,
             a: offset,
-            size: Size::pointer()
+            size: Size::pointer(),
         },
         IRInstr::CompareAndSwapAtomic {
             ptr: target_obj,
@@ -48,7 +49,7 @@ pub fn intrinsic_compare_and_swap_long<'gc>(resolver: &impl MethodResolver<'gc>,
             new,
             res: Register(0),
             rax: Register(0),
-            size: Size::long()
+            size: Size::long(),
         },
         IRInstr::Return {
             return_val: Some(Register(0)),

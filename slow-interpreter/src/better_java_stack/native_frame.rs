@@ -4,7 +4,6 @@ use std::ptr::NonNull;
 use libc::c_void;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
-
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use jvmti_jni_bindings::jlong;
 
@@ -79,7 +78,7 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
         todo!()
     }
 
-    fn num_locals(&self) -> Result<u16,IsOpaque> {
+    fn num_locals(&self) -> Result<u16, IsOpaque> {
         todo!()
     }
 
@@ -102,7 +101,7 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
-        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer,None)
+        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer, None)
     }
 }
 
@@ -124,7 +123,7 @@ impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
     }
 }
 
-impl <'gc,'k> HasJavaStack<'gc> for NativeFrame<'gc, 'k> {
+impl<'gc, 'k> HasJavaStack<'gc> for NativeFrame<'gc, 'k> {
     fn java_stack(&self) -> &JavaStackGuard<'gc> {
         self.java_stack
     }

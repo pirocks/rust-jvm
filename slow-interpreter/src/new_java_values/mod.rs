@@ -2,17 +2,18 @@ use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::ptr::null_mut;
 use std::sync::Arc;
-use itertools::Itertools;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 
+use itertools::Itertools;
+
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{JavaValue, JVMState};
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
-use crate::java_values::{default_value_njv};
+use crate::java_values::default_value_njv;
 use crate::new_java_values::allocated_objects::{AllocatedHandle, AllocatedNormalObjectHandle, AllocatedObject};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
@@ -117,8 +118,8 @@ impl<'gc> NewJavaValueHandle<'gc> {
         Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class: empty_byte_array, elems: vec![] })))
     }
 
-    pub fn new_default_array(jvm: &'gc JVMState<'gc>, len: i32, whole_array_runtime_class: Arc<RuntimeClass<'gc>>, elem_type: CPDType) -> Self{
-        let elems = (0..len).map(|_|default_value_njv(&elem_type)).collect_vec();
+    pub fn new_default_array(jvm: &'gc JVMState<'gc>, len: i32, whole_array_runtime_class: Arc<RuntimeClass<'gc>>, elem_type: CPDType) -> Self {
+        let elems = (0..len).map(|_| default_value_njv(&elem_type)).collect_vec();
         Self::Object(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems })))
     }
 
@@ -130,7 +131,7 @@ impl<'gc> NewJavaValueHandle<'gc> {
         }
     }
 
-    pub fn to_interpreter_jv(&self) -> InterpreterJavaValue{
+    pub fn to_interpreter_jv(&self) -> InterpreterJavaValue {
         match self {
             NewJavaValueHandle::Long(long) => {
                 InterpreterJavaValue::Long(*long)
@@ -255,7 +256,7 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
         }
     }
 
-    pub fn try_unwrap_object_alloc(&self) -> Option<Option<AllocatedObject<'gc,'l>>> {
+    pub fn try_unwrap_object_alloc(&self) -> Option<Option<AllocatedObject<'gc, 'l>>> {
         match self {
             NewJavaValue::Null => Some(None),
             NewJavaValue::AllocObject(alloc) => {
@@ -265,24 +266,24 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
         }
     }
 
-    pub fn unwrap_normal_object(&self) -> Option<&'l AllocatedNormalObjectHandle<'gc>>{
+    pub fn unwrap_normal_object(&self) -> Option<&'l AllocatedNormalObjectHandle<'gc>> {
         if let NewJavaValue::AllocObject(obj) = self {
             match obj {
                 AllocatedObject::Handle(handle) => {
                     if let AllocatedHandle::NormalObject(normal_object) = handle {
-                        return Some(normal_object)
+                        return Some(normal_object);
                     }
                 }
                 AllocatedObject::NormalObject(normal_object) => {
-                    return Some(normal_object)
+                    return Some(normal_object);
                 }
                 AllocatedObject::ArrayObject(_) => {}
             }
         };
-        return None
+        return None;
     }
 
-    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc ,'l>> {
+    pub fn unwrap_object_alloc(&self) -> Option<AllocatedObject<'gc, 'l>> {
         self.try_unwrap_object_alloc().unwrap()
     }
 
@@ -481,7 +482,7 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
         }
     }
 
-    pub fn widen_int_vals(self) -> Self{
+    pub fn widen_int_vals(self) -> Self {
         match self {
             NewJavaValue::Long(long) => Self::Long(long),
             NewJavaValue::Int(int) => Self::Int(int),
@@ -497,16 +498,15 @@ impl<'gc, 'l> NewJavaValue<'gc, 'l> {
             NewJavaValue::Top => Self::Top
         }
     }
-
 }
 
 pub enum NewJVObject<'gc, 'l> {
     UnAllocObject(UnAllocatedObject<'gc, 'l>),
-    AllocObject(AllocatedObject<'gc,'l>),
+    AllocObject(AllocatedObject<'gc, 'l>),
 }
 
 impl<'gc, 'l> NewJVObject<'gc, 'l> {
-    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc,'l> {
+    pub fn unwrap_alloc(&self) -> AllocatedObject<'gc, 'l> {
         match self {
             NewJVObject::UnAllocObject(_) => panic!(),
             NewJVObject::AllocObject(alloc_obj) => {

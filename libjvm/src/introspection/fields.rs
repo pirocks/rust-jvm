@@ -3,7 +3,6 @@ use std::ptr::null_mut;
 
 use libc::time;
 
-
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
@@ -16,19 +15,18 @@ use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::stdlib::java::lang::class::JClass;
-use slow_interpreter::stdlib::java::lang::reflect::field::Field;
-use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
-use slow_interpreter::rust_jni::jni_interface::{field_object_from_view};
+use slow_interpreter::rust_jni::jni_interface::field_object_from_view;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, to_object};
+use slow_interpreter::stdlib::java::lang::class::JClass;
+use slow_interpreter::stdlib::java::lang::reflect::field::Field;
+use slow_interpreter::stdlib::java::lang::string::JString;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassFieldsCount(env: *mut JNIEnv, cb: jclass) -> jint {

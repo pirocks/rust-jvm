@@ -1,6 +1,5 @@
 use num_derive::FromPrimitive;
 
-
 #[allow(non_camel_case_types)]
 #[repr(u8)]
 #[derive(Debug, Eq, PartialEq, FromPrimitive)]

@@ -1,8 +1,8 @@
 use std::ffi::CStr;
 
 use jvmti_jni_bindings::{jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_NOT_AVAILABLE};
-use crate::rust_jni::jni_interface::jvmti::get_state;
 
+use crate::rust_jni::jvmti_interface::get_state;
 
 ///Get System Property
 ///

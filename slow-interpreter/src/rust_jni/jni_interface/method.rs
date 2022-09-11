@@ -6,11 +6,10 @@ use std::ptr::null_mut;
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
 use rust_jvm_common::compressed_classfile::names::MethodName;
 
-
-use crate::{WasException};
+use crate::WasException;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::misc::get_all_methods;
-use crate::rust_jni::native_util::{from_jclass};
+use crate::rust_jni::native_util::from_jclass;
 
 //for now a method id is a pair of class pointers and i.
 //turns out this is for member functions only

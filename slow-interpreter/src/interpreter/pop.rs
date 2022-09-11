@@ -1,5 +1,6 @@
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::runtime_type::RuntimeType;
+
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::InterpreterFrame;
 use crate::JVMState;
@@ -14,9 +15,7 @@ pub fn pop2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mut c
     };
     current_frame.pop(RuntimeType::LongType); //in principle type doesn't matter todo pass it anyway
     match value1_vtype {
-        RuntimeType::LongType | RuntimeType::DoubleType => {
-
-        }
+        RuntimeType::LongType | RuntimeType::DoubleType => {}
         _ => {
             current_frame.pop(RuntimeType::LongType);
         }

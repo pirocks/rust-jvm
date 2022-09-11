@@ -3,7 +3,6 @@ use std::sync::Arc;
 use by_address::ByAddress;
 use libc::c_void;
 
-
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
@@ -17,10 +16,10 @@ use crate::interpreter::common::invoke::native::mhn_temp::init::MHN_init;
 use crate::interpreter::common::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::interpreter::common::invoke::native::unsafe_temp::shouldBeInitialized;
 use crate::interpreter::monitor_for_function;
-use crate::stdlib::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
+use crate::stdlib::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::utils::throw_npe_res;
 
 pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc, 'l>]) -> Vec<NewJavaValue<'gc, 'l>> {
@@ -102,7 +101,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
         Ok(res) => {
             Ok(res)
         }
-        Err(WasException{ exception_obj }) => {
+        Err(WasException { exception_obj }) => {
             Err(WasException { exception_obj })
         }
     }

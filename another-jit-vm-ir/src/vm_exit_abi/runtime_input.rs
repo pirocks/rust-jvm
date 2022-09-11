@@ -271,7 +271,7 @@ pub enum RuntimeVMExitInput {
     },
     Todo {
         pc: ByteCodeOffset,
-    }
+    },
 }
 
 impl RuntimeVMExitInput {
@@ -578,14 +578,14 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::RunNativeVirtual { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeSpecial { pc, .. } => Some(*pc),
             RuntimeVMExitInput::RunNativeSpecialNew { .. } => None,
-            RuntimeVMExitInput::RunNativeStaticNew {  .. } => None,
+            RuntimeVMExitInput::RunNativeStaticNew { .. } => None,
             RuntimeVMExitInput::RunInterpreted { .. } => None,
             RuntimeVMExitInput::AssertInstanceOf { pc, .. } => Some(*pc),
             RuntimeVMExitInput::NewClassRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorEnterRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorExitRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::ArrayOutOfBounds { pc, .. } => Some(*pc),
-            RuntimeVMExitInput::Todo { pc} => Some(*pc)
+            RuntimeVMExitInput::Todo { pc } => Some(*pc)
         }
     }
 }

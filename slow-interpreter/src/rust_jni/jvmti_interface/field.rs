@@ -9,7 +9,7 @@ use rust_jvm_common::FieldId;
 
 use crate::JVMState;
 use crate::rust_jni::jni_interface::get_field::new_field_id;
-use crate::rust_jni::jni_interface::jvmti::get_state;
+use crate::rust_jni::jvmti_interface::get_state;
 use crate::rust_jni::native_util::from_jclass;
 
 pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, is_synthetic_ptr: *mut jboolean) -> jvmtiError {

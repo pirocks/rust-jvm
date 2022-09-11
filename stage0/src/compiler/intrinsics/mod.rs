@@ -1,5 +1,5 @@
-use another_jit_vm::{IRMethodID};
-use another_jit_vm_ir::compiler::{IRInstr};
+use another_jit_vm::IRMethodID;
+use another_jit_vm_ir::compiler::IRInstr;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};

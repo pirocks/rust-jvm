@@ -10,7 +10,13 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::new::a_new_array_from_name;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
+use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;
 use slow_interpreter::stdlib::java::lang::char::Char;
@@ -19,13 +25,6 @@ use slow_interpreter::stdlib::java::lang::float::Float;
 use slow_interpreter::stdlib::java::lang::int::Int;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
-use slow_interpreter::java_values::{JavaValue, Object};
-use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]

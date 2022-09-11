@@ -1,7 +1,6 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-
 use classfile_view::view::interface_view::InterfaceView;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::jint;
@@ -90,7 +89,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                                             panic!()
                                         } else {
                                             0
-                                        }
+                                        };
                                     }
                                     Some(instance_of_class) => {
                                         if let Some(super_inheritance_tree_vec) = instance_of_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
@@ -101,7 +100,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                                                 } else {
                                                     assert!(!inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()));
                                                     0
-                                                }
+                                                };
                                             }
                                         }
                                     }
@@ -155,7 +154,7 @@ pub fn instance_of_impl<'gc, 'l, 'k>(
         Object(object) => {
             match instance_of_class_type {
                 CPRefType::Class(instance_of_class_name) => {
-                    let mut temp : OpaqueFrame<'gc, 'l> = todo!();
+                    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
                     let instanceof_class = check_resolved_class(jvm, &mut temp/*int_state.inner()*/, instance_of_class_name.into())?; //todo check if this should be here
                     let object_class = object.objinfo.class_pointer.clone();
                     if todo!()/*inherits_from(jvm, int_state, &object_class, &instanceof_class)?*/ {

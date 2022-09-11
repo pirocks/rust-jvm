@@ -43,7 +43,7 @@ pub struct VerifierContext<'l> {
     pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
     pub debug: bool,
     pub perf_metrics: &'l PerfMetrics,
-    pub permissive_types_workaround: bool
+    pub permissive_types_workaround: bool,
 }
 
 pub trait ClassFileGetter {

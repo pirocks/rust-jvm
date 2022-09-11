@@ -1,25 +1,24 @@
 pub mod generics;
 
 pub mod reflection {
-
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
+    use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::java_values::{GcManagedObject, JavaValue};
     use crate::jvm_state::JVMState;
-    use crate::{PushableFrame, WasException};
+    use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::stdlib::java::lang::class::JClass;
     use crate::utils::run_static_or_virtual;
 
     pub struct Reflection<'gc> {
-        normal_object: GcManagedObject<'gc>,
+        normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_reflection(&self) -> Reflection<'gc> {
-            Reflection { normal_object: self.unwrap_object_nonnull() }
+    impl<'gc> NewJavaValueHandle<'gc> {
+        pub fn cast_reflection(self) -> Reflection<'gc> {
+            Reflection { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
         }
     }
 
@@ -36,21 +35,29 @@ pub mod reflection {
             Ok(todo!()/*int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean()*/)
         }
 
-        //as_object_or_java_value!();
+    }
+
+    impl<'gc> NewAsObjectOrJavaValue<'gc> for Reflection<'gc> {
+        fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            self.normal_object
+        }
+
+        fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
+            &self.normal_object
+        }
     }
 }
 
 pub mod constant_pool {
-
     use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
     use crate::{AllocatedHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::new_object_full;
-    use crate::stdlib::java::lang::class::JClass;
-    use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+    use crate::stdlib::java::lang::class::JClass;
+    use crate::stdlib::java::NewAsObjectOrJavaValue;
 
     pub struct ConstantPool<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -78,8 +85,6 @@ pub mod constant_pool {
         pub fn set_constant_pool_oop(&self, jvm: &'gc JVMState<'gc>, jclass: JClass<'gc>) {
             self.normal_object.set_var_top_level(jvm, FieldName::field_constantPoolOop(), jclass.new_java_value());
         }
-
-        // as_object_or_java_value!();
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for ConstantPool<'gc> {
