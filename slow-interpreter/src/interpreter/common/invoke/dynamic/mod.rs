@@ -13,7 +13,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle, PushableFrame, WasException};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::stdlib::java::lang::class::JClass;
@@ -25,6 +25,8 @@ use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
+
+pub mod resolvers;
 
 pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {
     match invoke_dynamic_impl(jvm, int_state, cp, current_pc) {

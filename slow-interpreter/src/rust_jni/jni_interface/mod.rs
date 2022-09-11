@@ -34,7 +34,7 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::exceptions::WasException;
-use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::interpreter_util::new_object;
 use crate::rust_jni::invoke_interface::get_env;
 use crate::stdlib::java::lang::class::JClass;

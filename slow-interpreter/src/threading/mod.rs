@@ -83,14 +83,6 @@ impl<'gc> ThreadState<'gc> {
         }
     }
 
-   /* pub fn setup_main_thread(&self, jvm: &'gc JVMState<'gc>, main_thread: &'gc Arc<JavaThread<'gc>>) -> Sender<MainThreadStartInfo> {
-
-        main_thread.clone().underlying_thread.start_thread(
-            box (),
-        );
-        main_send
-    }*/
-
     pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader_obj: ClassLoader<'gc>) {
         // for _ in 0..100{
         //     let list_cpdtype = CPDType::from_ptype(&PType::from_class(ClassName::Str("java/util/ArrayList".to_string())), &jvm.string_pool);
@@ -281,17 +273,6 @@ impl<'gc> ThreadState<'gc> {
         }).expect("todo");
         main_send.send(main_thread_start_info).unwrap();
         res
-
-        // let mut interpreter_state_guard = bootstrap_thread.interpreter_state.lock().unwrap();
-        // let mut new_int_state = InterpreterStateGuard::LocalInterpreterState {
-        //     int_state: IRStackMut::from_stack_start(&mut interpreter_state_guard.call_stack.inner),
-        //     thread: jvm.thread_state.get_current_thread(),
-        //     registered: false,
-        //     jvm,
-        //     current_exited_pc: None,
-        //     throw: None,
-        // };
-        // let _old = new_int_state.register_interpreter_state_guard(jvm);
     }
 
     pub fn get_current_thread_name(&self, jvm: &'gc JVMState<'gc>) -> String {

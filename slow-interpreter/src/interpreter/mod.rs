@@ -23,7 +23,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
 use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
 use crate::better_java_stack::StackDepth;
-use crate::instructions::special::instance_of_exit_impl_impl_impl;
+use common::special::instance_of_exit_impl_impl_impl;
 
 pub mod single_instruction;
 pub mod real_interpreter_state;
@@ -43,6 +43,7 @@ pub mod wide;
 pub mod switch;
 pub mod pop;
 pub mod throw;
+pub mod common;
 
 
 pub struct FrameToRunOn {

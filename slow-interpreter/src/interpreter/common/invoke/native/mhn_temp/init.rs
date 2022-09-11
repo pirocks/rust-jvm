@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
+use crate::interpreter::common::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
 use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::reflect::constructor::Constructor;
 use crate::stdlib::java::lang::reflect::method::Method;

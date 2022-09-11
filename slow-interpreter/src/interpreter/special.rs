@@ -1,6 +1,6 @@
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::instructions::special::{invoke_instanceof};
+use crate::interpreter::common::special::{invoke_instanceof};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::JVMState;

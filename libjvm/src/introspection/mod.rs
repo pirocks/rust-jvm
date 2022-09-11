@@ -28,7 +28,7 @@ use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::instructions::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter::common::ldc::{create_string_on_stack, load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;

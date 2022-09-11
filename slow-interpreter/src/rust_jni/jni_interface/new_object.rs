@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv, jobject, jvalue};
 
-use crate::instructions::invoke::special::invoke_special_impl;
+use crate::interpreter::common::invoke::special::invoke_special_impl;
 use crate::interpreter_util::new_object;
 use crate::{JavaValueCommon, JVMState};
 use method_table::from_jmethod_id;

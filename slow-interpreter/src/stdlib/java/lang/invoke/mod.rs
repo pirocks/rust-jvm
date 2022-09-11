@@ -708,7 +708,7 @@ pub mod call_site {
     use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::instructions::invoke::virtual_::invoke_virtual;
+    use crate::interpreter::common::invoke::virtual_::invoke_virtual;
     use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;

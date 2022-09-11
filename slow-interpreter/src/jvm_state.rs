@@ -63,7 +63,7 @@ use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
-use crate::jit::leaked_interface_arrays::InterfaceArrays;
+use crate::leaked_interface_arrays::InterfaceArrays;
 use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;

@@ -6,7 +6,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, 
 use rust_jvm_common::MethodId;
 
 use crate::{pushable_frame_todo, WasException};
-use crate::instructions::invoke::special::invoke_special_impl;
+use crate::interpreter::common::invoke::special::invoke_special_impl;
 use crate::java_values::JavaValue;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::call::{push_params_onto_frame, VarargProvider};

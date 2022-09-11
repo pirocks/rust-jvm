@@ -16,7 +16,7 @@ use rust_jvm_common::ptype::PType;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::instructions::invoke::virtual_::invoke_virtual;
+use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;

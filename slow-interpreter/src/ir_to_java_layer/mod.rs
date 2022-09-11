@@ -215,4 +215,3 @@ impl JavaVMStateWrapperInner {
 pub mod exit_impls;
 pub mod dump_frame;
 pub mod java_vm_state;
-pub mod instruction_correctness_assertions;

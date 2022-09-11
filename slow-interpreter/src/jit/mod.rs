@@ -28,9 +28,7 @@ use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 
-pub mod ir;
 pub mod state;
-pub mod leaked_interface_arrays;
 
 #[derive(Clone, Debug)]
 pub struct ResolvedInvokeVirtual {

@@ -9,8 +9,8 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, WasException};
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::find_target_method;
-use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::common::invoke::find_target_method;
+use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;

@@ -19,7 +19,7 @@ use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::stdlib::java::lang::class::JClass;

@@ -26,7 +26,6 @@ use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
 use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value_rtype};
 use crate::jit::state::Opaque;
-use crate::jit_common::java_stack::JavaStack;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::NewJavaValue;
@@ -307,42 +306,6 @@ impl<'gc, 'l> FrameView<'gc, 'l> {
                 }
             }
         }*/
-    }
-}
-
-pub struct StackIter<'vm> {
-    jvm: &'vm JVMState<'vm>,
-    current_frame: *mut c_void,
-    top: *mut c_void,
-    current_ip: Option<*mut c_void>,
-}
-
-impl<'l, 'k> StackIter<'l> {
-    pub fn new(jvm: &'l JVMState<'l>, java_stack: &'k JavaStack) -> Self {
-        Self {
-            jvm,
-            current_frame: java_stack.current_frame_ptr(),
-            top: java_stack.top,
-            current_ip: None,
-        }
-    }
-}
-
-impl<'vm> Iterator for StackIter<'vm> {
-    type Item = StackEntry;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.current_frame != self.top && self.current_ip != Some(0x0000010080000000 as *mut c_void) {
-            //todo cnstant
-            let frame_view = FrameView::new(self.current_frame, todo!());
-            let header = frame_view.get_header();
-            self.current_ip = Some(header.prev_rip);
-            let res = Some(frame_view.as_stack_entry_partially_correct(self.jvm));
-            self.current_frame = frame_view.get_header().prev_rpb;
-            res
-        } else {
-            None
-        }
     }
 }
 

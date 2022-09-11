@@ -19,8 +19,8 @@ use verification::VerifierContext;
 
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
-use crate::instructions::ldc::load_class_constant_by_type;
-use crate::instructions::special::inherits_from_cpdtype;
+use crate::interpreter::common::ldc::load_class_constant_by_type;
+use crate::interpreter::common::special::inherits_from_cpdtype;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;

@@ -10,12 +10,12 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::better_java_stack::frames::HasFrame;
 
 use crate::function_instruction_count::FunctionExecutionCounter;
-use crate::instructions::invoke::dynamic::invoke_dynamic;
-use crate::instructions::invoke::interface::invoke_interface;
-use crate::instructions::invoke::special::invoke_special;
-use crate::instructions::invoke::static_::run_invoke_static;
-use crate::instructions::invoke::virtual_::invoke_virtual_instruction;
-use crate::instructions::special::invoke_instanceof;
+use crate::interpreter::common::invoke::dynamic::invoke_dynamic;
+use crate::interpreter::common::invoke::interface::invoke_interface;
+use crate::interpreter::common::invoke::special::invoke_special;
+use crate::interpreter::common::invoke::static_::run_invoke_static;
+use crate::interpreter::common::invoke::virtual_::invoke_virtual_instruction;
+use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
 use crate::interpreter::branch::{goto_, if_acmpeq, if_acmpne, if_icmpeq, if_icmpge, if_icmpgt, if_icmple, if_icmplt, if_icmpne, ifeq, ifge, ifgt, ifle, iflt, ifne, ifnonnull, ifnull};
 use crate::interpreter::cmp::{dcmpg, dcmpl, fcmpg, fcmpl};

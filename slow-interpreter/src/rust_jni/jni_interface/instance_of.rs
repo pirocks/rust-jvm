@@ -1,6 +1,6 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 
-use crate::instructions::special::{instance_of_exit_impl};
+use crate::interpreter::common::special::{instance_of_exit_impl};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::{from_object_new};

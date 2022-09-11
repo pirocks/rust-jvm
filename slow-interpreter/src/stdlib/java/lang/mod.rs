@@ -271,7 +271,7 @@ pub mod class {
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
     use crate::class_objects::get_or_create_class_object;
-    use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object, run_constructor};
     use crate::stdlib::java::lang::class_loader::ClassLoader;
     use crate::stdlib::java::lang::string::JString;

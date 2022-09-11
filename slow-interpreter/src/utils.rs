@@ -10,8 +10,8 @@ use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, Method
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::instructions::invoke::static_::invoke_static_impl;
-use crate::instructions::invoke::virtual_::{invoke_virtual};
+use crate::interpreter::common::invoke::static_::invoke_static_impl;
+use crate::interpreter::common::invoke::virtual_::{invoke_virtual};
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::boolean::Boolean;
 use crate::stdlib::java::lang::byte::Byte;

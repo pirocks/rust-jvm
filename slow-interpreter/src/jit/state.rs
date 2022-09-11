@@ -105,19 +105,3 @@ pub fn all_interfaces_recursive<'gc>(jvm: &'gc JVMState<'gc>, rc: &RuntimeClassC
     res
 }
 
-
-pub fn setup_args_from_current_frame<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut InterpreterStateGuard<'gc, 'l>, desc: &CMethodDescriptor, is_virtual: bool) -> Vec<NewJavaValueHandle<'gc>> {
-    if is_virtual {
-        todo!()
-    }
-    let mut args = vec![];
-    for (i, _) in desc.arg_types.iter().enumerate() {
-        let current_frame = int_state.current_frame();
-        let operand_stack = current_frame.operand_stack(jvm);
-        let types_ = operand_stack.types();
-        let operand_stack_i = types_.len() - 1 - i;
-        let jv = operand_stack.get(operand_stack_i as u16, types_[operand_stack_i].clone());
-        args.push(jv);
-    }
-    args
-}

@@ -9,8 +9,8 @@ use rust_jvm_common::MethodId;
 
 use crate::class_loading::check_initing_or_inited_class;
 // use log::trace;
-use crate::instructions::invoke::static_::invoke_static_impl;
-use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
+use crate::interpreter::common::invoke::static_::invoke_static_impl;
+use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
 
 use crate::{JavaValueCommon, WasException};
 use crate::jvm_state::JVMState;

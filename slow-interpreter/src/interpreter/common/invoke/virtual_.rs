@@ -9,8 +9,8 @@ use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefTyp
 use rust_jvm_common::compressed_classfile::names::{MethodName};
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
-use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
-use crate::instructions::invoke::native::run_native_method;
+use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
+use crate::interpreter::common::invoke::native::run_native_method;
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
 use crate::stdlib::java::lang::member_name::MemberName;

@@ -12,7 +12,7 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jbyteArray, jclass, jint, jio_fprintf, JNIEnv, jobject, jstring, JVM_DefineClass};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderName;
-use slow_interpreter::instructions::ldc::load_class_constant_by_type;
+use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;

@@ -129,7 +129,7 @@ pub mod method {
     use crate::{JavaValueCommon, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::stdlib::java::lang::class::JClass;
     use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
@@ -309,7 +309,7 @@ pub mod constructor {
 
     use crate::{JavaValueCommon, NewJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::instructions::ldc::load_class_constant_by_type;
+    use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object_full, run_constructor};
     use crate::stdlib::java::lang::class::JClass;
     use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};

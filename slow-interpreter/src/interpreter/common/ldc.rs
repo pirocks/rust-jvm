@@ -7,7 +7,7 @@ use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
-use crate::instructions::invoke::find_target_method;
+use crate::interpreter::common::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::new_object;
 use crate::stdlib::java::lang::string::JString;

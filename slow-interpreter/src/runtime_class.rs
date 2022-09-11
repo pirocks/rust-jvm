@@ -9,7 +9,7 @@ use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::instructions::ldc::from_constant_pool_entry;
+use crate::interpreter::common::ldc::from_constant_pool_entry;
 use crate::java_values::{default_value, native_to_new_java_value};
 
 pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {

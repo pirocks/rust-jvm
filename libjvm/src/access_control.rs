@@ -13,7 +13,7 @@ use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::instructions::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
+use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::stdlib::java::security::protection_domain::ProtectionDomain;

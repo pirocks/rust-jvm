@@ -9,7 +9,7 @@ use rust_jvm_common::compressed_classfile::names::MethodName;
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
-use crate::instructions::invoke::special::invoke_special_impl;
+use crate::interpreter::common::invoke::special::invoke_special_impl;
 use crate::java_values::{default_value, JavaValue};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 

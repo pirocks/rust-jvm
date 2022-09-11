@@ -22,7 +22,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
-use crate::instructions::ldc::load_class_constant_by_type;
+use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
