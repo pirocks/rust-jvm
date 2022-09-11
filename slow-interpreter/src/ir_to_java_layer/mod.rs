@@ -19,7 +19,6 @@ use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 
 pub mod java_stack;
-pub mod vm_exit_abi;
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone, Debug)]
 pub struct ExitNumber(u64);
