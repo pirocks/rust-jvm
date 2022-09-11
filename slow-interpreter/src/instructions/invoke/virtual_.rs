@@ -12,8 +12,8 @@ use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, Sta
 use crate::instructions::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::run_native_method;
 use crate::interpreter::{PostInstructionAction, run_function};
-use crate::java::lang::invoke::lambda_form::LambdaForm;
-use crate::java::lang::member_name::MemberName;
+use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
+use crate::stdlib::java::lang::member_name::MemberName;
 use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::{NewJavaValueHandle};
@@ -22,7 +22,7 @@ use rust_jvm_common::runtime_type::{RuntimeType};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::rust_jni::interface::misc::get_all_methods;
+use crate::rust_jni::jni_interface::misc::get_all_methods;
 use crate::utils::{run_static_or_virtual};
 
 /**
@@ -269,7 +269,7 @@ pub fn invoke_virtual<'gc, 'l>(
     md: &CMethodDescriptor,
     args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
-    //The resolved method must not be an instance initialization method,or the class or interface initialization method (§2.9)
+    //The resolved method must not be an instance initialization method,or the class or jni_interface initialization method (§2.9)
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
         panic!() //should have been caught by verifier, though perhaps it is possible to reach this w/ invokedynamic todo
     }

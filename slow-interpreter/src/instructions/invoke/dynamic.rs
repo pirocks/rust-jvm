@@ -16,14 +16,14 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::java::lang::class::JClass;
-use crate::java::lang::invoke::lambda_form::LambdaForm;
-use crate::java::lang::invoke::method_handle::MethodHandle;
-use crate::java::lang::invoke::method_handles::lookup::Lookup;
-use crate::java::lang::invoke::method_type::MethodType;
-use crate::java::lang::member_name::MemberName;
-use crate::java::lang::string::JString;
-use crate::java::NewAsObjectOrJavaValue;
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
+use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
+use crate::stdlib::java::lang::invoke::method_handles::lookup::Lookup;
+use crate::stdlib::java::lang::invoke::method_type::MethodType;
+use crate::stdlib::java::lang::member_name::MemberName;
+use crate::stdlib::java::lang::string::JString;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {

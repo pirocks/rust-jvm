@@ -224,8 +224,8 @@ pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut
 //     let pc = interpreter_state.current_pc();
 //     let stop = match jvm.jvmti_state() {
 //         None => false,
-//         Some(jvmti) => {
-//             let breakpoints = &jvmti.break_points.read().unwrap();
+//         Some(jvmti_interface) => {
+//             let breakpoints = &jvmti_interface.break_points.read().unwrap();
 //             let function_breakpoints = breakpoints.get(&methodid);
 //             function_breakpoints.map(|points| points.contains(&pc)).unwrap_or(false)
 //         }

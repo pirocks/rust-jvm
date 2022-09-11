@@ -58,7 +58,7 @@ pub fn main_<'l, 'env>() {
         ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
         ap.refer(&mut libjdwp).add_option(&["--libjdwp"], Store, "");
         ap.refer(&mut enable_tracing).add_option(&["--tracing"], StoreTrue, "Enable debug tracing");
-        ap.refer(&mut enable_jvmti).add_option(&["--jvmti"], StoreTrue, "Enable JVMTI");
+        ap.refer(&mut enable_jvmti).add_option(&["--jvmti_interface"], StoreTrue, "Enable JVMTI");
         ap.refer(&mut properties).add_option(&["--properties"], List, "Set JVM Properties");
         ap.refer(&mut unittest_mode).add_option(&["--unittest-mode"], StoreTrue, "Enable Unittest mode. This causes the main class to be ignored");
         ap.refer(&mut store_generated_options).add_option(&["--store-anon-class"], StoreTrue, "Enables writing out of classes defined with Unsafe.defineClass");

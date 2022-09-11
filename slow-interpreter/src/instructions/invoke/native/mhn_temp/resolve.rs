@@ -10,11 +10,11 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_FIELD, IS_METHOD, IS_TYPE, REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::instructions::invoke::native::mhn_temp::init::init;
 use crate::interpreter_util::new_object;
-use crate::java::lang::member_name::MemberName;
+use crate::stdlib::java::lang::member_name::MemberName;
 use crate::java_values::ByAddressAllocatedObject;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::resolvers::methods::{ResolutionError, resolve_invoke_interface, resolve_invoke_special, resolve_invoke_static, resolve_invoke_virtual};
-use crate::rust_jni::interface::misc::get_all_fields;
+use crate::rust_jni::jni_interface::misc::get_all_fields;
 use crate::utils::unwrap_or_npe;
 
 pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

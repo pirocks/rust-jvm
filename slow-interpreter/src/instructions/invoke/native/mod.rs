@@ -17,7 +17,7 @@ use crate::instructions::invoke::native::mhn_temp::init::MHN_init;
 use crate::instructions::invoke::native::mhn_temp::resolve::MHN_resolve;
 use crate::instructions::invoke::native::unsafe_temp::shouldBeInitialized;
 use crate::interpreter::monitor_for_function;
-use crate::java::nio::heap_byte_buffer::HeapByteBuffer;
+use crate::stdlib::java::nio::heap_byte_buffer::HeapByteBuffer;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::{call, call_impl, mangling};
 use crate::stack_entry::StackEntryPush;

@@ -1,6 +1,3 @@
-extern crate libc;
-extern crate libloading;
-
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::mem::transmute;
@@ -29,13 +26,20 @@ use crate::instructions::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
-use crate::rust_jni::interface::jni::with_jni_interface;
+use crate::rust_jni::jni_interface::jni::with_jni_interface;
 use crate::rust_jni::native_util::from_object_new;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
 
 pub mod mangling;
 pub mod value_conversion;
 pub mod ffi_arg_holder;
+pub mod dlopen;
+pub mod native_util;
+pub mod stdarg;
+pub mod jni_interface;
+pub mod jvmti_interface;
+pub mod jmm_interface;
+pub mod invoke_interface;
 
 impl<'gc> NativeLibraries<'gc> {
     pub fn new(libjava: OsString) -> NativeLibraries<'gc> {
@@ -154,8 +158,3 @@ pub fn call_impl<'gc, 'l, 'k>(
     }
     res
 }
-
-pub mod dlopen;
-pub mod interface;
-pub mod native_util;
-pub mod stdarg;

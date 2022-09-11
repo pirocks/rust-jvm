@@ -3,8 +3,8 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
 use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::interface::string::get_string_region;
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::string::get_string_region;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::utils::pushable_frame_todo;
 

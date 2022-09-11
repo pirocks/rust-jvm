@@ -33,12 +33,12 @@ use crate::exceptions::WasException;
 use crate::interpreter::{run_function, safepoint_check};
 use crate::interpreter_state::InterpreterState;
 use crate::interpreter_util::new_object_full;
-use crate::invoke_interface::get_invoke_interface_new;
-use crate::java::lang::class_loader::ClassLoader;
-use crate::java::lang::thread::JThread;
-use crate::java::lang::thread_group::JThreadGroup;
+use crate::rust_jni::invoke_interface::get_invoke_interface_new;
+use crate::stdlib::java::lang::class_loader::ClassLoader;
+use crate::stdlib::java::lang::thread::JThread;
+use crate::stdlib::java::lang::thread_group::JThreadGroup;
 use crate::jit::MethodResolverImpl;
-use crate::jvmti::event_callbacks::ThreadJVMTIEnabledStatus;
+use crate::rust_jni::jvmti_interface::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stack_entry::StackEntryPush;
 use crate::threading::safepoints::{Monitor2, SafePoint};
@@ -266,7 +266,7 @@ impl<'gc> ThreadState<'gc> {
                 jvmti.built_in_jdwp.vm_inited(jvm, todo!()/*&mut int_state*/, main_thread.clone())
             }
             let MainThreadStartInfo { args } = main_recv.recv().unwrap();
-            //from the jvmti spec:
+            //from the jvmti_interface spec:
             //"The thread start event for the main application thread is guaranteed not to occur until after the handler for the VM initialization event returns. "
             if let Some(jvmti) = jvm.jvmti_state() {
                 jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, main_thread.thread_object())

@@ -11,10 +11,10 @@ use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
-use crate::java::lang::member_name::MemberName;
-use crate::java::lang::reflect::constructor::Constructor;
-use crate::java::lang::reflect::method::Method;
-use crate::java::NewAsObjectOrJavaValue;
+use crate::stdlib::java::lang::member_name::MemberName;
+use crate::stdlib::java::lang::reflect::constructor::Constructor;
+use crate::stdlib::java::lang::reflect::method::Method;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<(), WasException<'gc>> {
@@ -109,7 +109,7 @@ fn method_init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFr
     let flags = method.get_modifiers(jvm);
     let clazz = method.get_clazz(jvm).gc_lifeify();
     mname.set_clazz(jvm, clazz.clone());
-    //static v. invoke_virtual v. interface
+    //static v. invoke_virtual v. jni_interface
     //see MethodHandles::init_method_MemberName
     let invoke_type_flag = ((if (flags & ACC_STATIC as i32) > 0 {
         REF_INVOKE_STATIC
@@ -162,7 +162,7 @@ fn update_modifiers_with_method_view(synthetic: bool, modifiers: &mut i32, metho
 fn constructor_init<'gc>(jvm: &'gc JVMState<'gc>, mname: MemberName<'gc>, constructor: Constructor<'gc>, method_view: Option<&MethodView>, synthetic: bool) -> Result<(), WasException<'gc>> {
     let clazz = constructor.get_clazz(jvm);
     mname.set_clazz(jvm, clazz.clone());
-    //static v. invoke_virtual v. interface
+    //static v. invoke_virtual v. jni_interface
     //see MethodHandles::init_method_MemberName
     let invoke_type_flag = ((REF_INVOKE_SPECIAL as i32) << REFERENCE_KIND_SHIFT) as i32;
     let extra_flags = IS_CONSTRUCTOR | invoke_type_flag as u32;

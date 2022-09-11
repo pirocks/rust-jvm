@@ -1180,7 +1180,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
             return true;
         }
         let super_ = objinfo.parent.as_ref().map(|parent| Self::find_matching_cname(parent.deref(), c_name.clone())).unwrap_or(false);
-        let interfaces = objinfo.class_pointer.unwrap_class_class().interfaces.iter().any(|interface| interface.view().name() == c_name.clone());
+        let interfaces = objinfo.class_pointer.unwrap_class_class().interfaces.iter().any(|jni_interface| jni_interface.view().name() == c_name.clone());
         return interfaces || super_;
     }*/
 

@@ -22,10 +22,10 @@ use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java::lang::string::JString;
+use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
-use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state, get_throw};
-use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
+use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 

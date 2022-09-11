@@ -1,5 +1,5 @@
 use core::fmt::{Debug, Formatter};
-use crate::java::lang::throwable::Throwable;
+use crate::stdlib::java::lang::throwable::Throwable;
 
 pub struct WasException<'gc>{
     pub exception_obj: Throwable<'gc>

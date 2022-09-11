@@ -8,7 +8,7 @@ use another_jit_vm::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use gc_memory_layout_common::memory_regions::{AllocatedTypeID, BaseAddressAndMask, RegionHeader};
+use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -67,8 +67,8 @@ impl<'gc> MethodResolverImpl<'gc> {
     //             return Some(res);
     //         }
     //     }
-    //     for interface in rc.unwrap_class_class().interfaces.iter() {
-    //         if let Some(res) = self.lookup_interface_impl(name, desc, interface.clone()) {
+    //     for jni_interface in rc.unwrap_class_class().interfaces.iter() {
+    //         if let Some(res) = self.lookup_interface_impl(name, desc, jni_interface.clone()) {
     //             return Some(res);
     //         }
     //     }
@@ -323,10 +323,6 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         self.lookup_method_number_recurse(new_target_class.unwrap_class_class(), method_shape)
     }
 
-
-    fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask> {
-        self.jvm.known_addresses.known_addresses_for_type(cpd_type)
-    }
 
     fn debug_checkcast_assertions(&self) -> bool {
         self.jvm.checkcast_debug_assertions

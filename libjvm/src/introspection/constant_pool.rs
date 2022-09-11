@@ -23,17 +23,17 @@ use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loade
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::java::lang::reflect::field::Field;
-use slow_interpreter::java::lang::reflect::method::Method;
-use slow_interpreter::java::lang::string::JString;
-use slow_interpreter::java::NewAsObjectOrJavaValue;
+use slow_interpreter::stdlib::java::lang::reflect::field::Field;
+use slow_interpreter::stdlib::java::lang::reflect::method::Method;
+use slow_interpreter::stdlib::java::lang::string::JString;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::interface::{field_object_from_view};
-use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_interface::{field_object_from_view};
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object, to_object_new};
-use slow_interpreter::sun::reflect::constant_pool::ConstantPool;
+use slow_interpreter::stdlib::sun::reflect::constant_pool::ConstantPool;
 use slow_interpreter::utils::{pushable_frame_todo, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
 
 //todo lots of duplication here, idk if should fix though

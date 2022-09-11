@@ -37,9 +37,9 @@ use crate::instructions::invoke::virtual_::virtual_method_lookup;
 use crate::instructions::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
-use crate::java::lang::class::JClass;
-use crate::java::lang::throwable::Throwable;
+use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::throwable::Throwable;
 use crate::java_values::native_to_new_java_value;
 use crate::jit::{NotCompiledYet, ResolvedInvokeVirtual};
 use crate::jit::state::runtime_class_to_allocated_object_type;
@@ -163,8 +163,6 @@ pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
             todo!()
         }
 
-        let base_address_and_mask = jvm.gc.memory_region.lock().unwrap().find_object_base_address_and_mask(handle.ptr());
-        jvm.known_addresses.sink_known_address(cpdtype, base_address_and_mask)
     }
     drop(checkcast);
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }

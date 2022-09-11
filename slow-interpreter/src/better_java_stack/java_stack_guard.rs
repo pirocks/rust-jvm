@@ -18,7 +18,7 @@ use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJava
 use crate::exceptions::WasException;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::rust_jni::interface::PerStackInterfaces;
+use crate::rust_jni::jni_interface::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct JavaStackGuard<'vm> {

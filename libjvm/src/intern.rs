@@ -2,8 +2,8 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{_jobject, JNIEnv, jstring};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::rust_jni::interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::interface::string::intern_impl_unsafe;
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::string::intern_impl_unsafe;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring {

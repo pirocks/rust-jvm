@@ -12,7 +12,7 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use crate::{JavaValueCommon, NewJavaValue};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
-use crate::rust_jni::interface::local_frame::{new_local_ref_internal_new};
+use crate::rust_jni::jni_interface::local_frame::{new_local_ref_internal_new};
 
 pub fn runtime_class_to_native<'gc>(runtime_class: Arc<RuntimeClass<'gc>>) -> Arg {
     let boxed_arc = Box::new(runtime_class);

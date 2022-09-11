@@ -6,12 +6,12 @@ use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
 
 use crate::{AllocatedHandle, JVMState};
 use crate::class_objects::get_or_create_class_object;
-use crate::java::lang::class::JClass;
+use crate::stdlib::java::lang::class::JClass;
 use crate::java_values::GcManagedObject;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedObject;
-use crate::rust_jni::interface::jni::{get_interpreter_state, get_state};
-use crate::rust_jni::interface::local_frame::new_local_ref_public_new;
+use crate::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use crate::rust_jni::jni_interface::local_frame::new_local_ref_public_new;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);

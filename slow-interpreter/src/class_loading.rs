@@ -23,10 +23,10 @@ use verification::verifier::TypeSafetyError;
 
 use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::java::lang::class::JClass;
-use crate::java::lang::class_loader::ClassLoader;
-use crate::java::lang::class_not_found_exception::ClassNotFoundException;
-use crate::java::lang::string::JString;
+use crate::stdlib::java::lang::class::JClass;
+use crate::stdlib::java::lang::class_loader::ClassLoader;
+use crate::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
+use crate::stdlib::java::lang::string::JString;
 use crate::java_values::{ByAddressAllocatedObject, default_value};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;

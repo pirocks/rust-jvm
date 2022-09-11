@@ -11,7 +11,7 @@ use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
-use gc_memory_layout_common::memory_regions::{AllocatedTypeID, BaseAddressAndMask, RegionHeader};
+use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
 use method_table::interface_table::InterfaceID;
 use method_table::MethodTable;
@@ -193,7 +193,6 @@ pub trait MethodResolver<'gc> {
     fn get_commpressed_version_of_wtf8(&self, wtf8: &Wtf8Buf) -> CompressedWtf8String;
     fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID;
     fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber;
-    fn known_addresses_for_type(&self, cpd_type: CPDType) -> Vec<BaseAddressAndMask>;
     fn debug_checkcast_assertions(&self) -> bool;
     // fn invocation_compilation_threshold(&self) -> u64;
     // fn invocation_count(&self, method_id: MethodId) -> u64;

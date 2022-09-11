@@ -58,14 +58,13 @@ use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::interpreter_state::InterpreterStateGuard;
-use crate::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
+use crate::rust_jni::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
-use crate::java::lang::class_loader::ClassLoader;
-use crate::java::lang::stack_trace_element::StackTraceElement;
+use crate::stdlib::java::lang::class_loader::ClassLoader;
+use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
 use crate::jit::leaked_interface_arrays::InterfaceArrays;
-use crate::jvmti::event_callbacks::SharedLibJVMTI;
-use crate::known_type_to_address_mappings::KnownAddresses;
+use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
@@ -127,7 +126,6 @@ pub struct JVMState<'gc> {
     pub checkcast_debug_assertions: bool,
     pub perf_metrics: PerfMetrics,
     pub recompilation_conditions: RwLock<RecompileConditions>,
-    pub known_addresses: KnownAddresses,
     pub vtables: Mutex<VTables<'gc>>,
     pub itables: Mutex<ITables<'gc>>,
     pub interface_table: InterfaceTable<'gc>,
@@ -341,7 +339,6 @@ impl<'gc> JVMState<'gc> {
             checkcast_debug_assertions: false,
             perf_metrics: PerfMetrics::new(),
             recompilation_conditions: RwLock::new(RecompileConditions::new()),
-            known_addresses: KnownAddresses::new(),
             vtables: Mutex::new(VTables::new()),
             itables: Mutex::new(ITables::new()),
             interface_table: InterfaceTable::new(),
@@ -417,7 +414,7 @@ impl<'gc> JVMState<'gc> {
             context.verification_types.clear();
             context.current_class = interface.cpdtype().unwrap_class_type();
             let name = interface.cpdtype().unwrap_class_type();
-            let lookup = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class interface");
+            let lookup = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class jni_interface");
             verify(&mut context, name, LoaderName::BootstrapLoader).expect("Class doesn't verify");
             self.sink_function_verification_date(&context.verification_types, interface.clone());
         }

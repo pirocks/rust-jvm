@@ -34,8 +34,5 @@ impl InterfaceArrays {
     }
 
 
-    pub fn lookup_interfaces(&self, interfaces: &BTreeSet<ClassID>) -> (*const ClassID, usize){
-        *self.inner.get(interfaces).unwrap()
-    }
 }
 

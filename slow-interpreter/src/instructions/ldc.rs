@@ -10,11 +10,11 @@ use crate::class_objects::get_or_create_class_object;
 use crate::instructions::invoke::find_target_method;
 use crate::interpreter::run_function;
 use crate::interpreter_util::new_object;
-use crate::java::lang::string::JString;
-use crate::java::NewAsObjectOrJavaValue;
+use crate::stdlib::java::lang::string::JString;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::interface::string::intern_safe;
+use crate::rust_jni::jni_interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
