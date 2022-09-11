@@ -86,13 +86,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 }
             }
         } else {
-            let first_call = match call(jvm, native_frame, class.clone(), method.clone(), args.clone(), method.desc().clone()) {
-                Ok(call_res) => call_res,
-                Err(WasException { exception_obj }) => {
-                    dbg!(mangling::mangle(&jvm.string_pool, &method));
-                    return Err(WasException { exception_obj });
-                }
-            };
+            let first_call = call(jvm, native_frame, class.clone(), method.clone(), args.clone(), method.desc().clone())?;
             match first_call {
                 Some(r) => r,
                 None => match special_call_overrides(jvm, native_frame, &class.view().method_view_i(method_i), args) {

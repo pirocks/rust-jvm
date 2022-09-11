@@ -650,7 +650,6 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                 }
             }
         } else {
-            dbg!("went through native");
             return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
         }
         this_frame = false;

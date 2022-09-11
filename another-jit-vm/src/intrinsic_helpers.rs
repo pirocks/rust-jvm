@@ -6,14 +6,14 @@ use crate::JITContext;
 pub struct IntrinsicHelpers {
     memmove: *const c_void,
     //todo move over instance of to this
-    instanceof_helper: ()
+    instanceof_helper: *const c_void
 }
 
 impl IntrinsicHelpers{
     pub fn new() -> IntrinsicHelpers{
         IntrinsicHelpers{
             memmove: libc::memmove as *const c_void,
-            instanceof_helper: ()
+            instanceof_helper: todo!()
         }
     }
 }
