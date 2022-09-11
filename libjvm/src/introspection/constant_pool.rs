@@ -259,21 +259,21 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
         }
     };
     let jv_vec = vec![
-        match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(class)) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class)) {
             Ok(class) => class.java_value(),
             Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         },
-        match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(name.to_str(&jvm.string_pool))) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.to_str(&jvm.string_pool))) {
             Ok(name) => name.java_value(),
             Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         },
-        match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool))) {
+        match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool))) {
             Ok(desc_str) => desc_str.java_value(),
             Err(WasException { exception_obj }) => {
                 todo!();

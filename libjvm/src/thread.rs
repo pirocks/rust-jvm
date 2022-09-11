@@ -13,7 +13,6 @@ use nix::unistd::gettid;
 use parking_lot::Mutex;
 use wtf8::Wtf8Buf;
 
-
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
 use rust_jvm_common::classnames::ClassName;
@@ -224,22 +223,22 @@ unsafe fn GetThreadStateNames_impl<'gc>(env: *mut JNIEnv, javaThreadState: i32) 
     let int_state = get_interpreter_state(env);
     let names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("NEW"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("NEW"))?]
         }
         JAVA_THREAD_STATE_RUNNABLE => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("RUNNABLE"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("RUNNABLE"))?]
         }
         JAVA_THREAD_STATE_BLOCKED => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("BLOCKED"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("BLOCKED"))?]
         }
         JAVA_THREAD_STATE_WAITING => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("WAITING.PARKED"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("WAITING.PARKED"))?]
         }
         JAVA_THREAD_STATE_TIMED_WAITING => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.SLEEPING"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TIMED_WAITING.PARKED"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.SLEEPING"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.OBJECT_WAIT"))?, JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TIMED_WAITING.PARKED"))?]
         }
         JAVA_THREAD_STATE_TERMINATED => {
-            vec![JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("TERMINATED"))?]
+            vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("TERMINATED"))?]
         }
         _ => return Ok(null_mut()),
     }

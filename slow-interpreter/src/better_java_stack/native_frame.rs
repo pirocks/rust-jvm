@@ -102,7 +102,7 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
-        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer)
+        JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer,None)
     }
 }
 

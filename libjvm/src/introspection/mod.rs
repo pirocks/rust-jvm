@@ -178,7 +178,7 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
         if inner_class.complete_name(&jvm.string_pool) == Some(class_name) {
             let target_class_name = inner_class.outer_name(&jvm.string_pool);
             // dbg!(target_class_name.0.to_str(&jvm.string_pool));
-            let class = get_or_create_class_object(jvm, target_class_name.into(), pushable_frame_todo()).unwrap();
+            let class = get_or_create_class_object(jvm, target_class_name.into(), int_state).unwrap();
             return to_object_new(Some(class.as_allocated_obj()));
         }
     }
@@ -198,7 +198,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
     };
 
     match JString::from_rust(jvm, int_state, signature) {
-        Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), todo!()/*int_state*/),
+        Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
         Err(WasException) => null_mut(),
     }
 }

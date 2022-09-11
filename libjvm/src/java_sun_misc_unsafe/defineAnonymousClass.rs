@@ -64,7 +64,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
     let byte_array: Vec<u8> = args[2].as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|b| b.unwrap_int() as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
     if args[3].as_njv().to_handle_discouraged().unwrap_object().is_some() {
-        patch_all(jvm, todo!()/*int_state.current_frame()*/, args, &mut unpatched);
+        patch_all(jvm, args, &mut unpatched);
     }
     let parsed = Arc::new(unpatched);
     //todo maybe have an anon loader for this
@@ -81,7 +81,7 @@ pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
     }
 }
 
-fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<NewJavaValueHandle<'gc>>, unpatched: &mut Classfile) {
+fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, args: &mut Vec<NewJavaValueHandle<'gc>>, unpatched: &mut Classfile) {
     let array = args[3].as_njv().to_handle_discouraged().unwrap_object().unwrap();
     let array = array.unwrap_array();
     let cp_entry_patches = array.array_iterator().map(|obj|obj.unwrap_object()).collect_vec();
@@ -89,7 +89,7 @@ fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<
     cp_entry_patches.into_iter().enumerate().for_each(|(i, maybe_patch)| match maybe_patch {
         None => {}
         Some(patch) => {
-            patch_single(patch, jvm, &frame, unpatched, i);
+            patch_single(patch, jvm, unpatched, i);
         }
     });
     let old_name_temp = class_name(&unpatched);
@@ -101,7 +101,7 @@ fn patch_all<'gc>(jvm: &'gc JVMState<'gc>, frame: StackEntryRef, args: &mut Vec<
     unpatched.this_class = (unpatched.constant_pool.len() - 1) as u16;
 }
 
-fn patch_single<'gc>(patch: AllocatedHandle<'gc>, jvm: &'gc JVMState<'gc>, _frame: &StackEntryRef, unpatched: &mut Classfile, i: usize) {
+fn patch_single<'gc>(patch: AllocatedHandle<'gc>, jvm: &'gc JVMState<'gc>, unpatched: &mut Classfile, i: usize) {
     let class_name = patch.runtime_class(jvm).cpdtype();
 
     // Integer, Long, Float, Double: the corresponding wrapper object type from java.lang

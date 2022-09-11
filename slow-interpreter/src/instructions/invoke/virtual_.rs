@@ -200,7 +200,6 @@ pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut im
         assert_eq!(args.iter().filter(|arg| !matches!(arg,NewJavaValue::Top)).count(), jvm.num_args_by_method_id(method_id) as usize);
         let args = fixup_args(args, jvm.num_local_var_slots(method_id));
         let res = run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc(), args)?.unwrap();
-        todo!();// assert!(interpreter_state.throw().is_none());
         Ok(res)
     } else {
         unimplemented!()

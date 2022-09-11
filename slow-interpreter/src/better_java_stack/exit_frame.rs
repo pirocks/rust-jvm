@@ -4,7 +4,7 @@ use libc::c_void;
 
 use another_jit_vm::FramePointerOffset;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
-use rust_jvm_common::NativeJavaValue;
+use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
@@ -19,6 +19,7 @@ pub struct JavaExitFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_pointer: FramePointer,
     stack_pointer: NonNull<c_void>,
+    current_pc: Option<ByteCodeOffset>
     // num_locals: u16,
     // max_stack: u16,
     // stack_depth: Option<StackDepth>,
@@ -27,7 +28,7 @@ pub struct JavaExitFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
-    pub fn new(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer, stack_pointer: NonNull<c_void>) -> Self {
+    pub fn new(java_stack_guard: &'k mut JavaStackGuard<'gc>, frame_pointer: FramePointer, stack_pointer: NonNull<c_void>, current_pc: Option<ByteCodeOffset>) -> Self {
         Self {
             java_stack: java_stack_guard,
             frame_pointer,
@@ -35,6 +36,7 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
             // max_stack: todo!(),
             // stack_depth: todo!()
             stack_pointer,
+            current_pc
         }
     }
 
@@ -44,6 +46,10 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
 
     pub fn read_target(&self, frame_point_offset: FramePointerOffset) -> NativeJavaValue<'gc> {
         unsafe { self.frame_pointer.as_const_ptr().sub(frame_point_offset.0).cast::<NativeJavaValue<'gc>>().read() }
+    }
+
+    pub fn assert_current_pc_is(&self, current_pc: Option<ByteCodeOffset>) {
+        assert_eq!(self.current_pc, current_pc);
     }
 }
 
@@ -90,7 +96,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
-        JavaFrameIterRefNew::new(self.java_stack,self.frame_pointer)
+        JavaFrameIterRefNew::new(self.java_stack,self.frame_pointer, self.current_pc)
     }
 }
 

@@ -2,7 +2,7 @@
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
 use crate::java::lang::class::JClass;
-use crate::{AllocatedHandle, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo, WasException};
+use crate::{AllocatedHandle, InterpreterStateGuard, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo, PushableFrame, WasException};
 use crate::instructions::invoke::virtual_::invoke_virtual;
 use crate::new_java_values::{NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
@@ -49,12 +49,12 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
         Ok(res.unwrap().unwrap_int_strict())
     }
 
-    fn to_string<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>) -> Result<Option<JString<'gc>>, WasException<'gc>> {
+    fn to_string<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<JString<'gc>>, WasException<'gc>> {
         let desc = CMethodDescriptor {
             arg_types: vec![],
             return_type: CClassName::string().into(),
         };
-        let res = invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_toString(), &desc, vec![self.new_java_value()])?.unwrap();
+        let res = invoke_virtual(jvm, int_state, MethodName::method_toString(), &desc, vec![self.new_java_value()])?.unwrap();
         Ok(res.cast_string())
     }
 }

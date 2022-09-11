@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
@@ -12,7 +11,7 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle, PushableFrame, WasException};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::instructions::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
@@ -26,7 +25,6 @@ use crate::java::lang::member_name::MemberName;
 use crate::java::lang::string::JString;
 use crate::java::NewAsObjectOrJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::utils::pushable_frame_todo;
 
 pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {
     match invoke_dynamic_impl(jvm, int_state, cp, current_pc) {
@@ -41,10 +39,9 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
 }
 
 fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException<'gc>> {
-    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-    let method_handle_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_handle().into())?;
-    let _method_type_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::method_type().into())?;
-    let _call_site_class = check_initing_or_inited_class(jvm, &mut temp/*int_state.inner()*/, CClassName::call_site().into())?;
+    let method_handle_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_handle().into())?;
+    let _method_type_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_type().into())?;
+    let _call_site_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::call_site().into())?;
     let class_pointer_view = int_state.inner().current_class_view(jvm).clone();
     let invoke_dynamic_view = match class_pointer_view.constant_pool_view(cp as usize) {
         ConstantInfoView::InvokeDynamic(id) => id,
@@ -61,14 +58,14 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
 
     for x in arg_iterator {
         args.push(match x {
-            BootstrapArgView::String(s) => JString::from_rust(jvm, pushable_frame_todo()/*int_state.inner()*/, s.string())?.new_java_value_handle(),
-            BootstrapArgView::Class(c) => JClass::from_type(jvm, pushable_frame_todo()/*int_state.inner()*/, c.type_())?.new_java_value_handle(),
+            BootstrapArgView::String(s) => JString::from_rust(jvm, int_state.inner(), s.string())?.new_java_value_handle(),
+            BootstrapArgView::Class(c) => JClass::from_type(jvm, int_state.inner(), c.type_())?.new_java_value_handle(),
             BootstrapArgView::Integer(i) => NewJavaValueHandle::Int(i.int),
             BootstrapArgView::Long(_) => unimplemented!(),
             BootstrapArgView::Float(_) => unimplemented!(),
             BootstrapArgView::Double(_) => unimplemented!(),
-            BootstrapArgView::MethodHandle(mh) => method_handle_from_method_view(jvm, pushable_frame_todo()/*int_state.inner()*/, &mh)?.new_java_value_handle(),
-            BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, pushable_frame_todo()/*int_state.inner()*/, mt.get_descriptor())?,
+            BootstrapArgView::MethodHandle(mh) => method_handle_from_method_view(jvm, int_state.inner(), &mh)?.new_java_value_handle(),
+            BootstrapArgView::MethodType(mt) => desc_from_rust_str(jvm, int_state.inner(), mt.get_descriptor())?,
         })
     }
 
@@ -108,7 +105,6 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let invoke = lookup_res.iter().next().unwrap();
     //todo theres a MHN native for this upcall
     let from_legacy_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(&desc_str.to_str(&jvm.string_pool)).unwrap(), &jvm.string_pool);
-    todo!();/*int_state.inner().set_current_pc(Some(current_pc));*/
     let call_site = invoke_virtual_method_i(jvm, int_state.inner(), &from_legacy_desc, method_handle_class.clone(), invoke, next_invoke_virtual_args)?.unwrap();
     let call_site = call_site.cast_call_site();
     let target = call_site.get_target(jvm, int_state.inner())?;
@@ -142,13 +138,9 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }
     main_invoke_args_owned[(1 + if is_static { 0 } else { 1 })..].reverse();
-    // dbg!(main_invoke_args_owned.iter().map(|handle| handle.as_njv().rtype(jvm)).collect_vec());
     let main_invoke_args = main_invoke_args_owned.iter().map(|arg| arg.as_njv()).collect_vec();
-    todo!();/*int_state.inner().set_current_pc(Some(current_pc));*/
     let desc = CMethodDescriptor { arg_types: args, return_type: CClassName::object().into() };
     let res = invoke_virtual_method_i(jvm, int_state.inner(), &desc, method_handle_class, invoke, main_invoke_args)?;
-
-    todo!();/*assert!(int_state.inner().throw().is_none());*/
 
     int_state.current_frame_mut().push(res.unwrap().to_interpreter_jv());
     Ok(())
@@ -156,12 +148,12 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
 
 //todo this should go in MethodType or something.
 fn desc_from_rust_str<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, desc_str: String) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
-    let desc_str = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(desc_str))?;
+    let desc_str = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str))?;
     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc_str, None)?;
     Ok(method_type.new_java_value_handle())
 }
 
-fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc>, WasException<'gc>> {
+fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut JavaInterpreterFrame<'gc, 'l>, method_ref: &MethodHandleView) -> Result<MethodHandle<'gc>, WasException<'gc>> {
     let methodref_view = method_ref.clone();
     Ok(match methodref_view.get_reference_data() {
         ReferenceInvokeKind::InvokeStatic(is) => {
@@ -170,10 +162,10 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                 InvokeStatic::Method(mr) => {
                     // let lookup = MethodHandle::lookup(jvm, int_state);//todo use public
                     let lookup = Lookup::trusted_lookup(jvm, int_state);
-                    let name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                    let desc = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                    let target_class = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, mr.class(&jvm.string_pool).to_cpdtype())?;
+                    let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
                     lookup.find_static(jvm, int_state, target_class, name, method_type)?
                 }
             }
@@ -184,14 +176,13 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                 InvokeSpecial::Method(mr) => {
                     //todo dupe
                     let lookup = Lookup::trusted_lookup(jvm, int_state);
-                    let name = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
-                    let desc = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+                    let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
                     let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
-                    let target_class = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, mr.class(&jvm.string_pool).to_cpdtype())?;
-                    todo!()
-                    // let not_sure_if_correct_at_all = int_state.current_frame().class_pointer(jvm).cpdtype();
-                    // let special_caller = JClass::from_type(jvm, pushable_frame_todo()/*int_state*/, not_sure_if_correct_at_all)?;
-                    // lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
+                    let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
+                    let not_sure_if_correct_at_all = int_state.class_pointer(jvm).cpdtype();
+                    let special_caller = JClass::from_type(jvm, int_state, not_sure_if_correct_at_all)?;
+                    lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                 }
             }
         }

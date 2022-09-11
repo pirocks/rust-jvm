@@ -97,7 +97,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
                 Some(r) => r,
                 None => match special_call_overrides(jvm, native_frame, &class.view().method_view_i(method_i), args) {
                     Ok(res) => res,
-                    Err(WasException { exception_obj }) => todo!(),
+                    Err(WasException { exception_obj }) => return Err(WasException { exception_obj }),
                 },
             }
         };
@@ -129,7 +129,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         None
     } else if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
         //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, todo!()/*int_state*/, args)?.into()
+        shouldBeInitialized(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
@@ -142,9 +142,9 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         check_initing_or_inited_class(jvm, int_state, ptype)?;
         None
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset" {
-        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, todo!()/*int_state*/, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset(jvm, int_state, args)?.into()
     } else if &mangled == "Java_java_lang_invoke_MethodHandleNatives_getMembers" {
-        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, todo!()/*int_state*/, args)?.into()
+        Java_java_lang_invoke_MethodHandleNatives_getMembers(jvm, int_state, args)?.into()
     } else if &mangled == "Java_sun_misc_Unsafe_putObjectVolatile" {
         unimplemented!()
     } else if &mangled == "Java_sun_misc_Perf_registerNatives" {

@@ -35,7 +35,6 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
 use crate::runtime_class::{initialize_class, prepare_class, static_vars};
-use crate::utils::pushable_frame_todo;
 
 //todo only use where spec says
 pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
@@ -232,7 +231,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
 
                     let exception = ClassNotFoundException::new(jvm, int_state, class_name_string)?.full_object();
                     let throwable = exception.cast_throwable();
-                    throwable.print_stack_trace(jvm,int_state).unwrap();
+                    // throwable.print_stack_trace(jvm,int_state).unwrap();
                     return Err(WasException { exception_obj: throwable });
                 }
             };
@@ -269,13 +268,10 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                     jvm.sink_function_verification_date(&verification_types, res.clone());
                 }
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
-                    let jstring = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(class_name.get_referred_name().clone())).unwrap();
-                    let exception = ClassNotFoundException::new(jvm, pushable_frame_todo()/*int_state*/, jstring)?.full_object();
+                    let jstring = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.get_referred_name().clone())).unwrap();
+                    let exception = ClassNotFoundException::new(jvm, int_state, jstring)?.full_object();
                     let throwable = exception.cast_throwable();
-                    // throwable.print_stack_trace(jvm,int_state).unwrap();
-                    todo!();
-                    /*int_state.set_throw(Some(throwable.full_object()));*/
-                    return Err(WasException { exception_obj: todo!() });
+                    return Err(WasException { exception_obj: throwable });
                 }
                 Err(TypeSafetyError::NotSafe(not_safe)) => {
                     dbg!(class_name.0.to_str(&jvm.string_pool));
@@ -357,7 +353,7 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
     }?;
     if let Some(name) = name {
         if jvm.include_name_field.load(Ordering::SeqCst) {
-            class_object.set_name_(jvm, JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(name.replace("/", ".").to_string()))?)
+            class_object.set_name_(jvm, JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.replace("/", ".").to_string()))?)
         }
     }
     Ok(class_object.object_gc_life(jvm))

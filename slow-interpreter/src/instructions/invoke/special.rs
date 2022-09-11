@@ -78,14 +78,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        match run_native_method(jvm, int_state, final_target_class, target_m_i, input_args) {
-            Ok(res) => Ok(res),
-            Err(WasException { exception_obj }) => {
-                todo!();/*int_state.debug_print_stack_trace(jvm);*/
-                todo!()
-                /*return Err(WasException{})*/
-            }
-        }
+        run_native_method(jvm, int_state, final_target_class, target_m_i, input_args)
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;
@@ -100,7 +93,6 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
                     Ok(res)
                 }
                 Err(WasException { exception_obj }) => {
-                    todo!();
                     Err(WasException { exception_obj })
                 }
             }

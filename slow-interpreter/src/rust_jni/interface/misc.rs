@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use by_address::ByAddress;
 
 
-use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNINativeMethod, jobject};
+use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNIInvokeInterface_, JNINativeMethod, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
@@ -21,7 +21,6 @@ use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use crate::instructions::ldc::load_class_constant_by_type;
 use crate::instructions::special::inherits_from_cpdtype;
-use crate::invoke_interface::get_invoke_interface;
 use crate::java_values::GcManagedObject;
 use crate::jvm_state::{JVMState, NativeLibraries};
 use crate::new_java_values::NewJavaValueHandle;
@@ -119,8 +118,11 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
     let state = get_state(env);
     let int_state = get_interpreter_state(env); //todo maybe this should have an optionable version
-    let interface = get_invoke_interface(state, int_state);
-    *vm = Box::into_raw(box interface); //todo do something about this leak
+    let interface = int_state.stack_jni_interface().invoke_interface_mut();
+    interface.reserved0 = (**env).reserved0;
+    interface.reserved1 = (**env).reserved1;
+    interface.reserved2 = (**env).reserved2;
+    *vm = Box::into_raw(box (interface as *const JNIInvokeInterface_)); //todo do something about this leak
     0 as jint
 }
 

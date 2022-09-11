@@ -160,7 +160,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id, *interface_id, *method_number)
             }
             RuntimeVMExitInput::Throw { exception_obj_ptr, pc: _ } => {
-                exit_impls::throw_exit(&jvm, todo!()/*int_state.unwrap()*/, *exception_obj_ptr)
+                exit_impls::throw_exit(&jvm, int_state.unwrap(), *exception_obj_ptr)
             }
             RuntimeVMExitInput::MultiAllocateArray {
                 elem_type,
@@ -170,7 +170,7 @@ impl JavaVMStateWrapperInner {
                 res_address,
                 pc: _
             } => {
-                multi_allocate_array(jvm, todo!()/*int_state.unwrap()*/, *elem_type, *num_arrays, *len_start, *return_to_ptr, *res_address)
+                multi_allocate_array(jvm, int_state.unwrap(), *elem_type, *num_arrays, *len_start, *return_to_ptr, *res_address)
             }
             RuntimeVMExitInput::RunNativeSpecialNew { method_id, return_to_ptr } => {
                 run_native_special_new(jvm, int_state, *method_id, *return_to_ptr)
@@ -201,10 +201,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::assert_instance_of(jvm, todo!()/*int_state.unwrap()*/, res, value, cpdtype_id, return_to_ptr, *expected)
             }
             RuntimeVMExitInput::ArrayOutOfBounds { pc } => {
-                todo!();/*let pc = Some(*pc);*/
-                let int_state = todo!()/*int_state.unwrap()*/;
-                todo!();/*int_state.set_current_pc(pc);*/
-                exit_impls::array_out_of_bounds(&jvm, int_state)
+                exit_impls::array_out_of_bounds(&jvm, int_state.unwrap())
             }
             RuntimeVMExitInput::Todo { pc } => {
                 todo!();

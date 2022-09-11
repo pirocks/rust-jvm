@@ -22,7 +22,7 @@ pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableF
     let mname = args[0].to_handle_discouraged().cast_member_name();
     let target = args[1].to_handle_discouraged();
     let target_object = target.cast_object();
-    let to_string = target_object.to_string(jvm, todo!()/*int_state*/)?.unwrap().to_rust_string(jvm);
+    let to_string = target_object.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm);
     let assertion_case = match to_string.as_str() {
         "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => InitAssertionCase::CHECK_EXACT_TYPE.into(),
         _ => None,

@@ -713,7 +713,7 @@ pub mod call_site {
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
+    use crate::{NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
 
     #[derive(Clone)]
@@ -726,7 +726,7 @@ pub mod call_site {
             let call_site_class = assert_inited_or_initing_class(jvm, CClassName::call_site().into());
             let args = vec![self.new_java_value()];
             let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::Class(CClassName::method_handle()) };
-            let res = invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_getTarget(), &desc, args)?;
+            let res = invoke_virtual(jvm, int_state, MethodName::method_getTarget(), &desc, args)?;
             Ok(res.unwrap().cast_method_handle())
         }
     }

@@ -1,10 +1,9 @@
 use std::ops::Deref;
-use std::sync::{Arc};
-
+use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
-use rust_jvm_common::compressed_classfile::{CPDType};
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::{FieldName, MethodName};
 use rust_jvm_common::NativeJavaValue;
 
@@ -58,24 +57,11 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
 
     //todo these java frames may have to be converted to native?
     // let new_function_frame = int_state.push_frame(new_stack);
-    int_state.push_frame_java(new_frame, |java_stack_gaurd|{
-        match run_function(jvm, java_stack_gaurd) {
-            Ok(res) => {
-                assert!(res.is_none());
-                // int_state.pop_frame(jvm, new_function_frame, true);
-                if !jvm.config.compiled_mode_active {}
-                // if int_state.function_return() {
-                //     int_state.set_function_return(false);
-                Ok(runtime_class)
-                // }
-                // panic!()
-            }
-            Err(WasException { exception_obj }) => {
-                todo!();
-                /*int_state.pop_frame(jvm, new_function_frame, false);*/
-                Err(WasException { exception_obj })
-            }
-        }
+    int_state.push_frame_java(new_frame, |java_stack_gaurd| {
+        let res = run_function(jvm, java_stack_gaurd)?;
+        assert!(res.is_none());
+        if !jvm.config.compiled_mode_active {}
+        Ok(runtime_class)
     })
 }
 
@@ -133,7 +119,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
         self.try_get(name).unwrap()
     }
 
-    pub fn set_raw(&mut self, name: FieldName, native: NativeJavaValue<'gc>) -> Option<()>{
+    pub fn set_raw(&mut self, name: FieldName, native: NativeJavaValue<'gc>) -> Option<()> {
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
         unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).write(native); }
         Some(())

@@ -173,10 +173,12 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
     }
 
     pub fn pop(&mut self, runtime_type: RuntimeType) -> InterpreterJavaValue {
+        self.inner.current_stack_depth_from_start -= 1;
         self.inner.interpreter_state.pop_os(runtime_type)
     }
 
     pub fn push(&mut self, val: InterpreterJavaValue) {
+        self.inner.current_stack_depth_from_start += 1;
         self.inner.interpreter_state.push_os(val);
     }
 

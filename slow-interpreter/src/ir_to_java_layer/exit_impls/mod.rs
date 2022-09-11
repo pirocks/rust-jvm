@@ -55,11 +55,8 @@ pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut Jav
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("ArrayOutOfBounds");
     }
-    todo!();/*let save = int_state.current_pc();*/
-    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, int_state).unwrap();
     let throwable = array_out_of_bounds.object().cast_throwable();
-    todo!();/*int_state.set_current_pc(save);
-    assert!(int_state.current_pc().is_some());*/
     throw_impl(&jvm, int_state, throwable, false)
 }
 
@@ -72,8 +69,6 @@ pub fn throw_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<NativeJavaValue<'gc>>().read() };
     let exception_obj_handle = native_to_new_java_value(exception_obj_native_value, CClassName::object().into(), jvm);
     let throwable = exception_obj_handle.cast_throwable();
-    // throwable.print_stack_trace(jvm, int_state).unwrap();
-    todo!();/*assert!(int_state.current_pc().is_some());*/
     throw_impl(&jvm, int_state, throwable, false)
 }
 
@@ -609,9 +604,12 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
         let view = rc.view();
         let method_i = current_frame.method_i();
         let method_view = view.method_view_i(method_i);
+        dbg!(view.name().jvm_representation(&jvm.string_pool));
+        dbg!(method_view.name().0.to_str(&jvm.string_pool));
         if let Some(code) = method_view.code_attribute() {
             let current_pc = match current_frame.try_pc() {
                 None => {
+                    dbg!("no pc");
                     return IRVMExitAction::Exception { throwable: throwable.normal_object.ptr };
                 }
                 Some(current_pc) => current_pc
@@ -643,10 +641,8 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                     let method_resolver = MethodResolverImpl { jvm, loader };
                     let frame_layout = method_resolver.lookup_method_layout(method_id);
                     let to_write_offset = frame_layout.operand_stack_start();
-                    todo!();
                     unsafe { (handler_rbp.as_ptr().sub(to_write_offset.0) as *mut NativeJavaValue).cast::<NativeJavaValue>().write(throwable.new_java_value().to_native()); }
                     unsafe { read_frame_ir_header(handler_rbp); }
-                    //todo need to set caught exception in stack
                     let mut start_diff = SavedRegistersWithIPDiff::no_change();
                     start_diff.saved_registers_without_ip.rbp = Some(handler_rbp.as_ptr() as u64);
                     start_diff.saved_registers_without_ip.rsp = Some(handler_rsp as u64);

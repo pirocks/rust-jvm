@@ -103,12 +103,12 @@ pub struct JavaFrameIterRefNew<'vm, 'k> {
 }
 
 impl<'vm, 'k> JavaFrameIterRefNew<'vm, 'k> {
-    pub fn new(java_stack_guard: &'k JavaStackGuard<'vm>, current_frame_pointer: FramePointer) -> Self {
+    pub fn new(java_stack_guard: &'k JavaStackGuard<'vm>, current_frame_pointer: FramePointer, current_pc: Option<ByteCodeOffset>) -> Self {
         Self {
             helper: PreviousFramePointerIter { java_stack_guard, current_frame_pointer: Some(current_frame_pointer) },
             java_stack_guard,
             current_rip: None,
-            current_pc: None,
+            current_pc,
         }
     }
 }

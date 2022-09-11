@@ -118,6 +118,7 @@ impl<'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     }
 
     fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+        // self.update_stack_depth()//todo sshould update stack depths
         self.java_stack.push_frame_native(self.frame_ptr, self.next_frame_pointer(), native_frame_push, |native_frame| within_push(native_frame))
     }
 }

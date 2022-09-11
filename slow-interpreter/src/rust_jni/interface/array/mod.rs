@@ -42,7 +42,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     };
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
-    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle| AllocatedObject::Handle(handle)), todo!()/*int_state*/)
+    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle| AllocatedObject::Handle(handle)), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
@@ -61,7 +61,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
 pub mod array_region;
 pub mod new;
 
-pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, array: jarray, carray: *mut ::std::os::raw::c_void, mode: jint) {
+pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, array: jarray, carray: *mut c_void, mode: jint) {
     // assert_eq!(mode, 0);
     if mode == JNI_ABORT as i32 {
         return;
