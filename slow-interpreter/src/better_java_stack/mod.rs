@@ -100,25 +100,4 @@ impl<'gc> JavaStack<'gc> {
 //need enter and exit native functions, enter taking an operand stack depth?
 
 
-// fn push_interpreter<'gc, 'k>(
-//     java_stack_guard: &'k mut JavaStackGuard<'gc>,
-//     current_frame_pointer: FramePointer,
-//     next_frame_pointer: FramePointer,
-//     stack_entry: StackEntryPush
-// ) -> JavaInterpreterFrame<'gc, 'k> {
-//     let jvm = java_stack_guard.jvm();
-//     let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
-//     match stack_entry {
-//         StackEntryPush::Java { operand_stack, local_vars, method_id } => {
-//             todo!()
-//         }
-//         StackEntryPush::Native { method_id, native_local_refs, local_vars, operand_stack } => {
-//
-//         }
-//         StackEntryPush::Opaque { opaque_id, native_local_refs } => {
-//
-//         }
-//     }
-// }
-
 impl<'gc, 'k> JavaExitFrame<'gc, 'k> {}

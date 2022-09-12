@@ -9,7 +9,7 @@ use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::rust_jni::jvmti_interface::{get_jvmti_interface, get_state};
 use crate::rust_jni::native_util::from_object;
-use crate::threading::JavaThread;
+use crate::threading::java_thread::JavaThread;
 
 struct ThreadArgWrapper {
     proc_: jvmtiStartFunction,
@@ -20,44 +20,39 @@ unsafe impl Send for ThreadArgWrapper {}
 
 unsafe impl Sync for ThreadArgWrapper {}
 
-pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const ::std::os::raw::c_void, priority: jint) -> jvmtiError {
+pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthread, proc_: jvmtiStartFunction, arg: *const c_void, priority: jint) -> jvmtiError {
     //todo implement thread priority
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "RunAgentThread");
     let thread_object = JavaValue::Object(from_object(jvm, thread)).cast_thread();
-    let java_thread = match JavaThread::new(jvm, Some(thread_object), true) {
+    let args = ThreadArgWrapper { proc_, arg };
+    let java_thread = match JavaThread::background_new_with_stack(jvm, Some(thread_object), true, move |thread,frame|{
+        let ThreadArgWrapper { proc_, arg } = args;
+        if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
+            set_current_thread_priority(ThreadPriority::Max).unwrap();
+        } else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {} else if priority == JVMTI_THREAD_MIN_PRIORITY as i32 {
+            set_current_thread_priority(ThreadPriority::Min).unwrap(); //todo pass these to object
+        }
+
+        jvm.thread_state.set_current_thread(thread.clone());
+        thread.notify_alive(jvm);
+
+        // assert!(should_be_nothing.old.is_none());
+        jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, frame, thread.thread_object());
+
+        let jvmti = get_jvmti_interface(jvm, todo!()/*&mut int_state*/);
+        let jni_env = todo!()/*get_interface(jvm, todo!()/*&mut int_state*/, )*/;
+        // let frame_for_agent = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"agent_frame")*/);
+        proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
+        // java_thread.notify_terminated(jvm)
+        todo!()
+    }) {
         Ok(java_thread) => java_thread,
         Err(CannotAllocateStack {}) => {
             todo!()
         }
     };
-    let args = ThreadArgWrapper { proc_, arg };
-    java_thread.clone().get_underlying().start_thread(
-        box move |_| {
-            let ThreadArgWrapper { proc_, arg } = args;
-            if priority == JVMTI_THREAD_MAX_PRIORITY as i32 {
-                set_current_thread_priority(ThreadPriority::Max).unwrap();
-            } else if priority == JVMTI_THREAD_NORM_PRIORITY as i32 {} else if priority == JVMTI_THREAD_MIN_PRIORITY as i32 {
-                set_current_thread_priority(ThreadPriority::Min).unwrap(); //todo pass these to object
-            }
 
-            jvm.thread_state.set_current_thread(java_thread.clone());
-            java_thread.notify_alive(jvm);
-
-            // let mut int_state = InterpreterStateGuard::new(jvm, java_thread.clone(), todo!());
-            // let should_be_nothing = int_state.register_interpreter_state_guard(jvm);
-            // assert!(should_be_nothing.old.is_none());
-            jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, todo!()/*&mut int_state*/, java_thread.thread_object());
-
-            let jvmti = get_jvmti_interface(jvm, todo!()/*&mut int_state*/);
-            let jni_env = todo!()/*get_interface(jvm, todo!()/*&mut int_state*/, )*/;
-            // let frame_for_agent = int_state.push_frame(todo!()/*StackEntryPush::new_completely_opaque_frame(jvm,LoaderName::BootstrapLoader, vec![],"agent_frame")*/);
-            proc_.unwrap()(jvmti, jni_env, arg as *mut c_void);
-            // int_state.pop_frame(jvm, frame_for_agent, false);
-            // java_thread.notify_terminated(jvm)
-        },
-        box (),
-    );
 
     //todo handle join handles somehow
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

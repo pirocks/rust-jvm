@@ -11,12 +11,13 @@ use jvmti_jni_bindings::*;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
-use crate::{JavaThread, JVMState, OpaqueFrame};
+use crate::{JVMState, OpaqueFrame};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::rust_jni::invoke_interface::get_invoke_interface;
 use crate::rust_jni::jvmti_interface::get_state;
 use crate::stdlib::java::lang::thread::JThread;
+use crate::threading::java_thread::JavaThread;
 use crate::tracing::TracingSettings;
 
 // does not support per thread notification

@@ -5,7 +5,7 @@ use rust_jvm_common::{MethodI, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaThread, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
+use crate::{ JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
@@ -15,6 +15,7 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::java_values::native_to_new_java_value_rtype;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
+use crate::threading::java_thread::JavaThread;
 
 #[derive(Debug)]
 pub struct IsOpaque {}
@@ -98,12 +99,16 @@ pub trait PushableFrame<'gc>: HasFrame<'gc> {
 }
 
 pub trait HasJavaStack<'gc> {
-    fn java_stack(&self) -> &JavaStackGuard<'gc>;
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc>;
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc>;
 
     fn java_thread(&self) -> Arc<JavaThread<'gc>> {
-        self.java_stack().java_thread.clone()
+        self.java_stack_ref().java_thread.clone()
     }
 
+    fn drop_guard(&mut self) {
+        self.java_stack_mut().drop_guard();
+    }
     // fn signal_safe_data(&self) -> &'k SignalAccessibleJavaStackData {
     //     self.java_stack().signal_safe_data()
     // }

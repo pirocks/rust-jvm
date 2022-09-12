@@ -70,7 +70,7 @@ use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::string_exit_cache::StringExitCache;
 use crate::threading::safepoints::Monitor2;
-use crate::threading::ThreadState;
+use crate::threading::thread_state::ThreadState;
 use crate::tracing::TracingSettings;
 
 pub static mut JVM: Option<&'static JVMState> = None;

@@ -8,8 +8,6 @@ use crate::JVMState;
 pub struct RemoteFrame<'gc, 'k> {
     java_stack: &'k mut JavaStackGuard<'gc>,
     frame_ptr: FramePointer,
-    num_locals: u16,
-    max_stack: u16,
 }
 // don't have the function call vec thing
 
@@ -33,11 +31,11 @@ impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
     }
 
     fn num_locals(&self) -> Result<u16, IsOpaque> {
-        Ok(self.num_locals)
+        todo!()
     }
 
     fn max_stack(&self) -> u16 {
-        self.max_stack
+        todo!()
     }
 
     fn next_frame_pointer(&self) -> FramePointer {

@@ -710,7 +710,8 @@ pub mod thread {
     use crate::stdlib::java::lang::string::JString;
     use crate::stdlib::java::lang::thread_group::JThreadGroup;
     use crate::stdlib::java::NewAsObjectOrJavaValue;
-    use crate::threading::JavaThread;
+    use crate::threading::java_thread::JavaThread;
+
     use crate::utils::run_static_or_virtual;
 
     pub struct JThread<'gc> {

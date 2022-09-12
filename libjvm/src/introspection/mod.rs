@@ -46,7 +46,6 @@ use slow_interpreter::stdlib::java::lang::class_not_found_exception::ClassNotFou
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::reflect::reflection::Reflection;
-use slow_interpreter::threading::JavaThread;
 use slow_interpreter::threading::monitors::Monitor;
 use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 

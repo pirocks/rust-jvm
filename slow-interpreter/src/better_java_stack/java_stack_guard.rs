@@ -9,7 +9,7 @@ use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 
-use crate::{JavaThread, JavaValueCommon, JVMState, MethodResolverImpl};
+use crate::{ JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, InterpreterFrameState, JavaStack, StackDepth};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -20,6 +20,7 @@ use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::rust_jni::jni_interface::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
+use crate::threading::java_thread::JavaThread;
 
 pub struct JavaStackGuard<'vm> {
     stack: &'vm Mutex<JavaStack<'vm>>,
@@ -259,6 +260,10 @@ impl<'vm> JavaStackGuard<'vm> {
         let (current_frame_pointer, state_mut) = self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.last_mut().unwrap();
         state_mut.stack_depth = stack_depth;
         state_mut.current_pc = current_pc;
+    }
+
+    pub(crate) fn drop_guard(&mut self){
+        self.guard = None;
     }
 }
 

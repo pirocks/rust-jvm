@@ -4,6 +4,7 @@ use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::thread::Scope;
+use std::time::Duration;
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
 use raw_cpuid::CpuId;
@@ -11,11 +12,13 @@ use raw_cpuid::CpuId;
 use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::java_values::GC;
 use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::options::JVMOptions;
-use slow_interpreter::threading::{JavaThread, MainThreadStartInfo, ThreadState};
+use slow_interpreter::threading::java_thread::JavaThread;
+use slow_interpreter::threading::jvm_startup::{bootstrap_main_thread, MainThreadStartInfo};
 
 #[no_mangle]
 unsafe extern "system" fn rust_jvm_real_main() {
@@ -91,6 +94,16 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object();
     let thread_state = &jvm_ref.thread_state;
-    let main_thread: Arc<JavaThread> = ThreadState::bootstrap_main_thread(jvm_ref, &thread_state.threads, MainThreadStartInfo { args });
+    let main_thread: Arc<JavaThread> = bootstrap_main_thread(jvm_ref, &thread_state.threads, MainThreadStartInfo { args });
+    let main_thread_clone = main_thread.clone();
+    jvm_ref.thread_state.threads.create_thread(Some("stacktracer".to_string())).start_thread(box move |_| unsafe {
+        loop {
+            main_thread_clone.pause_and_remote_view(|remote_frame|{
+                let method_id = remote_frame.frame_ref().method_id().unwrap();
+                dbg!(method_id);
+            });
+            std::thread::sleep(Duration::from_secs(1));
+        }
+    },box ());
     main_thread.get_underlying().join();
 }

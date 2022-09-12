@@ -151,11 +151,6 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
-        // real_interpreter_state.inner().set_current_pc(Some(current_offset));
-        // if method.name().0.to_str(&jvm.string_pool) == "a" && view.name().unwrap_name().0.to_str(&jvm.string_pool) == "aqr"{
-        //     eprintln!("Interpreted:{}/{}/{}",view.name().unwrap_name().0.to_str(&jvm.string_pool),method.name().0.to_str(&jvm.string_pool), current_instruct.info.better_debug_string(&jvm.string_pool));
-        //     // println!("{}", Backtrace::force_capture());
-        // }
         let stack_depth = StackDepth(real_interpreter_state.current_stack_depth_from_start);
         real_interpreter_state.inner().update_stack_depth(current_offset, stack_depth);
         match run_single_instruction(jvm, &mut real_interpreter_state, &current_instruct.info, &function_counter, &method, code, current_offset) {
@@ -213,7 +208,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasJavaStack<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
-    if interpreter_state.java_stack().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
+    if interpreter_state.java_stack_ref().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
         todo!()
     }
     Ok(())

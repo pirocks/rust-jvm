@@ -188,7 +188,11 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> HasJavaStack<'gc> for JavaInterpreterFrame<'gc, 'k> {
-    fn java_stack(&self) -> &JavaStackGuard<'gc> {
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
         self.java_stack
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        todo!()
     }
 }

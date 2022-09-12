@@ -8,7 +8,8 @@ use crate::JVMState;
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
 use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::stack_entry::StackEntry;
-use crate::threading::JavaThread;
+use crate::threading::java_thread::JavaThread;
+
 
 ///Get Local Variable - Object
 ///
@@ -176,7 +177,7 @@ unsafe fn get_thread_from_obj_or_current<'gc>(jvm: &'gc JVMState<'gc>, thread: j
 
 unsafe fn get_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc>, jvmtiError> {
     if depth < 0 {
-        return Result::Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
+        return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
 
     let java_thread = get_thread_from_obj_or_current(jvm, thread)?;

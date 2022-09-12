@@ -46,26 +46,6 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     current_pc: ByteCodeOffset,
 ) -> PostInstructionAction<'gc> {
     function_counter.increment();
-    // dbg!(method.classview().name().jvm_representation(&jvm.string_pool));
-    // dbg!(method.method_shape().to_jvm_representation(&jvm.string_pool));
-    // if method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "io/netty/util/concurrent/SingleThreadEventExecutor" && method.name().0.to_str(&jvm.string_pool) == "startThread"
-    // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "rd" && method.name().0.to_str(&jvm.string_pool) == "a") ||
-    // (method.classview().name().unwrap_name().0.to_str(&jvm.string_pool) == "up" && method.name().0.to_str(&jvm.string_pool) == "c")
-    // {
-    // if/* method.name().0.to_str(&jvm.string_pool) == "<clinit>" ||*/method.name().0.to_str(&jvm.string_pool) == "main" {
-    //     dump_frame(interpreter_state, method, code);
-    //     eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    //     // interpreter_state.inner().set_current_pc(Some(current_pc));
-    //     dump_frame_contents(jvm, interpreter_state.inner());
-    //     // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    //     // interpreter_state.inner().set_current_pc(None);
-    // }
-    // }
-    // eprintln!("{}", instruct.better_debug_string(&jvm.string_pool));
-    // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter() {
-    //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype(), CClassName::class().into())
-    // }
-
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),

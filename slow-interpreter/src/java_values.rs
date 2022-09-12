@@ -1312,7 +1312,7 @@ impl<'gc> ArrayObject<'gc, '_> {
     }
 }
 
-impl<'gc> std::convert::From<Option<GcManagedObject<'gc>>> for JavaValue<'gc> {
+impl<'gc> From<Option<GcManagedObject<'gc>>> for JavaValue<'gc> {
     fn from(f: Option<GcManagedObject<'gc>>) -> Self {
         JavaValue::Object(f)
     }

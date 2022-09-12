@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
-use crate::{JavaThread, pushable_frame_todo};
+use crate::{pushable_frame_todo};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::native_util::from_object;
 use crate::stdlib::java::lang::thread::JThread;
-use crate::threading::{ResumeError, SuspendError};
+use crate::threading::java_thread::{JavaThread, ResumeError, SuspendError};
 
 ///Suspend Thread List
 ///

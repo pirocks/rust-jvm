@@ -124,7 +124,11 @@ impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> HasJavaStack<'gc> for NativeFrame<'gc, 'k> {
-    fn java_stack(&self) -> &JavaStackGuard<'gc> {
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
         self.java_stack
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        todo!()
     }
 }

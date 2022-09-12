@@ -8,9 +8,9 @@ use rust_jvm_common::JavaThreadId;
 use crate::WasException;
 use crate::better_java_stack::frames::HasJavaStack;
 use crate::interpreter::safepoint_check;
-use crate::java_values::GcManagedObject;
 use crate::jvm_state::JVMState;
-use crate::threading::{ResumeError, SuspendError, ThreadStatus};
+use crate::stdlib::java::lang::throwable::Throwable;
+use crate::threading::java_thread::{ResumeError, SuspendError, ThreadStatus};
 
 pub type MonitorID = usize;
 
@@ -28,7 +28,7 @@ struct SafePointStopReasonState<'gc> {
     gc_suspended: bool,
     parks: isize,
     park_until: Option<Instant>,
-    throw_exception: Option<GcManagedObject<'gc>>,
+    throw_exception: Option<Throwable<'gc>>,
     sleep_until: Option<Instant>,
 }
 
@@ -100,7 +100,7 @@ impl<'gc> SafePoint<'gc> {
     pub fn set_suspended(&self) -> Result<(), SuspendError> {
         let mut guard = self.state.lock().unwrap();
         if guard.suspended {
-            return Result::Err(SuspendError::AlreadySuspended);
+            return Err(SuspendError::AlreadySuspended);
         }
         guard.suspended = true;
         self.waiton.notify_one();
@@ -110,7 +110,7 @@ impl<'gc> SafePoint<'gc> {
     pub fn set_gc_suspended(&self) -> Result<(), SuspendError> {
         let mut guard = self.state.lock().unwrap();
         if guard.gc_suspended {
-            return Result::Err(SuspendError::AlreadySuspended);
+            return Err(SuspendError::AlreadySuspended);
         }
         guard.gc_suspended = true;
         self.waiton.notify_one();
@@ -120,7 +120,7 @@ impl<'gc> SafePoint<'gc> {
     pub fn set_gc_unsuspended(&self) -> Result<(), ResumeError> {
         let mut guard = self.state.lock().unwrap();
         if !guard.gc_suspended {
-            return Result::Err(ResumeError::NotSuspended);
+            return Err(ResumeError::NotSuspended);
         }
         guard.gc_suspended = false;
         self.waiton.notify_one();
@@ -210,17 +210,7 @@ impl<'gc> SafePoint<'gc> {
         let guard = self.state.lock().unwrap();
 
         if guard.gc_suspended {
-            // dbg!(&guard.waiting_monitor_notify);
-            // dbg!("gc suspended");
-            // drop(int_state.int_state.take());
-            todo!();
             let guard = self.waiton.wait(guard).unwrap();
-            let current_thread = jvm.thread_state.get_current_thread();
-            let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
-
-            todo!();
-            // int_state.int_state = todo!();//Some(transmute(current_thread));
-            dbg!(&guard.waiting_monitor_notify);
             drop(guard);
             return self.check(jvm, int_state);
         }

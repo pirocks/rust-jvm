@@ -8,7 +8,8 @@ use crate::rust_jni::jvmti_interface::get_state;
 use crate::rust_jni::jvmti_interface::event_callbacks::DebuggerEventConsumer;
 use crate::rust_jni::native_util::from_jclass;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
-use crate::threading::JavaThread;
+use crate::threading::java_thread::JavaThread;
+
 
 pub unsafe extern "C" fn set_event_notification_mode(env: *mut jvmtiEnv, mode: jvmtiEventMode, event_type: jvmtiEvent, event_thread: jthread, ...) -> jvmtiError {
     let jvm = get_state(env);

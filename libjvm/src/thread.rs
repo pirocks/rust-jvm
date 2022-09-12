@@ -32,7 +32,6 @@ use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::lang::thread::JThread;
 use slow_interpreter::stdlib::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::threading::{JavaThread, SuspendError};
 use slow_interpreter::threading::safepoints::Monitor2;
 use slow_interpreter::utils::pushable_frame_todo;
 
