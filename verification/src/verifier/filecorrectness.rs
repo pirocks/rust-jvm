@@ -1,6 +1,6 @@
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
@@ -381,7 +381,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     }
     for field in class.fields() {
         let field_name = field.field_name();
-        if member_name == field_name.0 {
+        if FieldName(member_name) == field_name {
             let parsed_member_type = field.field_type();
             let field_type = match member_descriptor {
                 Descriptor::Field(f) => f,

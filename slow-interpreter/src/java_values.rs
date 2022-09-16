@@ -32,7 +32,7 @@ use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedArrayObjectHandle, AllocatedNormalObjectHandle};
 use crate::new_java_values::java_value_common::JavaValueCommon;
-use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
+use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::threading::safepoints::Monitor2;
 
 pub struct GC<'gc> {
@@ -647,7 +647,7 @@ impl<'gc> JavaValue<'gc> {
 
         jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: runtime_class,
-            fields,
+            object_fields: ObjectFields {}
         })).unwrap_normal_object()
     }
 

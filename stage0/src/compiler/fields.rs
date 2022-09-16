@@ -185,7 +185,7 @@ pub fn getfield<'vm>(
 }
 
 pub fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldName) -> FieldNumberAndFieldType {
-    match rc.field_numbers.get(&name) {
+    match rc.object_layout.field_numbers.get(&name) {
         Some(x) => *x,
         None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),
     }

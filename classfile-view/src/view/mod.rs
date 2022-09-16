@@ -217,7 +217,7 @@ impl ClassView for ClassBackedView {
     }
 
     fn lookup_field(&self, name: FieldName) -> Option<FieldView> {
-        self.backing_class.fields.iter().enumerate().filter(|(_, field)| field.name == name.0).map(|(i, _)| FieldView::from(self, i)).exactly_one().ok()
+        self.backing_class.fields.iter().enumerate().filter(|(_, field)| FieldName(field.name) == name).map(|(i, _)| FieldView::from(self, i)).exactly_one().ok()
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {

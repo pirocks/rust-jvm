@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use runtime_class_stuff::RuntimeClass;
 use runtime_class_stuff::field_numbers::FieldNumber;
+use runtime_class_stuff::layout::ObjectLayout;
+use runtime_class_stuff::RuntimeClass;
 
 use crate::NewJavaValue;
 
@@ -18,10 +19,21 @@ impl<'gc, 'l> UnAllocatedObject<'gc, 'l> {
     }
 }
 
+pub struct ObjectFields<'gc, 'l> {
+    pub fields: HashMap<FieldNumber, NewJavaValue<'gc, 'l>>,
+    pub hidden_fields: HashMap<FieldNumber, NewJavaValue<'gc, 'l>>,
+}
+
+impl<'gc, 'l> ObjectFields<'gc, 'l> {
+    pub fn new(object_layout: &ObjectLayout) -> Self {
+        todo!()
+    }
+}
+
 #[derive(Clone)]
 pub struct UnAllocatedObjectObject<'gc, 'l> {
     pub object_rc: Arc<RuntimeClass<'gc>>,
-    pub fields: HashMap<FieldNumber, NewJavaValue<'gc, 'l>>,
+    pub object_fields: ObjectFields<'gc, 'l>,
 }
 
 #[derive(Clone)]

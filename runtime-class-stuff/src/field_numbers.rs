@@ -40,7 +40,7 @@ fn get_field_numbers_impl_impl(class_view: &Arc<ClassBackedView>, parent: &Optio
         }
     })
         .map(|name| (name.field_name(), name.field_type()))
-        .sorted_by_key(|(name, _ptype)| name.0)
+        .sorted_by_key(|(name, _ptype)| *name)
         .enumerate();
     (start_field_number, enumerated_field_view)
 }

@@ -17,7 +17,7 @@ pub struct ObjectMemoryLayout {
 impl ObjectMemoryLayout {
     pub fn from_rc(rc: &RuntimeClassClass) -> Self {
         Self {
-            max_field_number_exclusive: rc.recursive_num_fields
+            max_field_number_exclusive: todo!()/*rc.recursive_num_fields*/
         }
     }
 

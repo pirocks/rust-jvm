@@ -15,12 +15,15 @@ use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::field_numbers::{FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};
+use crate::layout::ObjectLayout;
 use crate::method_numbers::{get_method_numbers, MethodNumber};
 use crate::static_fields::RawStaticFields;
 
 pub mod method_numbers;
 pub mod field_numbers;
 pub mod static_fields;
+pub mod layout;
+pub mod hidden_fields;
 
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -152,11 +155,9 @@ pub struct FieldNameAndFieldType {
 
 pub struct RuntimeClassClass<'gc> {
     pub class_view: Arc<dyn ClassView>,
-    pub field_numbers: HashMap<FieldName, FieldNumberAndFieldType>,
-    pub field_numbers_reverse: HashMap<FieldNumber, FieldNameAndFieldType>,
     pub method_numbers: HashMap<MethodShape, MethodNumber>,
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
-    pub recursive_num_fields: u32,
+    pub object_layout: ObjectLayout,
     pub recursive_num_methods: u32,
     pub static_field_numbers: HashMap<FieldName, StaticFieldNumberAndFieldType>,
     pub static_field_numbers_reverse: HashMap<StaticFieldNumber, FieldNameAndFieldType>,
@@ -185,37 +186,24 @@ impl<'gc> RuntimeClassClass<'gc> {
                    class_ids: &ClassIDs,
     ) -> Self {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
-        let (recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
         let (recursive_num_static_fields, static_field_numbers) = get_field_numbers_static(&class_view, &parent);
-        Self::new(inheritance_tree, bit_vec_paths, class_view, recursive_num_fields, parent, interfaces, status, field_numbers, recursive_num_methods, method_numbers, recursive_num_static_fields, static_field_numbers, class_id_path)
+        Self::new(inheritance_tree, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, static_field_numbers, recursive_num_static_fields, class_id_path)
     }
 
     pub fn new(
         inheritance_tree: &InheritanceTree,
         bit_vec_paths: &mut BitVecPaths,
-        class_view: Arc<dyn ClassView>,
-        recursive_num_fields: u32,
+        class_view: Arc<ClassBackedView>,
         parent: Option<Arc<RuntimeClass<'gc>>>,
         interfaces: Vec<Arc<RuntimeClass<'gc>>>,
         status: RwLock<ClassStatus>,
-        field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>,
-        recursive_num_methods: u32,
         method_numbers: HashMap<MethodShape, MethodNumber>,
-        recursive_num_static_fields: u32,
+        recursive_num_methods: u32,
         static_field_numbers: HashMap<FieldName, (StaticFieldNumber, CPDType)>,
+        recursive_num_static_fields: u32,
         class_id_path: Vec<ClassID>,
     ) -> Self {
-        fn reverse_fields(field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>) -> (HashMap<FieldName, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
-            let reverse = field_numbers.clone().into_iter()
-                .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
-                .collect();
-            let forward = field_numbers.into_iter()
-                .map(|(name, (number, cpdtype))| (name, FieldNumberAndFieldType { number, cpdtype }))
-                .collect();
-            (forward, reverse)
-        }
-
         fn static_reverse_fields(field_numbers: HashMap<FieldName, (StaticFieldNumber, CPDType)>) -> (HashMap<FieldName, StaticFieldNumberAndFieldType>, HashMap<StaticFieldNumber, FieldNameAndFieldType>) {
             let reverse = field_numbers.clone().into_iter()
                 .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
@@ -238,22 +226,18 @@ impl<'gc> RuntimeClassClass<'gc> {
             None
         };
 
-        let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
-
         let (static_field_numbers, static_field_numbers_reverse) = static_reverse_fields(static_field_numbers);
 
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
             .collect();
-        assert!(recursive_num_fields >= field_numbers.len() as u32);
+        let object_layout = ObjectLayout::new(&class_view, &parent);
         assert!(recursive_num_methods >= method_numbers.len() as u32);
         Self {
             class_view,
-            field_numbers,
-            field_numbers_reverse,
             method_numbers,
             method_numbers_reverse,
-            recursive_num_fields,
+            object_layout,
             recursive_num_methods,
             static_field_numbers,
             static_field_numbers_reverse,
@@ -299,7 +283,7 @@ impl<'gc> Debug for RuntimeClassClass<'gc> {
 }
 
 
-impl<'gc> std::convert::From<RuntimeClassClass<'gc>> for RuntimeClass<'gc> {
+impl<'gc> From<RuntimeClassClass<'gc>> for RuntimeClass<'gc> {
     fn from(rcc: RuntimeClassClass<'gc>) -> Self {
         Self::Object(rcc)
     }
