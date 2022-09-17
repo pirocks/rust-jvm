@@ -13,10 +13,10 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::layout::{ArrayMemoryLayout, ObjectMemoryLayout};
+use gc_memory_layout_common::layout::{ArrayMemoryLayout};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
-use runtime_class_stuff::{FieldNameAndFieldType, FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::loading::LoaderName;
@@ -100,11 +100,13 @@ impl<'gc> GC<'gc> {
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
         self.all_allocated_object.write().unwrap().insert(allocated);
         match object {
-            UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, fields }) => {
-                for (i, field) in fields.iter() {
-                    let obj_layout = ObjectMemoryLayout::from_rc(object_rc.unwrap_class_class());
+            UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, object_fields }) => {
+                let ObjectFields { fields, hidden_fields } = object_fields;
+                for (i, field) in fields.iter().chain(hidden_fields.iter()) {
+                    let object_rc_class_class = object_rc.unwrap_class_class();
+                    let object_layout = &object_rc_class_class.object_layout;
                     unsafe {
-                        let offset = obj_layout.field_entry(*i);
+                        let offset = object_layout.field_entry(*i);
                         let field_ptr = allocated.as_ptr().offset(offset as isize).cast::<NativeJavaValue>();
                         field_ptr.write(field.to_native());
                     }
@@ -643,11 +645,13 @@ impl<'gc> JavaValue<'gc> {
 
         let class_class = runtime_class.unwrap_class_class();
 
-        let fields = class_class.field_numbers_reverse.iter().map(|(i, FieldNameAndFieldType { cpdtype, .. })| (*i, default_value_njv(cpdtype))).collect::<HashMap<_, _>>();
 
+        let object_layout = &class_class.object_layout;
+
+        let object_fields = ObjectFields::new_default_init_fields(object_layout);
         jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: runtime_class,
-            object_fields: ObjectFields {}
+            object_fields,
         })).unwrap_normal_object()
     }
 
@@ -831,7 +835,7 @@ unsafe impl<'gc> Sync for Object<'gc, '_> {}
 impl<'gc, 'l> Object<'gc, 'l> {
     pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, s: FieldName) -> JavaValue<'gc> {
         let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let FieldNumberAndFieldType { number: field_number, cpdtype } = match class_pointer.unwrap_class_class().field_numbers.get(&s) {
+        let FieldNumberAndFieldType { number: field_number, cpdtype } = match class_pointer.unwrap_class_class().object_layout.field_numbers.get(&s) {
             None => {
                 dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
                 dbg!(s.0.to_str(&jvm.string_pool));
@@ -1108,7 +1112,7 @@ pub struct NormalObject<'gc, 'l> {
 
 impl<'gc, 'l> NormalObject<'gc, 'l> {
     pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc>) {
-        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&name).unwrap();
         /*unsafe {
                                                                                                                                                     /*self.objinfo.fields[*field_index].get().as_mut()*/
                                                                                                                                                 }.unwrap() = jv.to_native();*/
@@ -1125,7 +1129,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
 
     unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, name: FieldName, jv: JavaValue<'gc>, mut do_class_check: bool) {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
-            let field_index = match current_class_pointer.field_numbers.get(&name) {
+            let field_index = match current_class_pointer.object_layout.field_numbers.get(&name) {
                 None => {
                     do_class_check = false;
                 }
@@ -1144,7 +1148,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
 
     pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, name: FieldName) -> JavaValue<'gc> {
         let name = name.into();
-        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().field_numbers.get(&name).unwrap();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&name).unwrap();
         todo!()
         /*unsafe {
             self.objinfo.fields[*field_index].get().as_ref()
@@ -1231,7 +1235,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
 
     unsafe fn get_var_impl(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, name: FieldName, mut do_class_check: bool) -> JavaValue<'gc> {
         if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
-            match current_class_pointer.field_numbers.get(&name) {
+            match current_class_pointer.object_layout.field_numbers.get(&name) {
                 Some(_/*(field_number, ptype)*/) => {
                     todo!()
                     /*return self.objinfo.fields[*field_number].get().as_ref().unwrap().to_java_value(ptype.clone(), jvm);*/

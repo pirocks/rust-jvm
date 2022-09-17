@@ -28,8 +28,9 @@ use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
-use runtime_class_stuff::{ClassStatus, FieldNameAndFieldType, RuntimeClassClass};
+use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
+use runtime_class_stuff::layout::ObjectLayout;
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -50,19 +51,19 @@ use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
-use crate::{AllocatedHandle, JavaValueCommon, UnAllocatedObject};
+use crate::{AllocatedHandle, UnAllocatedObject};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
-use crate::java_values::{ByAddressAllocatedObject, default_value, GC, JavaValue};
+use crate::java_values::{ByAddressAllocatedObject, GC, JavaValue};
 use crate::leaked_interface_arrays::InterfaceArrays;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
-use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
+use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use crate::rust_jni::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
 use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
@@ -149,6 +150,7 @@ pub struct Classes<'gc> {
     pub(crate) class_class: Arc<RuntimeClass<'gc>>,
     class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc>>,
     pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc>>,
+    pub class_class_view: Arc<ClassBackedView>
 }
 
 impl<'gc> Classes<'gc> {
@@ -421,16 +423,10 @@ impl<'gc> JVMState<'gc> {
 
     pub fn early_add_class(&'gc self, class: Arc<RuntimeClass<'gc>>) {
         let class_unwrapped = class.unwrap_class_class();
-        let recursive_num_fields = class_unwrapped.recursive_num_fields;
-        let field_numbers_reverse = &class_unwrapped.field_numbers_reverse;
-        let fields_map_owned = (0..recursive_num_fields).map(|i| {
-            let field_number = FieldNumber(i as u32);
-            let FieldNameAndFieldType { cpdtype, .. } = field_numbers_reverse.get(&field_number).unwrap();
-            let default_jv = default_value(*cpdtype);
-            (field_number, default_jv)
-        }).collect::<Vec<_>>();
-        let fields = fields_map_owned.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
-        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: self.classes.read().unwrap().class_class.clone(), fields }));
+        let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
+            object_rc: self.classes.read().unwrap().class_class.clone(),
+            object_fields: ObjectFields::new_default_init_fields(&class_unwrapped.object_layout),
+        }));
         let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
         let mut classes = self.classes.write().unwrap();
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(class.clone()));
@@ -513,7 +509,7 @@ impl<'gc> JVMState<'gc> {
         let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
             bit_vec_paths,
-            class_view,
+            class_view.clone(),
             Some(temp_object_class),
             vec![annotated_element_class.clone(), generic_declaration_class.clone(), type_class.clone(), serializable_class.clone()],
             RwLock::new(ClassStatus::UNPREPARED),
@@ -542,29 +538,11 @@ impl<'gc> JVMState<'gc> {
             class_class,
             class_loaders: Default::default(),
             protection_domains: Default::default(),
+            class_class_view: class_view
         });
         classes
     }
 
-    pub fn get_class_class_field_numbers() -> HashMap<FieldName, (FieldNumber, CPDType)> {
-        //todo this use the class view instead
-        let class_class_fields = vec![
-            (FieldName::field_cachedConstructor(), CClassName::constructor().into()),
-            (FieldName::field_newInstanceCallerCache(), CClassName::class().into()),
-            (FieldName::field_name(), CClassName::string().into()),
-            (FieldName::field_classLoader(), CClassName::classloader().into()),
-            (FieldName::field_reflectionData(), CPDType::object()),
-            (FieldName::field_classRedefinedCount(), CPDType::IntType),
-            (FieldName::field_genericInfo(), CPDType::object()),
-            (FieldName::field_enumConstants(), CPDType::array(CPDType::object())),
-            (FieldName::field_enumConstantDirectory(), CPDType::object()),
-            (FieldName::field_annotationData(), CPDType::object()),
-            (FieldName::field_annotationType(), CPDType::object()),
-            (FieldName::field_classValueMap(), CPDType::object()),
-        ];
-        let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1 as u32), _2_type.clone()))).collect_vec().into_iter());
-        field_numbers
-    }
 
     pub fn get_class_class_or_object_class_method_numbers(pool: &CompressedClassfileStringPool, class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32, HashMap<MethodShape, MethodNumber>) {
         let mut method_number_mappings = MethodNumberMappings::new();

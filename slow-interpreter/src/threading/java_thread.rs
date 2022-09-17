@@ -197,11 +197,11 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn pause_and_remote_view<T>(&self, with_frame: impl FnOnce(&RemoteFrame) -> T) -> T {
-        unsafe { self.gc_suspend(); }
+        // unsafe { self.gc_suspend(); }
         let thread_stack_guard = self.java_stack.lock().unwrap();
         let signal_safe_data = thread_stack_guard.signal_safe_data();
         let res = with_frame(todo!());
-        unsafe { self.gc_resume_thread().unwrap(); }
+        // unsafe { self.gc_resume_thread().unwrap(); }
         res
     }
 }

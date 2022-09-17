@@ -10,6 +10,7 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::layout::ObjectLayout;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -20,15 +21,15 @@ use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 
-use crate::{AllocatedHandle, JavaValueCommon, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
+use crate::{AllocatedHandle, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::java_values::{ByAddressAllocatedObject, default_value};
+use crate::java_values::{ByAddressAllocatedObject};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::new_java_values::unallocated_objects::UnAllocatedObjectObject;
+use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjectObject};
 use crate::runtime_class::{initialize_class, prepare_class, static_vars};
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
@@ -340,9 +341,11 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
         LoaderName::BootstrapLoader => NewJavaValueHandle::null(),
     };
     if name == ClassName::object().get_referred_name().to_string().into() {
-        let fields_handles = JVMState::get_class_class_field_numbers().into_values().map(|(field_number, type_)| (field_number, default_value(type_))).collect::<Vec<_>>();
-        let fields = fields_handles.iter().map(|(field_number, handle)| (*field_number, handle.as_njv())).collect();
-        let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc: jvm.classes.read().unwrap().class_class.clone(), fields }));
+        let object_layout = ObjectLayout::new(&jvm.classes.read().unwrap().class_class_view, &None);
+        let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
+            object_rc: jvm.classes.read().unwrap().class_class.clone(),
+            object_fields: ObjectFields::new_default_init_fields(&object_layout),
+        }));
         let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle.unwrap_normal_object());
         return Ok(allocated_object);
     }

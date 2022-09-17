@@ -2,7 +2,6 @@ use std::collections::BTreeSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use gc_memory_layout_common::layout::ObjectMemoryLayout;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use inheritance_tree::ClassID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
@@ -69,7 +68,7 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
             }
         }
         RuntimeClass::Object(class_class) => {
-            let layout = ObjectMemoryLayout::from_rc(class_class);
+            let layout = &class_class.object_layout;
             let inheritance_bit_vec = class_class.inheritance_tree_vec.clone();
 
 
