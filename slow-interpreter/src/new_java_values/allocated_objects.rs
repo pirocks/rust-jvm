@@ -9,6 +9,7 @@ use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
+use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::FieldName;
 use rust_jvm_common::NativeJavaValue;
@@ -161,11 +162,20 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
         self.ptr.as_ptr() as usize
     }
 
+    fn raw_set_var<'any>(ptr: NonNull<c_void>, field_number: FieldNumber, val: NewJavaValue<'gc, 'any>) {
+        unsafe {
+            ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
+        }
+    }
+
+    pub fn set_var_hidden<'any>(&self, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: HiddenJVMField, val: NewJavaValue<'gc, 'any>) {
+        let field_number = current_class_pointer.unwrap_class_class().object_layout.hidden_field_numbers.get(&field_name).unwrap().number;
+        Self::raw_set_var(self.ptr, field_number, val)
+    }
+
     pub fn set_var<'any>(&self, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName, val: NewJavaValue<'gc, 'any>) {
         let field_number = current_class_pointer.unwrap_class_class().object_layout.field_numbers.get(&field_name).unwrap().number;
-        unsafe {
-            self.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
-        }
+        Self::raw_set_var(self.ptr, field_number, val)
     }
 
     pub fn set_var_top_level<'any>(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName, val: NewJavaValue<'gc, 'any>) {

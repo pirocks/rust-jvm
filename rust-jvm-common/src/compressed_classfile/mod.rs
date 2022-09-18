@@ -489,6 +489,10 @@ impl CompressedParsedDescriptorType {
         Self::Class(CompressedClassName::object())
     }
 
+    pub fn class() -> Self {
+        Self::Class(CompressedClassName::class())
+    }
+
     pub fn is_double_or_long(&self) -> bool {
         match self {
             CompressedParsedDescriptorType::BooleanType => false,

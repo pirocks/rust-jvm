@@ -258,6 +258,7 @@ pub mod member_name {
 
 pub mod class {
     use std::sync::Arc;
+    use runtime_class_stuff::hidden_fields::HiddenJVMField;
 
     use runtime_class_stuff::RuntimeClass;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
@@ -265,11 +266,9 @@ pub mod class {
 
     use crate::{AllocatedHandle, JVMState, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
-    use crate::class_loading::check_initing_or_inited_class;
-    use crate::class_objects::get_or_create_class_object;
+    use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData};
     use crate::interpreter::common::ldc::load_class_constant_by_type;
     use crate::interpreter_util::{new_object, run_constructor};
-    use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::NewJavaValueHandle;
     use crate::stdlib::java::lang::class_loader::ClassLoader;
@@ -333,23 +332,29 @@ pub mod class {
             Ok(int_state.pop_current_operand_stack(Some(CClassName::object().into())).unwrap_object().map(|cl| JavaValue::Object(cl.into()).cast_class_loader()))*/
         }
 
-        pub fn new_bootstrap_loader<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Self, WasException<'gc>> {
+        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader: Option<ClassLoader<'gc>>, class_intrinsics_data: ClassIntrinsicsData<'gc>) -> Result<Self, WasException<'gc>> {
             let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
-            let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_class));
-            run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), NewJavaValue::Null], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
-            Ok(NewJavaValueHandle::Object(res).cast_class().unwrap())
-        }
-
-        pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader: ClassLoader<'gc>) -> Result<Self, WasException<'gc>> {
-            let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into())?;
-            let res = AllocatedHandle::NormalObject(new_object(jvm, int_state, &class_class));
-            run_constructor(jvm, int_state, class_class, vec![res.new_java_value(), loader.new_java_value()], &CMethodDescriptor::void_return(vec![CClassName::classloader().into()]))?;
+            let res = new_object(jvm, int_state, &class_class);
+            let constructor_desc = CMethodDescriptor::void_return(vec![CClassName::classloader().into()]);
+            let loader_njv = match loader.as_ref() {
+                None => {
+                    NewJavaValue::Null
+                }
+                Some(loader) => {
+                    loader.new_java_value()
+                }
+            };
+            run_constructor(jvm, int_state, class_class.clone(), vec![res.new_java_value(), loader_njv], &constructor_desc)?;
+            let ClassIntrinsicsData{ is_array, is_primitive: _, component_type } = class_intrinsics_data;
+            let component_type_njv = match component_type.as_ref() {
+                None => {
+                    NewJavaValue::Null
+                }
+                Some(component_type) => component_type.new_java_value()
+            };
+            res.set_var_hidden(&class_class, HiddenJVMField::class_is_array(), NewJavaValue::Boolean(u8::from(is_array)));
+            res.set_var_hidden(&class_class, HiddenJVMField::class_component_type(), component_type_njv);
             Ok(res.cast_class())
-        }
-
-        pub fn from_name<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, name: CClassName) -> JClass<'gc> {
-            let type_ = name.into();
-            JavaValue::Object(get_or_create_class_object(jvm, type_, int_state).unwrap().to_gc_managed().into()).to_new().cast_class().unwrap()
         }
 
         pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<JClass<'gc>, WasException<'gc>> {

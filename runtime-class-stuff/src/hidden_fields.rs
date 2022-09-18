@@ -31,13 +31,16 @@ impl HiddenJVMField {
     }
 
     pub fn class_hidden_fields() -> Vec<HiddenJVMFieldAndFieldType> {
-        vec![HiddenJVMFieldAndFieldType {
-            name: Self::class_component_type(),
-            cpdtype: CompressedParsedDescriptorType::Class(CClassName::class()),
-        }, HiddenJVMFieldAndFieldType{
-            name: Self::class_is_array(),
-            cpdtype: CompressedParsedDescriptorType::BooleanType
-        }]
+        vec![
+            HiddenJVMFieldAndFieldType {
+                name: Self::class_component_type(),
+                cpdtype: CompressedParsedDescriptorType::Class(CClassName::class()),
+            },
+            HiddenJVMFieldAndFieldType {
+                name: Self::class_is_array(),
+                cpdtype: CompressedParsedDescriptorType::BooleanType,
+            }
+        ]
     }
 }
 

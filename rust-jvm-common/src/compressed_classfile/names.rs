@@ -439,6 +439,7 @@ enum PredefinedStrings {
     method_findVirtual,
     method_fromMethodDescriptorString,
     method_getClass,
+    method_getComponentType,
     method_arraycopy,
     method_compareAndSwapLong,
     method_identityHashCode,
@@ -660,7 +661,8 @@ impl PredefinedStrings {
             field_formalTypeParams => "formalTypeParams".to_string(),
             method_arraycopy => "arraycopy".to_string(),
             method_compareAndSwapLong => "compareAndSwapLong".to_string(),
-            method_identityHashCode => "identityHashCode".to_string()
+            method_identityHashCode => "identityHashCode".to_string(),
+            method_getComponentType => "getComponentType".to_string()
         }
     }
 }
@@ -953,6 +955,9 @@ impl MethodName {
     }
     pub fn method_getClass() -> Self {
         Self::from_raw_id(method_getClass)
+    }
+    pub fn method_getComponentType() -> Self {
+        Self::from_raw_id(method_getComponentType)
     }
     pub fn method_arraycopy() -> Self {
         Self::from_raw_id(method_arraycopy)

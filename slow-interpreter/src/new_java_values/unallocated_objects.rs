@@ -7,7 +7,7 @@ use runtime_class_stuff::{FieldNameAndFieldType, RuntimeClass};
 use runtime_class_stuff::hidden_fields::HiddenJVMFieldAndFieldType;
 use crate::java_values::default_value_njv;
 
-use crate::{JVMState, NewJavaValue};
+use crate::{NewJavaValue};
 
 #[derive(Clone)]
 pub enum UnAllocatedObject<'gc, 'l> {

@@ -48,6 +48,11 @@ pub fn gen_intrinsic_ir<'vm>(
         class_name == CClassName::system() {
         return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, _labeler);
     }
+    let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
+    if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class()
+        {
+
+    }
     None
 }
 

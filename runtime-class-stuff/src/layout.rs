@@ -1,8 +1,6 @@
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::mem::size_of;
 use std::sync::Arc;
-use itertools::Itertools;
 
 use classfile_view::view::{ClassBackedView, ClassView};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};

@@ -533,7 +533,7 @@ pub fn define_class_safe<'gc, 'l>(
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
-    let class_object = create_class_object(jvm, int_state, None, current_loader)?;
+    let class_object = create_class_object(jvm, int_state, None, current_loader,todo!())?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));
