@@ -1,9 +1,11 @@
 use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jthrowable};
 
-use crate::NewAsObjectOrJavaValue;
+use crate::{NewAsObjectOrJavaValue, WasException};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};
 use crate::rust_jni::jni_interface::jni::get_throw;
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public_new;
+use crate::rust_jni::native_util::from_object_new;
 
 pub unsafe extern "C" fn exception_occured(env: *mut JNIEnv) -> jthrowable {
     let int_state = get_interpreter_state(env);
@@ -26,6 +28,9 @@ pub unsafe extern "C" fn exception_check(env: *mut JNIEnv) -> jboolean {
 pub unsafe extern "C" fn throw(env: *mut JNIEnv, obj: jthrowable) -> jint {
     let jvm = get_state(env);
     let interpreter_state = get_interpreter_state(env);
-    todo!()/*interpreter_state.set_throw(from_object_new(jvm, obj));
-    0 as jint*/
+    let throw = get_throw(env);
+    *throw = Some(WasException {
+        exception_obj: from_object_new(jvm, obj).unwrap().cast_throwable()
+    });
+    0 as jint
 }

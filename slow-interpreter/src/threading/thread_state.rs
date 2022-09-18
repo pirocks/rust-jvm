@@ -197,7 +197,6 @@ impl<'gc> ThreadState<'gc> {
         let loader_name = obj.get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
         let java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
             send.send(java_thread.clone()).unwrap();
-            jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive(jvm);
             Self::thread_start_impl(jvm, java_thread, loader_name, frame)
         }).expect("todo");

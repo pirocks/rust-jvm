@@ -31,7 +31,7 @@ use verification::verifier::TypeSafetyError;
 
 use crate::{JVMState, NewAsObjectOrJavaValue, PushableFrame};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::class_loading::{check_initing_or_inited_class, create_class_object, get_static_var_types};
+use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData, create_class_object, get_static_var_types};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::exceptions::WasException;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
@@ -533,7 +533,11 @@ pub fn define_class_safe<'gc, 'l>(
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
-    let class_object = create_class_object(jvm, int_state, None, current_loader,todo!())?;
+    let class_object = create_class_object(jvm, int_state, None, current_loader,ClassIntrinsicsData{
+        is_array: false,
+        is_primitive: false,
+        component_type: None
+    })?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());
     classes.initiating_loaders.insert(class_name.clone().into(), (current_loader, runtime_class.clone()));

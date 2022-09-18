@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::mem::size_of;
 use std::sync::Arc;
 
-use classfile_view::view::{ClassBackedView, ClassView};
+use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 use rust_jvm_common::NativeJavaValue;
@@ -17,7 +17,7 @@ pub struct ObjectLayout {
     pub field_numbers: HashMap<FieldName, FieldNumberAndFieldType>,
     pub field_numbers_reverse: HashMap<FieldNumber, FieldNameAndFieldType>,
     pub recursive_num_fields: u32,
-    recursive_num_fields_non_hidden: u32
+    recursive_num_fields_non_hidden: u32,
 }
 
 
@@ -33,21 +33,24 @@ fn reverse_fields(field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>) -> 
 
 fn reverse_hidden_fields(hidden_field_numbers_reverse: &HashMap<FieldNumber, HiddenJVMFieldAndFieldType>) -> HashMap<HiddenJVMField, FieldNumberAndFieldType> {
     hidden_field_numbers_reverse.clone().into_iter()
-        .map(|(number, HiddenJVMFieldAndFieldType{ name, cpdtype })| (name, FieldNumberAndFieldType { number, cpdtype }))
+        .map(|(number, HiddenJVMFieldAndFieldType { name, cpdtype })| (name, FieldNumberAndFieldType { number, cpdtype }))
         .collect()
 }
-
 
 
 impl ObjectLayout {
     pub fn new<'gc>(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass<'gc>>>) -> Self {
         let (mut recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
         let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
+        //todo hidden fields won't work with non-final classes
         let hidden_fields = if class_view.name() == CompressedParsedRefType::Class(CClassName::class()) {
             HiddenJVMField::class_hidden_fields()
         } else {
             vec![]
         };
+        if !hidden_fields.is_empty() {
+            assert!(class_view.is_final());
+        }
 
         let hidden_field_numbers_reverse: HashMap<FieldNumber, HiddenJVMFieldAndFieldType> = hidden_fields.into_iter().map(|HiddenJVMFieldAndFieldType { name, cpdtype }| {
             let field_number = FieldNumber(recursive_num_fields);
@@ -64,11 +67,11 @@ impl ObjectLayout {
             field_numbers,
             field_numbers_reverse,
             recursive_num_fields,
-            recursive_num_fields_non_hidden
+            recursive_num_fields_non_hidden,
         }
     }
 
-    pub fn class_class_bootstrap_layout() -> Self{
+    pub fn class_class_bootstrap_layout() -> Self {
         //todo this use the class view instead
         let class_class_fields = vec![
             (FieldName::field_cachedConstructor(), CClassName::constructor().into()),
@@ -85,13 +88,13 @@ impl ObjectLayout {
             (FieldName::field_classValueMap(), CPDType::object()),
         ];
         // let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1 as u32), _2_type.clone()))).collect_vec().into_iter());
-        Self{
+        Self {
             hidden_field_numbers: todo!(),
             hidden_field_numbers_reverse: todo!(),
             field_numbers: todo!()/*field_numbers*/,
             field_numbers_reverse: todo!()/*reverse_fields(field_numbers)*/,
             recursive_num_fields: todo!(),
-            recursive_num_fields_non_hidden: todo!()
+            recursive_num_fields_non_hidden: todo!(),
         }
     }
 
@@ -111,7 +114,7 @@ impl ObjectLayout {
         self.recursive_num_fields
     }
 
-    pub fn size(&self) -> usize{
+    pub fn size(&self) -> usize {
         self.recursive_num_fields() as usize * size_of::<NativeJavaValue>()
     }
 }

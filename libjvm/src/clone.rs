@@ -9,6 +9,7 @@ use libc::time;
 use jvmti_jni_bindings::{JNIEnv, jobject};
 use runtime_class_stuff::{FieldNameAndFieldType, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
+use runtime_class_stuff::hidden_fields::HiddenJVMFieldAndFieldType;
 use rust_jvm_common::compressed_classfile::code::CompressedInstructionInfo::new;
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
@@ -43,12 +44,14 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
             } else {
                 let rc = o.unwrap_normal_object_ref().runtime_class(jvm);
                 let owned_copied_fields = copy_fields(jvm, o.unwrap_normal_object_ref(), rc.unwrap_class_class());
+                let hidden_owned_copied_fields = copy_hidden_fields(jvm, o.unwrap_normal_object_ref(), rc.unwrap_class_class());
                 let fields = owned_copied_fields.iter().map(|(number, handle)| (*number, handle.as_njv())).collect();
+                let hidden_fields = hidden_owned_copied_fields.iter().map(|(number, handle)| (*number, handle.as_njv())).collect();
                 let cloned = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
                     object_rc: rc,
                     object_fields: ObjectFields {
                         fields,
-                        hidden_fields: todo!(),
+                        hidden_fields,
                     },
                 }));
                 return new_local_ref_public_new(Some(cloned.as_allocated_obj()), int_state);
@@ -64,6 +67,18 @@ pub fn copy_fields<'gc>(jvm: &'gc JVMState<'gc>, obj: &AllocatedNormalObjectHand
     }
     for (number, FieldNameAndFieldType { name, cpdtype }) in rc.object_layout.field_numbers_reverse.iter() {
         res.insert(*number, obj.raw_get_var(jvm, *number, *cpdtype));
+    }
+    res
+}
+
+
+pub fn copy_hidden_fields<'gc>(jvm: &'gc JVMState<'gc>, obj: &AllocatedNormalObjectHandle<'gc>, rc: &RuntimeClassClass<'gc>) -> HashMap<FieldNumber, NewJavaValueHandle<'gc>> {
+    let mut res = HashMap::new();
+    for (number, HiddenJVMFieldAndFieldType { name, cpdtype }) in rc.object_layout.hidden_field_numbers_reverse.iter(){
+        res.insert(*number, obj.raw_get_var(jvm, *number, *cpdtype));
+    }
+    if !res.is_empty(){
+        assert!(rc.class_view.is_final());//should be final b/c hidden fields don't work with inheritance
     }
     res
 }
