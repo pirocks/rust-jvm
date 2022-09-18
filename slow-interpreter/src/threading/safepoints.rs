@@ -223,7 +223,7 @@ impl<'gc> SafePoint<'gc> {
         if guard.suspended {
             todo!();
             /*drop(int_state.int_state.take());*/
-            let _ = self.waiton.wait(guard).unwrap();
+            let _unused = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
             let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
             todo!();
@@ -231,11 +231,11 @@ impl<'gc> SafePoint<'gc> {
             return self.check(jvm, int_state);
         }
         if guard.parks > 0 {
-            let _ = self.waiton.wait(guard).unwrap();
+            let _unused = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }
         if let Some(_) = &guard.waiting_monitor_lock {
-            let _ = self.waiton.wait(guard).unwrap();
+            let _unused = self.waiton.wait(guard).unwrap();
             return self.check(jvm, int_state);
         }
         if let Some(MonitorWait { wait_until, monitor, prev_count }) = &guard.waiting_monitor_notify {

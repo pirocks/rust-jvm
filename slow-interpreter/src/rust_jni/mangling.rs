@@ -23,12 +23,6 @@ pub fn mangle(pool: &CompressedClassfileStringPool, method: &MethodView) -> Stri
         format!("Java_{}_{}", escape(&class_name), escape(&method_name.0.to_str(pool)))
     };
 
-
-    unsafe {
-        if libc::rand() < 100_000 {
-            dbg!(&res);
-        }
-    }
     res
 }
 

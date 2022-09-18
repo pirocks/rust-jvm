@@ -1,8 +1,6 @@
 #![feature(asm_const)]
 #![feature(trait_alias)]
-#![feature(generic_associated_types)]
 #![feature(core_intrinsics)]
-#![feature(const_ptr_offset_from)]
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -
 // have another layer above this which gets rid of native points and does everytthing in terms of IR

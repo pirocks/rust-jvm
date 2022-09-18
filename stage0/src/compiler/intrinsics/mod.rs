@@ -1,12 +1,10 @@
-use std::mem::size_of;
-use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm_ir::compiler::{IRInstr, Size};
+use another_jit_vm::{IRMethodID};
+use another_jit_vm_ir::compiler::{IRInstr};
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-use rust_jvm_common::{MethodId, NativeJavaValue};
+use rust_jvm_common::{MethodId};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler::intrinsics::array_copy::intrinsic_array_copy;

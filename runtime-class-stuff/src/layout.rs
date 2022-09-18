@@ -71,33 +71,6 @@ impl ObjectLayout {
         }
     }
 
-    pub fn class_class_bootstrap_layout() -> Self {
-        //todo this use the class view instead
-        let class_class_fields = vec![
-            (FieldName::field_cachedConstructor(), CClassName::constructor().into()),
-            (FieldName::field_newInstanceCallerCache(), CClassName::class().into()),
-            (FieldName::field_name(), CClassName::string().into()),
-            (FieldName::field_classLoader(), CClassName::classloader().into()),
-            (FieldName::field_reflectionData(), CPDType::object()),
-            (FieldName::field_classRedefinedCount(), CPDType::IntType),
-            (FieldName::field_genericInfo(), CPDType::object()),
-            (FieldName::field_enumConstants(), CPDType::array(CPDType::object())),
-            (FieldName::field_enumConstantDirectory(), CPDType::object()),
-            (FieldName::field_annotationData(), CPDType::object()),
-            (FieldName::field_annotationType(), CPDType::object()),
-            (FieldName::field_classValueMap(), CPDType::object()),
-        ];
-        // let field_numbers = HashMap::from_iter(class_class_fields.iter().cloned().sorted_by_key(|(name, _)| name.clone()).enumerate().map(|(_1, (_2_name, _2_type))| ((_2_name.clone()), (FieldNumber(_1 as u32), _2_type.clone()))).collect_vec().into_iter());
-        Self {
-            hidden_field_numbers: todo!(),
-            hidden_field_numbers_reverse: todo!(),
-            field_numbers: todo!()/*field_numbers*/,
-            field_numbers_reverse: todo!()/*reverse_fields(field_numbers)*/,
-            recursive_num_fields: todo!(),
-            recursive_num_fields_non_hidden: todo!(),
-        }
-    }
-
     pub fn self_check(&self) {
         assert_eq!(self.field_numbers.len() + self.hidden_field_numbers.len(), self.recursive_num_fields as usize);
         assert_eq!(self.field_numbers_reverse.len(), self.field_numbers.len());

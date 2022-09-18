@@ -10,7 +10,6 @@
 #![feature(unboxed_closures)]
 #![feature(exclusive_range_pattern)]
 #![feature(step_trait)]
-#![feature(generic_associated_types)]
 #![feature(never_type)]
 #![feature(box_patterns)]
 #![feature(once_cell)]

@@ -5,31 +5,8 @@ use memoffset::offset_of;
 
 use another_jit_vm::FramePointerOffset;
 use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::RuntimeClassClass;
-use runtime_class_stuff::field_numbers::FieldNumber;
 use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::NativeJavaValue;
-
-pub struct ObjectMemoryLayout {
-    max_field_number_exclusive: u32,
-}
-
-impl ObjectMemoryLayout {
-    pub fn from_rc(rc: &RuntimeClassClass) -> Self {
-        Self {
-            max_field_number_exclusive: todo!()/*rc.recursive_num_fields*/
-        }
-    }
-
-    pub fn field_entry(&self, field_number: FieldNumber) -> usize {
-        assert!(field_number.0 < self.max_field_number_exclusive);
-        (field_number.0 as usize) * size_of::<NativeJavaValue>()
-    }
-
-    pub fn size(&self) -> usize {
-        (self.max_field_number_exclusive as usize) * size_of::<NativeJavaValue>()
-    }
-}
 
 pub struct ArrayMemoryLayout {
     sub_type: Option<CPDType>,
