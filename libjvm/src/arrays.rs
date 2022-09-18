@@ -8,6 +8,7 @@ use libc::timer_delete;
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use slow_interpreter::better_java_stack::frames::HasJavaStack;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::new::a_new_array_from_name;
 use slow_interpreter::java_values::{JavaValue, Object};

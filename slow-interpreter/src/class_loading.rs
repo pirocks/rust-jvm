@@ -146,7 +146,7 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                             let sub_class = check_loaded_class(jvm, int_state, sub_type.to_cpdtype())?;
                             let serializable = check_loaded_class(jvm, int_state, CClassName::serializable().into())?;
                             let cloneable = check_loaded_class(jvm, int_state, CClassName::cloneable().into())?;
-                            let component_type = get_or_create_class_object(jvm, sub_class.cpdtype(), int_state)?.cast_class();
+                            let component_type = get_or_create_class_object(jvm, CPDType::new_array_or_normal(sub_type, num_nested_arrs.get() - 1), int_state)?.cast_class();
                             let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable }));
                             let class_intrinsics_data = ClassIntrinsicsData {
                                 is_array: true,
@@ -336,7 +336,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
             let serializable = check_resolved_class(jvm, int_state, CClassName::serializable().into())?;
             let cloneable = check_resolved_class(jvm, int_state, CClassName::cloneable().into())?;
             //todo handle class objects for arraus
-            let component_type_object = get_or_create_class_object(jvm, sub_class.cpdtype(), int_state)?.cast_class();
+            let component_type_object = get_or_create_class_object(jvm, CPDType::new_array_or_normal(sub_type, num_nested_arrs.get() - 1), int_state)?.cast_class();
             (create_class_object(jvm, int_state, None, LoaderName::BootstrapLoader, ClassIntrinsicsData {
                 is_array: true,
                 is_primitive: false,

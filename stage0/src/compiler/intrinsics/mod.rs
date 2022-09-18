@@ -1,15 +1,18 @@
-use another_jit_vm::IRMethodID;
-use another_jit_vm_ir::compiler::IRInstr;
+use std::mem::size_of;
+use another_jit_vm::{IRMethodID, Register};
+use another_jit_vm_ir::compiler::{IRInstr, Size};
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
-use rust_jvm_common::MethodId;
+use rust_jvm_common::{MethodId, NativeJavaValue};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler::intrinsics::array_copy::intrinsic_array_copy;
 use crate::compiler::intrinsics::compare_and_swap::intrinsic_compare_and_swap_long;
 use crate::compiler::intrinsics::get_class::intrinsic_get_class;
+use crate::compiler::intrinsics::get_component_type::get_component_type_intrinsic;
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
 use crate::compiler::intrinsics::system_identity_hashcode::system_identity_hashcode;
 use crate::compiler_common::MethodResolver;
@@ -51,13 +54,12 @@ pub fn gen_intrinsic_ir<'vm>(
     let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
     if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class()
         {
-
+            return get_component_type_intrinsic(resolver, layout, method_id, ir_method_id)
     }
     None
 }
 
-
-//Java_sun_misc_Unsafe_compareAndSwapLong
+pub mod get_component_type;
 pub mod system_identity_hashcode;
 pub mod array_copy;
 pub mod get_class;

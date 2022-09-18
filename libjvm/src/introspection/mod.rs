@@ -16,6 +16,7 @@ use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
@@ -102,18 +103,25 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let object = from_object_new(jvm, cls);
+    let rc = check_initing_or_inited_class(jvm, int_state, CPDType::class()).unwrap();
+    let class_layout = &rc.unwrap_class_class().object_layout;
+    let field_number = class_layout.hidden_field_numbers.get(&HiddenJVMField::class_component_type()).unwrap().number;
+    let res= object.as_ref().unwrap().as_allocated_obj().unwrap_normal_object().raw_get_var(jvm, field_number, CPDType::class());
     let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
-    new_local_ref_public_new(
-        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
+    let previous_res = new_local_ref_public_new(
+    match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         }.full_object_ref().into(),
-        int_state,
-    )
+    int_state,
+    );
+    assert_eq!(previous_res, new_local_ref_public_new(res.as_njv().unwrap_object_alloc(),int_state));
+    previous_res
+
 }
 
 #[no_mangle]
