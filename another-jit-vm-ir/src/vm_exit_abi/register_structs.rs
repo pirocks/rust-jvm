@@ -23,6 +23,22 @@ impl ExitRegisterStruct for AllocateObjectArray {
     }
 }
 
+
+pub struct AllocateObjectArrayIntrinsic;
+
+impl AllocateObjectArrayIntrinsic {
+    pub const LEN: Register = Register(2);
+    pub const TYPE: Register = Register(3);
+    pub const RES_PTR: Register = Register(4);
+    pub const RESTART_IP: Register = Register(5);
+}
+
+impl ExitRegisterStruct for AllocateObjectArrayIntrinsic {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::RES_PTR, Self::RESTART_IP, Self::LEN, Self::TYPE])
+    }
+}
+
 pub struct MultiAllocateArray;
 
 impl MultiAllocateArray {

@@ -228,7 +228,7 @@ unsafe extern "C" fn alloc_object<'gc, 'l>(env: *mut JNIEnv, clazz: jclass) -> j
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm)).to_jv().unwrap_object();
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm), false).to_jv().unwrap_object();
     to_object(res_object)
 }
 
@@ -536,7 +536,8 @@ pub fn define_class_safe<'gc, 'l>(
     let class_object = create_class_object(jvm, int_state, None, current_loader,ClassIntrinsicsData{
         is_array: false,
         is_primitive: false,
-        component_type: None
+        component_type: None,
+        this_cpdtype: class_name.into()
     })?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());

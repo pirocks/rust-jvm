@@ -188,6 +188,12 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
         self.raw_get_var(jvm, *number, *cpdtype)
     }
 
+
+    pub fn get_var_hidden(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: HiddenJVMField) -> NewJavaValueHandle<'gc> {
+        let FieldNumberAndFieldType { number, cpdtype } = &current_class_pointer.unwrap_class_class().object_layout.hidden_field_numbers.get(&field_name).unwrap();
+        self.raw_get_var(jvm, *number, *cpdtype)
+    }
+
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
         unsafe {
             let native_jv = self.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();

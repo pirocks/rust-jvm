@@ -155,14 +155,12 @@
 
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
+import java.lang.reflect.*;
 import java.math.BigInteger;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        System.out.println(new BigInteger("10000000000000000000000",10).toString());
+        System.out.println(Array.newInstance(Serializable.class, 1));
+
     }
 }

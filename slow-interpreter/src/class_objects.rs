@@ -15,5 +15,6 @@ pub fn get_or_create_class_object_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>,
     let arc = check_loaded_class_force_loader(jvm, int_state, &type_, loader)?;
     let handle = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(arc.clone());
     assert_eq!(handle.runtime_class(jvm).cpdtype(), CClassName::class().into());
+    handle.duplicate_discouraged().cast_class().debug_assert(jvm);
     Ok(handle)
 }

@@ -207,6 +207,9 @@ impl JavaVMStateWrapperInner {
                 // /*int_state.unwrap()*/.debug_print_stack_trace(jvm);
                 todo!()
             }
+            RuntimeVMExitInput::AllocateObjectArrayIntrinsic { type_, len, return_to_ptr, res_address } => {
+                return exit_impls::allocate_object_array(jvm, int_state.unwrap(), *type_, *len, *return_to_ptr, *res_address);
+            }
         }
     }
 }

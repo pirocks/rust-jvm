@@ -1,7 +1,7 @@
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use strum_macros::EnumIter;
 
+use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::names::CClassName;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, EnumIter)]
@@ -12,6 +12,8 @@ use strum_macros::EnumIter;
 pub enum HiddenFields {
     ClassComponentType,
     ClassIsArray,
+    ClassCPDTypeID,
+    WrappedClassCPDTypeID,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -30,6 +32,14 @@ impl HiddenJVMField {
         Self::from_raw_id(HiddenFields::ClassIsArray)
     }
 
+    pub fn class_cpdtype_id() -> Self {
+        Self::from_raw_id(HiddenFields::ClassCPDTypeID)
+    }
+
+    pub fn class_cpdtype_id_of_wrapped_in_array() -> Self {
+        Self::from_raw_id(HiddenFields::WrappedClassCPDTypeID)
+    }
+
     pub fn class_hidden_fields() -> Vec<HiddenJVMFieldAndFieldType> {
         vec![
             HiddenJVMFieldAndFieldType {
@@ -39,7 +49,15 @@ impl HiddenJVMField {
             HiddenJVMFieldAndFieldType {
                 name: Self::class_is_array(),
                 cpdtype: CompressedParsedDescriptorType::BooleanType,
-            }
+            },
+            HiddenJVMFieldAndFieldType {
+                name: Self::class_cpdtype_id(),
+                cpdtype: CompressedParsedDescriptorType::IntType,
+            },
+            HiddenJVMFieldAndFieldType {
+                name: Self::class_cpdtype_id_of_wrapped_in_array(),
+                cpdtype: CompressedParsedDescriptorType::IntType,
+            },
         ]
     }
 }

@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::mem::size_of;
 use std::ops::Deref;
 use std::panic::panic_any;
 use std::ptr::null_mut;
@@ -6,9 +7,15 @@ use std::ptr::null_mut;
 use libc::timer_delete;
 
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
+use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::cpdtype_table::CPDTypeID;
+use rust_jvm_common::NativeJavaValue;
 use slow_interpreter::better_java_stack::frames::HasJavaStack;
+use slow_interpreter::class_loading::assert_inited_or_initing_class;
+use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::new::a_new_array_from_name;
 use slow_interpreter::java_values::{JavaValue, Object};
@@ -112,6 +119,8 @@ unsafe extern "system" fn JVM_SetPrimitiveArrayElement(env: *mut JNIEnv, arr: jo
 unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, length: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
+    let class_rc = assert_inited_or_initing_class(jvm, CPDType::class());
+    from_jclass(jvm, eltClass).debug_assert(jvm);
     let array_type_name = from_jclass(jvm, eltClass).as_runtime_class(jvm).cpdtype();
     let res = a_new_array_from_name(jvm, int_state, length, array_type_name).unwrap();
     new_local_ref_public_new(res.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), int_state)

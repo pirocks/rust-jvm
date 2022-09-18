@@ -279,6 +279,14 @@ impl CompressedClassName {
     pub const fn class_signature() -> Self {
         Self::from_raw_id(SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE as AddOnlyVecIDType)
     }
+
+    pub const fn array() -> Self {
+        Self::from_raw_id(JAVA_LANG_REFLECT_ARRAY as AddOnlyVecIDType)
+    }
+
+    pub const fn comparable() -> Self {
+        Self::from_raw_id(JAVA_LANG_COMPARABLE as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
@@ -356,6 +364,8 @@ enum PredefinedStrings {
     SUN_NIO_CS_STANDARD_CHARSETS,
     SUN_NIO_CS_STANDARD_CHARSETS_CACHE,
     SUN_UTIL_PRE_HASHED_MAP,
+    JAVA_LANG_REFLECT_ARRAY,
+    JAVA_LANG_COMPARABLE,
     field_annotationData,
     method_and_field_annotationType,
     field_argCounts,
@@ -440,6 +450,7 @@ enum PredefinedStrings {
     method_fromMethodDescriptorString,
     method_getClass,
     method_getComponentType,
+    method_newArray,
     method_arraycopy,
     method_compareAndSwapLong,
     method_identityHashCode,
@@ -662,7 +673,10 @@ impl PredefinedStrings {
             method_arraycopy => "arraycopy".to_string(),
             method_compareAndSwapLong => "compareAndSwapLong".to_string(),
             method_identityHashCode => "identityHashCode".to_string(),
-            method_getComponentType => "getComponentType".to_string()
+            method_getComponentType => "getComponentType".to_string(),
+            JAVA_LANG_REFLECT_ARRAY => "java/lang/reflect/Array".to_string(),
+            method_newArray => "newArray".to_string(),
+            JAVA_LANG_COMPARABLE  => "java/lang/Comparable".to_string()
         }
     }
 }
@@ -958,6 +972,9 @@ impl MethodName {
     }
     pub fn method_getComponentType() -> Self {
         Self::from_raw_id(method_getComponentType)
+    }
+    pub fn method_newArray() -> Self {
+        Self::from_raw_id(method_newArray)
     }
     pub fn method_arraycopy() -> Self {
         Self::from_raw_id(method_arraycopy)

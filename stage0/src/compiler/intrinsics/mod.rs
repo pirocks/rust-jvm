@@ -12,6 +12,7 @@ use crate::compiler::intrinsics::compare_and_swap::intrinsic_compare_and_swap_lo
 use crate::compiler::intrinsics::get_class::intrinsic_get_class;
 use crate::compiler::intrinsics::get_component_type::get_component_type_intrinsic;
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
+use crate::compiler::intrinsics::reflect_new_array::reflect_new_array;
 use crate::compiler::intrinsics::system_identity_hashcode::system_identity_hashcode;
 use crate::compiler_common::MethodResolver;
 
@@ -51,12 +52,17 @@ pub fn gen_intrinsic_ir<'vm>(
     }
     let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
     if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class()
-        {
-            return get_component_type_intrinsic(resolver, layout, method_id, ir_method_id)
+    {
+        return get_component_type_intrinsic(resolver, layout, method_id, ir_method_id);
+    }
+    let new_array_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::class(), CPDType::IntType], return_type: CPDType::object() };
+    if method_name == MethodName::method_newArray() && desc == new_array_desc && class_name == CClassName::array() {
+        return reflect_new_array(resolver, layout, method_id, ir_method_id);
     }
     None
 }
 
+pub mod reflect_new_array;
 pub mod get_component_type;
 pub mod system_identity_hashcode;
 pub mod array_copy;

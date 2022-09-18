@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::mem::size_of;
 use std::sync::Arc;
 
+
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
@@ -22,12 +23,13 @@ pub struct ObjectLayout {
 
 
 fn reverse_fields(field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>) -> (HashMap<FieldName, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
-    let reverse = field_numbers.clone().into_iter()
+    let reverse: HashMap<FieldNumber, FieldNameAndFieldType> = field_numbers.clone().into_iter()
         .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
         .collect();
-    let forward = field_numbers.into_iter()
+    let forward: HashMap<FieldName, FieldNumberAndFieldType> = field_numbers.into_iter()
         .map(|(name, (number, cpdtype))| (name, FieldNumberAndFieldType { number, cpdtype }))
         .collect();
+    assert_eq!(forward.len(), reverse.len());
     (forward, reverse)
 }
 
@@ -60,6 +62,7 @@ impl ObjectLayout {
 
         let hidden_field_numbers = reverse_hidden_fields(&hidden_field_numbers_reverse);
 
+        assert_eq!(hidden_field_numbers.len(), hidden_field_numbers_reverse.len());
         let recursive_num_fields_non_hidden = field_numbers.len() as u32;
         Self {
             hidden_field_numbers,

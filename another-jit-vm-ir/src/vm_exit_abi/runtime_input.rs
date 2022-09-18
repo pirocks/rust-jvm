@@ -17,7 +17,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -57,6 +57,7 @@ pub enum RawVMExitType {
     RunStaticNativeNew,
     RunSpecialNativeNew,
     RunInterpreted,
+    AllocateObjectArrayIntrinsic
 }
 
 
@@ -76,6 +77,12 @@ pub enum RuntimeVMExitInput {
         return_to_ptr: *const c_void,
         res_address: *mut NonNull<c_void>,
         pc: ByteCodeOffset,
+    },
+    AllocateObjectArrayIntrinsic {
+        type_: CPDTypeID,
+        len: i32,
+        return_to_ptr: *const c_void,
+        res_address: *mut NonNull<c_void>,
     },
     AllocateObject {
         type_: CPDTypeID,
@@ -545,6 +552,16 @@ impl RuntimeVMExitInput {
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::JAVA_PC) as u16)
                 }
             }
+            RawVMExitType::AllocateObjectArrayIntrinsic => {
+                unsafe {
+                    RuntimeVMExitInput::AllocateObjectArrayIntrinsic {
+                        type_: CPDTypeID((register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::TYPE) as *const u32).read()),
+                        len: (register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::LEN) as *const i32).read(),
+                        return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RESTART_IP) as *const c_void,
+                        res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RES_PTR) as *mut NonNull<c_void>
+                    }
+                }
+            }
         }
     }
 
@@ -585,7 +602,8 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::MonitorEnterRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorExitRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::ArrayOutOfBounds { pc, .. } => Some(*pc),
-            RuntimeVMExitInput::Todo { pc } => Some(*pc)
+            RuntimeVMExitInput::Todo { pc } => Some(*pc),
+            RuntimeVMExitInput::AllocateObjectArrayIntrinsic { .. } => None
         }
     }
 }

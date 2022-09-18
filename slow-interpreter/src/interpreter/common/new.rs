@@ -9,5 +9,4 @@ pub fn a_new_array_from_name<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
     check_resolved_class(jvm, int_state, t.clone())?;
     let new_array = JavaValue::new_vec(jvm, int_state, len as usize, NewJavaValue::Null, t)?;
     Ok(NewJavaValueHandle::Object(new_array))
-    /*Ok(int_state.push_current_operand_stack(JavaValue::Object(Some(new_array.unwrap().to_gc_managed()))))*/
 }

@@ -565,9 +565,14 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
         eprintln!("AllocateObjectArray");
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();
+    if !type_.is_array(){
+        dbg!(type_.jvm_representation(&jvm.string_pool));
+        dbg!(type_);
+        todo!();
+    }
     assert!(len >= 0);
     // int_state.debug_print_stack_trace(jvm);
-    let rc = assert_inited_or_initing_class(jvm, type_.to_cpdtype());
+    let rc = check_initing_or_inited_class(jvm,int_state, type_.to_cpdtype()).expect("exception initing an array object but those don't have an initializer?");
     //todo fix current_loader
     let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();

@@ -240,6 +240,6 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableF
 
 fn throw_linkage_error<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
     let linkage_error = check_initing_or_inited_class(jvm, int_state, CClassName::linkage_error().into())?;
-    let object = new_object(jvm, int_state, &linkage_error);
+    let object = new_object(jvm, int_state, &linkage_error, false);
     return Err(WasException { exception_obj: object.cast_throwable() });
 }

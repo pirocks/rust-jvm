@@ -32,7 +32,7 @@ pub unsafe fn new_object_impl<'gc, 'l>(env: *mut JNIEnv, _clazz: jclass, jmethod
     let method = &classview.method_view_i(method_i);
     let _name = method.name();
     let parsed = method.desc();
-    let obj = new_object(jvm, int_state, &class);
+    let obj = new_object(jvm, int_state, &class, false);
     let mut args = vec![];
     let mut args_handle = vec![];
     args.push(obj.new_java_value());

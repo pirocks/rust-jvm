@@ -15,12 +15,12 @@ use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 //todo jni should really live in interpreter state
 
 pub fn new_object_full<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedHandle<'gc> {
-    AllocatedHandle::NormalObject(new_object(jvm, int_state, runtime_class))
+    AllocatedHandle::NormalObject(new_object(jvm, int_state, runtime_class, false))
 }
 
-pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
+pub fn new_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, runtime_class: &'_ Arc<RuntimeClass<'gc>>, will_apply_intrinsic_data: bool) -> AllocatedNormalObjectHandle<'gc> {
     check_initing_or_inited_class(jvm, int_state, runtime_class.cpdtype()).expect("todo");
-    let object_handle = JavaValue::new_object(jvm, runtime_class.clone());
+    let object_handle = JavaValue::new_object(jvm, runtime_class.clone(), will_apply_intrinsic_data);
     let _loader = jvm.classes.read().unwrap().get_initiating_loader(runtime_class);
     default_init_fields(jvm, &runtime_class, &object_handle);
     object_handle

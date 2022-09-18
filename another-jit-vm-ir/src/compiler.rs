@@ -328,6 +328,9 @@ impl IRInstr {
                     IRVMExitType::MonitorEnterRegister { .. } => { "MonitorEnterRegister" }
                     IRVMExitType::MonitorExitRegister { .. } => { "MonitorExitRegister" }
                     IRVMExitType::ArrayOutOfBounds { .. } => { "ArrayOutOfBounds" }
+                    IRVMExitType::AllocateObjectArrayIntrinsic { .. } => {
+                        "AllocateObjectArrayIntrinsic"
+                    }
                 })
             }
             IRInstr::NPECheck { .. } => {

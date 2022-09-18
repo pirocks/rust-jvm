@@ -19,7 +19,7 @@ pub fn new<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpre
             return PostInstructionAction::Exception { exception: WasException { exception_obj } };
         }
     };
-    let obj = new_object(jvm, int_state.inner(), &target_classfile);
+    let obj = new_object(jvm, int_state.inner(), &target_classfile, false);
     int_state.current_frame_mut().push(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(obj)).to_interpreter_jv());
     PostInstructionAction::Next {}
 }

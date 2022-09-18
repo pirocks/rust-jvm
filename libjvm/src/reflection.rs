@@ -222,7 +222,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         arg_types: parameter_types,
         return_type: CPDType::VoidType, //todo use from_leaacy instead
     };
-    let obj = new_object(jvm, int_state, &clazz);
+    let obj = new_object(jvm, int_state, &clazz, false);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
     run_constructor(jvm, int_state, clazz, full_args, &signature);

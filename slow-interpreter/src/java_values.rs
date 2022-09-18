@@ -13,7 +13,7 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::layout::{ArrayMemoryLayout};
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
@@ -640,7 +640,7 @@ impl<'gc> JavaValue<'gc> {
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, elems)))
     }
 
-    pub fn new_object(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
+    pub fn new_object(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>, will_apply_intrinsic_data: bool) -> AllocatedNormalObjectHandle<'gc> {
         assert!(!runtime_class.view().is_abstract());
 
         let class_class = runtime_class.unwrap_class_class();
@@ -648,7 +648,11 @@ impl<'gc> JavaValue<'gc> {
 
         let object_layout = &class_class.object_layout;
 
-        let object_fields = ObjectFields::new_default_init_fields(object_layout);
+        let object_fields = if will_apply_intrinsic_data {
+            ObjectFields::new_default_with_hidden_fields(object_layout)
+        } else {
+            ObjectFields::new_default_init_fields(object_layout)
+        };
         jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: runtime_class,
             object_fields,

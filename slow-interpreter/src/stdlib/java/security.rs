@@ -53,7 +53,7 @@ pub mod access_control_context {
     impl<'gc> AccessControlContext<'gc> {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, protection_domains: Vec<ProtectionDomain<'gc>>) -> Result<Self, crate::WasException<'gc>> {
             let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
-            let access_control_object = new_object(jvm, int_state, &access_control_context_class);
+            let access_control_object = new_object(jvm, int_state, &access_control_context_class, false);
             let pds_jv = JavaValue::new_vec_from_vec(jvm, protection_domains.iter().map(|pd| pd.new_java_value()).collect(), CClassName::protection_domain().into());
             let desc = CMethodDescriptor::void_return(vec![CPDType::array(CClassName::protection_domain().into())]);
             run_constructor(jvm, int_state, access_control_context_class, vec![access_control_object.new_java_value(), pds_jv.new_java_value()], &desc)?;

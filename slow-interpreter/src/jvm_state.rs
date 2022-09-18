@@ -48,10 +48,10 @@ use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
-use crate::{AllocatedHandle, UnAllocatedObject};
+use crate::{AllocatedHandle, NewAsObjectOrJavaValue, UnAllocatedObject};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::class_loading::{DefaultClassfileGetter, DefaultLivePoolGetter};
+use crate::class_loading::{ClassIntrinsicsData, DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
@@ -147,10 +147,18 @@ pub struct Classes<'gc> {
     pub(crate) class_class: Arc<RuntimeClass<'gc>>,
     class_loaders: BiMap<LoaderIndex, ByAddressAllocatedObject<'gc>>,
     pub protection_domains: BiMap<ByAddress<Arc<RuntimeClass<'gc>>>, ByAddressAllocatedObject<'gc>>,
-    pub class_class_view: Arc<ClassBackedView>
+    pub class_class_view: Arc<ClassBackedView>,
+    pub object_view: Arc<ClassBackedView>,
 }
 
 impl<'gc> Classes<'gc> {
+    pub fn debug_assert(&self, jvm: &'gc JVMState<'gc>) {
+        for allocated_obj in self.class_object_pool.left_values() {
+            let handle = allocated_obj.owned_inner_ref().duplicate_discouraged();
+            handle.cast_class().debug_assert(jvm);
+        }
+    }
+
     pub fn get_loaded_classes(&self) -> Vec<(LoaderName, CPDType)> {
         self.loaded_classes_by_type.iter().flat_map(|(l, rc)| rc.keys().map(move |ptype| (*l, ptype.clone()))).collect_vec()
     }
@@ -418,24 +426,34 @@ impl<'gc> JVMState<'gc> {
     }
 
 
-    pub fn early_add_class(&'gc self, class: Arc<RuntimeClass<'gc>>) {
-        let class_unwrapped = class.unwrap_class_class();
+    pub fn early_add_class(&'gc self, cpd_type_table: &RwLock<CPDTypeTable>, class: Arc<RuntimeClass<'gc>>) {
+        let class_class = self.classes.read().unwrap().class_class.clone();
+        let class_class_class_unwrapped = class_class.unwrap_class_class();
+        assert!(!class.cpdtype().is_array());
+        assert!(!class.cpdtype().is_primitive());
+        let class_intrinsic_data = ClassIntrinsicsData {
+            is_array: false,
+            is_primitive: false,
+            component_type: None,
+            this_cpdtype: class.cpdtype(),
+        };
         let class_object_handle = self.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: self.classes.read().unwrap().class_class.clone(),
-            object_fields: ObjectFields::new_default_init_fields(&class_unwrapped.object_layout),
+            object_fields: ObjectFields::new_default_with_hidden_fields(&class_class_class_unwrapped.object_layout),
         }));
-        let class_object = self.gc.handle_lives_for_gc_life(class_object_handle.unwrap_normal_object());
+        let class_object_handle = class_object_handle.cast_class().apply_intrinsic_data(&class_class, cpd_type_table, class_intrinsic_data).object();
+        let class_object = self.gc.handle_lives_for_gc_life(class_object_handle);
         let mut classes = self.classes.write().unwrap();
         classes.class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(class.clone()));
         classes.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(class.clone().cpdtype(), class.clone());
     }
 
-    pub fn add_class_class_class_object(&'gc self) {
+    pub fn add_class_class_class_object(&'gc self, cpd_type_table: &RwLock<CPDTypeTable>) {
         //todo desketchify this
         let class_class = self.classes.read().unwrap().class_class.clone();
-        self.early_add_class(class_class.clone());
+        self.early_add_class(cpd_type_table, class_class.clone());
         for interface in class_class.unwrap_class_class().interfaces.iter() {
-            self.early_add_class(interface.clone());
+            self.early_add_class(cpd_type_table, interface.clone());
         }
     }
 
@@ -450,7 +468,7 @@ impl<'gc> JVMState<'gc> {
         let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
             inheritance_tree,
             bit_vec_paths,
-            object_class_view,
+            object_class_view.clone(),
             None,
             vec![],
             RwLock::new(ClassStatus::UNPREPARED),
@@ -525,17 +543,18 @@ impl<'gc> JVMState<'gc> {
         initiating_loaders.insert(CClassName::type_().into(), (LoaderName::BootstrapLoader, type_class.clone()));
         initiating_loaders.insert(CClassName::generic_declaration().into(), (LoaderName::BootstrapLoader, generic_declaration_class.clone()));
         initiating_loaders.insert(CClassName::annotated_element().into(), (LoaderName::BootstrapLoader, annotated_element_class.clone()));
-        let class_object_pool: BiMap<ByAddressAllocatedObject<'gc>, ByAddress<Arc<RuntimeClass<'gc>>>> = Default::default();
         let classes = RwLock::new(Classes {
             loaded_classes_by_type,
             initiating_loaders,
-            class_object_pool,
+            class_object_pool: Default::default(),
             anon_classes: Default::default(),
             anon_class_live_object_ldc_pool: Vec::new(),
             class_class,
             class_loaders: Default::default(),
             protection_domains: Default::default(),
-            class_class_view: class_view
+            class_class_view: class_view,
+            object_view: object_class_view
+
         });
         classes
     }

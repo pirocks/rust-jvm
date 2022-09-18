@@ -124,7 +124,7 @@ pub mod method_type {
         pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
             let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
-            let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, &mut temp/*int_state*/, &method_type);
+            let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, &mut temp/*int_state*/, &method_type, false);
             let res = AllocatedHandle::NormalObject(res_handle).cast_method_type();
             let ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
                 // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
@@ -226,7 +226,7 @@ pub mod method_type_form {
         ) -> MethodTypeForm<'gc> {
             let mut temp: OpaqueFrame<'gc, '_> = todo!();
             let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, pushable_frame_todo()/*int_state*/, &method_type_form));
+            let res_handle = AllocatedHandle::NormalObject(new_object(jvm, pushable_frame_todo()/*int_state*/, &method_type_form, false));
             let res = res_handle.cast_method_type_form();
             res.set_arg_to_slot_table(jvm, arg_to_slot_table);
             res.set_slot_to_arg_table(jvm, slot_to_arg_table);

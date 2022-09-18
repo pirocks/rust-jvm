@@ -33,7 +33,7 @@ pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_stat
     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
     let str_as_vec = res_string.chars();
     let chars: Vec<JavaValue<'gc>> = str_as_vec.map(|x| JavaValue::Char(x as u16)).collect();
-    let string_object = new_object(jvm, interpreter_state, &string_class).to_jv();
+    let string_object = new_object(jvm, interpreter_state, &string_class, false).to_jv();
     let mut args = vec![string_object.clone()];
     args.push(JavaValue::Object(todo!()/*Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)*/))*/));
     let char_array_type = CPDType::array(CPDType::CharType);

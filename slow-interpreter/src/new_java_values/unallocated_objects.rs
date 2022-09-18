@@ -29,6 +29,17 @@ pub struct ObjectFields<'gc, 'l> {
 
 impl<'gc, 'l> ObjectFields<'gc, 'l> {
     pub fn new_default_init_fields(object_layout: &ObjectLayout) -> Self {
+        assert!(object_layout.hidden_field_numbers_reverse.is_empty());
+        let fields = object_layout.field_numbers_reverse.iter().map(|(i, FieldNameAndFieldType { cpdtype, .. })| {
+            (*i, default_value_njv(cpdtype))
+        }).collect::<HashMap<_, _>>();
+        Self{
+            fields,
+            hidden_fields: HashMap::new()
+        }
+    }
+
+    pub fn new_default_with_hidden_fields(object_layout: &ObjectLayout) -> Self {
         let hidden_fields = object_layout.hidden_field_numbers_reverse.iter().map(|(i, HiddenJVMFieldAndFieldType { cpdtype, .. })| {
             (*i, default_value_njv(cpdtype))
         }).collect::<HashMap<_, _>>();

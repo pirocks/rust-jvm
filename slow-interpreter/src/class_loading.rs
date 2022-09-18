@@ -23,7 +23,7 @@ use verification::verifier::TypeSafetyError;
 use crate::{AllocatedHandle, NewAsObjectOrJavaValue, UnAllocatedObject, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_objects::get_or_create_class_object;
-use crate::java_values::{ByAddressAllocatedObject};
+use crate::java_values::ByAddressAllocatedObject;
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -130,7 +130,7 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                 LoaderName::UserDefinedLoader(loader_idx) => {
                     let loader_obj = jvm.classes.read().unwrap().lookup_class_loader(loader_idx).clone();
                     let class_loader: ClassLoader = loader_obj.duplicate_discouraged().cast_class_loader();
-                    match ptype.clone() {
+                    match *ptype {
                         CPDType::ByteType => Arc::new(RuntimeClass::Byte),
                         CPDType::CharType => Arc::new(RuntimeClass::Char),
                         CPDType::DoubleType => Arc::new(RuntimeClass::Double),
@@ -152,8 +152,10 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                                 is_array: true,
                                 is_primitive: false,
                                 component_type: Some(component_type),
+                                this_cpdtype: *ptype,
                             };
                             let obj = create_class_object(jvm, int_state, None, loader, class_intrinsics_data)?.duplicate_discouraged();
+                            obj.duplicate_discouraged().cast_class().debug_assert(jvm);
                             jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(obj.duplicate_discouraged()), ByAddress(res.clone()));
                             assert_eq!(obj.runtime_class(jvm).cpdtype(), CClassName::class().into());
                             res
@@ -221,6 +223,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
         is_array: false,
         is_primitive: true,
         component_type: None,
+        this_cpdtype: ptype,
     };
     let (class_object, runtime_class) = match ptype.clone() {
         //todo replace these names with actual tupes
@@ -321,12 +324,14 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
             //         jvm.java_vm_state.add_method(jvm, &method_resolver, method_id)
             //     }
             // }
-            jvm.classes.write().unwrap().initiating_loaders.entry(ptype.clone()).or_insert((LoaderName::BootstrapLoader, res.clone()));
+            jvm.classes.write().unwrap().initiating_loaders.entry(ptype).or_insert((LoaderName::BootstrapLoader, res.clone()));
             let class_object = create_class_object(jvm, int_state, class_name.0.to_str(&jvm.string_pool).into(), LoaderName::BootstrapLoader, ClassIntrinsicsData {
                 is_array: false,
                 is_primitive: false,
                 component_type: None,
+                this_cpdtype: ptype,
             })?;
+            class_object.duplicate_discouraged().cast_class().debug_assert(jvm);
             jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.clone()), ByAddress(res.clone()));
             assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
             (class_object, res)
@@ -341,9 +346,11 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                 is_array: true,
                 is_primitive: false,
                 component_type: Some(component_type_object),
+                this_cpdtype: ptype,
             })?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable })))
         }
     };
+    class_object.duplicate_discouraged().cast_class().debug_assert(jvm);
     jvm.classes.write().unwrap().class_object_pool.insert(ByAddressAllocatedObject::Owned(class_object.duplicate_discouraged()), ByAddress(runtime_class.clone()));
     assert_eq!(class_object.runtime_class(jvm).cpdtype(), CClassName::class().into());
     Ok(runtime_class)
@@ -358,6 +365,7 @@ pub struct ClassIntrinsicsData<'gc> {
     pub is_array: bool,
     pub is_primitive: bool,
     pub component_type: Option<JClass<'gc>>,
+    pub this_cpdtype: CPDType,
 }
 
 //signature here is prov best, b/c returning handle is very messy, and handle can just be put in lives for gc_life static vec
@@ -370,8 +378,9 @@ pub fn create_class_object<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut imp
         let object_layout = ObjectLayout::new(&jvm.classes.read().unwrap().class_class_view, &None);
         let new_allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Object(UnAllocatedObjectObject {
             object_rc: jvm.classes.read().unwrap().class_class.clone(),
-            object_fields: ObjectFields::new_default_init_fields(&object_layout),
+            object_fields: ObjectFields::new_default_with_hidden_fields(&object_layout),
         }));
+        new_allocated_object_handle.duplicate_discouraged().cast_class().apply_intrinsic_data(&jvm.classes.read().unwrap().class_class, &jvm.cpdtype_table, class_intrinsics_data);
         let allocated_object = jvm.gc.handle_lives_for_gc_life(new_allocated_object_handle.unwrap_normal_object());
         return Ok(allocated_object);
     }

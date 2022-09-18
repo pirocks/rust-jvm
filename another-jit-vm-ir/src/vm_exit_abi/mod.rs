@@ -13,7 +13,7 @@ use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::RawVMExitType;
 
 pub mod register_structs;
@@ -26,6 +26,11 @@ pub enum IRVMExitType {
         arr_len: FramePointerOffset,
         arr_res: FramePointerOffset,
         java_pc: ByteCodeOffset,
+    },
+    AllocateObjectArrayIntrinsic {
+        array_type: FramePointerOffset,
+        arr_len: FramePointerOffset,
+        arr_res: FramePointerOffset,
     },
     MultiAllocateObjectArray_ {
         array_elem_type: CPDTypeID,
@@ -490,6 +495,13 @@ impl IRVMExitType {
                 assembler.lea(MonitorExitRegister::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(MonitorExitRegister::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
+            IRVMExitType::AllocateObjectArrayIntrinsic { array_type, arr_len, arr_res } => {
+                assembler.mov(rax, RawVMExitType::AllocateObjectArrayIntrinsic as u64).unwrap();
+                assembler.lea(AllocateObjectArrayIntrinsic::LEN.to_native_64(), rbp - arr_len.0).unwrap();
+                assembler.lea(AllocateObjectArrayIntrinsic::TYPE.to_native_64(), rbp - array_type.0).unwrap();
+                assembler.lea(AllocateObjectArrayIntrinsic::RES_PTR.to_native_64(), rbp - arr_res.0).unwrap();
+                assembler.lea(AllocateObjectArrayIntrinsic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
+            }
         }
     }
 
@@ -598,6 +610,9 @@ impl IRVMExitType {
                 todo!()
             }
             IRVMExitType::ArrayOutOfBounds { .. } => {
+                todo!()
+            }
+            IRVMExitType::AllocateObjectArrayIntrinsic { .. } => {
                 todo!()
             }
         }
@@ -709,6 +724,9 @@ impl IRVMExitType {
             }
             IRVMExitType::ArrayOutOfBounds { .. } => {
                 ArrayOutOfBounds::all_registers()
+            }
+            IRVMExitType::AllocateObjectArrayIntrinsic { .. } => {
+                AllocateObjectArrayIntrinsic::all_registers()
             }
         };
         assert!(res.contains(&Register(0)));
