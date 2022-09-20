@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock};
 
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm::code_modification::GlobalCodeEditingLock;
-use another_jit_vm_ir::{ExitHandlerType, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, RBPAndRSP};
+use another_jit_vm_ir::{ExitHandlerType, HasRBPAndRSP, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, RBPAndRSP};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
@@ -55,6 +55,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn init(&'vm self, jvm: &'vm JVMState<'vm>) {
         self.ir.inner.write().unwrap().handler.get_or_init(|| {
             let ir_exit_handler: ExitHandlerType<'vm, JavaStackGuard<'vm>> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, java_stack_guard: &mut JavaStackGuard<'vm>, rbp_and_rsp: RBPAndRSP, ir_vm_state: &IRVMState<'vm, JavaStackGuard<'vm>>| {
+                java_stack_guard.notify_guest_exit(rbp_and_rsp.rbp, rbp_and_rsp.rbp);
                 JavaVMStateWrapper::exit_handler(&jvm, &ir_vm_exit_event, rbp_and_rsp.rbp, java_stack_guard)
             });
             ir_exit_handler
@@ -279,6 +280,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     #[inline(never)]
     fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, rbp: NonNull<c_void>, java_stack_guard: &mut JavaStackGuard<'vm>) -> IRVMExitAction {
+
         let mmaped_top = java_stack_guard.ir_stack().native.mmaped_top;
         let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
         let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;

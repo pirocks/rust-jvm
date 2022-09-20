@@ -13,6 +13,7 @@ use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
 use slow_interpreter::better_java_stack::frames::HasFrame;
+use slow_interpreter::better_java_stack::remote_frame::RemoteFrame;
 use slow_interpreter::java_values::GC;
 use slow_interpreter::jvm_state::{JVM, JVMState};
 use slow_interpreter::loading::Classpath;
@@ -98,11 +99,12 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     let main_thread_clone = main_thread.clone();
     jvm_ref.thread_state.threads.create_thread(Some("stacktracer".to_string())).start_thread(box move |_| unsafe {
         loop {
-            main_thread_clone.pause_and_remote_view(|remote_frame|{
+            main_thread_clone.clone().pause_and_remote_view(jvm_ref, |remote_frame|{
                 let method_id = remote_frame.frame_ref().method_id().unwrap();
                 dbg!(method_id);
+                ()
             });
-            std::thread::sleep(Duration::from_secs(1));
+            std::thread::sleep(Duration::from_millis(100));
         }
     },box ());
     main_thread.get_underlying().join();

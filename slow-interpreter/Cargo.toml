@@ -31,6 +31,7 @@ interface-vtable = { path = "../interface-vtable" }
 method-table = { path = "../method-table" }
 inheritance-tree = { path = "../inheritance-tree" }
 xtask = { path = "../xtask" }
+thread-signal-handler = { path = "../thread-signal-handler" }
 rangemap = "1"
 num-traits = "0.2"
 num-derive = "0.3"

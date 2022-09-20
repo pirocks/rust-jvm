@@ -51,8 +51,7 @@ pub fn gen_intrinsic_ir<'vm>(
         return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, _labeler);
     }
     let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
-    if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class()
-    {
+    if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class() {
         return get_component_type_intrinsic(resolver, layout, method_id, ir_method_id);
     }
     let new_array_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::class(), CPDType::IntType], return_type: CPDType::object() };

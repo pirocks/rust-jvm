@@ -29,15 +29,15 @@ pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register,
     for i in (size_of::<FrameHeader>() / 8 + num_locals)..(frame_size / 8) {
         assembler.mov(rbp - i * 8, temp_register.to_native_64()).unwrap()
     }
-    assembler.mov(temp_register.to_native_64(), MAGIC_1_EXPECTED).unwrap();
-    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register.to_native_64()).unwrap();
-    assembler.mov(temp_register.to_native_64(), MAGIC_2_EXPECTED).unwrap();
-    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_2_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.mov(temp_register.to_native_64(), method_id as u64).unwrap();
     assembler.mov(rbp - FRAME_HEADER_METHOD_ID_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.mov(temp_register.to_native_64(), ir_method_id.0 as u64).unwrap();
     assembler.mov(rbp - FRAME_HEADER_IR_METHOD_ID_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.lea(rsp, rbp - frame_size).unwrap();
+    assembler.mov(temp_register.to_native_64(), MAGIC_1_EXPECTED).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register.to_native_64()).unwrap();
+    assembler.mov(temp_register.to_native_64(), MAGIC_2_EXPECTED).unwrap();
+    assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_2_OFFSET as u64, temp_register.to_native_64()).unwrap();
 }
 
 pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_register_2: Register, arg_from_to_offsets: &Vec<(FramePointerOffset, FramePointerOffset)>, return_value: Option<FramePointerOffset>, target_address: IRCallTarget, current_frame_size: usize) -> Option<AssemblerFunctionCallTarget> {

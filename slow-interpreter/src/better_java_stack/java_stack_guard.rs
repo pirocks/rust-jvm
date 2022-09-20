@@ -8,13 +8,13 @@ use another_jit_vm_ir::HasRBPAndRSP;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
+use thread_signal_handler::SignalAccessibleJavaStackData;
 
 use crate::{ JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, InterpreterFrameState, JavaStack, StackDepth};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
 use crate::exceptions::WasException;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -27,7 +27,6 @@ pub struct JavaStackGuard<'vm> {
     guard: Option<MutexGuard<'vm, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>,
     pub java_thread: Arc<JavaThread<'vm>>,
-    per_stack_interface: PerStackInterfaces,
     current_frame_pointer: FramePointer,
 }
 
@@ -41,7 +40,7 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     pub(crate) fn stack_jni_interface(&mut self) -> &mut PerStackInterfaces {
-        &mut self.per_stack_interface
+        &mut self.guard.as_mut().unwrap().per_stack_interface
     }
 
     pub(crate) fn has_been_used(&self) -> bool {
@@ -68,7 +67,6 @@ impl<'vm> JavaStackGuard<'vm> {
             guard: Some(guard),
             jvm,
             java_thread,
-            per_stack_interface: PerStackInterfaces::new(),
             current_frame_pointer: FramePointer(mmapped_top),
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);
@@ -76,13 +74,22 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     pub fn new_from_prev_with_new_frame_pointer(old: Self, new_frame_pointer: FramePointer) -> Self {
-        let Self { stack, guard, jvm, java_thread, per_stack_interface, current_frame_pointer } = old;
+        let Self { stack, guard, jvm, java_thread, current_frame_pointer } = old;
         Self {
             stack,
             guard,
             jvm,
             java_thread,
-            per_stack_interface,
+            current_frame_pointer: new_frame_pointer,
+        }
+    }
+
+    pub fn new_remote_with_frame_pointer(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>,java_thread: Arc<JavaThread<'vm>>, new_frame_pointer: FramePointer) -> Self {
+        Self {
+            stack,
+            guard: Some(stack.lock().unwrap()),
+            jvm,
+            java_thread,
             current_frame_pointer: new_frame_pointer,
         }
     }
@@ -270,11 +277,26 @@ impl<'vm> JavaStackGuard<'vm> {
     pub(crate) fn drop_guard(&mut self){
         self.guard = None;
     }
+
+    pub(crate) fn reacquire(&mut self) {
+        self.guard = Some(self.stack.lock().unwrap());
+    }
+
+    pub fn within_guard<T>(&mut self, within: impl FnOnce() -> T) -> T {
+        self.drop_guard();
+        let res = within();
+        self.reacquire();
+        res
+    }
 }
 
 impl<'vm> HasRBPAndRSP for JavaStackGuard<'vm> {
-    fn notify_vm_exit(&self, rbp: NonNull<c_void>, rsp: NonNull<c_void>) {
-        todo!()
+    fn notify_guest_exit(&mut self, rbp: NonNull<c_void>, rsp: NonNull<c_void>) {
+        self.reacquire()
+    }
+
+    fn notify_guest_enter(&mut self) {
+        self.drop_guard();
     }
 
     fn rsp(&self) -> NonNull<c_void> {

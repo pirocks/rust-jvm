@@ -11,18 +11,27 @@ pub struct RemoteFrame<'gc, 'k> {
 }
 // don't have the function call vec thing
 
+impl <'gc, 'k> RemoteFrame<'gc,'k>{
+    pub fn new(java_stack: &'k mut JavaStackGuard<'gc>, frame_ptr: FramePointer) -> Self{
+        Self {
+            java_stack,
+            frame_ptr
+        }
+    }
+}
+
 impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.frame_ptr.0.into(),
-            _ir_stack: todo!(),
+            _ir_stack: self.java_stack.ir_stack_ref(),
         }
     }
 
     fn frame_mut(&mut self) -> IRFrameMut {
         IRFrameMut {
             ptr: self.frame_ptr.0,
-            ir_stack: todo!(),
+            ir_stack: self.java_stack.ir_stack_mut(),
         }
     }
 

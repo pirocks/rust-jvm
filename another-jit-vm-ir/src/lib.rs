@@ -41,7 +41,8 @@ pub mod ir_to_native;
 
 //todo this trait is a hack should really move this into main crate or something
 pub trait HasRBPAndRSP {
-    fn notify_vm_exit(&self, rbp: NonNull<c_void>, rsp: NonNull<c_void>);
+    fn notify_guest_exit(&mut self, rbp: NonNull<c_void>, rsp: NonNull<c_void>);
+    fn notify_guest_enter(&mut self);
     fn rsp(&self) -> NonNull<c_void>;
     fn rbp(&self) -> NonNull<c_void>;
     fn ir_stack_ref(&self) -> &OwnedIRStack;
@@ -229,6 +230,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         drop(inner_read_guard);
         let ir_stack = handler_extra_data.ir_stack_mut();
         let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers);
+        handler_extra_data.notify_guest_enter();
         while let Some(vm_exit_event) = launched_vm.next() {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);
             let exiting_frame_position_rbp = vm_exit_event.saved_guest_registers.saved_registers_without_ip.rbp;
@@ -271,6 +273,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
                     return Err(throwable);
                 }
             }
+            handler_extra_data.notify_guest_enter();
         }
         panic!("should be unreachable")
     }

@@ -8,10 +8,6 @@ in sun.reflect.Reflection
 
 have function entry tracing as well as instruction
 
-remove unused random layouts
-
 make remote stacktrace reading actually work
-
-make hidden object fields a thing and intrinsic add for classes
 
 make intrinsic instance of

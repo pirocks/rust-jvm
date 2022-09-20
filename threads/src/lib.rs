@@ -133,7 +133,7 @@ impl<'vm> Thread<'vm> {
         unsafe {
             assert_eq!(self.pthread_id.unwrap(), pthread_self());
         }
-        std::mem::drop(self.pause.paused.wait(self.pause.paused_mutex.lock().unwrap()).unwrap());
+        drop(self.pause.paused.wait(self.pause.paused_mutex.lock().unwrap()).unwrap());
     }
 
     pub fn is_paused(&self) -> bool {
@@ -152,11 +152,15 @@ impl<'vm> Thread<'vm> {
     pub fn join(&self) {
         let guard = self.join_status.read().unwrap();
         assert!(guard.alive.load(Ordering::SeqCst));
-        std::mem::drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
+        drop(guard.thread_finished.wait(guard.finished_mutex.lock().unwrap()).unwrap());
     }
 
     pub unsafe fn is_this_thread(&self) -> bool {
         self.pthread_id == pthread_self().into()
+    }
+
+    pub fn pthread_id(&self) -> pthread_t{
+        self.pthread_id.unwrap()
     }
 }
 

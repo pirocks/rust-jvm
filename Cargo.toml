@@ -44,5 +44,6 @@ members = [
     "inheritance-tree",
     "native-vec",
     "jvm-args",
-    "xtask"
+    "xtask",
+    "thread-signal-handler"
 ]

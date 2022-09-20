@@ -8,10 +8,11 @@ use nonnull_const::NonNullConst;
 
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use rust_jvm_common::ByteCodeOffset;
+use thread_signal_handler::SignalAccessibleJavaStackData;
 
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::better_java_stack::thread_remote_read_mechanism::SignalAccessibleJavaStackData;
+use crate::rust_jni::jni_interface::PerStackInterfaces;
 
 #[cfg(test)]
 pub mod test;
@@ -68,6 +69,7 @@ pub struct JavaStack<'gc> {
     //todo this should probably be in some kind of thread state thing
     thread_stack_data: Arc<SignalAccessibleJavaStackData>,
     has_been_used: bool,
+    per_stack_interface: PerStackInterfaces,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -84,6 +86,7 @@ impl<'gc> JavaStack<'gc> {
             interpreter_frame_operand_stack_depths: vec![],
             thread_stack_data,
             has_been_used: false,
+            per_stack_interface: PerStackInterfaces::new()
         }
     }
 
