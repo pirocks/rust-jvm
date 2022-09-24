@@ -13,7 +13,6 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;
-use slow_interpreter::better_java_stack::frames::HasJavaStack;
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;

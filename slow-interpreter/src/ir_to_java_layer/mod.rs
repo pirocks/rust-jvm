@@ -180,7 +180,7 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::RunInterpreted { method_id, return_to_ptr } => {
                 let int_state = int_state.unwrap();
                 let expected_method_id = int_state.frame_ref().method_id();
-                assert_eq!(expected_method_id, Some(*method_id));
+                assert_eq!(expected_method_id, Ok(*method_id));
                 return match int_state.to_interpreter_frame(|java_interpreter_frame| {
                     let res = run_function_interpreted(jvm, java_interpreter_frame)?;
                     let mut saved_registers_without_ipdiff = SavedRegistersWithoutIPDiff::no_change();

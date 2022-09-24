@@ -4,6 +4,7 @@ use std::sync::Arc;
 use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
+use another_jit_vm_ir::ir_stack::IsOpaque;
 
 use classfile_view::view::attribute_view::SourceFileView;
 use classfile_view::view::ClassView;
@@ -39,8 +40,8 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
         .iter()
         .map(|stack_entry| {
             let declaring_class = match stack_entry.try_class_pointer(jvm) {
-                None => return Ok(None),
-                Some(declaring_class) => declaring_class,
+                Err(IsOpaque{}) => return Ok(None),
+                Ok(declaring_class) => declaring_class,
             };
 
             let declaring_class_view = declaring_class.view();

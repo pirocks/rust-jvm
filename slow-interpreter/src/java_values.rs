@@ -24,7 +24,7 @@ use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
-use crate::better_java_stack::frames::{HasJavaStack, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
 use crate::jit::state::runtime_class_to_allocated_object_type;
@@ -939,11 +939,11 @@ impl<'gc, 'l> Object<'gc, 'l> {
         }
     }
 
-    pub fn monitor_unlock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>) {
+    pub fn monitor_unlock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>) {
         self.monitor().unlock(jvm, int_state).unwrap();
     }
 
-    pub fn monitor_lock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasJavaStack<'gc>) {
+    pub fn monitor_lock<'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>) {
         let monitor_to_lock = self.monitor();
         monitor_to_lock.lock(jvm, int_state).unwrap();
     }

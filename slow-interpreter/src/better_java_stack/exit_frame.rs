@@ -1,15 +1,17 @@
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 use libc::c_void;
 
 use another_jit_vm::FramePointerOffset;
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::{HasFrame, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -55,6 +57,14 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
 
 
 impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        todo!()
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        todo!()
+    }
+
     fn frame_ref(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.frame_pointer.0.into(),
@@ -93,6 +103,14 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
+    }
+
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
+        todo!()
+    }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        todo!()
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {

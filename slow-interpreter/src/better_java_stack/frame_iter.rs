@@ -4,12 +4,13 @@ use std::sync::Arc;
 
 use nonnull_const::NonNullConst;
 
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::loading::LoaderName;
 
 use crate::better_java_stack::FramePointer;
-use crate::better_java_stack::frames::{HasFrame, IsOpaque};
+use crate::better_java_stack::frames::{HasFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::JVMState;
 
@@ -37,7 +38,7 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     }
 
     fn num_locals(&self) -> Result<u16, IsOpaque> {
-        let method_id = self.frame_ref().method_id().ok_or(IsOpaque {})?;
+        let method_id = self.frame_ref().method_id()?;
         Ok(self.jvm().num_local_var_slots(method_id))
     }
 
@@ -56,13 +57,29 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
         todo!()
     }
+
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
+        todo!()
+    }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        todo!()
+    }
+
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        todo!()
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        todo!()
+    }
 }
 
 impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
-    pub fn try_class_pointer(&self, jvm: &'vm JVMState<'vm>) -> Option<Arc<RuntimeClass<'vm>>> {
+    pub fn try_class_pointer(&self, jvm: &'vm JVMState<'vm>) -> Result<Arc<RuntimeClass<'vm>>, IsOpaque> {
         let method_id = self.frame_ref().method_id()?;
         let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
-        Some(rc)
+        Ok(rc)
     }
 
     pub fn try_pc(&self) -> Option<ByteCodeOffset> {
@@ -71,6 +88,10 @@ impl<'vm, 'k> FrameIterFrameRef<'vm, 'k> {
 
     pub fn is_interpreted(&self) -> bool {
         self.is_interpreted
+    }
+
+    pub fn loader(&self) -> LoaderName{
+        LoaderName::BootstrapLoader//todo loader
     }
 }
 

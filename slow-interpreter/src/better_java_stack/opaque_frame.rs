@@ -1,12 +1,15 @@
 use std::ptr::NonNull;
+use std::sync::Arc;
 
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::ByteCodeOffset;
 
 use crate::{JVMState, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -75,6 +78,22 @@ impl<'gc, 'k> HasFrame<'gc> for OpaqueFrame<'gc, 'k> {
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
         todo!()
     }
+
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
+        todo!()
+    }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        todo!()
+    }
+
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        todo!()
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        todo!()
+    }
 }
 
 impl<'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k> {
@@ -101,15 +120,5 @@ impl<'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k> {
 
     fn push_frame_native<T>(&mut self, java_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), java_frame_push, |java_frame| within_push(java_frame))
-    }
-}
-
-impl<'gc> HasJavaStack<'gc> for OpaqueFrame<'gc, '_> {
-    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
-        self.java_stack
-    }
-
-    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
     }
 }

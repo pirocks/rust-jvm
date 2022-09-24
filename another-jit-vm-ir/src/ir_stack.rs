@@ -227,6 +227,9 @@ pub struct IRFrameRef<'l> {
     pub _ir_stack: &'l OwnedIRStack,
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub struct IsOpaque {}
+
 impl IRFrameRef<'_> {
     pub fn header(&self) -> UnPackedIRFrameHeader {
         unsafe { read_frame_ir_header(self.ptr) }
@@ -253,14 +256,14 @@ impl IRFrameRef<'_> {
         res as i64
     }
 
-    pub fn method_id(&self) -> Option<MethodId> {
+    pub fn method_id(&self) -> Result<MethodId, IsOpaque> {
         let res = self.read_at_offset(FramePointerOffset(FRAME_HEADER_METHOD_ID_OFFSET));
         if (res as i64) < 0 {
-            return None;
+            return Err(IsOpaque{});
         }
         let frame_header = unsafe { read_frame_ir_header(self.ptr) };
         assert_eq!(res, frame_header.method_id_ignored);
-        Some(res as usize)
+        Ok(res as usize)
     }
 
     pub fn prev_rbp(&self) -> Option<NonNull<c_void>> {

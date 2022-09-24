@@ -1,16 +1,19 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
+use std::sync::Arc;
 
 use libc::c_void;
 
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use jvmti_jni_bindings::jlong;
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::ByteCodeOffset;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::FramePointer;
-use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::interpreter_state::NativeFrameInfo;
@@ -103,6 +106,22 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
         JavaFrameIterRefNew::new(self.java_stack, self.frame_pointer, None)
     }
+
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
+        todo!()
+    }
+
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        &self.java_stack
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        &mut self.java_stack
+    }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        todo!()
+    }
 }
 
 impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
@@ -120,15 +139,5 @@ impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
 
     fn push_frame_native<T>(&mut self, native_frame_push: NativeFramePush, within_push: impl for<'l> FnOnce(&mut NativeFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         self.java_stack.push_frame_native(self.frame_pointer, self.next_frame_pointer(), native_frame_push, |native_frame| within_push(native_frame))
-    }
-}
-
-impl<'gc, 'k> HasJavaStack<'gc> for NativeFrame<'gc, 'k> {
-    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
-        self.java_stack
-    }
-
-    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
     }
 }

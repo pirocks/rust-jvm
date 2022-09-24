@@ -303,37 +303,6 @@ use crate::java_values::JavaValue;
 //     }
 //
 //
-//     pub fn debug_print_stack_trace(&self, jvm: &'gc JVMState<'gc>) {
-//         let full = false;
-//         let pc = self.current_frame().pc;
-//         let iter: JavaFrameIterRef<'gc, '_,'_, JavaStackGuard<'gc>> = self.frame_iter::<JavaStackGuard<'gc>>();
-//         for (i, stack_entry) in iter.enumerate() {
-//             if stack_entry.try_class_pointer(jvm).is_some()
-//             {
-//                 let type_ = stack_entry.class_pointer(jvm).view().type_();
-//                 let view = stack_entry.class_pointer(jvm).view();
-//                 let method_view = view.method_view_i(stack_entry.method_i(jvm));
-//                 let meth_name = method_view.name().0.to_str(&jvm.string_pool);
-//                 let method_desc_str = method_view.desc_str().to_str(&jvm.string_pool);
-//                 if method_view.is_native() {
-//                     println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
-//                 } else {
-//                     let loader_name = stack_entry.loader(jvm);
-//                     let program_counter = stack_entry.pc.map(|offset| offset.0 as i32).unwrap_or(-1);
-//                     println!("{:?}.{} {} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, loader_name, program_counter);
-//                     if full {
-//                         // if stack_entry.pc.is_some() {
-//                         // dump_frame_contents_impl(jvm, self);
-//                         // } else {
-//                         stack_entry.ir_stack_entry_debug_print();
-//                         // }
-//                     }
-//                 }
-//             } else {
-//                 println!("missing");
-//             }
-//         }
-//     }
 //
 //     pub fn cloned_stack_snapshot(&self, jvm: &'gc JVMState<'gc>) -> Vec<StackEntry> {
 //         self.frame_iter::<JavaStackGuard<'gc>>().map(|frame| {

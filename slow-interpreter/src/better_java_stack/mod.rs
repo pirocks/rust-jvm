@@ -47,6 +47,12 @@ impl FramePointer {
     }
 }
 
+impl From<NonNullConst<c_void>> for FramePointer{
+    fn from(nonnull_const: NonNullConst<c_void>) -> Self {
+        FramePointer(NonNull::new(nonnull_const.as_ptr() as *mut c_void).unwrap())
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct StackDepth(pub u16);
 

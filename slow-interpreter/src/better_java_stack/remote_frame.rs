@@ -1,8 +1,10 @@
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use std::sync::Arc;
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::ByteCodeOffset;
 
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
-use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::{HasFrame, IsOpaque};
+use crate::better_java_stack::frames::{HasFrame};
 use crate::JVMState;
 
 pub struct RemoteFrame<'gc, 'k> {
@@ -11,11 +13,11 @@ pub struct RemoteFrame<'gc, 'k> {
 }
 // don't have the function call vec thing
 
-impl <'gc, 'k> RemoteFrame<'gc,'k>{
-    pub fn new(java_stack: &'k mut JavaStackGuard<'gc>, frame_ptr: FramePointer) -> Self{
+impl<'gc, 'k> RemoteFrame<'gc, 'k> {
+    pub fn new(java_stack: &'k mut JavaStackGuard<'gc>, frame_ptr: FramePointer) -> Self {
         Self {
             java_stack,
-            frame_ptr
+            frame_ptr,
         }
     }
 }
@@ -55,7 +57,21 @@ impl<'gc, 'k> HasFrame<'gc> for RemoteFrame<'gc, 'k> {
         self.java_stack.debug_assert();
     }
 
-    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
         todo!()
     }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        //todo we can provide accurate values here by converting the rip to bytecode
+        None
+    }
+
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        &self.java_stack
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        &mut self.java_stack
+    }
 }
+

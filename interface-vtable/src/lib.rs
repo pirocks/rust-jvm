@@ -1,6 +1,5 @@
 #![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
-#![feature(let_else)]
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;

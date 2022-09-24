@@ -2,7 +2,7 @@ use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use another_jit_vm_ir::RBPAndRSP;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
@@ -14,7 +14,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
 use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
-use crate::better_java_stack::frames::{HasFrame, HasJavaStack, IsOpaque, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
@@ -97,8 +97,20 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
         self.java_stack.debug_assert();
     }
 
-    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
         todo!()
+    }
+
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {
+        None //todo should do better
+    }
+
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
+        &self.java_stack
+    }
+
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
+        &mut self.java_stack
     }
 }
 
@@ -184,15 +196,5 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 
     pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
-    }
-}
-
-impl<'gc, 'k> HasJavaStack<'gc> for JavaInterpreterFrame<'gc, 'k> {
-    fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
-        self.java_stack
-    }
-
-    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
     }
 }

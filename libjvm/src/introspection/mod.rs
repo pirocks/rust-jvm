@@ -237,7 +237,7 @@ unsafe extern "system" fn JVM_GetClassContext<'gc>(env: *mut JNIEnv) -> jobjectA
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let cloned_stack_iter = int_state.frame_iter().collect_vec();
-    let classes = cloned_stack_iter.into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm)?.cpdtype())).collect_vec();
+    let classes = cloned_stack_iter.into_iter().rev().flat_map(|entry| Some(entry.try_class_pointer(jvm).as_ref().ok()?.cpdtype())).collect_vec();
     let jclasses = match classes.into_iter()
         .map(|ptype| get_or_create_class_object(jvm, ptype, int_state)
             .map(|elem| elem.new_java_handle())
@@ -287,7 +287,7 @@ pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std:
     }
     assert!(!parent_frame.is_native_method() && !parent_frame.is_opaque_method());
     let possibly_class_pointer = stack.find_map(|entry| {
-        let class_pointer = entry.try_class_pointer(jvm)?;
+        let class_pointer = entry.try_class_pointer(jvm).ok()?;
         let view = class_pointer.view();
         let method_view = view.method_view_i(entry.method_i());
         if method_view.is_native() || entry.is_opaque_method() {

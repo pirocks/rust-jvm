@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
-use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef};
-use rust_jvm_common::{MethodI, NativeJavaValue};
+use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
+use classfile_view::view::HasAccessFlags;
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::{ByteCodeOffset, MethodI, NativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{ JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
-use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
+use crate::{JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, StackEntryPush, WasException};
+use crate::better_java_stack::frame_iter::{JavaFrameIterRefNew};
 use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
@@ -17,10 +19,10 @@ use crate::java_values::native_to_new_java_value_rtype;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 use crate::threading::java_thread::JavaThread;
 
-#[derive(Debug)]
-pub struct IsOpaque {}
 
 pub trait HasFrame<'gc> {
+    fn java_stack_ref(&self) -> &JavaStackGuard<'gc>;
+    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc>;
     fn frame_ref(&self) -> IRFrameRef;
     fn frame_mut(&mut self) -> IRFrameMut;
     fn jvm(&self) -> &'gc JVMState<'gc>;
@@ -29,7 +31,21 @@ pub trait HasFrame<'gc> {
     fn max_stack(&self) -> u16;
     fn next_frame_pointer(&self) -> FramePointer;
     fn debug_assert(&self);
-    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_>;
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque>;
+    fn try_current_frame_pc(&self) -> Option<ByteCodeOffset>;
+
+    fn java_thread(&self) -> Arc<JavaThread<'gc>> {
+        self.java_stack_ref().java_thread.clone()
+    }
+    fn drop_guard(&mut self) {
+        self.java_stack_mut().drop_guard();
+    }
+    fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
+        let frame_pointer = self.frame_ref().frame_ptr().into();
+        let java_stack_ref = self.java_stack_ref();
+        let current_pc = self.try_current_frame_pc();
+        JavaFrameIterRefNew::new(java_stack_ref, frame_pointer, current_pc)
+    }
     fn local_get_handle(&self, i: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
         assert!(i < self.num_locals().unwrap());
         let jvm = self.jvm();
@@ -69,8 +85,8 @@ pub trait HasFrame<'gc> {
 
     fn is_native_method(&self) -> bool {
         match self.frame_ref().method_id() {
-            None => false,
-            Some(method_id) => {
+            Err(IsOpaque {}) => false,
+            Ok(method_id) => {
                 self.jvm().is_native_by_method_id(method_id)
             }
         }
@@ -85,6 +101,31 @@ pub trait HasFrame<'gc> {
         let method_id = self.frame_ref().method_id().unwrap();
         self.jvm().method_table.read().unwrap().try_lookup(method_id).unwrap().1
     }
+
+    fn debug_print_stack_trace(&self, jvm: &'gc JVMState<'gc>) {
+        let full = false;
+        let iter = self.frame_iter();
+        for (i, stack_entry) in iter.enumerate() {
+            if let Ok(class_pointer) = stack_entry.try_class_pointer(jvm) {
+                let view = class_pointer.view();
+                let type_ = view.type_();
+                let method_i = stack_entry.method_i();
+                let method_view = view.method_view_i(method_i);
+                let meth_name = method_view.name().0.to_str(&jvm.string_pool);
+                let method_desc_str = method_view.desc_str().to_str(&jvm.string_pool);
+                if method_view.is_native() {
+                    println!("{:?}.{} {} {}", type_, meth_name, method_desc_str, i)
+                } else {
+                    let loader_name = stack_entry.loader();
+                    let program_counter = stack_entry.try_pc().map(|offset| offset.0 as i32).unwrap_or(-1);
+                    println!("{:?}.{} {} {} {} {}", type_.unwrap_class_type().0.to_str(&jvm.string_pool), meth_name, method_desc_str, i, loader_name, program_counter);
+                }
+            } else {
+                println!("missing");
+            }
+        }
+    }
+
 }
 
 pub trait PushableFrame<'gc>: HasFrame<'gc> {
@@ -96,20 +137,4 @@ pub trait PushableFrame<'gc>: HasFrame<'gc> {
     fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
-}
-
-pub trait HasJavaStack<'gc> {
-    fn java_stack_ref(&self) -> &JavaStackGuard<'gc>;
-    fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc>;
-
-    fn java_thread(&self) -> Arc<JavaThread<'gc>> {
-        self.java_stack_ref().java_thread.clone()
-    }
-
-    fn drop_guard(&mut self) {
-        self.java_stack_mut().drop_guard();
-    }
-    // fn signal_safe_data(&self) -> &'k SignalAccessibleJavaStackData {
-    //     self.java_stack().signal_safe_data()
-    // }
 }

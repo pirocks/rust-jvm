@@ -8,7 +8,7 @@ use libc::memset;
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::compiler::RestartPointID;
-use another_jit_vm_ir::ir_stack::read_frame_ir_header;
+use another_jit_vm_ir::ir_stack::{IsOpaque, read_frame_ir_header};
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
@@ -598,10 +598,10 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
             continue;
         }
         let rc = match current_frame.try_class_pointer(jvm) {
-            None => {
+            Err(IsOpaque{}) => {
                 continue;
             }
-            Some(rc) => rc
+            Ok(rc) => rc
         };
         let view = rc.view();
         let method_i = current_frame.method_i();

@@ -11,6 +11,7 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
+use another_jit_vm_ir::ir_stack::IsOpaque;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout};
 use java5_verifier::SimplifiedVType;
@@ -785,8 +786,8 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
 
     pub fn loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         let method_id = match self.frame_view.ir_ref.method_id() {
-            Some(x) => x,
-            None => {
+            Ok(x) => x,
+            Err(IsOpaque{}) => {
                 //opaque frame todo, should lookup loader by opaque id
                 return LoaderName::BootstrapLoader;
             }
@@ -795,10 +796,10 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
         jvm.classes.read().unwrap().get_initiating_loader(&rc)
     }
 
-    pub fn try_class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Option<Arc<RuntimeClass<'gc>>> {
+    pub fn try_class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
         let method_id = self.frame_view.ir_ref.method_id()?;
         let rc = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap().0;
-        Some(rc)
+        Ok(rc)
     }
 
     pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
@@ -836,8 +837,8 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
 
     pub fn is_native_method(&self) -> bool {
         match self.frame_view.ir_ref.method_id() {
-            None => false,
-            Some(method_id) => {
+            Err(IsOpaque{}) => false,
+            Ok(method_id) => {
                 self.frame_view.jvm.is_native_by_method_id(method_id)
             }
         }

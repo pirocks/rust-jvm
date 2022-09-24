@@ -11,7 +11,7 @@ use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
-use crate::better_java_stack::frames::{HasFrame, HasJavaStack, PushableFrame};
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::StackDepth;
 use crate::class_objects::get_or_create_class_object;
@@ -76,7 +76,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     };
     interpreter_state.frame_mut().set_ir_method_id(ir_method_id);
     interpreter_state.frame_mut().assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_pointer().as_ptr());
-    assert!((interpreter_state.frame_ref().method_id() == Some(method_id)));
+    assert!((interpreter_state.frame_ref().method_id() == Ok(method_id)));
 
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
@@ -205,7 +205,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasJavaStack<'gc>) -> Result<(), WasException<'gc>> {
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
     if interpreter_state.java_stack_ref().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
