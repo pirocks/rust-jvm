@@ -101,6 +101,7 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
         loop {
             main_thread_clone.clone().pause_and_remote_view(jvm_ref, |remote_frame|{
                 let method_id = remote_frame.frame_ref().method_id().unwrap();
+                dbg!(jvm_ref.method_table.read().unwrap().lookup_method_string(method_id, &jvm_ref.string_pool));
                 dbg!(method_id);
                 ()
             });

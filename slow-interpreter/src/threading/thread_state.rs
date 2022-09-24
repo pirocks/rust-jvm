@@ -11,7 +11,7 @@ use rust_jvm_common::loading::LoaderName;
 use threads::Threads;
 
 use crate::{JVMState, OpaqueFrame, PushableFrame, WasException};
-use crate::better_java_stack::thread_remote_read_mechanism::{sigaction_setup, ThreadSignalBasedInterrupter};
+use crate::better_java_stack::thread_remote_read_mechanism::{ThreadSignalBasedInterrupter};
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
@@ -25,7 +25,7 @@ thread_local! {
 
 pub struct ThreadState<'gc> {
     pub threads: Threads<'gc>,
-    interrupter: ThreadSignalBasedInterrupter,
+    pub interrupter: ThreadSignalBasedInterrupter,
     // threads_locals: RwLock<HashMap<ThreadId, Arc<FastPerThreadData>>>,
     pub(crate) main_thread: RwLock<Option<Arc<JavaThread<'gc>>>>,
     pub(crate) all_java_threads: RwLock<HashMap<JavaThreadId, Arc<JavaThread<'gc>>>>,
@@ -39,7 +39,7 @@ impl<'gc> ThreadState<'gc> {
     pub fn new(scope: &'gc Scope<'gc, 'gc>) -> Self {
         Self {
             threads: Threads::new(scope),
-            interrupter: sigaction_setup(),
+            interrupter: ThreadSignalBasedInterrupter::sigaction_setup(),
             main_thread: RwLock::new(None),
             all_java_threads: RwLock::new(HashMap::new()),
             current_java_thread: &CURRENT_JAVA_THREAD,

@@ -164,7 +164,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
         unsafe {
-            if libc::rand() < 1_000_000 {
+            if libc::rand() < 2_000_000 {
                 dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             }
         }

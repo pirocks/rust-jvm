@@ -34,6 +34,7 @@ pub fn ir_function_start(assembler: &mut CodeAssembler, temp_register: Register,
     assembler.mov(temp_register.to_native_64(), ir_method_id.0 as u64).unwrap();
     assembler.mov(rbp - FRAME_HEADER_IR_METHOD_ID_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.lea(rsp, rbp - frame_size).unwrap();
+    //these must be last for signal stacktracing mechanism to only see completed frames.
     assembler.mov(temp_register.to_native_64(), MAGIC_1_EXPECTED).unwrap();
     assembler.mov(rbp - FRAME_HEADER_PREV_MAGIC_1_OFFSET as u64, temp_register.to_native_64()).unwrap();
     assembler.mov(temp_register.to_native_64(), MAGIC_2_EXPECTED).unwrap();
@@ -46,6 +47,11 @@ pub fn ir_call(assembler: &mut CodeAssembler, temp_register_1: Register, temp_re
     let return_to_rbp = temp_register_2.to_native_64();
     let mut after_call_label = assembler.create_label();
     assembler.mov(return_to_rbp, rbp).unwrap();
+    //todo bug b/c rbp could have valid magic but invalid frame
+    assembler.lea(temp_register, rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_1_OFFSET) as i32).unwrap();
+    assembler.mov(qword_ptr(temp_register), 0i32).unwrap();
+    assembler.lea(temp_register, rbp - (current_frame_size + FRAME_HEADER_PREV_MAGIC_2_OFFSET) as i32).unwrap();
+    assembler.mov(qword_ptr(temp_register), 0i32).unwrap();
     assembler.sub(rbp, current_frame_size as i32).unwrap();
     let max_offset = arg_from_to_offsets.iter().map(|(_, to)| to.0).max().unwrap_or(0);
     assembler.mov(rbp - FRAME_HEADER_PREV_RBP_OFFSET as u64, return_to_rbp).unwrap();

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Barrier, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::Duration;
 
 use num_integer::Integer;
@@ -19,7 +19,6 @@ use crate::better_java_stack::{FramePointer, JavaStack};
 use crate::better_java_stack::frames::HasJavaStack;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::remote_frame::RemoteFrame;
-use crate::better_java_stack::thread_remote_read_mechanism::perform_remote_query;
 use crate::interpreter::safepoint_check;
 use crate::rust_jni::jvmti_interface::event_callbacks::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
@@ -204,15 +203,16 @@ impl<'gc> JavaThread<'gc> {
     pub fn pause_and_remote_view<T>(self: Arc<Self>, jvm: &'gc JVMState<'gc>, with_frame: impl for<'k> FnOnce(RemoteFrame<'gc,'k>) -> T) /*-> T*/ {
         let pthread_id = self.underlying_thread.pthread_id();
         let signal_safe_data = self.stack_signal_safe_data.deref();
-        perform_remote_query(pthread_id, RemoteQuery::GetGuestFrameStackInstructionPointer, signal_safe_data, |answer| {
+        let restart_barrier = Barrier::new(2);
+        jvm.thread_state.interrupter.perform_remote_query(pthread_id, RemoteQuery::GetGuestFrameStackInstructionPointer { restart: &restart_barrier }, signal_safe_data, |answer| {
             match answer {
                 RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(inner) => {
                     match inner {
                         GetGuestFrameStackInstructionPointer::InGuest { rbp, rsp, rip } => {
-                            dbg!("in guest");
-                            dbg!(rbp);
-                            dbg!(rsp);
-                            dbg!(rip);
+                            // dbg!("in guest");
+                            // dbg!(rbp as *mut c_void);
+                            // dbg!(rsp);
+                            // dbg!(rip);
                             let frame_pointer = FramePointer(NonNull::new(rbp as *mut c_void).unwrap());
                             let mut java_stack = JavaStackGuard::new_remote_with_frame_pointer(jvm, unsafe { transmute(&self.java_stack) }, self.clone(), frame_pointer);
                             let remote_frame = RemoteFrame::new(&mut java_stack, frame_pointer);
@@ -225,21 +225,15 @@ impl<'gc> JavaThread<'gc> {
                             // dbg!(rip);
                         }
                         GetGuestFrameStackInstructionPointer::Transitioning {} => {
-                            dbg!("transitioning");
+                            // dbg!("transitioning");
                         }
                         GetGuestFrameStackInstructionPointer::FrameBeingCreated { .. } => {
-                            dbg!("frame being created");
+                            // dbg!("frame being created");
                         }
                     }
                 }
             }
         });
-        // unsafe { self.gc_suspend(); }
-        // let thread_stack_guard = self.java_stack.lock().unwrap();
-        // let signal_safe_data = thread_stack_guard.signal_safe_data();
-        // let res = with_frame(todo!());
-        // unsafe { self.gc_resume_thread().unwrap(); }
-        // res
     }
 }
 
