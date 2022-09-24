@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::{Arc, Barrier, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::Duration;
 
 use num_integer::Integer;
@@ -11,7 +11,8 @@ use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use jvmti_jni_bindings::jint;
 use rust_jvm_common::JavaThreadId;
-use thread_signal_handler::{GetGuestFrameStackInstructionPointer, RemoteQuery, RemoteQueryAnswer, SignalAccessibleJavaStackData};
+use thread_signal_handler::{SignalAccessibleJavaStackData};
+use thread_signal_handler::remote_queries::{GetGuestFrameStackInstructionPointer, RemoteQuery, RemoteQueryAnswer};
 use threads::Thread;
 
 use crate::{JVMState, OpaqueFrame, pushable_frame_todo, WasException};
@@ -203,8 +204,7 @@ impl<'gc> JavaThread<'gc> {
     pub fn pause_and_remote_view<T>(self: Arc<Self>, jvm: &'gc JVMState<'gc>, with_frame: impl for<'k> FnOnce(RemoteFrame<'gc,'k>) -> T) /*-> T*/ {
         let pthread_id = self.underlying_thread.pthread_id();
         let signal_safe_data = self.stack_signal_safe_data.deref();
-        let restart_barrier = Barrier::new(2);
-        jvm.thread_state.interrupter.perform_remote_query(pthread_id, RemoteQuery::GetGuestFrameStackInstructionPointer { restart: &restart_barrier }, signal_safe_data, |answer| {
+        jvm.thread_state.interrupter.perform_remote_query(pthread_id, RemoteQuery::GetGuestFrameStackInstructionPointer { }, signal_safe_data, |answer| {
             match answer {
                 RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(inner) => {
                     match inner {

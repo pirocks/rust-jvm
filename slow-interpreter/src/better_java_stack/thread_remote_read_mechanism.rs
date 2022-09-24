@@ -3,12 +3,13 @@ use std::ffi::c_void;
 use std::hint;
 use std::ptr::null_mut;
 use std::sync::{Arc, Mutex, RwLock};
-use std::sync::atomic::Ordering;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use nix::sys::pthread::{Pthread, pthread_sigqueue, SigVal};
 use nix::sys::signal::{SaFlags, sigaction, SigAction, SigHandler, SigSet};
 
-use thread_signal_handler::{handler, RemoteQuery, RemoteQueryAnswer, RemoteQueryAnswerInternal, RemoteQueryInternal, SignalAccessibleJavaStackData, THREAD_PAUSE_SIGNAL};
+use thread_signal_handler::{handler, SignalAccessibleJavaStackData, THREAD_PAUSE_SIGNAL, THREAD_RESTART_SIGNAL};
+use thread_signal_handler::remote_queries::{RemoteQuery, RemoteQueryAnswer, RemoteQuerySafe, RemoteQueryUnsafe};
 
 pub struct ThreadSignalBasedInterrupter {
     per_thread_signal_lock: RwLock<HashMap<Pthread, Arc<Mutex<()>>>>,
@@ -19,46 +20,48 @@ impl ThreadSignalBasedInterrupter {
         self.per_thread_signal_lock.write().unwrap().entry(tid).or_default().clone()
     }
 
-    pub fn perform_remote_query(&self, tid: Pthread, remote_query: RemoteQuery, signal_data: &SignalAccessibleJavaStackData, with_answer: impl FnOnce(RemoteQueryAnswer)) {
+    pub fn perform_remote_query(&self, tid: Pthread, remote_query_public: RemoteQuery, signal_safe_data: &SignalAccessibleJavaStackData, with_answer: impl FnOnce(RemoteQueryAnswer)) {
         let thread_signal_lock = self.thread_signal_lock(tid);
         let signal_guard = thread_signal_lock.lock().unwrap();
         //todo just have  a threads signalling lock
-        let mut remote_query = remote_query.to_remote_query_internal();
-        let remote_query_mut = &mut remote_query;
-        let raw_remote_qury = remote_query_mut as *mut RemoteQueryInternal;
-        let mut answer = RemoteQueryAnswerInternal::Empty;
-        let remote_query_mut = &mut answer;
-        let raw_remote_answer = remote_query_mut as *mut RemoteQueryAnswerInternal;
-        while let Err(old) = signal_data.remote_request.compare_exchange(null_mut(), raw_remote_qury, Ordering::SeqCst, Ordering::SeqCst) {
-            hint::spin_loop();
-        }
-        assert!(!signal_data.answer_written.load(Ordering::SeqCst));
-        signal_data.remote_request_answer.compare_exchange(null_mut(), raw_remote_answer, Ordering::SeqCst, Ordering::SeqCst).unwrap();
-        let ptr = signal_data as *const SignalAccessibleJavaStackData as *mut c_void;
-        pthread_sigqueue(tid, Some(THREAD_PAUSE_SIGNAL), SigVal::Ptr(ptr)).unwrap();
-        while signal_data.answer_written.load(Ordering::SeqCst) != true {
-            hint::spin_loop();
-        }
-        signal_data.remote_request_answer.compare_exchange(raw_remote_answer, null_mut(), Ordering::SeqCst, Ordering::SeqCst).unwrap();
-        signal_data.remote_request.compare_exchange(raw_remote_qury, null_mut(), Ordering::SeqCst, Ordering::SeqCst).unwrap();
-        signal_data.answer_written.store(false, Ordering::SeqCst);
-        match answer {
+        let mut answer = None;
+        let answer_written = AtomicBool::new(false);
+        match remote_query_public {
+            RemoteQuery::GetGuestFrameStackInstructionPointer => {
+                let remote_query_safe = RemoteQuerySafe::GetGuestFrameStackInstructionPointer { answer: &mut answer, answer_written: &answer_written };
+                let mut remote_query = remote_query_safe.to_remote_query_unsafe(signal_safe_data);
+                self.send_signal(tid, &mut remote_query as *mut RemoteQueryUnsafe);
+                while answer_written.load(Ordering::SeqCst) != true {
+                    hint::spin_loop();
+                }
+                let answer = answer.unwrap();
+                with_answer(RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(answer));
+                self.send_restart_signal(tid);
+            }
+            RemoteQuery::GC => todo!()
+        };
+        /*match answer.unwrap() {
             RemoteQueryAnswerInternal::GetGuestFrameStackInstructionPointer {
                 answer
             } => {
-                with_answer(RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(answer));
+
             }
-            RemoteQueryAnswerInternal::Panic(panic_data) => {
+            /*RemoteQueryAnswerInternal::Panic(panic_data) => {
                 std::panic::resume_unwind(panic_data)
             }
             RemoteQueryAnswerInternal::Empty => {
                 todo!("handle unhandled signals")
-            }
-        }
-        if remote_query.to_remote_query().wait_for_next_signal() {
-            pthread_sigqueue(tid, Some(THREAD_PAUSE_SIGNAL), SigVal::Ptr(null_mut())).unwrap();
-        }
+            }*/
+        }*/
         drop(signal_guard);
+    }
+
+    fn send_signal(&self, tid: Pthread, data: *mut RemoteQueryUnsafe) {
+        pthread_sigqueue(tid, Some(THREAD_PAUSE_SIGNAL), SigVal::Ptr(data as *mut c_void)).unwrap();
+    }
+
+    fn send_restart_signal(&self, tid: Pthread) {
+        pthread_sigqueue(tid, Some(THREAD_RESTART_SIGNAL), SigVal::Ptr(null_mut())).unwrap();
     }
 
     pub fn sigaction_setup() -> Self {

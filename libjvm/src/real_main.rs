@@ -99,12 +99,14 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     let main_thread_clone = main_thread.clone();
     jvm_ref.thread_state.threads.create_thread(Some("stacktracer".to_string())).start_thread(box move |_| unsafe {
         loop {
-            main_thread_clone.clone().pause_and_remote_view(jvm_ref, |remote_frame|{
-                let method_id = remote_frame.frame_ref().method_id().unwrap();
-                dbg!(jvm_ref.method_table.read().unwrap().lookup_method_string(method_id, &jvm_ref.string_pool));
-                dbg!(method_id);
-                ()
-            });
+            for (jtid, java_thread) in jvm_ref.thread_state.get_all_threads().iter() {
+                main_thread_clone.clone().pause_and_remote_view(jvm_ref, |remote_frame|{
+                    let method_id = remote_frame.frame_ref().method_id().unwrap();
+                    dbg!(jvm_ref.method_table.read().unwrap().lookup_method_string(method_id, &jvm_ref.string_pool));
+                    dbg!(method_id);
+                    ()
+                });
+            }
             std::thread::sleep(Duration::from_millis(100));
         }
     },box ());
