@@ -96,10 +96,10 @@ pub fn run_native_method<'gc, 'l, 'k>(
         };
         Ok(result)
     };
-    let stack_trace = unsafe { libc::rand() } < 2_000_000;
-    if stack_trace {
-        int_state.debug_print_stack_trace(jvm);
-    }
+    // let stack_trace = unsafe { libc::rand() } < 2_000_000;
+    // if stack_trace {
+    //     int_state.debug_print_stack_trace(jvm);
+    // }
     match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
                                       within_frame) {
         Ok(res) => {

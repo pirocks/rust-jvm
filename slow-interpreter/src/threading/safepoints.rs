@@ -12,6 +12,27 @@ use crate::jvm_state::JVMState;
 use crate::stdlib::java::lang::throwable::Throwable;
 use crate::threading::java_thread::{ResumeError, SuspendError, ThreadStatus};
 
+// new approach to safepoints
+// Needs to handle:
+// 1. gc suspend/ stacktrace suspend
+// 2. monitor lock/unlock/wait/join
+// 3. park/unpark
+// 4. remote exception throw// todo?
+// 5. sleep blocking
+// 6. nio blocking?
+// 7. interrupt interrupting wait/lock/unlock/join/sleep
+// 8. need to record what waiting on somehow
+// 9. gc suspend wants a response from safepoint about stack position etc.
+// 10.
+//
+//
+// each change to safepoint state sets should check?
+// this makes safepoint state tied to should check? and how?
+// should be signal safe? - can't be b/c having to wait on mutex and to big/complex
+//
+//
+
+
 pub type MonitorID = usize;
 
 #[derive(Debug)]
@@ -221,13 +242,8 @@ impl<'gc> SafePoint<'gc> {
             return Err(WasException { exception_obj: todo!() });
         }
         if guard.suspended {
-            todo!();
-            /*drop(int_state.int_state.take());*/
             let _unused = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
-            let current_thread = todo!();//current_thread.interpreter_state.write().unwrap();
-            todo!();
-            // int_state.int_state = todo!();//Some(transmute(current_thread));
             return self.check(jvm, int_state);
         }
         if guard.parks > 0 {
@@ -260,16 +276,16 @@ impl<'gc> SafePoint<'gc> {
             };
 
             guard.waiting_monitor_notify = None;
-            if should_reacquire {
+            return if should_reacquire {
                 let monitors_gaurd = jvm.thread_state.monitors.read().unwrap();
                 let monitor = &monitors_gaurd[monitor].clone();
                 drop(guard);
                 drop(monitors_gaurd);
                 monitor.notify_reacquire(jvm, int_state, prev_count)?;
-                return self.check(jvm, int_state);
+                self.check(jvm, int_state)
             } else {
                 drop(guard); //shouldn't need these but they are here for now b/c I'm paranoid
-                return self.check(jvm, int_state);
+                self.check(jvm, int_state)
             }
         }
         Ok(())

@@ -207,9 +207,8 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
-    thread.safepoint_state.check(jvm, interpreter_state)?;
     if interpreter_state.java_stack_ref().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
-        todo!()
+        thread.safepoint_state.check(jvm, interpreter_state)?;
     }
     Ok(())
 }

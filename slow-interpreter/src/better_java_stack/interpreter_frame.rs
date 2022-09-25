@@ -1,6 +1,7 @@
 use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use another_jit_vm_ir::RBPAndRSP;
@@ -13,7 +14,6 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard, StackDepth};
-use crate::better_java_stack::frame_iter::JavaFrameIterRefNew;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
@@ -54,6 +54,14 @@ impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
 
     pub(crate) fn update_stack_depth(&mut self, current_pc: ByteCodeOffset, stack_depth: StackDepth) {
         self.java_stack.update_stack_depth(current_pc, self.frame_ptr, stack_depth);
+    }
+
+    pub fn safepoint_check(&mut self) {
+        if self.java_stack.signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
+            self.java_stack.drop_guard();
+            todo!();
+            self.java_stack.reacquire();
+        }
     }
 }
 

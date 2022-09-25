@@ -209,10 +209,6 @@ impl<'gc> JavaThread<'gc> {
                 RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(inner) => {
                     match inner {
                         GetGuestFrameStackInstructionPointer::InGuest { rbp, rsp, rip } => {
-                            // dbg!("in guest");
-                            // dbg!(rbp as *mut c_void);
-                            // dbg!(rsp);
-                            // dbg!(rip);
                             let frame_pointer = FramePointer(NonNull::new(rbp as *mut c_void).unwrap());
                             let mut java_stack = JavaStackGuard::new_remote_with_frame_pointer(jvm, unsafe { transmute(&self.java_stack) }, self.clone(), frame_pointer);
                             let remote_frame = RemoteFrame::new(&mut java_stack, frame_pointer);

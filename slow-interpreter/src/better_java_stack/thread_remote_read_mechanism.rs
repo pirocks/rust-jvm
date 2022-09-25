@@ -40,19 +40,6 @@ impl ThreadSignalBasedInterrupter {
             }
             RemoteQuery::GC => todo!()
         };
-        /*match answer.unwrap() {
-            RemoteQueryAnswerInternal::GetGuestFrameStackInstructionPointer {
-                answer
-            } => {
-
-            }
-            /*RemoteQueryAnswerInternal::Panic(panic_data) => {
-                std::panic::resume_unwind(panic_data)
-            }
-            RemoteQueryAnswerInternal::Empty => {
-                todo!("handle unhandled signals")
-            }*/
-        }*/
         drop(signal_guard);
     }
 

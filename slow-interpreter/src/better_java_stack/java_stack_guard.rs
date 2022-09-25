@@ -163,11 +163,6 @@ impl<'vm> JavaStackGuard<'vm> {
     ) -> Result<T, WasException<'vm>> {
         let NativeFramePush { method_id, native_local_refs, local_vars, operand_stack } = stack_entry;
         let jvm = self.jvm();
-        unsafe {
-            if libc::rand() < 2_000_000 {
-                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
-            }
-        }
         let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
         let method_resolver_impl = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader/*todo fix*/ };
         jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver_impl, method_id, false);

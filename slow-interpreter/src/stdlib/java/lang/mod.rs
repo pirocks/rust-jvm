@@ -806,9 +806,13 @@ pub mod thread {
             Ok(())
         }
 
-        pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
+        pub fn try_name(&self, jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            self.normal_object.get_var(jvm, &thread_class, FieldName::field_name()).cast_string().unwrap()
+            self.normal_object.get_var(jvm, &thread_class, FieldName::field_name()).cast_string()
+        }
+
+        pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
+            self.try_name(jvm).unwrap()
         }
 
         pub fn priority(&self, jvm: &'gc JVMState<'gc>) -> i32 {
