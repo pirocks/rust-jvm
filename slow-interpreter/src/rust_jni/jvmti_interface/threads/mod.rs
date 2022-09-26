@@ -4,7 +4,7 @@ use jvmti_jni_bindings::*;
 
 use crate::java_values::JavaValue;
 use crate::pushable_frame_todo;
-use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::jvmti_interface::universal_error;
 use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::stdlib::java::NewAsObjectOrJavaValue;
@@ -69,8 +69,9 @@ pub unsafe extern "C" fn get_all_threads(env: *mut jvmtiEnv, threads_count_ptr: 
         .get_all_alive_threads()
         .into_iter()
         .map(|thread| {
-            let object = thread.thread_object().object();
-            new_local_ref_public(object.to_gc_managed().into(), todo!()/*int_state*/)
+            let handle = thread.thread_object().object();
+            let object = handle.as_allocated_obj();
+            new_local_ref_public_new(Some(object), int_state)
         })
         .collect::<Vec<jobject>>();
     jvm.native.native_interface_allocations.allocate_and_write_vec(res_ptrs, threads_count_ptr, threads_ptr);

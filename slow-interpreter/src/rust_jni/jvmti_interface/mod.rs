@@ -4,13 +4,13 @@ use jvmti_jni_bindings::*;
 use jvmti_jni_bindings::{jvmtiEnv, jvmtiInterface_1_};
 use rust_jvm_common::FieldId;
 
-use crate::{JavaValue, NewAsObjectOrJavaValue};
+use crate::{JavaValueCommon, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle};
 use crate::JVMState;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::get_thread_or_error;
-use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
+use crate::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use crate::rust_jni::jvmti_interface::agent::run_agent_thread;
 use crate::rust_jni::jvmti_interface::allocate::{allocate, deallocate, dispose_environment};
 use crate::rust_jni::jvmti_interface::breakpoint::{clear_breakpoint, set_breakpoint};
@@ -33,9 +33,8 @@ use crate::rust_jni::jvmti_interface::threads::{get_all_threads, get_thread_info
 use crate::rust_jni::jvmti_interface::threads::suspend_resume::{resume_thread, resume_thread_list, suspend_thread, suspend_thread_list};
 use crate::rust_jni::jvmti_interface::threads::thread_groups::{get_thread_group_info, get_top_thread_groups};
 use crate::rust_jni::jvmti_interface::version::get_version_number;
-use crate::rust_jni::native_util::from_jclass;
+use crate::rust_jni::native_util::{from_jclass, from_object_new};
 use crate::rust_jni::native_util::from_object;
-use crate::utils::pushable_frame_todo;
 
 pub fn initial_jvmti() -> jvmtiInterface_1_ {
     jvmtiInterface_1_ {
@@ -308,13 +307,13 @@ pub unsafe extern "C" fn get_field_declaring_class(env: *mut jvmtiEnv, _klass: j
     let (runtime_class, index) = jvm.field_table.read().unwrap().lookup(field_id);
     let type_ = runtime_class.view().field(index as usize).field_type();
     let int_state = get_interpreter_state(env);
-    let res_object = new_local_ref_public(
-        match get_or_create_class_object(jvm, type_, pushable_frame_todo()/*int_state*/) {
-            Ok(res) => res.to_gc_managed(),
-            Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL,
-        }
-            .into(),
-        todo!(), /*int_state*/
+    let handle = match get_or_create_class_object(jvm, type_, int_state) {
+        Ok(res) => res,
+        Err(_) => return jvmtiError_JVMTI_ERROR_INTERNAL,
+    };
+    let res_object = new_local_ref_public_new(
+        Some(handle.as_allocated_obj()),
+        int_state
     );
     declaring_class_ptr.write(res_object);
     return jvmtiError_JVMTI_ERROR_NONE;
@@ -363,23 +362,25 @@ pub unsafe extern "C" fn get_class_modifiers(env: *mut jvmtiEnv, klass: jclass, 
 }
 
 pub unsafe extern "C" fn set_local_object(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jobject) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Object(todo!() /*from_jclass(jvm,value)*/))
+    let jvm = get_state(env);
+    let handle = NewJavaValueHandle::from_optional_object(from_object_new(jvm, value));
+    set_local(env, thread, depth, slot, handle.as_njv())
 }
 
 pub unsafe extern "C" fn set_local_int(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jint) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Int(value))
+    set_local(env, thread, depth, slot, NewJavaValue::Int(value))
 }
 
 pub unsafe extern "C" fn set_local_long(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jlong) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Long(value))
+    set_local(env, thread, depth, slot, NewJavaValue::Long(value))
 }
 
 pub unsafe extern "C" fn set_local_double(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jdouble) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Double(value))
+    set_local(env, thread, depth, slot, NewJavaValue::Double(value))
 }
 
 pub unsafe extern "C" fn set_local_float(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: jfloat) -> jvmtiError {
-    set_local(env, thread, depth, slot, JavaValue::Float(value))
+    set_local(env, thread, depth, slot, NewJavaValue::Float(value))
 }
 
 ///Notify Frame Pop

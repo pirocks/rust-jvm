@@ -449,8 +449,6 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName,
 }
 
 pub fn trace_instruction_after<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, method_id: MethodId, return_to_ptr: *const c_void, bytecode_offset: ByteCodeOffset) -> IRVMExitAction {
-    todo!();// assert_eq!(Some(method_id), int_state.current_frame().frame_view.ir_ref.method_id());
-    // int_state.debug_print_stack_trace(jvm);
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
     let method_view = view.method_view_i(method_i);
@@ -460,7 +458,7 @@ pub fn trace_instruction_after<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut
     if !jvm.instruction_trace_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
     }
-    dump_frame_contents(jvm, todo!()/*int_state*/);
+    dump_frame_contents(jvm, int_state);
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 

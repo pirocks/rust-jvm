@@ -4,7 +4,7 @@ use std::sync::Arc;
 use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
 use crate::java_values::JavaValue;
-use crate::JVMState;
+use crate::{JVMState, NewJavaValue};
 use crate::rust_jni::jni_interface::local_frame::new_local_ref_public;
 use crate::rust_jni::jvmti_interface::{get_interpreter_state, get_state};
 use crate::stack_entry::StackEntry;
@@ -96,7 +96,7 @@ unsafe fn get_local_primitive_type<'gc, T>(env: *mut jvmtiEnv, thread: jthread, 
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
-pub(crate) unsafe fn set_local<'gc>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: JavaValue<'gc>) -> jvmtiError {
+pub(crate) unsafe fn set_local<'gc>(env: *mut jvmtiEnv, thread: jthread, depth: jint, slot: jint, value: NewJavaValue<'gc,'_>) -> jvmtiError {
     let jvm = get_state(env);
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetLocalObject");
     assert!(jvm.vm_live());
@@ -193,7 +193,7 @@ unsafe fn get_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint
     var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }
 
-unsafe fn set_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint, slot: jint, to_set: JavaValue<'gc>) -> Result<(), jvmtiError> {
+unsafe fn set_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint, slot: jint, to_set: NewJavaValue<'gc,'_>) -> Result<(), jvmtiError> {
     if depth < 0 {
         return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
     }
@@ -209,9 +209,10 @@ unsafe fn set_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint
     if stack_frame.is_native() {
         return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
     }
-    let var = stack_frame.local_vars_mut().get_mut(slot as usize);
-    match var.map(|jv| *jv = to_set) {
-        None => Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT),
-        Some(_) => Ok(()),
-    }
+    todo!()
+    // let var = stack_frame.local_vars_mut().get_mut(slot as usize);
+    // match var.map(|jv| *jv = to_set) {
+    //     None => Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT),
+    //     Some(_) => Ok(()),
+    // }
 }

@@ -129,8 +129,14 @@ impl JVMOptions {
             //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArgument".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/text/DigitList/set".to_string(),
+            //     combined: "java/util/Random/nextGaussian".to_string(),
+            // // },
+            // MethodToTrace {
+            //     combined: "java/util/Random/nextDouble".to_string(),
             // },
+   /*         MethodToTrace {
+                combined: "java/util/Random/next".to_string(),
+            },*/
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {

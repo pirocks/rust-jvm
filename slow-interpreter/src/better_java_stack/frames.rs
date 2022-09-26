@@ -74,7 +74,7 @@ pub trait HasFrame<'gc> {
         ir_frame_mut.write_data(num_locals + from_start as usize, raw);
     }
 
-    fn os_get_from_start(&mut self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
+    fn os_get_from_start(&self, from_start: u16, expected_type: RuntimeType) -> NewJavaValueHandle<'gc> {
         assert!(from_start < self.max_stack());
         let ir_frame_ref = self.frame_ref();
         let num_locals = self.num_locals().unwrap() as usize;

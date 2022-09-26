@@ -108,7 +108,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::trace_instruction_before(&jvm, *method_id, *return_to_ptr, *bytecode_offset)
             }
             RuntimeVMExitInput::TraceInstructionAfter { method_id, return_to_ptr, bytecode_offset, pc: _ } => {
-                exit_impls::trace_instruction_after(&jvm, todo!()/*int_state.unwrap()*/, *method_id, *return_to_ptr, *bytecode_offset)
+                exit_impls::trace_instruction_after(&jvm, int_state.unwrap(), *method_id, *return_to_ptr, *bytecode_offset)
             }
             RuntimeVMExitInput::NPE { .. } => {
                 todo!();

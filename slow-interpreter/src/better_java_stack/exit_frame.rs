@@ -1,3 +1,5 @@
+use std::mem::size_of;
+use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
 
@@ -5,8 +7,11 @@ use libc::c_void;
 
 use another_jit_vm::FramePointerOffset;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
+use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use java5_verifier::SimplifiedVType;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::vtype::VType;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
 use crate::better_java_stack::{FramePointer, JavaStackGuard};
@@ -53,6 +58,74 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
     pub fn assert_current_pc_is(&self, current_pc: Option<ByteCodeOffset>) {
         assert_eq!(self.current_pc, current_pc);
     }
+
+    //todo duplication:
+
+    pub fn full_frame_available(&self, jvm: &'gc JVMState<'gc>) -> bool {
+        let method_id = self.frame_ref().method_id().unwrap();
+        let pc = self.current_pc.unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
+        let function_frame_type = read_guard.get(&method_id).unwrap();
+        let frame = function_frame_type.get(&pc).unwrap();
+        frame.try_unwrap_full_frame().is_some()
+    }
+
+    pub fn local_var_simplified_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<SimplifiedVType> {
+        let method_id = self.frame_ref().method_id().unwrap();
+        let pc = self.current_pc.unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
+        let function_frame_type = read_guard.get(&method_id).unwrap();
+        function_frame_type.get(&pc).unwrap().unwrap_partial_inferred_frame().local_vars.clone()
+    }
+
+    pub fn local_var_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<VType> {
+        let method_id = self.frame_ref().method_id().unwrap();
+        let pc = self.current_pc.unwrap();
+        let read_guard = &jvm.function_frame_type_data.read().unwrap().tops;
+        let function_frame_type = read_guard.get(&method_id).unwrap();
+        function_frame_type.get(&pc).unwrap().unwrap_full_frame().locals.deref().clone()
+    }
+
+    pub fn operand_stack_simplified_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<SimplifiedVType> {
+        let method_id = self.frame_ref().method_id().expect("local vars should have method id probably");
+        let pc = self.current_pc.unwrap();
+        let function_frame_data_guard = &jvm.function_frame_type_data.read().unwrap().no_tops;
+        let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
+        let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
+        frame.unwrap_partial_inferred_frame().operand_stack.iter().rev().map(|vtype| *vtype).collect()
+    }
+
+    pub fn operand_stack_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<VType> {
+        let method_id = self.frame_ref().method_id().expect("local vars should have method id probably");
+        let pc = self.current_pc.unwrap();
+        let function_frame_data_guard = &jvm.function_frame_type_data.read().unwrap().no_tops;
+        let function_frame_data = function_frame_data_guard.get(&method_id).unwrap();
+        let frame = function_frame_data.get(&pc).unwrap();//todo this get frame thing is duped in a bunch of places
+        frame.unwrap_full_frame().stack_map.iter().rev().map(|vtype| *vtype).collect()
+    }
+
+    pub fn raw_local_var_get(&self, i: u16) -> u64 {
+        //todo use layout
+        unsafe {
+            self.frame_pointer.as_const_ptr()
+                .sub(FRAME_HEADER_END_OFFSET)
+                .sub((i as usize * size_of::<NativeJavaValue>()) as usize)
+                .cast::<u64>()
+                .read()
+        }
+    }
+
+    pub fn raw_operand_stack_get(&self, i: u16) -> u64 {
+        //todo use layout
+        let max_locals = self.jvm().max_locals_by_method_id(self.frame_ref().method_id().unwrap());
+        unsafe {
+            self.frame_pointer.as_const_ptr()
+                .sub(FRAME_HEADER_END_OFFSET)
+                .sub(((i as usize + max_locals as usize) * size_of::<NativeJavaValue>()) as usize)
+                .cast::<u64>()
+                .read()
+        }
+    }
 }
 
 
@@ -84,11 +157,18 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     }
 
     fn num_locals(&self) -> Result<u16, IsOpaque> {
-        todo!()/*self.num_locals*/
+        let method_id = self.frame_ref().method_id()?;
+        Ok(self.jvm().max_locals_by_method_id(method_id))
     }
 
     fn max_stack(&self) -> u16 {
-        todo!()/*self.max_stack*/
+        let jvm = self.jvm();
+        let method_id = self.frame_ref().method_id().unwrap();
+        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let view = rc.view();
+        let method_view = view.method_view_i(method_i);
+        let code = method_view.code_attribute().unwrap();
+        code.max_stack
     }
 
     fn next_frame_pointer(&self) -> FramePointer {

@@ -189,9 +189,7 @@ impl<'gc, 'l, 'k, 'j> InterpreterFrame<'gc, 'l, 'k, 'j> {
     }
 
     pub fn operand_stack_get(&self, i: u16, rtype: RuntimeType) -> InterpreterJavaValue {
-        todo!()/*let current_frame = self.inner.interpreter_state.current_frame();
-        let operand_stack = current_frame.operand_stack(self.inner.jvm);
-        operand_stack.interpreter_get(i, rtype)*/
+        self.inner.interpreter_state.os_get_from_start(i,rtype).to_interpreter_jv()
     }
 
     pub fn local_set(&mut self, i: u16, local: InterpreterJavaValue) {

@@ -1,11 +1,15 @@
+use std::ffi::c_void;
+
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState};
-use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
+use crate::better_java_stack::exit_frame::JavaExitFrame;
+use crate::better_java_stack::frames::HasFrame;
 use crate::java_values::ByAddressAllocatedObject;
 
-pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc, 'l>) {
+pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'l>) {
     unsafe {
         if !IN_TO_STRING {
             dump_frame_contents_impl(jvm, int_state)
@@ -13,45 +17,43 @@ pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Jav
     }
 }
 
-pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaInterpreterFrame<'gc, '_>) {
-    /*if !int_state.current_frame().full_frame_available(jvm) {
-        let current_frame = int_state.current_frame();
-        let local_vars = current_frame.local_var_simplified_types(jvm);
+pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, '_>) {
+    if !int_state.full_frame_available(jvm) {
+        let local_vars = int_state.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
         unsafe {
             for (i, local_var_type) in local_vars.into_iter().enumerate() {
-                let jv = current_frame.local_vars(jvm).raw_get(i as u16);
+                let jv = int_state.raw_local_var_get(i as u16);
                 eprint!("#{}: {:?}\t", i, jv as *const c_void)
             }
         }
         eprintln!();
         eprint!("Operand Stack:");
-        let operand_stack_ref = current_frame.operand_stack(jvm);
-        let operand_stack_types = operand_stack_ref.simplified_types();
+        let operand_stack_types = int_state.operand_stack_simplified_types(jvm);
         unsafe {
             for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-                let jv = operand_stack_ref.raw_get(i as u16);
-                eprint!("#{}: {:?}\t", i, jv.object)
+                let jv = int_state.raw_operand_stack_get(i as u16);
+                eprint!("#{}: {:?}\t", i, jv as *const c_void)
             }
         }
         eprintln!();
         return;
     }
-    let local_var_types = int_state.current_frame().local_var_types(jvm);
+    let local_var_types = int_state.local_var_types(jvm);
     eprint!("Local Vars:");
     unsafe {
         for (i, local_var_type) in local_var_types.into_iter().enumerate() {
             match local_var_type.to_runtime_type() {
                 RuntimeType::TopType => {
-                    let jv = int_state.current_frame().local_vars(jvm).raw_get(i as u16);
+                    let jv = int_state.raw_local_var_get(i as u16);
                     eprint!("#{}: Top: {:?}\t", i, jv as *const c_void)
                 }
                 _ => {
-                    let jv = int_state.current_frame().local_vars(jvm).get(i as u16, local_var_type.to_runtime_type());
+                    let jv = int_state.local_get_handle(i as u16, local_var_type.to_runtime_type());
                     if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
                         display_obj(jvm, int_state, i, obj);
                     } else {
-                        let jv = int_state.current_frame().local_vars(jvm).get(i as u16, local_var_type.to_runtime_type());
+                        let jv = int_state.local_get_handle(i as u16, local_var_type.to_runtime_type());
                         eprint!("#{}: {:?}\t", i, jv.as_njv())
                     }
                 }
@@ -59,32 +61,25 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
         }
     }
     eprintln!();
-    let operand_stack_types = int_state.current_frame().operand_stack(jvm).types();
+    let operand_stack_types = int_state.operand_stack_types(jvm);
     // current_frame.ir_stack_entry_debug_print();
     eprint!("Operand Stack:");
     for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-        if let RuntimeType::TopType = operand_stack_type {
-            panic!()
-            /*let jv = operand_stack.raw_get(i as u16);
-        eprint!("#{}: Top: {:?}\t", i, jv.object)*/
+        let jv = int_state.os_get_from_start(i as u16, operand_stack_type.to_runtime_type());
+        if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
+            display_obj(jvm, int_state, i, obj)
         } else {
-            let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type.clone());
-            if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
-                display_obj(jvm, int_state, i, obj)
-            } else {
-                let jv = int_state.current_frame().operand_stack(jvm).get(i as u16, operand_stack_type);
-                eprint!("#{}: {:?}\t", i, jv.as_njv())
-            }
+            let jv = int_state.os_get_from_start(i as u16, operand_stack_type.to_runtime_type());
+            eprint!("#{}: {:?}\t", i, jv.as_njv())
         }
     }
-    eprintln!()*/
-    todo!()
+    eprintln!()
 }
 
 static mut IN_TO_STRING: bool = false;
 
 #[allow(unused)]
-fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaInterpreterFrame<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
+fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc, '_>, i: usize, obj: AllocatedHandle<'gc>) {
     let obj_type = obj.runtime_class(jvm).cpdtype();
     unsafe {
         if obj_type == CClassName::string().into() {

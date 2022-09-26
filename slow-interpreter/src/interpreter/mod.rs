@@ -1,6 +1,5 @@
 use std::os::raw::c_void;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
@@ -52,6 +51,10 @@ pub struct FrameToRunOn {
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
 pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
+    let should_trace = unsafe { libc::rand() } < 100;
+    if should_trace{
+        interpreter_state.debug_print_stack_trace(jvm);
+    }
     let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
@@ -148,6 +151,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     } else {
         None
     };
+    safepoint_check(jvm, real_interpreter_state.inner())?;
     'outer: loop {
         let current_instruct = code.instructions.get(&current_offset).unwrap();
         assert!(real_interpreter_state.current_stack_depth_from_start <= code.max_stack);
@@ -207,9 +211,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
 
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
-    if interpreter_state.java_stack_ref().signal_safe_data().interpreter_should_safepoint_check.load(Ordering::SeqCst) {
-        thread.safepoint_state.check(jvm, interpreter_state)?;
-    }
+    thread.safepoint_state.check(jvm, interpreter_state)?;
     Ok(())
 }
 

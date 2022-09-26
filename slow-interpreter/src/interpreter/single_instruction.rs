@@ -46,6 +46,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     current_pc: ByteCodeOffset,
 ) -> PostInstructionAction<'gc> {
     function_counter.increment();
+    // if method.name().0.to_str(&jvm.string_pool) == "nextGaussian"{
+    //     dump_frame(interpreter_state, method, code,current_pc,instruct)
+    // }
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),
@@ -301,17 +304,18 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     }
 }
 
-pub fn dump_frame(interpreter_state: &mut RealInterpreterStateGuard, method: &MethodView, code: &CompressedCode) {
+pub fn dump_frame(interpreter_state: &mut RealInterpreterStateGuard, method: &MethodView, code: &CompressedCode, current_pc: ByteCodeOffset, instruct: &CInstructionInfo) {
     let local_var_slots = method.local_var_slots();
+    dbg!(instruct.better_debug_string(&interpreter_state.inner().jvm().string_pool));
     eprint!("Local Vars:");
     for i in 0..local_var_slots {
-        let raw = interpreter_state.current_frame_mut().local_get(i, RuntimeType::object()).to_raw();
+        let raw = interpreter_state.current_frame_mut().local_get(i, RuntimeType::LongType).to_raw();
         eprint!(" {:X}", raw);
     }
     eprintln!();
     eprint!("Operand Stack:");
     for i in 0..interpreter_state.current_stack_depth_from_start {
-        let raw = interpreter_state.current_frame_mut().operand_stack_get(i, RuntimeType::object()).to_raw();
+        let raw = interpreter_state.current_frame_mut().operand_stack_get(i, RuntimeType::LongType).to_raw();
         eprint!(" {:X}", raw);
     }
     eprintln!();

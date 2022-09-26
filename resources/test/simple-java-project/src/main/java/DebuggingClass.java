@@ -160,7 +160,7 @@ import java.math.BigInteger;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        System.out.println(Array.newInstance(Serializable.class, 1));
+        System.out.println((double) 6_569_833_009_620_677L);
 
     }
 }
