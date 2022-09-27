@@ -126,17 +126,17 @@ impl JVMOptions {
             //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArguments".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArgument".to_string(),
+            //     combined: "uv/a".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/util/Random/nextGaussian".to_string(),
-            // // },
-            // MethodToTrace {
-            //     combined: "java/util/Random/nextDouble".to_string(),
+            //     combined: "asd/a".to_string(),
             // },
-   /*         MethodToTrace {
-                combined: "java/util/Random/next".to_string(),
-            },*/
+            MethodToTrace {
+                combined: "ws/b".to_string(),
+            },
+            MethodToTrace {
+                combined: "java/lang/Byte/valueOf".to_string(),
+            },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {

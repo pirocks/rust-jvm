@@ -1,4 +1,5 @@
 use another_jit_vm::{DoubleRegister, FloatRegister, Register};
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{FloatCompareMode, IRInstr, Size};
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
@@ -95,6 +96,17 @@ pub fn fdiv(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
         IRInstr::DivFloat { res: value1, divisor: value2 },
+        IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn frem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = FloatRegister(4);
+    let value1 = FloatRegister(5);
+    array_into_iter([
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type: IntrinsicHelperType::FRemF, integer_args: vec![], float_args: vec![value1, value2], float_res: Some(value1), double_args: vec![] },
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }

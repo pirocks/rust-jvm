@@ -112,6 +112,7 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
     }
         .object()
         .new_java_handle().unwrap_object_nonnull();
+    int_state.debug_print_stack_trace(jvm);
     todo!();// int_state.set_throw(Some(bounds_object));
     T::invalid_default()
 }

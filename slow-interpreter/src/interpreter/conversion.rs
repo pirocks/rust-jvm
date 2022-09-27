@@ -54,7 +54,7 @@ pub fn i2c<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpre
 
 pub fn i2b<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let int = current_frame.pop(RuntimeType::IntType).unwrap_int();
-    current_frame.push(InterpreterJavaValue::Int(int as u8 as i32));
+    current_frame.push(InterpreterJavaValue::Int(int as u8 as i8 as i32));
     PostInstructionAction::Next {}
 }
 

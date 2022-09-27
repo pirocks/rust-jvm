@@ -1,9 +1,11 @@
 use std::borrow::Borrow;
 use std::mem::size_of;
+use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::panic::panic_any;
 use std::ptr::null_mut;
 
+use itertools::Itertools;
 use libc::timer_delete;
 
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
@@ -13,14 +15,15 @@ use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;
-use slow_interpreter::class_loading::assert_inited_or_initing_class;
+use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::new::a_new_array_from_name;
-use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::ir_to_java_layer::exit_impls::multi_allocate_array::multi_new_array_impl;
+use slow_interpreter::java_values::{default_value, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
@@ -127,7 +130,18 @@ unsafe extern "system" fn JVM_NewArray(env: *mut JNIEnv, eltClass: jclass, lengt
 
 #[no_mangle]
 unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, dim: jintArray) -> jobject {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let rc = from_jclass(jvm, eltClass).as_runtime_class(jvm);
+    let dims = from_object_new(jvm, dim).unwrap().unwrap_array().array_iterator().map(|njv| njv.unwrap_int()).collect_vec();
+    //todo dupe with the multi new array exit
+    let num_arrays = dims.len();
+    let elem_type = rc.cpdtype().unwrap_non_array();
+    let array_type = CPDType::Array { base_type: elem_type, num_nested_arrs: NonZeroU8::new(num_arrays as u8).unwrap() };
+    let _ = check_initing_or_inited_class(jvm, int_state, array_type).unwrap();
+    let default = default_value(elem_type.to_cpdtype());
+    let res = multi_new_array_impl(jvm, array_type, dims.as_slice(), default.as_njv());
+    new_local_ref_public_new(res.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

@@ -196,6 +196,9 @@ pub enum IRInstr {
     CallIntrinsicHelper {
         intrinsic_helper_type: IntrinsicHelperType,
         integer_args: Vec<Register>,
+        float_args: Vec<FloatRegister>,
+        float_res: Option<FloatRegister>,
+        double_args: Vec<DoubleRegister>,
     },
     NOP,
     DebuggerBreakpoint,

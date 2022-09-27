@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{al, ax, byte_ptr, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, xmm0, xmm1, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
 use another_jit_vm::{Register, VMState};
@@ -560,7 +560,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.set_label(&mut after).unwrap();
             assembler.nop().unwrap();
         }
-        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args } => {
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args, float_args, float_res, double_args } => {
             match intrinsic_helper_type {
                 IntrinsicHelperType::Memmove => {
                     let first_arg = rdi;
@@ -574,6 +574,23 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                }
+                IntrinsicHelperType::FRemF => {
+                    let first_arg = xmm0;
+                    let second_arg = xmm1;
+                    assert_eq!(float_args.len(), 2);
+                    let args = vec![first_arg, second_arg];
+                    assert!(!float_args.iter().any(|reg| args.contains(&reg.to_xmm())));
+                    assert!(float_args.len() <= args.len());
+                    for (from_arg, to_arg) in float_args.iter().zip(args.iter()) {
+                        assembler.movdqa(*to_arg, from_arg.to_xmm()).unwrap();
+                    }
+                    assert!(integer_args.is_empty());
+                    assert!(double_args.is_empty());
+                    assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                    let float_res = float_res.unwrap();
+                    assembler.movdqa(float_res.to_xmm(), xmm0).unwrap();
+
                 }
                 IntrinsicHelperType::InstanceOf => todo!(),
             }

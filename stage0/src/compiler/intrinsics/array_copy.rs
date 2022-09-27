@@ -199,6 +199,9 @@ pub fn intrinsic_array_copy<'gc>(
     res.push(IRInstr::CallIntrinsicHelper {
         intrinsic_helper_type: IntrinsicHelperType::Memmove,
         integer_args: vec![dst_address_register, src_address_register, length],
+        float_args: vec![],
+        float_res: None,
+        double_args: vec![]
     });
     res.push(IRInstr::Return {
         return_val: None,
