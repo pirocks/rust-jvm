@@ -201,7 +201,8 @@ pub fn intrinsic_array_copy<'gc>(
         integer_args: vec![dst_address_register, src_address_register, length],
         float_args: vec![],
         float_res: None,
-        double_args: vec![]
+        double_args: vec![],
+        double_res: None
     });
     res.push(IRInstr::Return {
         return_val: None,

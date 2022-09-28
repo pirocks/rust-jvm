@@ -133,7 +133,7 @@ pub struct JVMState<'gc> {
     pub inheritance_tree: InheritanceTree,
     pub bit_vec_paths: RwLock<BitVecPaths>,
     pub interface_arrays: RwLock<InterfaceArrays>,
-    pub local_var_array: OnceCell<AllocatedHandle<'gc>>,
+    pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
 }
 
 
@@ -359,7 +359,7 @@ impl<'gc> JVMState<'gc> {
             inheritance_tree,
             bit_vec_paths: bt_vec_paths,
             interface_arrays: RwLock::new(InterfaceArrays::new()),
-            local_var_array: Default::default(),
+            program_args_array: Default::default(),
         };
         (args, jvm)
     }

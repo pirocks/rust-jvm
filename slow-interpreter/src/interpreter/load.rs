@@ -4,6 +4,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JVMState, WasException};
+use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 use crate::utils::throw_array_out_of_bounds_res;
@@ -72,7 +73,13 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(jvm: &'gc JVMState<'gc>, mu
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let temp = current_frame.pop(CClassName::object().into());
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
-    let array_ptr = temp.unwrap_object().unwrap();
+    let array_ptr = match temp.unwrap_object() {
+        Some(x) => x,
+        None => {
+            current_frame.inner().inner().debug_print_stack_trace(jvm);
+            panic!()
+        },
+    };
     unsafe {
         if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
             throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err();

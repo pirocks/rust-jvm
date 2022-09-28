@@ -269,7 +269,7 @@ pub unsafe extern "C" fn call_object_method_v(env: *mut JNIEnv, obj: jobject, me
         .unwrap()
         .unwrap_object();
     let interpreter_state = get_interpreter_state(env);
-    new_local_ref_public_new(res.as_ref().map(|handle| handle.as_allocated_obj()), todo!()/*interpreter_state*/)
+    new_local_ref_public_new(res.as_ref().map(|handle| handle.as_allocated_obj()), interpreter_state)
 }
 
 pub unsafe extern "C" fn call_void_method_v(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut args: VaList) {

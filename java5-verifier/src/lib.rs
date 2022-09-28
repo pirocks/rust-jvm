@@ -446,7 +446,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             one_word_in_two_word_out(method_frames, current_index)
         }
         CompressedInstructionInfo::fadd => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::faload => {
             two_one_word_in_one_word_out(method_frames, current_index);
@@ -455,10 +455,10 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             three_one_word_in_zero_out(method_frames, current_index);
         }
         CompressedInstructionInfo::fcmpg => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::fcmpl => {
-            todo!()
+            two_one_word_in_one_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::fconst_0 => {
             one_word_const(method_frames, current_index);

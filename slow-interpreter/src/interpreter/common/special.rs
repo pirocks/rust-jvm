@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::names::CClassName;
 
 use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class, try_assert_loaded_class};
+use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_resolved_class, try_assert_loaded_class};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
 use crate::java_values::GcManagedObject;
@@ -51,7 +51,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                         1
                     } else {
                         if actual_num_nested_arrs == expected_num_nested_arrs {
-                            if inherits_from_cpdtype(jvm, &assert_inited_or_initing_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
+                            if inherits_from_cpdtype(jvm, &assert_loaded_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
                                 return 1;
                             }
                         }

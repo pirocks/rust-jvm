@@ -25,7 +25,7 @@ use crate::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_nu
 use crate::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
 use crate::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::compiler::fields::{getfield, putfield};
-use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, ddiv, dmul, dneg, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fneg, frem, fsub};
+use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, ddiv, dmul, dneg, drem, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fneg, frem, fsub};
 use crate::compiler::float_convert::{d2f, d2i, d2l, f2d, f2i, i2d, i2f, l2d, l2f};
 use crate::compiler::instance_of_and_casting::{checkcast, instanceof};
 use crate::compiler::int_convert::{i2b, i2c, i2l, i2s, l2i};
@@ -828,6 +828,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             }
             CompressedInstructionInfo::frem => {
                 this_function_ir.extend(frem(method_frame_data, &current_instr_data))
+            }
+            CompressedInstructionInfo::drem => {
+                this_function_ir.extend(drem(method_frame_data, &current_instr_data))
             }
             CompressedInstructionInfo::ddiv => {
                 this_function_ir.extend(ddiv(method_frame_data, &current_instr_data))

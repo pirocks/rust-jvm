@@ -106,8 +106,19 @@ pub fn frem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     array_into_iter([
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
-        IRInstr::CallIntrinsicHelper { intrinsic_helper_type: IntrinsicHelperType::FRemF, integer_args: vec![], float_args: vec![value1, value2], float_res: Some(value1), double_args: vec![] },
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type: IntrinsicHelperType::FRemF, integer_args: vec![], float_args: vec![value1, value2], float_res: Some(value1), double_args: vec![], double_res: None },
         IRInstr::StoreFPRelativeFloat { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+    ])
+}
+
+pub fn drem(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: &CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    let value2 = DoubleRegister(4);
+    let value1 = DoubleRegister(5);
+    array_into_iter([
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
+        IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value1 },
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type: IntrinsicHelperType::DRemD, integer_args: vec![], float_args: vec![], float_res: None, double_args: vec![value1, value2], double_res: Some(value1) },
+        IRInstr::StoreFPRelativeDouble { from: value1, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 

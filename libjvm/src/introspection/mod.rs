@@ -106,22 +106,21 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let rc = check_initing_or_inited_class(jvm, int_state, CPDType::class()).unwrap();
     let class_layout = &rc.unwrap_class_class().object_layout;
     let field_number = class_layout.hidden_field_numbers.get(&HiddenJVMField::class_component_type()).unwrap().number;
-    let res= object.as_ref().unwrap().as_allocated_obj().unwrap_normal_object().raw_get_var(jvm, field_number, CPDType::class());
+    let res = object.as_ref().unwrap().as_allocated_obj().unwrap_normal_object().raw_get_var(jvm, field_number, CPDType::class());
     let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     let previous_res = new_local_ref_public_new(
-    match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
+        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException { exception_obj }) => {
                 todo!();
                 return null_mut();
             }
         }.full_object_ref().into(),
-    int_state,
+        int_state,
     );
-    assert_eq!(previous_res, new_local_ref_public_new(res.as_njv().unwrap_object_alloc(),int_state));
+    assert_eq!(previous_res, new_local_ref_public_new(res.as_njv().unwrap_object_alloc(), int_state));
     previous_res
-
 }
 
 #[no_mangle]
@@ -201,12 +200,17 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
     let signature = match rc.view().signature_attr() {
         Some(x) => x,
-        None => todo!(),
+        None => {
+            return null_mut();
+        }
     };
 
     match JString::from_rust(jvm, int_state, signature) {
         Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
-        Err(WasException) => null_mut(),
+        Err(WasException) => {
+            todo!();
+            null_mut()
+        }
     }
 }
 

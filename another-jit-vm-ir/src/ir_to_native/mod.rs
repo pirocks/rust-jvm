@@ -560,7 +560,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.set_label(&mut after).unwrap();
             assembler.nop().unwrap();
         }
-        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args, float_args, float_res, double_args } => {
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args, float_args, float_res, double_args, double_res } => {
             match intrinsic_helper_type {
                 IntrinsicHelperType::Memmove => {
                     let first_arg = rdi;
@@ -593,6 +593,22 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
 
                 }
                 IntrinsicHelperType::InstanceOf => todo!(),
+                IntrinsicHelperType::DRemD => {
+                    let first_arg = xmm0;
+                    let second_arg = xmm1;
+                    assert_eq!(double_args.len(), 2);
+                    let args = vec![first_arg, second_arg];
+                    assert!(!double_args.iter().any(|reg| args.contains(&reg.to_xmm())));
+                    assert!(double_args.len() <= args.len());
+                    for (from_arg, to_arg) in double_args.iter().zip(args.iter()) {
+                        assembler.movdqa(*to_arg, from_arg.to_xmm()).unwrap();
+                    }
+                    assert!(integer_args.is_empty());
+                    assert!(float_args.is_empty());
+                    assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                    let double_res = double_res.unwrap();
+                    assembler.movdqa(double_res.to_xmm(), xmm0).unwrap();
+                }
             }
         }
     }

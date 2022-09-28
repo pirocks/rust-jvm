@@ -56,7 +56,7 @@ pub unsafe extern "C" fn get_long_attribute(env: *mut JNIEnv, obj: jobject, att:
 
 pub unsafe extern "C" fn get_input_argument_array(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env as *mut JNIEnv);
-    let int_state = get_interpreter_state(env as *mut jvmti_jni_bindings::JNIEnv);
-    new_local_ref_public_new(Some(jvm.local_var_array.get().unwrap().as_allocated_obj()), todo!()/*int_state*/) as jobject
+    let int_state = get_interpreter_state(env as *mut JNIEnv);
+    new_local_ref_public_new(Some(jvm.program_args_array.get().unwrap().as_allocated_obj()), int_state) as jobject
 }
 

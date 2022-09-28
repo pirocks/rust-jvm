@@ -199,6 +199,7 @@ pub enum IRInstr {
         float_args: Vec<FloatRegister>,
         float_res: Option<FloatRegister>,
         double_args: Vec<DoubleRegister>,
+        double_res: Option<DoubleRegister>,
     },
     NOP,
     DebuggerBreakpoint,

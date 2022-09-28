@@ -12,7 +12,6 @@ use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{JavaValueCommon, JVMState, WasException};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::java_values::ExceptionReturn;
 use crate::new_java_values::NewJavaValueHandle;
@@ -199,7 +198,6 @@ unsafe fn get_static_field<'gc, 'l>(env: *mut JNIEnv, klass: jclass, field_id_ra
     let name = view.field(field_i as usize).field_name();
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
     check_initing_or_inited_class(jvm, int_state, rc.cpdtype())?;
     let guard = static_vars(rc.deref(), jvm);
     Ok(guard.borrow().get(name))
@@ -216,7 +214,7 @@ pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass
     };
     new_local_ref_public_new(
         object.as_ref().map(|handle| handle.as_allocated_obj()),
-        todo!()/*int_state*/,
+        int_state,
     )
 }
 

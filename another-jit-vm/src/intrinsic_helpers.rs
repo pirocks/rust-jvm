@@ -9,10 +9,15 @@ extern "C" fn fremf(a: f32, b: f32) -> f32{
     a % b
 }
 
+extern "C" fn dremd(a: f64, b: f64) -> f64{
+    a % b
+}
+
 #[repr(C)]
 pub struct IntrinsicHelpers {
     memmove: *const c_void,
     fremf: *const c_void,
+    dremd: *const c_void,
     //todo move over instance of to this
     instanceof_helper: *const c_void,
 }
@@ -22,6 +27,7 @@ impl IntrinsicHelpers {
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
             fremf: fremf as *const c_void,
+            dremd: dremd as *const c_void,
             instanceof_helper: null_mut(),
         }
     }
@@ -31,6 +37,7 @@ impl IntrinsicHelpers {
 pub enum IntrinsicHelperType {
     Memmove,
     FRemF,
+    DRemD,
     InstanceOf,
 }
 
@@ -45,6 +52,9 @@ impl IntrinsicHelperType {
             }
             IntrinsicHelperType::InstanceOf => {
                 todo!()
+            }
+            IntrinsicHelperType::DRemD => {
+                offset_of!(IntrinsicHelpers,dremd)
             }
         }
     }
