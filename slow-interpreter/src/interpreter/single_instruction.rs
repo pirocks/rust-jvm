@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use itertools::Either;
 use libc::c_void;
+use classfile_view::view::ClassView;
 
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
@@ -46,9 +47,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     current_pc: ByteCodeOffset,
 ) -> PostInstructionAction<'gc> {
     function_counter.increment();
-    // if method.name().0.to_str(&jvm.string_pool) == "nextGaussian"{
-    //     dump_frame(interpreter_state, method, code,current_pc,instruct)
-    // }
+    //hd/e
+    //hd#readByte
+    //io.netty.buffer.UnpooledHeapByteBuf#_getByte
+    //io.netty.buffer.AbstractByteBuf#readByte
+    if method.name().0.to_str(&jvm.string_pool) == "readByte" && method.classview().name().jvm_representation(&jvm.string_pool).contains("io/netty/buffer/AbstractByteBuf"){
+        dump_frame(interpreter_state, method, code,current_pc,instruct)
+    }
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),

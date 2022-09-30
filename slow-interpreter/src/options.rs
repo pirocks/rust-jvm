@@ -119,12 +119,15 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "sun/reflect/generics/parser/SignatureParser/parseClassTypeSignature".to_string(),
             // },
-            // MethodToTrace {
-            //     combined: "sun/reflect/generics/parser/SignatureParser/parsePackageNameAndSimpleClassTypeSignature".to_string(),
-            // },
-            // MethodToTrace {
-            //     combined: "sun/reflect/generics/parser/SignatureParser/parseTypeArguments".to_string(),
-            // },
+            MethodToTrace {
+                combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),
+            },
+            MethodToTrace {
+                combined: "hd/readByte".to_string(),
+            },
+            MethodToTrace {
+                combined: "hd/e".to_string(),
+            },
             // MethodToTrace {
             //     combined: "uv/a".to_string(),
             // },

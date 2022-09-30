@@ -134,7 +134,10 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
             Ok(res) => {
                 return Ok(res);
             }
-            Err(_) => todo!(),
+            Err(WasException { exception_obj }) => {
+                interpreter_state.debug_print_stack_trace(jvm);
+                return Err(WasException { exception_obj });
+            }
         }
     } else if !target_method.is_abstract() {
         // let mut args = vec![];

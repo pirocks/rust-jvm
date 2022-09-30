@@ -542,7 +542,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
                     one_word_const(method_frames, current_index);
                 }
                 SimplifiedVType::TwoWord => {
-                    todo!()
+                    two_word_const(method_frames, current_index);
                 }
                 SimplifiedVType::Top => {
                     panic!()
@@ -919,10 +919,10 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             two_two_word_in_two_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::lushr => {
-            todo!()
+            one_word_and_two_word_in_two_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::lxor => {
-            todo!()
+            two_two_word_in_two_word_out(method_frames, current_index);
         }
         CompressedInstructionInfo::monitorenter => {
             one_word_in_zero_out(method_frames, current_index);
@@ -964,7 +964,7 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
                     one_word_in_zero_out(method_frames, current_index);
                 }
                 SimplifiedVType::TwoWord => {
-                    todo!()
+                    two_word_in_zero_out(method_frames, current_index);
                 }
                 SimplifiedVType::Top => {
                     panic!()
@@ -1014,6 +1014,17 @@ fn infer_single_instruct(method_frames: &mut MethodFrames, return_type: CPDType,
             todo!()
         }
     }
+}
+
+fn one_word_and_two_word_in_two_word_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
+    current_frame.assert_operand_stack_entry_is(1, SimplifiedVType::TwoWord);
+    let mut operand_stack = current_frame.operand_stack();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    let _ = operand_stack.pop().unwrap().unwrap();
+    operand_stack.push(Some(SimplifiedVType::TwoWord));
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
 }
 
 fn invoke(method_frames: &mut MethodFrames, i: usize, descriptor: &CMethodDescriptor, include_obj_ref: bool) {
@@ -1148,6 +1159,14 @@ fn one_word_in_two_word_out(method_frames: &mut MethodFrames, current_index: Byt
 fn one_word_in_zero_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
     let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
     current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::OneWord);
+    let mut operand_stack = current_frame.operand_stack();
+    operand_stack.pop().unwrap().unwrap();
+    next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
+}
+
+fn two_word_in_zero_out(method_frames: &mut MethodFrames, current_index: ByteCodeIndex) {
+    let (current_frame, mut next_frame) = method_frames.nth_frame_and_next_mut(current_index);
+    current_frame.assert_operand_stack_entry_is(0, SimplifiedVType::TwoWord);
     let mut operand_stack = current_frame.operand_stack();
     operand_stack.pop().unwrap().unwrap();
     next_frame.as_mut().unwrap().assert_operand_stack_is(operand_stack);
