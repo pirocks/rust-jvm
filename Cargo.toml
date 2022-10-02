@@ -45,5 +45,7 @@ members = [
     "native-vec",
     "jvm-args",
     "xtask",
-    "thread-signal-handler"
+    "thread-signal-handler",
+    "pressure-stall-information-parser",
+    "meminfo-parser"
 ]

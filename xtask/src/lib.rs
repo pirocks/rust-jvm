@@ -5,6 +5,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
+pub mod build_steps;
+
 fn default_deps_dir(workspace_dir: &Path) -> PathBuf {
     workspace_dir.join("deps")
 }
