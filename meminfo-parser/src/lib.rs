@@ -2,11 +2,10 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use itertools::Itertools;
+use memory_amount::MemoryAmount;
 
 use crate::errors::{AsyncError, ParseError, SyncError};
-use crate::memory_amount::MemoryAmount;
 
-pub mod memory_amount;
 pub mod errors;
 
 pub struct MemInfo {

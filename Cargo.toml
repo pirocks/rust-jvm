@@ -47,5 +47,6 @@ members = [
     "xtask",
     "thread-signal-handler",
     "pressure-stall-information-parser",
-    "meminfo-parser"
+    "meminfo-parser",
+    "memory-limited-executor"
 ]

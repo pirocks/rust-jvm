@@ -1,10 +1,11 @@
-use std::num::ParseIntError;
+use memory_amount::MemoryAmountParseError;
 
 pub enum SyncError {
     IO(IOError),
     Parse(ParseError),
 }
 
+#[derive(Debug)]
 pub enum AsyncError {
     IO(IOError),
     Parse(ParseError),
@@ -15,18 +16,13 @@ pub enum ParseError {
     MultipleColonsPerLine {
         line: String
     },
-    InvalidMemoryAmount {
-        line: String
-    },
+    InvalidMemoryAmount(MemoryAmountParseError),
     MissingTotal,
     MissingFree,
     MissingAvailable,
-    ParseIntError{
-        err: ParseIntError
-    }
 }
 
-
+#[derive(Debug)]
 pub struct IOError {
     err: std::io::Error,
 }
@@ -60,8 +56,8 @@ impl From<std::io::Error> for AsyncError {
     }
 }
 
-impl From<ParseIntError> for ParseError{
-    fn from(parse_int_error: ParseIntError) -> Self {
-        Self::ParseIntError { err: parse_int_error }
+impl From<MemoryAmountParseError> for ParseError{
+    fn from(memory_amount: MemoryAmountParseError) -> Self {
+        Self::InvalidMemoryAmount(memory_amount)
     }
 }

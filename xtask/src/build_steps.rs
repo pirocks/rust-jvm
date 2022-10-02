@@ -2,16 +2,16 @@ use std::collections::HashSet;
 use std::fmt::Debug;
 use std::hash::Hash;
 use std::path::PathBuf;
+use anyhow::anyhow;
 
 use ron::ser::{PrettyConfig, to_string_pretty};
 use ron::to_string;
 use serde::{Deserialize, Serialize};
+use xshell::cmd;
 
 //todo has libs
 
-#[derive(Debug, Hash, Serialize, Deserialize, Eq, PartialEq)]
-pub enum BuildStep {
-    HasGit,
+/*    HasGit,
     HasMake,
     HasGPP,
     HasGCC,
@@ -22,9 +22,44 @@ pub enum BuildStep {
     JDK8BuildConfigure,
     MakeImages,
     Dist,
+*/
+pub struct HasGitBuildStatus{
+
 }
 
-pub struct HasGitBuildStatus{
+pub struct HasGit{
+
+}
+
+impl HasTool for HasGit{
+
+}
+
+impl BuildStep for HasGit {
+    type AssociatedBuildStatus = HasToolBuildStatus;
+
+    fn validate_build_status(&self, build_status: &BuildStatus) {
+        if cmd!(sh, "git --version").run().is_err() {
+            return Err(anyhow!("git needs to be installed"));
+        }
+    }
+}
+
+pub trait HasTool: BuildStep{
+
+
+
+
+    fn build_deps(&self, deps: &BuildStatus) {
+        todo!()
+    }
+
+    fn rebuild_given_deps(&self, deps: &BuildStatus) {
+        todo!()
+    }
+}
+
+pub struct HasToolBuildStatus{
 
 }
 
@@ -40,9 +75,13 @@ impl BuildStatus{
 }
 
 pub trait BuildStep{
-    fn rebuild_given_deps(&self, deps: &BuildStatus) {
+    type AssociatedBuildStatus;
 
-    }
+    fn validate_build_status(&self, build_status: &BuildStatus);
+
+    fn build_deps(&self, deps: &BuildStatus);
+
+    fn rebuild_given_deps(&self, deps: &BuildStatus);
 
     fn unique_id(&self) -> String {
         to_string(self).unwrap()
@@ -51,44 +90,6 @@ pub trait BuildStep{
     fn pretty_name(&self) -> String {
         let pretty_config = PrettyConfig::new();
         to_string_pretty(self, pretty_config).unwrap()
-    }
-
-    fn deps(&self) -> HashSet<BuildStep> {
-        match self {
-            BuildStep::HasGit => {
-                vec![]
-            }
-            BuildStep::HasMake => {
-                vec![]
-            }
-            BuildStep::HasGPP => {
-                vec![]
-            }
-            BuildStep::HasGCC => {
-                vec![]
-            }
-            BuildStep::HasWGET => {
-                vec![]
-            }
-            BuildStep::DownloadBootstrapJDK => {
-                vec![BuildStep::HasWGET]
-            }
-            BuildStep::ExtractBootstrapJDK => {
-                vec![BuildStep::DownloadBootstrapJDK]
-            }
-            BuildStep::JDK8UClone => {
-                vec![BuildStep::HasGit]
-            }
-            BuildStep::JDK8BuildConfigure => {
-                vec![BuildStep::ExtractBootstrapJDK, BuildStep::JDK8UClone]
-            }
-            BuildStep::MakeImages => {
-                vec![BuildStep::JDK8BuildConfigure]
-            }
-            BuildStep::Dist => {
-                vec![BuildStep::MakeImages]
-            }
-        }
     }
 }
 
