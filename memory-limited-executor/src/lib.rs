@@ -7,6 +7,8 @@ use std::process::ExitStatus;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
+use anyhow::anyhow;
+use itertools::Itertools;
 use tokio::process::Child;
 use tokio::sync::RwLock;
 use meminfo_parser::async_current_meminfo;
@@ -64,6 +66,31 @@ impl MemoryLimitedProcessExecutor{
         }
     }
 
+    pub async fn simple_process(&self, simple_string: impl AsRef<str>, expected_max_ram: MemoryAmount) -> anyhow::Result<()> {
+        let simple_string = simple_string.as_ref();
+        let split_words: Vec<String> = shell_words::split(&simple_string)?;
+        let (binary, args) = split_words.split_at(1);
+        let proccess_handle = self.submit_process(ProcessStartData {
+            binary: OsString::from(&binary[0]),
+            args: args.iter().map(OsString::from).collect_vec(),
+            working_dir: None,
+            env_vars: None,
+            expected_max_ram,
+        }).await;
+        let process_result = self.complete_process(proccess_handle).await;
+        match process_result.as_ref().as_ref().ok() {
+            Some(status) => {
+                if !status.success(){
+                    return Err(anyhow!("`{}` exited with code: {:?}", simple_string, status.code()));
+                }
+            },
+            None => {
+                return Err(anyhow!("Error waiting process: {}", simple_string));
+            },
+        }
+        Ok(())
+    }
+
     async fn available_ram(&self) -> MemoryAmount{
         async_current_meminfo("/proc/meminfo").await.expect("Unable to parse meminfo?").available
     }
@@ -84,7 +111,7 @@ impl MemoryLimitedProcessExecutor{
         if let Some(working_dir) = working_dir{
             command.current_dir(working_dir);
         }
-        let mut child = command.spawn().expect("Failed to spawn?");
+        let child = command.spawn().expect("Failed to spawn?");
         let new_handle = self.new_process_handle();
         let mut running_processes_guard = self.inner.write().await;
         running_processes_guard.running_processes.insert(new_handle, Arc::new(RwLock::new(RunningProcessData{
@@ -115,7 +142,6 @@ impl MemoryLimitedProcessExecutor{
 #[cfg(test)]
 pub mod test{
     use std::ffi::OsString;
-    use std::process::id;
     use memory_amount::MemoryAmount;
     use crate::{MemoryLimitedProcessExecutor, ProcessStartData};
 
