@@ -23,13 +23,15 @@ use crate::build_steps::has_tool::{HasGCCBuildStatus, HasGitBuildStatus, HasGPPB
     MakeImages,
     Dist,
 */
+
+pub mod has_tool;
+pub mod download_bootstrap_jdk;
+
 pub enum BuildStatusValidationResult{
     NeedsRebuild,
     Okay,
     Error(anyhow::Error)
 }
-
-pub mod has_tool;
 
 pub struct BuildStatus{
     build_env: BuildEnv,
