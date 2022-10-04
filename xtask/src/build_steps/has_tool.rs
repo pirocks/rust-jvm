@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use memory_amount::MemoryAmount;
 use memory_limited_executor::MemoryLimitedProcessExecutor;
 use crate::build_steps::{BuildStatus, BuildStatusValidationResult, BuildStep};
-use serde::{Serialize, Serializer};
+use serde::{Serialize};
 
 pub struct HasGitBuildStatus {
 //if set then we have gitdddd

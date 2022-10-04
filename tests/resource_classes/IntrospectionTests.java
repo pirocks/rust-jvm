@@ -35,12 +35,7 @@ public class IntrospectionTests {
         for (Class<?> declaredClass : HashMap.class.getDeclaredClasses()) {
             if(declaredClass.getName().equals("java.util.HashMap$Values")){
                 final ClassRepository classRepository = ClassRepository.make("Ljava/util/AbstractCollection<TV;>;", CoreReflectionFactory.make(declaredClass, ClassScope.make(declaredClass)));
-                System.out.println(classRepository);
-                System.out.println(Arrays.toString(classRepository.getSuperInterfaces()));
-                System.out.println(classRepository.getSuperclass());
-                System.out.println(declaredClass);
                 final Type genericSuperclass = declaredClass.getGenericSuperclass();
-                System.out.println(genericSuperclass.getClass());
                 if(!genericSuperclass.toString().equals("java.util.AbstractCollection<V>")){
                     throw new AssertionError("8");
                 }
@@ -49,7 +44,5 @@ public class IntrospectionTests {
         if(!HashMap.class.getGenericSuperclass().toString().equals("java.util.AbstractMap<K, V>")){
             throw new AssertionError("9");
         }
-        final int a = (int)Math.pow(17.0, 2.0);
-        System.out.println("a" + a);
     }
 }
