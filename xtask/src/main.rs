@@ -1,9 +1,12 @@
+#![feature(exit_status_error)]
+
 use std::{env, fs};
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use anyhow::anyhow;
-use clap::Parser;
+use clap::{Parser};
 use xshell::{cmd, Shell};
 
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config, XTaskConfig};
@@ -33,6 +36,8 @@ pub enum OptsInner {
     Clean {},
     #[clap(about = "create dist")]
     Dist {},
+    #[clap(about = "run tests")]
+    Test {}
 }
 
 fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) -> anyhow::Result<()> {
@@ -92,6 +97,28 @@ fn main() -> anyhow::Result<()> {
             generic_copy(&sh, jdk_dir.join("lib"), copied_jdk_dir.join("lib"))?;
             generic_copy(&sh, &java_executable, copied_jdk_dir.join("bin").join("java"))?;
             generic_copy(&sh, &libjvm_so, copied_jdk_dir.join("bin").join("libjvm.so"))?;
+        }
+        OptsInner::Test { } => {
+            let config = load_or_create_xtask_config(workspace_dir)?;
+            let test_resources = workspace_dir.join("tests/resource_classes");
+            let javac = config.bootstrap_jdk_dir.expect("need bootstrap jdk").join("bin/javac");
+            let mut command = Command::new(javac);
+            let mut source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path|{
+                Ok(globbed_path?.into_os_string())
+            }).collect::<Result<Vec<OsString>,anyhow::Error>>()?;
+            source_files.push(OsString::from("-target"));
+            source_files.push(OsString::from("1.8"));
+            source_files.push(OsString::from("-d"));
+            let target_dir = workspace_dir.join("target");
+            source_files.push(target_dir.into_os_string());
+            command.args(source_files.into_iter());
+            let mut child = command.spawn()?;
+            child.wait()?.exit_ok()?;
+            let sh = Shell::new()?;
+
+            cmd!(sh,"cargo run --release --   --main net.minecraft.server.MinecraftServer  --libjava /home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --classpath /home/francis/Clion/rust-jvm/resources/test /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security").run()?;
+
+            todo!();
         }
     }
     Ok(())
