@@ -249,4 +249,25 @@ impl<'gc> ThreadState<'gc> {
         todo!()
         /*self.system_thread_group.read().unwrap().as_ref().unwrap().clone()*/
     }
+
+    pub fn wait_all_threads(&self) {
+        loop {
+            let read_guard = self.all_java_threads.read().unwrap();
+            let mut all_threads = vec![];
+            for threads in read_guard.values() {
+                all_threads.push(threads.clone());
+            }
+            drop(read_guard);
+            let all_threads_done = true;
+            for thread in all_threads{
+                todo!()
+                    //todo what if new thread created.
+                // thread.wait_thread_exit();
+            }
+            if all_threads_done{
+                break
+            }
+        }
+    }
+
 }

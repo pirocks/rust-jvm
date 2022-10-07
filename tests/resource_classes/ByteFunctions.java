@@ -10,17 +10,17 @@ public class ByteFunctions {
     }
 
     void loop() {
-        for (int i = 0; i < 512; i++) {
-            boolean should_be_equal = i <= Byte.MAX_VALUE;
+        for (int i = -512; i < 512; i++) {
+            boolean should_be_equal = i <= Byte.MAX_VALUE && i >= Byte.MIN_VALUE;
             takes_byte(i, (byte) i, should_be_equal);
         }
     }
 
     void takes_byte(int a, byte b, boolean should_be_equal) {
-        if (a == b && should_be_equal) {
+        if (a == b && a*2 == b*2 && a-2 == b-2 && !should_be_equal) {
             throw new AssertionError();
         }
-        if (a != b && !should_be_equal) {
+        if (a != b && a*2 != b*2 && a-2 != b-2 && should_be_equal) {
             throw new AssertionError();
         }
     }

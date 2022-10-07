@@ -11,10 +11,12 @@ tokio = { version = "1", features = ["fs", "sync"] }
 anyhow = "1"
 xshell = "0.2"
 serde = "1"
-ron = "0.8.0"
-fs_extra = "1.2.0"
-regex = "1.6.0"
+ron = "0.8"
+fs_extra = "1"
+regex = "1"
+shell-words = "1"
 memory-limited-executor = { path = "../memory-limited-executor" }
 memory-amount = { path = "../memory-amount" }
 async-trait = "0.1"
-glob = "0.3.0"
+glob = "0.3"
+rayon = "1.5"

@@ -1,12 +1,14 @@
 #![feature(exit_status_error)]
 
 use std::{env, fs};
+use std::collections::HashSet;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::anyhow;
 use clap::{Parser};
+use rayon::prelude::{IntoParallelRefIterator, ParallelIterator};
 use xshell::{cmd, Shell};
 
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config, XTaskConfig};
@@ -103,22 +105,35 @@ fn main() -> anyhow::Result<()> {
             let test_resources = workspace_dir.join("tests/resource_classes");
             let javac = config.bootstrap_jdk_dir.expect("need bootstrap jdk").join("bin/javac");
             let mut command = Command::new(javac);
-            let mut source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path|{
+            let source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path|{
                 Ok(globbed_path?.into_os_string())
             }).collect::<Result<Vec<OsString>,anyhow::Error>>()?;
-            source_files.push(OsString::from("-target"));
-            source_files.push(OsString::from("1.8"));
-            source_files.push(OsString::from("-d"));
+            let mut compiler_args = vec![];
+            compiler_args.extend_from_slice(source_files.as_slice());
+            compiler_args.push(OsString::from("-target"));
+            compiler_args.push(OsString::from("1.8"));
+            compiler_args.push(OsString::from("-d"));
             let target_dir = workspace_dir.join("target");
-            source_files.push(target_dir.into_os_string());
-            command.args(source_files.into_iter());
+            compiler_args.push(target_dir.into_os_string());
+            command.args(compiler_args.into_iter());
             let mut child = command.spawn()?;
             child.wait()?.exit_ok()?;
-            let sh = Shell::new()?;
+            // let sh = Shell::new()?;
 
-            cmd!(sh,"cargo run --release --   --main net.minecraft.server.MinecraftServer  --libjava /home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so --classpath /home/francis/Clion/rust-jvm/resources/test /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security").run()?;
+            let classpath = "/home/francis/CLionProjects/rust-jvm/target /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security";
+            let libjava = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so";
 
-            todo!();
+            let exclude: HashSet<&str> = HashSet::from_iter(["IntrospectionTests"]);
+            source_files.par_iter().try_for_each(|source_file|{
+                let path_buf = PathBuf::from(source_file);
+                let main = path_buf.file_stem().unwrap().to_str().unwrap();
+                if !exclude.contains(main){
+                    let mut args = vec![];
+                    args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {}",main, libjava, classpath).as_str())?);
+                    Command::new("cargo").args(args).spawn()?.wait()?;
+                }
+                Ok::<_, anyhow::Error>(())
+            })?;
         }
     }
     Ok(())

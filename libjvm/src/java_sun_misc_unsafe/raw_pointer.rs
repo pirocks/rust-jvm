@@ -83,9 +83,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
         (dst_obj as *mut i8).offset(address as isize)
     };
     assert!(len > 0);
-    for i in 0..len {
-        dbg!(src_address.offset(i as isize).read());
-    }
     volatile_copy_memory(dst_address, src_address, len as usize)
     // let nonnull = match from_object_new(jvm, src_obj) {
     //     Some(x) => x,

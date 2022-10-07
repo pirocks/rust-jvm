@@ -110,7 +110,7 @@ pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads
         }).unwrap();
         //todo handle exception exit from main
         main_thread.notify_terminated(jvm);
-        todo!()
+        Ok(())
     }).expect("todo");
     main_send.send(main_thread_start_info).unwrap();
     res

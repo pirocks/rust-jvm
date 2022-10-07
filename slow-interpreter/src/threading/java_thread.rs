@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::Duration;
 
 use num_integer::Integer;
@@ -35,7 +35,8 @@ pub struct JavaThread<'vm> {
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
-    pub thread_status: RwLock<ThreadStatus>,
+    pub thread_status: Mutex<ThreadStatus>,
+    pub thread_status_change_condvar: Condvar
 }
 
 impl<'gc> JavaThread<'gc> {
@@ -79,7 +80,7 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.thread_status.read().unwrap().alive
+        self.thread_status.lock().unwrap().alive
     }
 
     fn new(jvm: &'gc JVMState<'gc>, thread_obj: Option<JThread<'gc>>, invisible_to_java: bool) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack> {
@@ -105,7 +106,8 @@ impl<'gc> JavaThread<'gc> {
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
             safepoint_state: SafePoint::new(),
-            thread_status: RwLock::new(ThreadStatus { terminated: false, alive: false, interrupted: false }),
+            thread_status: Mutex::new(ThreadStatus { terminated: false, alive: false, interrupted: false }),
+            thread_status_change_condvar: Condvar::new()
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         Ok(res)
@@ -132,12 +134,13 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn notify_alive(&self, jvm: &'gc JVMState<'gc>) {
-        let mut status = self.thread_status.write().unwrap();
+        let mut status = self.thread_status.lock().unwrap();
         status.alive = true;
         self.update_thread_object(jvm, status)
     }
 
-    fn update_thread_object(&self, jvm: &'gc JVMState<'gc>, status: RwLockWriteGuard<ThreadStatus>) {
+    fn update_thread_object(&self, jvm: &'gc JVMState<'gc>, status: MutexGuard<ThreadStatus>) {
+        self.thread_status_change_condvar.notify_one();
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
             obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()))
@@ -145,14 +148,15 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn notify_terminated(&self, jvm: &'gc JVMState<'gc>) {
-        let mut status = self.thread_status.write().unwrap();
+        let mut status = self.thread_status.lock().unwrap();
 
         status.terminated = true;
+        status.alive = false;
         self.update_thread_object(jvm, status)
     }
 
     pub fn status_number(&self) -> jint {
-        let status_guard = self.thread_status.read().unwrap();
+        let status_guard = self.thread_status.lock().unwrap();
         self.safepoint_state.get_thread_status_number(status_guard.deref())
     }
 
@@ -230,6 +234,18 @@ impl<'gc> JavaThread<'gc> {
                 }
             }
         });
+    }
+
+    pub fn wait_thread_exit(&self) {
+        let mut is_alive = self.thread_status.lock().unwrap().alive;
+        loop {
+            if !is_alive{
+                break
+            }
+            if is_alive {
+                is_alive = self.thread_status_change_condvar.wait(self.thread_status.lock().unwrap()).unwrap().alive;
+            }
+        }
     }
 }
 

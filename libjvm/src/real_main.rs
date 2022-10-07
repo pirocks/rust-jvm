@@ -88,6 +88,8 @@ fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
     main_run(args, &jvm_ref);
+    //todo clean jvm shutdown
+    std::process::exit(0);
 }
 
 pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
@@ -113,8 +115,10 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     //                 ()
     //             });
     //         }
-    //         std::thread::sleep(Duration::from_millis(100000));
+    //         std::thread::sleep(Duration::from_millis(1000));
     //     }
     // }, box ());
     main_thread.get_underlying().join();
+    // main_thread.wait_thread_exit();
+    // jvm_ref.thread_state.wait_all_threads();
 }

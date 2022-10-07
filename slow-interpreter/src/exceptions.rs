@@ -9,6 +9,6 @@ pub struct WasException<'gc> {
 
 impl Debug for WasException<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        todo!()
+        write!(f, "exception")
     }
 }

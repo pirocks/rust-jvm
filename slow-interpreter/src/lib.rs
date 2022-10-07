@@ -20,8 +20,6 @@
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::thread::sleep;
-use std::time::Duration;
 
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
@@ -108,15 +106,14 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
                 if !jvm.config.compiled_mode_active {
                     todo!()// int_state.pop_frame(jvm, main_frame_guard, false);
                 }
-                loop {
-                    sleep(Duration::new(100, 0)); //todo need to wait for other threads or something
-                }
+
+                return Ok(())
                 // panic!();
             }
             Err(WasException { exception_obj }) => {
-                todo!();// let throwable = int_state.throw().unwrap().duplicate_discouraged().cast_throwable();
-                // int_state.set_throw(None);
-                // throwable.print_stack_trace(jvm, int_state).unwrap();
+                //todo should be allowing catching in main
+                exception_obj.print_stack_trace(jvm, java_native).unwrap();
+                dbg!("main exited with exception");
                 // dbg!(throwable.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));
                 // int_state.debug_print_stack_trace(jvm);
                 todo!()
