@@ -14,6 +14,7 @@ use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::boolean::Boolean;
 use crate::stdlib::java::lang::byte::Byte;
@@ -97,11 +98,12 @@ pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state
 }
 
 pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<T, WasException<'gc>> {
-    let _ = throw_array_out_of_bounds::<T>(jvm, int_state, index);
-    Err(WasException { exception_obj: todo!() })
+    let mut throw = None;
+    let _ = throw_array_out_of_bounds::<T>(jvm, int_state, &mut throw, index);
+    Err(throw.unwrap())
 }
 
-pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> T {
+pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>, index: jint) -> T {
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
         Err(WasException { exception_obj }) => {
@@ -113,7 +115,7 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
         .object()
         .new_java_handle().unwrap_object_nonnull();
     int_state.debug_print_stack_trace(jvm);
-    todo!();// int_state.set_throw(Some(bounds_object));
+    *throw = Some(WasException{ exception_obj: bounds_object.cast_throwable() });
     T::invalid_default()
 }
 

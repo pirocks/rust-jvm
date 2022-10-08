@@ -24,7 +24,7 @@ use slow_interpreter::java_values::{default_value, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
@@ -76,12 +76,13 @@ unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueH
 unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, index: jint) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    let throw = get_throw(env);
     match get_array(env, arr) {
         Ok(jv) => {
             let nonnull = jv.unwrap_object_nonnull();
             let len = nonnull.unwrap_array().len() as i32;
             if index < 0 || index >= len {
-                return throw_array_out_of_bounds(jvm, int_state, index);
+                return throw_array_out_of_bounds(jvm, int_state, throw, index);
             }
             let java_value = nonnull.unwrap_array().get_i(index as usize);
             new_local_ref_public(

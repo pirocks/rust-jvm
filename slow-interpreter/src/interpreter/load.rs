@@ -3,7 +3,7 @@ use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDT
 use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JVMState, WasException};
+use crate::JVMState;
 use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
@@ -82,8 +82,7 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(jvm: &'gc JVMState<'gc>, mu
     };
     unsafe {
         if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
-            throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err();
-            return PostInstructionAction::Exception { exception: WasException { exception_obj: todo!() } };
+            return PostInstructionAction::Exception { exception: throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err() };
         }
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };

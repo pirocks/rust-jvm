@@ -16,7 +16,7 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValue;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
@@ -259,10 +259,11 @@ unsafe extern "system" fn JVM_GetMethodTypeAnnotations(env: *mut JNIEnv, method:
 unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    let throw = get_throw(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.num_methods() as jint {
-        return throw_array_out_of_bounds(jvm, int_state, index);
+        return throw_array_out_of_bounds(jvm, int_state, throw, index);
     }
     u8::from(view.method_view_i(index as u16).name() == MethodName::constructor_init())
 }

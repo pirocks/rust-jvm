@@ -146,7 +146,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     }
         .into_iter()
         .map(|ptype| {
-            Ok(get_or_create_class_object(jvm, ptype, pushable_frame_todo())?.new_java_handle())
+            Ok(get_or_create_class_object(jvm, ptype, int_state)?.new_java_handle())
         })
         .collect::<Result<Vec<_>, _>>();
     let obj_array = match res_array {
@@ -161,7 +161,7 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         obj_array.iter().map(|njvh| njvh.as_njv()).collect_vec(),
         CClassName::class().into(),
     );
-    new_local_ref_public_new(Some(res_jv.as_allocated_obj()), todo!()/*int_state*/)
+    new_local_ref_public_new(Some(res_jv.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

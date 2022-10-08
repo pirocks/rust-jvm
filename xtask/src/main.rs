@@ -104,6 +104,10 @@ fn main() -> anyhow::Result<()> {
         }
         OptsInner::Test { } => {
             let config = load_or_create_xtask_config(workspace_dir)?;
+            let compilation_dir = config.dep_dir.join("compiled_test_classes");
+            if !compilation_dir.exists(){
+                fs::create_dir(&compilation_dir)?;
+            }
             let test_resources = workspace_dir.join("tests/resource_classes");
             // let test_resources = PathBuf::from("/home/francis/CLionProjects/jdk8u/jdk/test");
             let javac = config.bootstrap_jdk_dir.expect("need bootstrap jdk").join("bin/javac");
@@ -116,23 +120,22 @@ fn main() -> anyhow::Result<()> {
             compiler_args.push(OsString::from("-target"));
             compiler_args.push(OsString::from("1.8"));
             compiler_args.push(OsString::from("-d"));
-            let target_dir = workspace_dir.join("target");
-            compiler_args.push(target_dir.into_os_string());
+            compiler_args.push(compilation_dir.clone().into_os_string());
             command.args(compiler_args.into_iter());
             let mut child = command.spawn()?;
             child.wait()?.exit_ok()?;
             // let sh = Shell::new()?;
 
-            let classpath = "/home/francis/CLionProjects/rust-jvm/target /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security";
+            let classpath = "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security";
             let libjava = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so";
 
-            let exclude: HashSet<&str> = HashSet::from_iter(["IntrospectionTests"]);
+            let exclude: HashSet<&str> = HashSet::from_iter([]);
             source_files.par_iter().try_for_each(|source_file|{
                 let path_buf = PathBuf::from(source_file);
                 let main = path_buf.file_stem().unwrap().to_str().unwrap();
                 if !exclude.contains(main){
                     let mut args = vec![];
-                    args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {}",main, libjava, classpath).as_str())?);
+                    args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {} {}",main, libjava, compilation_dir.display(), classpath).as_str())?);
                     Command::new("cargo").args(args).spawn()?.wait()?;
                 }
                 Ok::<_, anyhow::Error>(())

@@ -15,7 +15,7 @@ use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::stdlib::java::lang::string::JString;
@@ -115,6 +115,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
 unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: jobject, index: jint) -> jobject {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
+    let throw = get_throw(env);
     let guard = jvm.stacktraces_by_throwable.read().unwrap();
     let throwable_not_null = match from_object_new(jvm, throwable) {
         Some(x) => x,
@@ -131,7 +132,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     match stack_traces.get(index as usize)
     {
         None => {
-            return throw_array_out_of_bounds(jvm, int_state, index);
+            return throw_array_out_of_bounds(jvm, int_state, throw, index);
         }
         Some(element) => { to_object_new(Some(element.full_object_ref())) }
     }
