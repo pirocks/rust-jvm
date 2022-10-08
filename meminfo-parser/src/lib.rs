@@ -8,6 +8,7 @@ use crate::errors::{AsyncError, ParseError, SyncError};
 
 pub mod errors;
 
+#[allow(unused)]
 pub struct MemInfo {
     pub total: MemoryAmount,
     pub free: MemoryAmount,

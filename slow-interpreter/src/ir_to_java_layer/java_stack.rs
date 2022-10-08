@@ -14,6 +14,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use crate::{JavaValue, JVMState};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 
+#[allow(unused)]
 pub struct OwnedJavaStack<'vm> {
     java_vm_state: &'vm JavaVMStateWrapper<'vm>,
     pub(crate) inner: OwnedIRStack,

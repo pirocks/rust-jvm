@@ -14,6 +14,7 @@ use tokio::sync::RwLock;
 use meminfo_parser::async_current_meminfo;
 use memory_amount::MemoryAmount;
 
+#[allow(unused)]
 pub struct RunningProcessData{
     start_data: ProcessStartData,
     child: Child

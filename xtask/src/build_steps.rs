@@ -33,6 +33,7 @@ pub enum BuildStatusValidationResult{
     Error(anyhow::Error)
 }
 
+#[allow(unused)]
 pub struct BuildStatus{
     build_env: BuildEnv,
     executor: MemoryLimitedProcessExecutor,
@@ -106,11 +107,13 @@ pub trait BuildStep : Serialize{
 
 pub struct BuildStepIdentifier {}
 
+#[allow(unused)]
 pub struct BuildEnv {
     repo_dir: PathBuf,
     build_dir: PathBuf,
 }
 
+#[allow(unused)]
 pub fn get_to_step(build_env: &BuildEnv, step: !/*&dyn BuildStep*/) {
     todo!()
 }

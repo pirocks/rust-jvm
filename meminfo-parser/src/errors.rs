@@ -23,6 +23,7 @@ pub enum ParseError {
 }
 
 #[derive(Debug)]
+#[allow(unused)]
 pub struct IOError {
     err: std::io::Error,
 }

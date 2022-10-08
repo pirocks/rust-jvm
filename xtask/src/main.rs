@@ -39,7 +39,9 @@ pub enum OptsInner {
     #[clap(about = "create dist")]
     Dist {},
     #[clap(about = "run tests")]
-    Test {}
+    Test {},
+    #[clap(about = "run openjdk tests")]
+    OpenJDKTest {}
 }
 
 fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) -> anyhow::Result<()> {
@@ -103,6 +105,7 @@ fn main() -> anyhow::Result<()> {
         OptsInner::Test { } => {
             let config = load_or_create_xtask_config(workspace_dir)?;
             let test_resources = workspace_dir.join("tests/resource_classes");
+            // let test_resources = PathBuf::from("/home/francis/CLionProjects/jdk8u/jdk/test");
             let javac = config.bootstrap_jdk_dir.expect("need bootstrap jdk").join("bin/javac");
             let mut command = Command::new(javac);
             let source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path|{
@@ -134,6 +137,9 @@ fn main() -> anyhow::Result<()> {
                 }
                 Ok::<_, anyhow::Error>(())
             })?;
+        }
+        OptsInner::OpenJDKTest { .. } => {
+            todo!()
         }
     }
     Ok(())

@@ -132,7 +132,7 @@ impl <T: HasTool + Serialize + Send + Sync> BuildStep for T{
         BuildStatusValidationResult::Okay
     }
 
-    async fn build_deps(&self, deps: &BuildStatus) {
+    async fn build_deps(&self, _deps: &BuildStatus) {
         //maybe require bash or something?
     }
 
