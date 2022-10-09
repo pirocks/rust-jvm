@@ -111,8 +111,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::trace_instruction_after(&jvm, int_state.unwrap(), *method_id, *return_to_ptr, *bytecode_offset)
             }
             RuntimeVMExitInput::NPE { .. } => {
-                todo!();
-                // int_state.unwrap().debug_print_stack_trace(jvm);
+                int_state.unwrap().debug_print_stack_trace(jvm);
                 todo!()
             }
             RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address, pc: _ } => {

@@ -4,6 +4,7 @@ use std::ops::Rem;
 use num_traits::Zero;
 
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::better_java_stack::frames::HasFrame;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
@@ -212,6 +213,7 @@ pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     if value2 == 0 {
+        current_frame.inner().inner().debug_print_stack_trace(jvm);
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
         todo!()
     }

@@ -114,10 +114,10 @@ impl JVMOptions {
             //         combined: "java/util/HashMap/hash".to_string(),
             //     },*/
             // MethodToTrace {
-            //     combined: "sun/reflect/generics/parser/SignatureParser/parseZeroOrMoreFormalTypeParameters".to_string(),
+            //     combined: "java/util/ArrayList/remove".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "sun/reflect/generics/parser/SignatureParser/parseClassTypeSignature".to_string(),
+            //     combined: "java/util/ArrayList/checkForComodification".to_string(),
             // },
             MethodToTrace {
                 combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),

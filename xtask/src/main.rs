@@ -8,6 +8,8 @@ use std::process::Command;
 
 use anyhow::anyhow;
 use clap::{Parser};
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
 use xshell::{cmd, Shell};
 
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config, XTaskConfig};
@@ -115,7 +117,7 @@ fn main() -> anyhow::Result<()> {
             }).collect::<Result<Vec<PathBuf>,anyhow::Error>>()?;
             let class_files = source_files.into_iter().map(|source_file|{
                 Ok(compile(&javac, source_file.as_path(), test_resources.as_path())?)
-            }).collect::<anyhow::Result<HashSet<CompiledClass>>>()?;
+            }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
             run_classes(compilation_dir, class_files, exclude)?;
         }
@@ -128,12 +130,43 @@ fn main() -> anyhow::Result<()> {
             let test_resources_base = config.dep_dir.join("jdk8u/jdk/test");
             let javac = javac_location(&config);
             // let to
-            let classes = vec!["java/util/AbstractCollection/ToArrayTest"];
-            let class_files = classes.into_iter().map(|class|{
+            let classes = vec![
+                "java/lang/Boolean/Factory",
+                "java/lang/Boolean/GetBoolean",
+                "java/lang/Boolean/MakeBooleanComparable",
+                "java/lang/Boolean/ParseBoolean",
+                "java/lang/Byte/Decode",
+                "java/lang/Character/TestIsJavaIdentifierMethods",
+                "java/lang/Long/BitTwiddle",
+                // "java/lang/Long/Decode", // needs working npe
+                "java/lang/Long/GetLong",
+                "java/lang/Long/ParsingTest",
+                // "java/lang/Long/Unsigned", //needs working division by zero
+                "java/lang/Compare",
+                "java/lang/HashCode",
+                "java/lang/ToString",
+                //"java/util/AbstractCollection/ToArrayTest", // needs array store exception checking on arrays to be implemented.
+                "java/util/AbstractCollection/ToString",
+                // "java/util/AbstractList/CheckForComodification", //ignored by openjdk b/c openjdk std is broken
+                "java/util/AbstractList/FailFastIterator",
+                "java/util/AbstractList/HasNextAfterException",
+                "java/util/AbstractMap/AbstractMapClone",
+                // "java/util/AbstractMap/Equals", // causes an expected npe need to implement npe throwing
+                "java/util/AbstractMap/SimpleEntries",
+                "java/util/AbstractMap/ToString",
+                "java/util/AbstractSequentialList/AddAll",
+                "java/util/ArrayList/AddAll",
+                "java/util/ArrayList/Bug6533203",
+                "java/util/ArrayList/EnsureCapacity",
+                // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
+                // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
+
+            ];
+            let class_files = classes.into_par_iter().map(|class|{
                 test_resources_base.join(format!("{}.java",class))
             }).map(|source_file|{
                 Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
-            }).collect::<anyhow::Result<HashSet<CompiledClass>>>()?;
+            }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
             run_classes(compilation_dir, class_files, exclude)?;
         }
@@ -141,7 +174,7 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-fn run_classes(compilation_dir: PathBuf, class_files: HashSet<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
+fn run_classes(compilation_dir: PathBuf, class_files: Vec<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
     let classpath = "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security";
     let libjava = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so";
 
