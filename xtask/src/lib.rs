@@ -1,5 +1,7 @@
 #![feature(associated_type_defaults)]
 #![feature(never_type)]
+#![feature(exit_status_error)]
+#![feature(path_file_prefix)]
 
 use std::path::{Path, PathBuf};
 
@@ -8,6 +10,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
+pub mod java_compilation;
 pub mod build_steps;
 
 fn default_deps_dir(workspace_dir: &Path) -> PathBuf {

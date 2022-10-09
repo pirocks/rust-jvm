@@ -53,6 +53,11 @@ impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
     }
 
     pub(crate) fn update_stack_depth(&mut self, current_pc: ByteCodeOffset, stack_depth: StackDepth) {
+        // let jvm = self.jvm();
+        // let string_pool = &jvm.string_pool;
+        // let view = self.class_pointer(jvm).view();
+        // let method_view = view.method_view_i(self.method_i());
+        // dbg!((method_view.name().0.to_str(string_pool), current_pc));
         self.java_stack.update_stack_depth(current_pc, self.frame_ptr, stack_depth);
     }
 

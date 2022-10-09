@@ -10,7 +10,7 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::loading::LoaderName;
 use thread_signal_handler::SignalAccessibleJavaStackData;
 
-use crate::{ JavaValueCommon, JVMState, MethodResolverImpl};
+use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, InterpreterFrameState, JavaStack, StackDepth};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -84,7 +84,7 @@ impl<'vm> JavaStackGuard<'vm> {
         }
     }
 
-    pub fn new_remote_with_frame_pointer(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>,java_thread: Arc<JavaThread<'vm>>, new_frame_pointer: FramePointer) -> Self {
+    pub fn new_remote_with_frame_pointer(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, java_thread: Arc<JavaThread<'vm>>, new_frame_pointer: FramePointer) -> Self {
         Self {
             stack,
             guard: Some(stack.lock().unwrap()),
@@ -147,11 +147,12 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        self.notify_frame_push(current_frame_pointer);
+        let method_name = method_view.name().0.to_str(&jvm.string_pool);
+        self.notify_frame_push(next_frame_pointer, method_name.clone());
         let res = JavaInterpreterFrame::from_frame_pointer_interpreter(self, next_frame_pointer, |within| {
             within_pushed(within)
         });
-        self.notify_frame_pop(current_frame_pointer);
+        self.notify_frame_pop(next_frame_pointer, method_name.clone());
         res
     }
 
@@ -193,10 +194,11 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        self.notify_frame_push(current_frame_pointer);
+        let method_name = jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool);
+        self.notify_frame_push(next_frame_pointer, method_name.clone());
         let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
         let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
-        self.notify_frame_pop(current_frame_pointer);
+        self.notify_frame_pop(next_frame_pointer, method_name);
         res
     }
 
@@ -223,10 +225,10 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        self.notify_frame_push(current_frame_pointer);
+        self.notify_frame_push(next_frame_pointer,"opaque".to_string());
         let mut frame = OpaqueFrame::new_from_frame_pointer(self, next_frame_pointer);
         let res = within_pushed(&mut frame);
-        self.notify_frame_pop(current_frame_pointer);
+        self.notify_frame_pop(next_frame_pointer,"opaque".to_string());
         //todo zero the rest
         res
     }
@@ -240,14 +242,27 @@ impl<'vm> JavaStackGuard<'vm> {
         Some(res.current_pc)
     }
 
-    pub(crate) fn notify_frame_pop(&mut self, pop_to: FramePointer) {
+    pub(crate) fn notify_frame_pop(&mut self, pop_to_inclusive: FramePointer, method_name: String) {
+        // for _ in 0..self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.len() {
+        //     print!(" ");
+        // }
+        // println!("Pop: {}", method_name);
+        self.assert_interpreter_frame_operand_stack_depths_sorted();
+        let mut already_popped = false;
         loop {
             let last = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last();
             match last {
                 Some((last_frame, _)) => {
-                    if pop_to >= *last_frame {
+                    if pop_to_inclusive >= *last_frame {
                         self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.pop().unwrap();
+                        if already_popped {
+                            todo!("mutli-pop?")
+                        }
+                        already_popped = true;
                     } else {
+                        if !already_popped{
+                            todo!("no frame to pop");
+                        }
                         break;
                     }
                 }
@@ -256,8 +271,15 @@ impl<'vm> JavaStackGuard<'vm> {
         }
     }
 
-    pub(crate) fn notify_frame_push(&mut self, push_address: FramePointer) {
-        self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.push((push_address, InterpreterFrameState {
+    pub(crate) fn notify_frame_push(&mut self, next_frame_pointer: FramePointer, method_name: String) {
+        // for _ in 0..self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.len() {
+        //     print!(" ");
+        // }
+        // println!("Push: {}", method_name);
+        if let Some((frame_pointer, _)) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last() {
+            assert!(*frame_pointer > next_frame_pointer);
+        }
+        self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.push((next_frame_pointer, InterpreterFrameState {
             stack_depth: StackDepth(0),
             current_pc: ByteCodeOffset(0),
         }))
@@ -269,7 +291,7 @@ impl<'vm> JavaStackGuard<'vm> {
         state_mut.current_pc = current_pc;
     }
 
-    pub(crate) fn drop_guard(&mut self){
+    pub(crate) fn drop_guard(&mut self) {
         self.guard = None;
     }
 

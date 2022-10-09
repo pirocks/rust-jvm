@@ -12,11 +12,13 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
+use slow_interpreter::better_java_stack::frame_iter::FrameIterFrameRef;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
+use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -28,6 +30,28 @@ struct OwnedStackEntry<'gc> {
     class_name_wtf8: Wtf8Buf,
     method_name_wtf8: Wtf8Buf,
     source_file_name_wtf8: Wtf8Buf,
+}
+
+fn lookup_line_number(line_number_table: &LineNumberTable, stack_entry: &FrameIterFrameRef) -> Option<jint>{
+    let mut cur_line = None;
+    if let Some(pc) = stack_entry.try_pc() {
+        let string_pool = &stack_entry.jvm().string_pool;
+        // dbg!(stack_entry
+        //     .class_pointer()
+        //     .unwrap()
+        //     .view()
+        //     .method_view_i(stack_entry.method_i())
+        //     .name().0.to_str(string_pool));
+        // dbg!(stack_entry.is_interpreted());
+        for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
+            // dbg!(start_pc);
+            // dbg!(pc);
+            if (*start_pc) <= pc.0 {
+                cur_line = Some(*line_number as jint);
+            }
+        }
+    }
+    cur_line
 }
 
 #[no_mangle]
@@ -53,16 +77,7 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
             let line_number = match method_view.line_number_table() {
                 None => -1,
                 Some(line_number_table) => {
-                    //todo have a lookup function for this
-                    let mut cur_line = -1;
-                    for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
-                        if let Some(pc) = stack_entry.try_pc() {
-                            if (*start_pc) <= pc.0 {
-                                cur_line = *line_number as jint;
-                            }
-                        }
-                    }
-                    cur_line
+                    lookup_line_number(line_number_table, stack_entry).unwrap_or(-1)
                 }
             };
             let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
