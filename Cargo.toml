@@ -15,6 +15,7 @@ anyhow = "1"
 
 [profile.release]
 debug = true
+incremental = true
 
 [workspace]
 members = [

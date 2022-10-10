@@ -8,7 +8,6 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::JVMState;
 use crate::better_java_stack::frames::HasFrame;
 use crate::function_instruction_count::FunctionExecutionCounter;
 use crate::interpreter::arithmetic::{dadd, ddiv, dmul, dneg, drem, dsub, fadd, fdiv, fmul, fneg, frem, fsub, iadd, iand, idiv, imul, ineg, ior, irem, ishl, ishr, isub, iushr, ixor, ladd, land, lcmp, ldiv, lmul, lneg, lor, lrem, lshl, lshr, lsub, lushr, lxor};
@@ -35,6 +34,7 @@ use crate::interpreter::store::{aastore, astore, bastore, castore, dastore, dsto
 use crate::interpreter::switch::{invoke_lookupswitch, tableswitch};
 use crate::interpreter::throw::athrow;
 use crate::interpreter::wide::wide;
+use crate::JVMState;
 
 pub fn run_single_instruction<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,

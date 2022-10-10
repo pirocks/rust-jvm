@@ -119,9 +119,9 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "java/lang/Short/valueOf".to_string()
             // },
-            MethodToTrace {
-                combined: "java/lang/Character/compareTo".to_string()
-            },
+            // MethodToTrace {
+            //     combined: "java/lang/Character/compareTo".to_string()
+            // },
             // MethodToTrace {
             //     combined: "java/lang/Short/compare".to_string(),
             // },
