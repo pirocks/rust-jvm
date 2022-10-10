@@ -147,12 +147,12 @@ impl<'vm> JavaStackGuard<'vm> {
         let view = rc.view();
         let method_view = view.method_view_i(method_i);
         let code = method_view.code_attribute().unwrap();
-        let method_name = method_view.name().0.to_str(&jvm.string_pool);
-        self.notify_frame_push(next_frame_pointer, method_name.clone());
+        /*let method_name = method_view.name().0.to_str(&jvm.string_pool);*/
+        self.notify_frame_push(next_frame_pointer, "".to_string()/*method_name.clone()*/);
         let res = JavaInterpreterFrame::from_frame_pointer_interpreter(self, next_frame_pointer, |within| {
             within_pushed(within)
         });
-        self.notify_frame_pop(next_frame_pointer, method_name.clone());
+        self.notify_frame_pop(next_frame_pointer, "".to_string());
         res
     }
 
@@ -194,11 +194,11 @@ impl<'vm> JavaStackGuard<'vm> {
                 data.as_slice(),
             );
         }
-        let method_name = jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool);
-        self.notify_frame_push(next_frame_pointer, method_name.clone());
+        // let method_name = jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool);
+        self.notify_frame_push(next_frame_pointer, "".to_string()/*method_name.clone()*/);
         let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
         let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
-        self.notify_frame_pop(next_frame_pointer, method_name);
+        self.notify_frame_pop(next_frame_pointer, "".to_string());
         res
     }
 

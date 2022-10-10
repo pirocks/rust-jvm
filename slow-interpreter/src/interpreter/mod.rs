@@ -51,10 +51,10 @@ pub struct FrameToRunOn {
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
 pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
-    let should_trace = unsafe { libc::rand() } < 100;
-    if should_trace {
-        interpreter_state.debug_print_stack_trace(jvm);
-    }
+    // let should_trace = unsafe { libc::rand() } < 1000000;
+    // if should_trace {
+    //     interpreter_state.debug_print_stack_trace(jvm);
+    // }
     let rc = interpreter_state.class_pointer(jvm);
     let method_i = interpreter_state.current_method_i(jvm);
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);

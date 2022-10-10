@@ -136,12 +136,16 @@ fn main() -> anyhow::Result<()> {
                 "java/lang/Boolean/MakeBooleanComparable",
                 "java/lang/Boolean/ParseBoolean",
                 "java/lang/Byte/Decode",
-                // "java/lang/Character/TestIsJavaIdentifierMethods", //needs perf
+                // "java/lang/Character/TestIsJavaIdentifierMethods", //needs perf, specifically big loop needs compilation
                 "java/lang/Long/BitTwiddle",
                 // "java/lang/Long/Decode", // needs working npe
                 "java/lang/Long/GetLong",
                 "java/lang/Long/ParsingTest",
                 // "java/lang/Long/Unsigned", //needs working division by zero
+                // "java/lang/Thread/GenerifyStackTraces", //needs impl dump threads
+                // "java/lang/Thread/HoldsLock",// needs impl holds lock
+                "java/lang/Thread/MainThreadTest",
+                // "java/lang/Thread/ITLConstructor",// seems to deadlock needs fix
                 "java/lang/Compare",
                 "java/lang/HashCode",
                 "java/lang/ToString",

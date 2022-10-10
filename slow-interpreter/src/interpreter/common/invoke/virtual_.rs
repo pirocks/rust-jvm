@@ -130,13 +130,12 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         return Ok(todo!());
     }
     if target_method.is_native() {
-        match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
             Ok(res) => {
-                return Ok(res);
+                Ok(res)
             }
             Err(WasException { exception_obj }) => {
-                interpreter_state.debug_print_stack_trace(jvm);
-                return Err(WasException { exception_obj });
+                Err(WasException { exception_obj })
             }
         }
     } else if !target_method.is_abstract() {

@@ -114,7 +114,6 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
     }
         .object()
         .new_java_handle().unwrap_object_nonnull();
-    int_state.debug_print_stack_trace(jvm);
     *throw = Some(WasException{ exception_obj: bounds_object.cast_throwable() });
     T::invalid_default()
 }

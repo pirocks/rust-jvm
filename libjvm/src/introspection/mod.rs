@@ -331,9 +331,6 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    if name.contains("DirectBuffer"){
-        int_state.debug_print_stack_trace(jvm);
-    }
     let p_type = CompressedClassName(jvm.string_pool.add_name(name, true)).into();
 
     let loader_name = from_object_new(jvm, loader)
