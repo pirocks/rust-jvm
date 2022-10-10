@@ -66,9 +66,9 @@ impl<'vm> Threads<'vm> {
         let (thread_info_channel_send, thread_info_channel_recv) = std::sync::mpsc::channel();
         let (thread_start_channel_send, thread_start_channel_recv) = std::sync::mpsc::channel();
         let mut builder = Builder::new();
-        builder = match name {
+        builder = match name.as_ref() {
             None => builder,
-            Some(name) => builder.name(name),
+            Some(name) => builder.name(name.chars().take(15).collect::<String>()),
         };
         let join_handle = builder
             .stack_size(1024 * 1024 * 256) // verifier makes heavy use of recursion.
@@ -201,19 +201,6 @@ extern "C" fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t,
     }
 }
 
-pub mod handlers {
-    use crate::{AnEvent, Threads};
-
-    pub fn handle_pause(threads: &Threads) {
-        let this = threads.this_thread();
-        this.pause();
-    }
-
-    pub unsafe fn handle_event(e: AnEvent) {
-        let AnEvent { event_handler, data } = e;
-        event_handler(data);
-    }
-}
-
+pub mod handlers;
 pub mod context;
 pub mod signal;

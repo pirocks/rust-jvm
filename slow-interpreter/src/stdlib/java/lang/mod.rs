@@ -835,7 +835,7 @@ pub mod thread {
 
         pub fn daemon(&self, jvm: &'gc JVMState<'gc>) -> bool {
             let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            todo!()/*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_daemon()).unwrap_int() != 0*/
+            self.normal_object.get_var(jvm, &thread_class, FieldName::field_daemon()).unwrap_int() != 0
         }
 
         pub fn set_thread_status(&self, jvm: &'gc JVMState<'gc>, thread_status: jint) {

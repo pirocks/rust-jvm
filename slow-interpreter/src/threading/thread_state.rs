@@ -195,7 +195,12 @@ impl<'gc> ThreadState<'gc> {
 
     pub fn start_thread_from_obj<'l>(&'gc self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JThread<'gc>, invisible_to_java: bool) -> Arc<JavaThread<'gc>> {
         let (send, recv) = channel();
-        let loader_name = obj.get_context_class_loader(jvm, int_state).expect("todo").map(|class_loader| class_loader.to_jvm_loader(jvm)).unwrap_or(LoaderName::BootstrapLoader);
+        let loader_name = obj
+            .get_context_class_loader(jvm, int_state)
+            .expect("todo")
+            .map(|class_loader| class_loader.to_jvm_loader(jvm))
+            .unwrap_or(LoaderName::BootstrapLoader);
+        let thread_name = obj.name(jvm).to_rust_string(jvm);
         let java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
             send.send(java_thread.clone()).unwrap();
             java_thread.notify_alive(jvm);
@@ -251,14 +256,13 @@ impl<'gc> ThreadState<'gc> {
         /*self.system_thread_group.read().unwrap().as_ref().unwrap().clone()*/
     }
 
-    pub fn wait_all_threads(&self) {
+    pub fn wait_all_non_daemon_threads(&self, jvm: &'gc JVMState<'gc>) {
         loop {
             //technically should be daemon threads.
             let all_threads = self.all_java_threads.read().unwrap().values().cloned().collect_vec();
             drop(self.all_java_threads.read().unwrap());
             for thread in all_threads.iter(){
-                if !thread.invisible_to_java{
-                    //todo should check daemon status to
+                if !thread.invisible_to_java && !thread.is_daemon(jvm){
                     thread.wait_thread_exit();
                 }
             }

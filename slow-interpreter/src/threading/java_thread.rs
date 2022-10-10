@@ -249,6 +249,10 @@ impl<'gc> JavaThread<'gc> {
             }
         }
     }
+
+    pub fn is_daemon(&self, jvm: &'gc JVMState<'gc>) -> bool{
+        self.thread_object.read().unwrap().as_ref().unwrap().daemon(jvm)
+    }
 }
 
 #[derive(Debug)]
