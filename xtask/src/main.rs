@@ -136,7 +136,7 @@ fn main() -> anyhow::Result<()> {
                 "java/lang/Boolean/MakeBooleanComparable",
                 "java/lang/Boolean/ParseBoolean",
                 "java/lang/Byte/Decode",
-                "java/lang/Character/TestIsJavaIdentifierMethods",
+                // "java/lang/Character/TestIsJavaIdentifierMethods", //needs perf
                 "java/lang/Long/BitTwiddle",
                 // "java/lang/Long/Decode", // needs working npe
                 "java/lang/Long/GetLong",

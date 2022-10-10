@@ -114,10 +114,19 @@ impl JVMOptions {
             //         combined: "java/util/HashMap/hash".to_string(),
             //     },*/
             // MethodToTrace {
-            //     combined: "java/util/ArrayList/remove".to_string(),
+            //     combined: "DebuggingClass/main".to_string()
             // },
             // MethodToTrace {
-            //     combined: "java/util/ArrayList/checkForComodification".to_string(),
+            //     combined: "java/lang/Short/valueOf".to_string()
+            // },
+            MethodToTrace {
+                combined: "java/lang/Character/compareTo".to_string()
+            },
+            // MethodToTrace {
+            //     combined: "java/lang/Short/compare".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "java/lang/Short/<init>".to_string(),
             // },
             MethodToTrace {
                 combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),

@@ -50,8 +50,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //hd#readByte
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
-    // if (method.name().0.to_str(&jvm.string_pool) == "checkForComodification" || method.name().0.to_str(&jvm.string_pool) == "remove") &&
-    //     method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ArrayList") {
+    // if (method.name().0.to_str(&jvm.string_pool) == "compareTo" || method.name().0.to_str(&jvm.string_pool) == "main" || method.name().0.to_str(&jvm.string_pool) == "<init>") &&
+    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("Short") ||
+    //         method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass")){
     //     dump_frame(interpreter_state, method, code, current_pc, instruct)
     // }
     match instruct {

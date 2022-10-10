@@ -99,7 +99,7 @@ pub fn putfield<'vm>(
                     IRInstr::LoadFPRelative {
                         from: to_put_value_offset,
                         to: to_put_value,
-                        size: field_size,
+                        size: field_size.lengthen_runtime_type(),
                     },
                     IRInstr::LoadFPRelative {
                         from: object_ptr_offset,
@@ -108,7 +108,7 @@ pub fn putfield<'vm>(
                     },
                     IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                     IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
+                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size.lengthen_runtime_type() }
                 ])))
         }
     }
@@ -173,7 +173,14 @@ pub fn getfield<'vm>(
                 },
                 IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
+                IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size.lengthen_runtime_type() },
+                // //todo doesn't need to size extend here, but will in future when packed repr, also needs to only do signed types
+                // IRInstr::SignExtend {
+                //     from: to_get_value,
+                //     to: to_get_value,
+                //     from_size: field_size,
+                //     to_size: field_size.lengthen_runtime_type()
+                // },
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
             ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
                 Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_get_value_offset))

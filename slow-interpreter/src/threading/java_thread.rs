@@ -237,13 +237,15 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn wait_thread_exit(&self) {
-        let mut is_alive = self.thread_status.lock().unwrap().alive;
+        let mut thread_status_guard = self.thread_status.lock().unwrap();
+        let is_alive = thread_status_guard.alive;
         loop {
             if !is_alive{
                 break
             }
+            //todo threads need fixing again
             if is_alive {
-                is_alive = self.thread_status_change_condvar.wait(self.thread_status.lock().unwrap()).unwrap().alive;
+                thread_status_guard = self.thread_status_change_condvar.wait_timeout(thread_status_guard, Duration::new(1,0)).unwrap().0;
             }
         }
     }

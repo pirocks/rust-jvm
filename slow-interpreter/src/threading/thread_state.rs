@@ -1,9 +1,10 @@
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::mem::transmute;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 use std::sync::mpsc::channel;
 use std::thread::{LocalKey, Scope};
+use itertools::{Itertools};
 
 use jvmti_jni_bindings::{jlong, jrawMonitorID};
 use rust_jvm_common::JavaThreadId;
@@ -252,18 +253,19 @@ impl<'gc> ThreadState<'gc> {
 
     pub fn wait_all_threads(&self) {
         loop {
-            let read_guard = self.all_java_threads.read().unwrap();
-            let mut all_threads = vec![];
-            for threads in read_guard.values() {
-                all_threads.push(threads.clone());
+            //technically should be daemon threads.
+            let all_threads = self.all_java_threads.read().unwrap().values().cloned().collect_vec();
+            drop(self.all_java_threads.read().unwrap());
+            for thread in all_threads.iter(){
+                if !thread.invisible_to_java{
+                    //todo should check daemon status to
+                    thread.wait_thread_exit();
+                }
             }
-            drop(read_guard);
-            let all_threads_done = true;
-            for thread in all_threads{
-                todo!()
-                    //todo what if new thread created.
-                // thread.wait_thread_exit();
-            }
+            let new_all_threads = self.all_java_threads.read().unwrap().values().cloned().collect_vec();
+            let all_threads_ids = all_threads.into_iter().map(|thread|thread.java_tid).collect::<HashSet<_>>();
+            let new_all_threads_ids = new_all_threads.into_iter().map(|thread|thread.java_tid).collect::<HashSet<_>>();
+            let all_threads_done = all_threads_ids == new_all_threads_ids;
             if all_threads_done{
                 break
             }

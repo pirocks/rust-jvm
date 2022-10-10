@@ -34,10 +34,10 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
             unsafe {
                 match o {
                     Some(x) => {
-                        if field_name.0.to_str(&jvm.string_pool) == "readerIndex"{
-                            dbg!(x.as_ptr());
-                            dbg!(val.to_raw());
-                        }
+                        // if field_name.0.to_str(&jvm.string_pool) == "value" && field_type == &CompressedParsedDescriptorType::ShortType{
+                        //     dbg!(x.as_ptr());
+                        //     dbg!(val.to_raw());
+                        // }
                         let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
                         assert_ne!(val.to_raw(), 0xDDDDDDDDDDDDDDDD);
                         raw_field_ptr.write(val.to_raw());

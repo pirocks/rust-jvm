@@ -160,7 +160,17 @@ import java.math.BigInteger;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        System.out.println((double) 6_569_833_009_620_677L);
+        for (int i = 0; i < 100000; i++) {
+            test();
+        }
+    }
 
+    static void test() {
+        short x = 0;
+        short y = Short.MIN_VALUE;
+        if(Short.compare((short) x, (short) y) !=
+                Short.valueOf((short) x).compareTo(Short.valueOf((short) y))){
+            System.out.println("fail");
+        }
     }
 }

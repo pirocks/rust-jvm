@@ -120,5 +120,6 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     // }, box ());
     main_thread.get_underlying().join();
     // main_thread.wait_thread_exit();
-    // jvm_ref.thread_state.wait_all_threads();
+    //todo technically we should wait all non-daemon threads
+    jvm_ref.thread_state.wait_all_threads();
 }

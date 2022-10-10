@@ -134,12 +134,25 @@ pub fn sign_extend(assembler: &mut CodeAssembler, from: Register, to: Register, 
                 todo!()
             }
             Size::X86DWord => {
-                todo!()
+                assembler.nop().unwrap();
             }
             Size::X86QWord => assembler.movsxd(to.to_native_64(), from.to_native_32()).unwrap()
         },
         Size::X86QWord => {
-            todo!()
+            match to_size {
+                Size::Byte => {
+                    todo!()
+                }
+                Size::X86Word => {
+                    todo!()
+                }
+                Size::X86DWord => {
+                    todo!()
+                }
+                Size::X86QWord => {
+                    assembler.nop().unwrap();
+                }
+            }
         }
     };
 }
