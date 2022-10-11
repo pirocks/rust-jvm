@@ -526,11 +526,11 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 }
                 Size::X86Word => {
                     assembler.mov(ax, old.to_native_16()).unwrap();
-                    assembler.lock().cmpxchg(ptr.to_native_16() + 0, new.to_native_16()).unwrap();
+                    assembler.lock().cmpxchg(ptr.to_native_64() + 0, new.to_native_16()).unwrap();
                 }
                 Size::X86DWord => {
                     assembler.mov(eax, old.to_native_32()).unwrap();
-                    assembler.lock().cmpxchg(ptr.to_native_32() + 0, new.to_native_32()).unwrap();
+                    assembler.lock().cmpxchg(ptr.to_native_64() + 0, new.to_native_32()).unwrap();
                 }
                 Size::X86QWord => {
                     assembler.mov(rax, old.to_native_64()).unwrap();

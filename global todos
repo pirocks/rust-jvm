@@ -11,3 +11,7 @@ have function entry tracing as well as instruction
 make remote stacktrace reading actually work
 
 make intrinsic instance of
+
+clean up copyMemory and similar addressing mode functions.
+
+intrinsic getLongVolatile

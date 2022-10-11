@@ -6,6 +6,7 @@ use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::NativeJavaValue;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
@@ -77,13 +78,23 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
         todo!()
     };
     let dst_address = if dst_obj == null_mut() {
-        address as *mut i8
+        todo!()
+        /*address as *mut i8*/
     } else {
         //todo have an address calulation function
         (dst_obj as *mut i8).offset(address as isize)
     };
+    for i in 0..len {
+        dbg!(src_address.offset(i as isize).read());
+    }
     assert!(len > 0);
-    volatile_copy_memory(dst_address, src_address, len as usize)
+    //todo this needs a better more general impl
+    // volatile_copy_memory(dst_address, src_address, len as usize)
+    for i in 0..len{
+        let temp = src_address.offset(i as isize).read();
+        dst_address.offset((i as usize * size_of::<NativeJavaValue>() as usize) as isize).write(temp);
+    }
+
     // let nonnull = match from_object_new(jvm, src_obj) {
     //     Some(x) => x,
     //     None => {

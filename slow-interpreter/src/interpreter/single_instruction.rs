@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use itertools::Either;
 use libc::c_void;
+use classfile_view::view::ClassView;
 
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
@@ -50,11 +51,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //hd#readByte
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
-    // if (method.name().0.to_str(&jvm.string_pool) == "compareTo" || method.name().0.to_str(&jvm.string_pool) == "main" || method.name().0.to_str(&jvm.string_pool) == "<init>") &&
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("Short") ||
-    //         method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass")){
-    //     dump_frame(interpreter_state, method, code, current_pc, instruct)
-    // }
+    if (method.name().0.to_str(&jvm.string_pool) == "_getByte" ) &&
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("io/netty/buffer/UnpooledHeapByteBuf")){
+        if let CInstructionInfo::ireturn = instruct{
+            interpreter_state.inner().debug_print_stack_trace(jvm);
+        }
+        dump_frame(interpreter_state, method, code, current_pc, instruct)
+    }
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
         CInstructionInfo::aload_0 => aload(interpreter_state.current_frame_mut(), 0),

@@ -12,6 +12,7 @@ use thread_signal_handler::SignalAccessibleJavaStackData;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl};
 use crate::better_java_stack::{FramePointer, InterpreterFrameState, JavaStack, StackDepth};
+use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -197,6 +198,13 @@ impl<'vm> JavaStackGuard<'vm> {
         // let method_name = jvm.method_table.read().unwrap().lookup_method_string(method_id,&jvm.string_pool);
         self.notify_frame_push(next_frame_pointer, "".to_string()/*method_name.clone()*/);
         let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
+        unsafe {
+            let jvm = frame.jvm();
+            if libc::rand() < 100_000 {
+                frame.debug_print_stack_trace(jvm);
+                dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
+            }
+        }
         let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
         self.notify_frame_pop(next_frame_pointer, "".to_string());
         res

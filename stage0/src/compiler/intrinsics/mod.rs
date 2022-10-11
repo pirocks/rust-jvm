@@ -1,5 +1,5 @@
-use another_jit_vm::{IRMethodID};
-use another_jit_vm_ir::compiler::{IRInstr};
+use another_jit_vm::{IRMethodID, Register};
+use another_jit_vm_ir::compiler::{IRInstr, Size};
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};
@@ -8,7 +8,7 @@ use rust_jvm_common::{MethodId};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler::intrinsics::array_copy::intrinsic_array_copy;
-use crate::compiler::intrinsics::compare_and_swap::intrinsic_compare_and_swap_long;
+use crate::compiler::intrinsics::compare_and_swap::{intrinsic_compare_and_swap_int, intrinsic_compare_and_swap_long};
 use crate::compiler::intrinsics::get_class::intrinsic_get_class;
 use crate::compiler::intrinsics::get_component_type::get_component_type_intrinsic;
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
@@ -40,6 +40,20 @@ pub fn gen_intrinsic_ir<'vm>(
     if method_name == MethodName::method_compareAndSwapLong() && desc == compare_and_swap_long && class_name == CClassName::unsafe_() {
         return intrinsic_compare_and_swap_long(resolver, layout, method_id, ir_method_id);
     }
+    let compare_and_swap_int = CompressedMethodDescriptor {
+        arg_types: vec![CClassName::object().into(), CPDType::LongType, CPDType::IntType, CPDType::IntType],
+        return_type: CPDType::BooleanType,
+    };
+    if method_name == MethodName::method_compareAndSwapInt() && desc == compare_and_swap_int && class_name == CClassName::unsafe_() {
+        return intrinsic_compare_and_swap_int(resolver, layout, method_id, ir_method_id);
+    }
+    let get_long = CompressedMethodDescriptor{
+        arg_types: vec![CPDType::LongType],
+        return_type: CompressedParsedDescriptorType::LongType
+    };
+    if method_name == MethodName::method_getLong() && desc == get_long && class_name == CClassName::unsafe_(){
+        return unsafe_get_long_raw(resolver, layout, method_id, ir_method_id);
+    }
     let identity_hash_code = CompressedMethodDescriptor { arg_types: vec![CClassName::object().into()], return_type: CompressedParsedDescriptorType::IntType };
     if method_name == MethodName::method_identityHashCode() && desc == identity_hash_code && class_name == CClassName::system() {
         return system_identity_hashcode(resolver, layout, method_id, ir_method_id);
@@ -59,6 +73,38 @@ pub fn gen_intrinsic_ir<'vm>(
         return reflect_new_array(resolver, layout, method_id, ir_method_id);
     }
     None
+}
+
+pub fn unsafe_get_long_raw<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>>{
+    let res = Register(0);
+    let ptr = Register(1);
+    return Some(vec![
+        IRInstr::IRStart {
+            temp_register: Register(2),
+            ir_method_id,
+            method_id,
+            frame_size: layout.full_frame_size(),
+            num_locals: resolver.num_locals(method_id) as usize,
+        },
+        IRInstr::LoadFPRelative {
+            from: layout.local_var_entry(1),
+            to: ptr,
+            size: Size::long(),
+        },
+        IRInstr::Load {
+            to: res,
+            from_address: ptr,
+            size: Size::long()
+        },
+        IRInstr::Return {
+            return_val: Some(res),
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            temp_register_3: Register(3),
+            temp_register_4: Register(4),
+            frame_size: layout.full_frame_size(),
+        },
+    ]);
 }
 
 pub mod reflect_new_array;

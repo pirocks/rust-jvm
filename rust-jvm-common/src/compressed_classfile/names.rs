@@ -453,6 +453,7 @@ enum PredefinedStrings {
     method_newArray,
     method_arraycopy,
     method_compareAndSwapLong,
+    method_compareAndSwapInt,
     method_identityHashCode,
     method_getClassLoader,
     method_getExtClassLoader,
@@ -487,6 +488,7 @@ enum PredefinedStrings {
     method_get,
     method_destructiveMulAdd,
     SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE,
+    method_getLong,
 }
 
 impl PredefinedStrings {
@@ -672,11 +674,13 @@ impl PredefinedStrings {
             field_formalTypeParams => "formalTypeParams".to_string(),
             method_arraycopy => "arraycopy".to_string(),
             method_compareAndSwapLong => "compareAndSwapLong".to_string(),
+            method_compareAndSwapInt => "compareAndSwapInt".to_string(),
             method_identityHashCode => "identityHashCode".to_string(),
             method_getComponentType => "getComponentType".to_string(),
             JAVA_LANG_REFLECT_ARRAY => "java/lang/reflect/Array".to_string(),
             method_newArray => "newArray".to_string(),
-            JAVA_LANG_COMPARABLE  => "java/lang/Comparable".to_string()
+            JAVA_LANG_COMPARABLE  => "java/lang/Comparable".to_string(),
+            method_getLong => "getLong".to_string()
         }
     }
 }
@@ -982,6 +986,9 @@ impl MethodName {
     pub fn method_compareAndSwapLong() -> Self {
         Self::from_raw_id(method_compareAndSwapLong)
     }
+    pub fn method_compareAndSwapInt() -> Self {
+        Self::from_raw_id(method_compareAndSwapInt)
+    }
     pub fn method_identityHashCode() -> Self {
         Self::from_raw_id(method_identityHashCode)
     }
@@ -1114,5 +1121,8 @@ impl MethodName {
     }
     pub fn method_destructiveMulAdd() -> Self {
         Self::from_raw_id(method_destructiveMulAdd)
+    }
+    pub fn method_getLong() -> Self{
+        Self::from_raw_id(method_getLong)
     }
 }

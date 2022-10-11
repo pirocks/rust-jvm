@@ -126,7 +126,7 @@ impl JVMOptions {
             //     combined: "java/lang/Short/compare".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/lang/Short/<init>".to_string(),
+            //     combined: "io/netty/buffer/UnpooledHeapByteBuf/_getByte".to_string(),
             // },
             MethodToTrace {
                 combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),
