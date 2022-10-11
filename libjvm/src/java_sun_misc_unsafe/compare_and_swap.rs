@@ -49,34 +49,6 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv,
     }
     let target = (target_obj as *mut c_void).offset(offset as isize) as *mut jobject;
     atomic_cxchg_seqcst_seqcst(target, expected, new).1 as jboolean
-    /*let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let notnull = match from_object_new(jvm, target_obj) {
-        None => {
-            return throw_npe(jvm, int_state);
-        }
-        Some(notnull) => notnull,
-    };
-    let new = NewJavaValueHandle::from_optional_object(from_object_new(jvm, new));
-    if notnull.is_array(jvm) {
-        let arr = notnull.unwrap_array(jvm);
-        let curval = arr.get_i(offset as i32 as usize);
-        let old = from_object_new(jvm, expected);
-        let (should_replace, new) = do_swap(curval.as_njv(), old, new.as_njv());
-        arr.set_i(offset as i32 as usize, new);
-        should_replace
-    } else {
-        let (rc, notnull, field_name) = match get_obj_and_name(env, the_unsafe, target_obj, offset) {
-            Ok((rc, notnull, field_name)) => (rc, notnull, field_name),
-            Err(WasException {}) => return jboolean::MAX,
-        };
-        let curval = notnull.as_allocated_obj().get_var(jvm, &rc, field_name);
-        let expected = from_object_new(jvm, expected);
-        let (should_replace, new) = do_swap(curval.as_njv(), expected, new.as_njv());
-        //todo make this a real compare and swap
-        notnull.as_allocated_obj().set_var(&rc, field_name, new);
-        should_replace
-    }*/
 }
 
 pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<AllocatedHandle<'gc>>, new: NewJavaValue<'gc, 'l>) -> (jboolean, NewJavaValue<'gc, 'l>) {

@@ -9,6 +9,7 @@ use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::{FieldId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -45,7 +46,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_addressSize(env: *mut JNIEnv, obj: jobject) -> jint {
-    64
+    ADDRESS_SIZE
     //officially speaking unimplemented but can't return nothing, and should maybe return something reasonable todo
 }
 
@@ -101,16 +102,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
     match from_object_new(jvm, obj) {
         Some(notnull) => {
             return volatile_load((obj as *const c_void).offset(offset as isize) as *const jint);
-            /*let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            notnull.as_allocated_obj().get_var_top_level(jvm, field_name).as_njv().unwrap_int()*/
         }
         None => {
             //static
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
             let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name).to_jv().unwrap_int()
+            static_vars.get(field_name).unwrap_int()
         }
     }
 }

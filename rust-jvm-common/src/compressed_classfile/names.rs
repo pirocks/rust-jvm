@@ -454,6 +454,7 @@ enum PredefinedStrings {
     method_arraycopy,
     method_compareAndSwapLong,
     method_compareAndSwapInt,
+    method_compareAndSwapObject,
     method_identityHashCode,
     method_getClassLoader,
     method_getExtClassLoader,
@@ -489,6 +490,10 @@ enum PredefinedStrings {
     method_destructiveMulAdd,
     SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE,
     method_getLong,
+    method_registerNatives,
+    method_addressSize,
+    method_getIntVolatile,
+    method_allocateMemory
 }
 
 impl PredefinedStrings {
@@ -675,12 +680,17 @@ impl PredefinedStrings {
             method_arraycopy => "arraycopy".to_string(),
             method_compareAndSwapLong => "compareAndSwapLong".to_string(),
             method_compareAndSwapInt => "compareAndSwapInt".to_string(),
+            method_compareAndSwapObject => "compareAndSwapObject".to_string(),
             method_identityHashCode => "identityHashCode".to_string(),
             method_getComponentType => "getComponentType".to_string(),
             JAVA_LANG_REFLECT_ARRAY => "java/lang/reflect/Array".to_string(),
             method_newArray => "newArray".to_string(),
             JAVA_LANG_COMPARABLE  => "java/lang/Comparable".to_string(),
-            method_getLong => "getLong".to_string()
+            method_getLong => "getLong".to_string(),
+            method_registerNatives => "registerNatives".to_string(),
+            method_addressSize => "addressSize".to_string(),
+            method_getIntVolatile => "getIntVolatile".to_string(),
+            method_allocateMemory => "allocateMemory".to_string(),
         }
     }
 }
@@ -980,6 +990,12 @@ impl MethodName {
     pub fn method_newArray() -> Self {
         Self::from_raw_id(method_newArray)
     }
+    pub fn method_registerNatives() -> Self {
+        Self::from_raw_id(method_registerNatives)
+    }
+    pub fn method_addressSize() -> Self {
+        Self::from_raw_id(method_addressSize)
+    }
     pub fn method_arraycopy() -> Self {
         Self::from_raw_id(method_arraycopy)
     }
@@ -988,6 +1004,9 @@ impl MethodName {
     }
     pub fn method_compareAndSwapInt() -> Self {
         Self::from_raw_id(method_compareAndSwapInt)
+    }
+    pub fn method_compareAndSwapObject() -> Self {
+        Self::from_raw_id(method_compareAndSwapObject)
     }
     pub fn method_identityHashCode() -> Self {
         Self::from_raw_id(method_identityHashCode)
@@ -1124,5 +1143,11 @@ impl MethodName {
     }
     pub fn method_getLong() -> Self{
         Self::from_raw_id(method_getLong)
+    }
+    pub fn method_getIntVolatile() -> Self{
+        Self::from_raw_id(method_getIntVolatile)
+    }
+    pub fn method_allocateMemory() -> Self{
+        Self::from_raw_id(method_allocateMemory)
     }
 }

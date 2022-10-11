@@ -15,3 +15,5 @@ make intrinsic instance of
 clean up copyMemory and similar addressing mode functions.
 
 intrinsic getLongVolatile
+
+clean up threading
