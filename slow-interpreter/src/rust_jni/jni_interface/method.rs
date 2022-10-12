@@ -4,7 +4,7 @@ use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jmethodID, JNIEnv};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use crate::WasException;
 use crate::rust_jni::jni_interface::{get_interpreter_state, get_state};

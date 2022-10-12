@@ -3,7 +3,7 @@ pub mod concurrent;
 pub mod hashtable {
     pub mod entry {
         use jvmti_jni_bindings::jint;
-        use rust_jvm_common::compressed_classfile::names::FieldName;
+        use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
         use crate::{JavaValueCommon, JVMState};
         use crate::new_java_values::NewJavaValueHandle;
@@ -35,7 +35,9 @@ pub mod hashtable {
 
 pub mod properties {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::field_names::FieldName;
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{JVMState, WasException};
     use crate::better_java_stack::frames::PushableFrame;

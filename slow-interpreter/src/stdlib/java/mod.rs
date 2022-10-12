@@ -1,5 +1,6 @@
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use crate::{AllocatedHandle, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo, PushableFrame, WasException};
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;

@@ -1,7 +1,8 @@
 use std::ffi::c_void;
 
 use gc_memory_layout_common::memory_regions::MemoryRegions;
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState};

@@ -1,5 +1,4 @@
-use rust_jvm_common::compressed_classfile::names::CClassName;
-
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use crate::{JVMState, WasException};
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;

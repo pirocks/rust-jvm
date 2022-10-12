@@ -20,6 +20,8 @@ pub struct IntrinsicHelpers {
     dremd: *const c_void,
     //todo move over instance of to this
     instanceof_helper: *const c_void,
+    malloc: *const c_void,
+    free: *const c_void,
 }
 
 impl IntrinsicHelpers {
@@ -29,6 +31,8 @@ impl IntrinsicHelpers {
             fremf: fremf as *const c_void,
             dremd: dremd as *const c_void,
             instanceof_helper: null_mut(),
+            malloc: libc::malloc as *const c_void,
+            free: libc::free as *const c_void
         }
     }
 }
@@ -39,6 +43,8 @@ pub enum IntrinsicHelperType {
     FRemF,
     DRemD,
     InstanceOf,
+    Malloc,
+    Free,
 }
 
 impl IntrinsicHelperType {
@@ -55,6 +61,12 @@ impl IntrinsicHelperType {
             }
             IntrinsicHelperType::DRemD => {
                 offset_of!(IntrinsicHelpers,dremd)
+            }
+            IntrinsicHelperType::Malloc => {
+                offset_of!(IntrinsicHelpers,malloc)
+            }
+            IntrinsicHelperType::Free => {
+                offset_of!(IntrinsicHelpers,free)
             }
         }
     }

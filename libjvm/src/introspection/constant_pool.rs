@@ -14,7 +14,9 @@ use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv,
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;

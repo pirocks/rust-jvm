@@ -8,7 +8,9 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::frames::HasFrame;

@@ -5,8 +5,8 @@ use std::sync::{Arc, Mutex};
 use classfile_view::view::ClassView;
 use perf_metrics::PerfMetrics;
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
 

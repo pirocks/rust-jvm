@@ -8,7 +8,6 @@ use libloading::Library;
 use libloading::os::unix::RTLD_NOW;
 
 use jvmti_jni_bindings::*;
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::MethodId;
 
 use crate::{JVMState, OpaqueFrame};
@@ -164,7 +163,7 @@ impl SharedLibJVMTI {
         }
     }
 
-    pub fn class_prepare<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, class: &CClassName, int_state: &mut impl PushableFrame<'gc>) {
+    pub fn class_prepare<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, class: &rust_jvm_common::compressed_classfile::class_names::CClassName, int_state: &mut impl PushableFrame<'gc>) {
         if jvm.thread_state.get_current_thread().jvmti_event_status().class_prepare_enabled {
             todo!();
             // let frame_for_event = int_state.push_frame(StackEntryPush::new_completely_opaque_frame(jvm,int_state.current_loader(jvm), vec![],"class_prepare"));

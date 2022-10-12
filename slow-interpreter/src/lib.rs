@@ -26,7 +26,8 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use stdlib::java::lang::string::JString;
 use stdlib::java::lang::system::System;
 use stdlib::java::NewAsObjectOrJavaValue;

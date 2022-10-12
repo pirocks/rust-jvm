@@ -5,8 +5,9 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 

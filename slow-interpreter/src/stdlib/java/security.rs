@@ -29,7 +29,8 @@ pub mod protection_domain {
 
 pub mod access_control_context {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::CClassName;
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+
 
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue, PushableFrame};
     use crate::class_loading::assert_inited_or_initing_class;

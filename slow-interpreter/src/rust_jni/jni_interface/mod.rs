@@ -21,7 +21,9 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethod
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::FieldId;
 use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LoaderName};

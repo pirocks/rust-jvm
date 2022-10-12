@@ -11,7 +11,8 @@ use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Availab
 use rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::class_names::CompressedClassName;
+
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use rust_jvm_common::ptype::PType::Ref;

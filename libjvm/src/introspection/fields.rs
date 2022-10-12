@@ -9,7 +9,7 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
@@ -51,7 +51,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
 
         object_array.push(field_object)
     }
-    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::field().into())).unwrap();
+    let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(rust_jvm_common::compressed_classfile::class_names::CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
         whole_array_runtime_class: array_rc,
         elems: object_array.iter().map(|handle| handle.as_njv()).collect(),

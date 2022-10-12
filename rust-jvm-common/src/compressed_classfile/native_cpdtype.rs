@@ -6,7 +6,7 @@ use num_traits::FromPrimitive;
 use add_only_static_vec::AddOnlyId;
 
 use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedDescriptorType, CPDType, NonArrayCompressedParsedDescriptorType};
-use crate::compressed_classfile::names::CompressedClassName;
+use crate::compressed_classfile::class_names::CompressedClassName;
 
 const CPDTYPE_MAX_DISCRIMINANT: u8 = 10;
 
@@ -151,6 +151,7 @@ impl NativeCPDType {
 
 #[cfg(test)]
 pub mod to_native_from_native_test {
+    use crate::compressed_classfile::class_names::CClassName;
     use crate::compressed_classfile::CPDType;
     use crate::compressed_classfile::names::CClassName;
 

@@ -2,7 +2,6 @@ pub mod tree {
     pub mod class_signature {
         use itertools::Itertools;
 
-        use rust_jvm_common::compressed_classfile::names::FieldName;
 
         use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue};
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -15,7 +14,7 @@ pub mod tree {
             pub fn get_formal_type_params(&self, jvm: &'gc JVMState<'gc>) -> Vec<Option<AllocatedHandle<'gc>>> {
                 self
                     .normal_object
-                    .get_var_top_level(jvm, FieldName::field_formalTypeParams())
+                    .get_var_top_level(jvm, rust_jvm_common::compressed_classfile::field_names::FieldName::field_formalTypeParams())
                     .unwrap_object()
                     .unwrap()
                     .unwrap_array()

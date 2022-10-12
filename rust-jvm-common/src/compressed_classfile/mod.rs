@@ -9,8 +9,10 @@ use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
 
 use crate::classfile::{AppendFrame, AttributeType, BootstrapMethods, ChopFrame, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, FullFrame, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, String_, UninitializedVariableInfo};
 use crate::classnames::{class_name, ClassName};
+use crate::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use crate::compressed_classfile::code::{CInstructionInfo, CompressedAppendFrame, CompressedChopFrame, CompressedCode, CompressedExceptionTableElem, CompressedFullFrame, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
-use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use crate::compressed_classfile::field_names::FieldName;
+use crate::compressed_classfile::method_names::MethodName;
 use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use crate::EXPECTED_CLASSFILE_MAGIC;
 use crate::loading::{ClassWithLoader, LoaderName};
@@ -21,6 +23,9 @@ use crate::vtype::VType;
 pub mod descriptors;
 pub mod names;
 pub mod native_cpdtype;
+pub mod method_names;
+pub mod field_names;
+pub mod class_names;
 
 pub struct CompressedClassfileStringPool {
     pool: AddOnlyIdMap<String>,

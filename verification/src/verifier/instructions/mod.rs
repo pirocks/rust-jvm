@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::names::CClassName;
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 

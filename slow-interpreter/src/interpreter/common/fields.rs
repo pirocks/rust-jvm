@@ -1,6 +1,7 @@
 use std::ops::Deref;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
 
 use crate::{JVMState, PushableFrame, WasException};
 use crate::class_loading::assert_inited_or_initing_class;

@@ -1,7 +1,9 @@
 pub mod big_integer {
     use jvmti_jni_bindings::jint;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::field_names::FieldName;
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;

@@ -5,8 +5,9 @@ use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 

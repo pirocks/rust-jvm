@@ -3,7 +3,7 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;

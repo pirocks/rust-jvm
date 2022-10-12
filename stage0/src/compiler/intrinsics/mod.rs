@@ -3,7 +3,8 @@ use another_jit_vm_ir::compiler::IRInstr;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::MethodId;
 
 use crate::compiler::CompilerLabeler;
@@ -13,8 +14,10 @@ use crate::compiler::intrinsics::get_component_type::get_component_type_intrinsi
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
 use crate::compiler::intrinsics::reflect_new_array::reflect_new_array;
 use crate::compiler::intrinsics::sun_misc_unsafe::{address_size, get_int_volatile};
-use crate::compiler::intrinsics::sun_misc_unsafe::compare_and_swap::{intrinsic_compare_and_swap_int, intrinsic_compare_and_swap_long};
-use crate::compiler::intrinsics::sun_misc_unsafe::get_raw::unsafe_get_long_raw;
+use crate::compiler::intrinsics::sun_misc_unsafe::compare_and_swap::{intrinsic_compare_and_swap_int, intrinsic_compare_and_swap_long, intrinsic_compare_and_swap_object};
+use crate::compiler::intrinsics::sun_misc_unsafe::get_raw::{unsafe_get_byte_raw, unsafe_get_long_raw};
+use crate::compiler::intrinsics::sun_misc_unsafe::malloc_interface::{unsafe_allocate_memory, unsafe_free_memory};
+use crate::compiler::intrinsics::sun_misc_unsafe::put_raw::unsafe_put_long;
 use crate::compiler::intrinsics::system_identity_hashcode::system_identity_hashcode;
 use crate::compiler_common::MethodResolver;
 
@@ -90,7 +93,7 @@ pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
         return_type: CPDType::BooleanType,
     };
     if method_name == MethodName::method_compareAndSwapObject() && desc == compare_and_swap_obj {
-        return intrinsic_compare_and_swap_int(resolver, layout, labeler, method_id, ir_method_id);
+        return intrinsic_compare_and_swap_object(resolver, layout, labeler, method_id, ir_method_id);
     }
 
     let address_size_desc = CompressedMethodDescriptor::empty_args(CPDType::IntType);
@@ -106,23 +109,43 @@ pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
         return unsafe_get_long_raw(resolver, layout, method_id, ir_method_id);
     }
 
-    let get_int_volatile_desc = CompressedMethodDescriptor{ arg_types: vec![CPDType::object(), CPDType::LongType], return_type: CPDType::IntType };
-    if method_name == MethodName::method_getIntVolatile() && desc == get_int_volatile_desc{
-        return get_int_volatile(resolver,layout, labeler, method_id, ir_method_id);
+    let get_byte_desc = CompressedMethodDescriptor {
+        arg_types: vec![CPDType::LongType],
+        return_type: CompressedParsedDescriptorType::ByteType,
+    };
+    if method_name == MethodName::method_getByte() && desc == get_byte_desc {
+        return unsafe_get_byte_raw(resolver, layout, method_id, ir_method_id);
     }
 
-    let allocate_memory_desc = CompressedMethodDescriptor{ arg_types: vec![CPDType::LongType], return_type: CPDType::LongType };
-    if method_name == MethodName::method_allocateMemory() && desc == allocate_memory_desc{
-        return None
+    let get_int_volatile_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::object(), CPDType::LongType], return_type: CPDType::IntType };
+    if method_name == MethodName::method_getIntVolatile() && desc == get_int_volatile_desc {
+        return get_int_volatile(resolver, layout, labeler, method_id, ir_method_id);
     }
 
-    // if method_name != MethodName::method_registerNatives() &&
-    //     method_name.0.to_str(resolver.string_pool()) != "arrayBaseOffset" &&
-    //     method_name.0.to_str(resolver.string_pool()) != "objectFieldOffset" &&
-    //     method_name.0.to_str(resolver.string_pool()) != "arrayIndexScale" {
-    //     dbg!(method_name.0.to_str(resolver.string_pool()));
-    //     dbg!(desc.jvm_representation(resolver.string_pool()));
-    //     todo!()
-    // }
+    let allocate_memory_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::LongType], return_type: CPDType::LongType };
+    if method_name == MethodName::method_allocateMemory() && desc == allocate_memory_desc {
+        return unsafe_allocate_memory(resolver, layout, method_id, ir_method_id);
+    }
+
+    let free_memory_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType]);
+    if method_name == MethodName::method_freeMemory() && desc == free_memory_desc {
+        return unsafe_free_memory(resolver, layout, method_id, ir_method_id);
+    }
+
+    let put_long_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType, CPDType::LongType]);
+    if method_name == MethodName::method_putLong() && desc == put_long_desc {
+        return unsafe_put_long(resolver, layout, labeler, method_id, ir_method_id);
+    }
+
+
+
+    if method_name != MethodName::method_registerNatives() &&
+        method_name.0.to_str(resolver.string_pool()) != "arrayBaseOffset" &&
+        method_name.0.to_str(resolver.string_pool()) != "objectFieldOffset" &&
+        method_name.0.to_str(resolver.string_pool()) != "arrayIndexScale" {
+        dbg!(method_name.0.to_str(resolver.string_pool()));
+        dbg!(desc.jvm_representation(resolver.string_pool()));
+        todo!()
+    }
     None
 }

@@ -9,6 +9,8 @@ use crate::compiler_common::MethodResolver;
 
 pub mod compare_and_swap;
 pub mod get_raw;
+pub mod put_raw;
+pub mod malloc_interface;
 
 // #[no_mangle]
 // unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jint {
@@ -45,29 +47,28 @@ pub fn get_int_volatile<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Nativ
         IRInstr::LoadFPRelative {
             from: layout.local_var_entry(1),
             to: obj,
-            size: Size::pointer()
+            size: Size::pointer(),
         },
         IRInstr::BranchEqual {
             a: obj,
             b: zero,
             label: static_var_lookup,
-            size: Size::pointer()
+            size: Size::pointer(),
         },
         IRInstr::LoadFPRelative {
             from: layout.local_var_entry(2),
             to: offset,
-            size: Size::long()
+            size: Size::long(),
         },
-        IRInstr::CopyRegister { from: obj, to: res },
         IRInstr::Add {
-            res,
+            res: obj,
             a: offset,
-            size: Size::pointer()
+            size: Size::pointer(),
         },
         IRInstr::Load {
             to: res,
-            from_address: res,
-            size: Size::int()
+            from_address: obj,
+            size: Size::int(),
         },
         IRInstr::Return {
             return_val: Some(res),
@@ -77,9 +78,9 @@ pub fn get_int_volatile<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Nativ
             temp_register_4: Register(4),
             frame_size: layout.full_frame_size(),
         },
-        IRInstr::Label(IRLabel{ name: static_var_lookup }),
-        IRInstr::DebuggerBreakpoint
-    ])
+        IRInstr::Label(IRLabel { name: static_var_lookup }),
+        IRInstr::DebuggerBreakpoint,
+    ]);
 }
 
 

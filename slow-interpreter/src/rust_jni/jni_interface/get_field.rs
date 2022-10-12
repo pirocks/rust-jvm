@@ -8,7 +8,6 @@ use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-use rust_jvm_common::compressed_classfile::names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 
 use crate::{JavaValueCommon, JVMState, WasException};
@@ -168,7 +167,7 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_name_string = CStr::from_ptr(name).to_str().unwrap().to_string();
-    let method_name = MethodName(jvm.string_pool.add_name(method_name_string, false));
+    let method_name = rust_jvm_common::compressed_classfile::method_names::MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = match from_object_new(jvm, clazz) {
         None => return throw_npe(jvm, int_state),

@@ -1,6 +1,8 @@
 pub mod concurrent_hash_map {
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::field_names::FieldName;
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{check_initing_or_inited_class, JVMState, NewJavaValue, PushableFrame};
     use crate::class_loading::assert_inited_or_initing_class;
@@ -81,8 +83,8 @@ pub mod concurrent_hash_map {
     }
 
     pub mod node {
-        use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-
+        use rust_jvm_common::compressed_classfile::class_names::CClassName;
+        use rust_jvm_common::compressed_classfile::field_names::FieldName;
         use crate::class_loading::assert_inited_or_initing_class;
         use crate::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;

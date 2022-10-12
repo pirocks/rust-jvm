@@ -3,8 +3,8 @@ use std::sync::Arc;
 use wtf8::Wtf8Buf;
 
 use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
+use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName};
 use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};

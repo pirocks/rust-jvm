@@ -3,7 +3,8 @@ use std::ops::Deref;
 
 use jvmti_jni_bindings::jlong;
 use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedFieldDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 

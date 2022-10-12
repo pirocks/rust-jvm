@@ -2,7 +2,8 @@ use itertools::Either;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;

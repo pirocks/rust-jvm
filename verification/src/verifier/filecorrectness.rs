@@ -1,6 +1,7 @@
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::compressed_classfile::{CCString, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;

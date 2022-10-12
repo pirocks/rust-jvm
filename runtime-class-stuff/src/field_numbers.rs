@@ -5,7 +5,7 @@ use itertools::Itertools;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
-use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 use crate::RuntimeClass;
 

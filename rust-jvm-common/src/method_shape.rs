@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDTypeOrderWrapper};
-use crate::compressed_classfile::names::MethodName;
+use crate::compressed_classfile::method_names::MethodName;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct MethodShape {

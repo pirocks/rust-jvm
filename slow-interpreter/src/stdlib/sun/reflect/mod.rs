@@ -3,7 +3,8 @@ pub mod generics;
 pub mod reflection {
     use jvmti_jni_bindings::jboolean;
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
@@ -49,8 +50,8 @@ pub mod reflection {
 }
 
 pub mod constant_pool {
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName};
-
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use crate::{AllocatedHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
     use crate::interpreter_util::new_object_full;

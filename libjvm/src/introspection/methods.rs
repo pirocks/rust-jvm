@@ -10,7 +10,8 @@ use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
 use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedRefType, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;

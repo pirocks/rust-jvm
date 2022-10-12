@@ -11,7 +11,8 @@ use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::names::FieldName;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
 use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};

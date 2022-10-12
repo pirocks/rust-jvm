@@ -2,7 +2,7 @@ use std::ops::Deref;
 
 use crate::classfile::UninitializedVariableInfo;
 use crate::compressed_classfile::{CompressedClassfileStringPool, CPDType};
-use crate::compressed_classfile::names::{CClassName, CompressedClassName};
+use crate::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
 use crate::runtime_type::{RuntimeRefType, RuntimeType};

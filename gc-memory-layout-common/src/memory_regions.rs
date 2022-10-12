@@ -14,7 +14,7 @@ use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jclass;
 use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::loading::LoaderName;
 use vtable::RawNativeVTable;
 

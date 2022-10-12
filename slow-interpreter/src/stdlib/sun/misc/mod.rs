@@ -2,7 +2,9 @@ pub mod unsafe_ {
     use std::ops::Deref;
 
     use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
-    use rust_jvm_common::compressed_classfile::names::{CClassName, FieldName, MethodName};
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::field_names::FieldName;
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
@@ -42,8 +44,9 @@ pub mod unsafe_ {
 }
 
 pub mod launcher {
+    use rust_jvm_common::compressed_classfile::class_names::CClassName;
     use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-    use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+    use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
     use crate::{AllocatedHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
@@ -83,8 +86,9 @@ pub mod launcher {
     }
 
     pub mod ext_class_loader {
+        use rust_jvm_common::compressed_classfile::class_names::CClassName;
         use rust_jvm_common::compressed_classfile::CMethodDescriptor;
-        use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+        use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
         use crate::better_java_stack::frames::PushableFrame;
         use crate::class_loading::check_initing_or_inited_class;

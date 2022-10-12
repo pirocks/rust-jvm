@@ -6,7 +6,7 @@ use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 
 use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::opaque_frame::OpaqueFrame;

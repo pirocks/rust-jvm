@@ -5,7 +5,7 @@ use by_address::ByAddress;
 
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::CompressedMethodDescriptor;
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 pub struct InvokeVirtualLookupCache<'gc> {
     inner: HashMap<(ByAddress<Arc<RuntimeClass<'gc>>>, MethodName, CompressedMethodDescriptor), (Arc<RuntimeClass<'gc>>, u16)>,

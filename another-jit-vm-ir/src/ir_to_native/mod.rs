@@ -560,7 +560,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.set_label(&mut after).unwrap();
             assembler.nop().unwrap();
         }
-        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args, float_args, float_res, double_args, double_res } => {
+        IRInstr::CallIntrinsicHelper { intrinsic_helper_type, integer_args, integer_res, float_args, float_res, double_args, double_res } => {
             match intrinsic_helper_type {
                 IntrinsicHelperType::Memmove => {
                     let first_arg = rdi;
@@ -574,6 +574,31 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                }
+                IntrinsicHelperType::Malloc => {
+                    let first_arg = rdi;
+                    assert_eq!(integer_args.len(), 1);
+                    let args = vec![first_arg];
+                    assert!(!integer_args.iter().any(|reg| args.contains(&reg.to_native_64())));
+                    assert!(integer_args.len() <= args.len());
+                    for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
+                        assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
+                    }
+                    assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                    let integer_res = integer_res.unwrap();
+                    assembler.mov(integer_res.to_native_64(), rax).unwrap();
+                }
+                IntrinsicHelperType::Free => {
+                    let first_arg = rdi;
+                    assert_eq!(integer_args.len(), 1);
+                    let args = vec![first_arg];
+                    assert!(!integer_args.iter().any(|reg| args.contains(&reg.to_native_64())));
+                    assert!(integer_args.len() <= args.len());
+                    for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
+                        assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
+                    }
+                    assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
+                    assert!(integer_res.is_none());
                 }
                 IntrinsicHelperType::FRemF => {
                     let first_arg = xmm0;

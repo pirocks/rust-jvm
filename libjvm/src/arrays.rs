@@ -12,7 +12,7 @@ use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::CPDType;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};

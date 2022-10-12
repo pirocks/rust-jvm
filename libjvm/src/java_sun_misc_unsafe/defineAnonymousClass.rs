@@ -19,7 +19,7 @@ use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::create_class_object;
@@ -107,7 +107,7 @@ fn patch_single<'gc>(patch: AllocatedHandle<'gc>, jvm: &'gc JVMState<'gc>, unpat
     // Class: any java.lang.Class object
     // String: any object (not just a java.lang.String)
     // InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments//nyi means not yet implemented
-    let _kind = if class_name == CClassName::string().into() {
+    let _kind = if class_name == rust_jvm_common::compressed_classfile::class_names::CClassName::string().into() {
         unimplemented!()
     } else {
         let mut classes_guard = jvm.classes.write().unwrap();
