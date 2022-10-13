@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
-use rust_jvm_common::compressed_classfile::CPDType;
 
 use crate::ClassID;
 

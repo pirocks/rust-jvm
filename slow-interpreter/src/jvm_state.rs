@@ -31,9 +31,12 @@ use runtime_class_stuff::{ClassStatus, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
+use rust_jvm_common::compressed_classfile::compressed_types::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapperOwned};
@@ -64,6 +67,7 @@ use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjec
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, JVMOptions, SharedLibraryPaths};
 use crate::rust_jni::invoke_interface::{get_invoke_interface, get_invoke_interface_new};
 use crate::rust_jni::jvmti_interface::event_callbacks::SharedLibJVMTI;
+use crate::rust_jni::mangling::ManglingRegex;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use crate::string_exit_cache::StringExitCache;
@@ -134,6 +138,7 @@ pub struct JVMState<'gc> {
     pub bit_vec_paths: RwLock<BitVecPaths>,
     pub interface_arrays: RwLock<InterfaceArrays>,
     pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
+    pub mangling_regex : ManglingRegex
 }
 
 
@@ -360,6 +365,7 @@ impl<'gc> JVMState<'gc> {
             bit_vec_paths: bt_vec_paths,
             interface_arrays: RwLock::new(InterfaceArrays::new()),
             program_args_array: Default::default(),
+            mangling_regex: ManglingRegex::new()
         };
         (args, jvm)
     }

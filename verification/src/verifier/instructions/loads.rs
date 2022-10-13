@@ -1,4 +1,4 @@
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::vtype::VType;
 
 use crate::verifier::{Frame, standard_exception_frame};

@@ -8,7 +8,9 @@ use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::loading::ClassLoadingError::ClassNotFoundException;
 

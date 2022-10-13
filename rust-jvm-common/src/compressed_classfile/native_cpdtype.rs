@@ -5,8 +5,9 @@ use num_traits::FromPrimitive;
 
 use add_only_static_vec::AddOnlyId;
 
-use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedDescriptorType, CPDType, NonArrayCompressedParsedDescriptorType};
+use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedDescriptorType, CPDType};
 use crate::compressed_classfile::class_names::CompressedClassName;
+use crate::compressed_classfile::compressed_types::NonArrayCompressedParsedDescriptorType;
 
 const CPDTYPE_MAX_DISCRIMINANT: u8 = 10;
 

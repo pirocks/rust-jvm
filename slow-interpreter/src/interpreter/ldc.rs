@@ -2,8 +2,9 @@ use itertools::Either;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
 use crate::better_java_stack::frames::PushableFrame;

@@ -10,8 +10,10 @@ use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
+
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};

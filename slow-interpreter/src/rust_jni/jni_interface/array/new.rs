@@ -1,5 +1,6 @@
 use jvmti_jni_bindings::{jarray, jbooleanArray, jbyteArray, jcharArray, jclass, jdoubleArray, jfloatArray, jintArray, jlongArray, JNIEnv, jobject, jobjectArray, jshortArray, jsize};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, UnAllocatedObject};
 use crate::java_values::default_value_njv;

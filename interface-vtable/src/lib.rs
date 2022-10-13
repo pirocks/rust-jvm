@@ -18,7 +18,9 @@ use method_table::interface_table::{InterfaceID, InterfaceTable};
 use runtime_class_stuff::RuntimeClass;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CPDTypeOrderWrapper;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDTypeOrderWrapper;
+
+
 use rust_jvm_common::MethodId;
 
 pub mod lookup_cache;

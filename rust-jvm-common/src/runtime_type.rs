@@ -1,5 +1,5 @@
 use crate::compressed_classfile::class_names::{CClassName, CompressedClassName};
-use crate::compressed_classfile::CPDType;
+use crate::compressed_classfile::compressed_types::CPDType;
 
 pub type RType = RuntimeType;
 

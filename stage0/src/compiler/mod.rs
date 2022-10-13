@@ -13,7 +13,8 @@ use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::compiler::allocate::{anewarray, multianewarray, new, newarray};
 use crate::compiler::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};

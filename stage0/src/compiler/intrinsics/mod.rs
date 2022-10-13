@@ -2,9 +2,12 @@ use another_jit_vm::IRMethodID;
 use another_jit_vm_ir::compiler::IRInstr;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::MethodId;
 
 use crate::compiler::CompilerLabeler;

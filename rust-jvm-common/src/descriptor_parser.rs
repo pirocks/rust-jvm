@@ -4,7 +4,9 @@ use itertools::Itertools;
 
 use crate::classfile::{Classfile, MethodInfo};
 use crate::classnames::ClassName;
-use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor};
+
+use crate::compressed_classfile::compressed_descriptors::CFieldDescriptor;
+use crate::compressed_classfile::compressed_types::CMethodDescriptor;
 use crate::ptype::{PType, ReferenceType};
 
 #[derive(Debug, Eq, Clone)]

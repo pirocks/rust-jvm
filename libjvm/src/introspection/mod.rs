@@ -19,9 +19,11 @@ use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEn
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;

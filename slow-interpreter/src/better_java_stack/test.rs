@@ -8,7 +8,9 @@ use std::thread::Scope;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
 use gc_memory_layout_common::early_startup::get_regions;
 use jvmti_jni_bindings::jobject;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use xtask::{load_xtask_config, XTaskConfig};
 
 use crate::{JVMState, StackEntryPush};

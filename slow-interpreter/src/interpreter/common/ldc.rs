@@ -1,7 +1,8 @@
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
 use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::frames::PushableFrame;

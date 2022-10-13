@@ -11,9 +11,10 @@ use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv,
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::ACC_PUBLIC;
 use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
 use rust_jvm_common::loading::{LoaderIndex, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;

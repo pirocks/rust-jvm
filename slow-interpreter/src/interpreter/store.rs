@@ -1,5 +1,7 @@
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter::PostInstructionAction;

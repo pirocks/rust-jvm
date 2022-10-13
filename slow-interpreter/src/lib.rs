@@ -17,6 +17,8 @@
 #![feature(allocator_api)]
 
 
+extern crate alloc;
+
 use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -25,9 +27,12 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use stdlib::java::lang::string::JString;
 use stdlib::java::lang::system::System;
 use stdlib::java::NewAsObjectOrJavaValue;

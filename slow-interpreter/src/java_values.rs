@@ -17,8 +17,10 @@ use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
+
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};

@@ -6,7 +6,8 @@ use by_address::ByAddress;
 use jvmti_jni_bindings::_jmethodID;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{MethodId, MethodTableIndex};
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
 
 pub mod interface_table;
 

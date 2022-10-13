@@ -7,8 +7,9 @@ use wtf8::Wtf8Buf;
 
 use crate::ByteCodeOffset;
 use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
-use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
+use crate::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use crate::compressed_classfile::class_names::CClassName;
+use crate::compressed_classfile::compressed_descriptors::CFieldDescriptor;
 use crate::compressed_classfile::field_names::FieldName;
 use crate::compressed_classfile::method_names::MethodName;
 use crate::vtype::VType;

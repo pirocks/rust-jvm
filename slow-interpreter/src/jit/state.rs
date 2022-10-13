@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::btree_set::BTreeSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -6,7 +6,9 @@ use gc_memory_layout_common::memory_regions::AllocatedObjectType;
 use inheritance_tree::ClassID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CompressedParsedDescriptorType;
+use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
+
+
 use rust_jvm_common::loading::LoaderName;
 
 use crate::class_loading::assert_inited_or_initing_class;

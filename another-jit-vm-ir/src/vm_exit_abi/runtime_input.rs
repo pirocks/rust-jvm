@@ -10,8 +10,11 @@ use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CompressedClassfileString, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileString;
+
+
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;

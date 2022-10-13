@@ -1,9 +1,10 @@
 use std::num::NonZeroU8;
 
 use itertools::Itertools;
-
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, WasException};

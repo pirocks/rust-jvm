@@ -1,5 +1,5 @@
+use alloc::ffi::CString;
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::null_mut;

@@ -11,7 +11,9 @@ use raw_cpuid::CpuId;
 
 use gc_memory_layout_common::early_startup::get_regions;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use slow_interpreter::better_java_stack::frames::{HasFrame};
 use slow_interpreter::better_java_stack::remote_frame::RemoteFrame;
 use slow_interpreter::java_values::GC;

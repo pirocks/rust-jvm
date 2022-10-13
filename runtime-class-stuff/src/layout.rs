@@ -4,9 +4,11 @@ use std::sync::Arc;
 
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
-use rust_jvm_common::compressed_classfile::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
+
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{FieldNameAndFieldType, FieldNumber, FieldNumberAndFieldType, get_field_numbers, RuntimeClass};

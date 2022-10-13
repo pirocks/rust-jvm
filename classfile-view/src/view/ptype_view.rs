@@ -2,8 +2,11 @@ use std::ops::Deref;
 
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CompressedClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::vtype::VType;

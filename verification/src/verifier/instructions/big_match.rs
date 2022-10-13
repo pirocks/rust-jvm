@@ -4,6 +4,7 @@ use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
 
+
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
 use crate::verifier::instructions::*;

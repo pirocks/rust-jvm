@@ -1,7 +1,8 @@
 use std::os::raw::c_void;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::{JavaValueCommon, NewJavaValue};
 use crate::new_java_values::allocated_objects::AllocatedObject;
@@ -121,6 +122,8 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
 }
 
 pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
+    //todo this is slow for some reason?
+    // todo fast path copy for non-object arrays?
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let not_null = match from_object_new(jvm, array) {

@@ -6,10 +6,13 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::vtype::VType;

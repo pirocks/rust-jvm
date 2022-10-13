@@ -7,6 +7,7 @@ use classfile_view::view::ClassView;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::code::{CInstructionInfo, CompressedCode};
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::better_java_stack::frames::HasFrame;

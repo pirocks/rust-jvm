@@ -3,8 +3,8 @@ use itertools::Itertools;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::jint;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CPDType, CPRefType};
 
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, PushableFrame, UnAllocatedObject, WasException};
@@ -122,10 +122,11 @@ pub mod method {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
     use crate::{JavaValueCommon, NewJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
@@ -304,9 +305,10 @@ pub mod constructor {
     use classfile_view::view::ClassView;
     use classfile_view::view::method_view::MethodView;
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
 
     use crate::{JavaValueCommon, NewJavaValue, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;
@@ -449,9 +451,10 @@ pub mod constructor {
 
 pub mod field {
     use jvmti_jni_bindings::jint;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
 
     use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
     use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};

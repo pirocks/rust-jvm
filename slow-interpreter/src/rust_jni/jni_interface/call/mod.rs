@@ -5,7 +5,9 @@ use itertools::Itertools;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jint, jlong, jmethodID, JNINativeInterface_, jobject, jshort, jvalue};
 use method_table::from_jmethod_id;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+
+
 use rust_jvm_common::MethodId;
 
 use crate::{JavaValueCommon, WasException};

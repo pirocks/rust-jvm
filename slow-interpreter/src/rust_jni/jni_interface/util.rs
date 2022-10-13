@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::CPRefType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPRefType;
+
 
 use crate::JVMState;
 use crate::class_loading::assert_loaded_class;

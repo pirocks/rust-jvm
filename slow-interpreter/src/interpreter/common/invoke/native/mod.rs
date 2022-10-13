@@ -112,7 +112,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
 }
 
 fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
-    let mangled = mangling::mangle(&jvm.string_pool, method_view);
+    let mangled = mangling::mangle(&jvm.mangling_regex,&jvm.string_pool, method_view);
     //todo actually impl these at some point
     Ok(if &mangled == "Java_java_lang_invoke_MethodHandleNatives_registerNatives" {
         //todo
@@ -155,8 +155,8 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
     } else if &mangled == "Java_sun_misc_Unsafe_putLong__Ljava_lang_Object_2JJ" {
         todo!()
     } else {
-        todo!();/*int_state.debug_print_stack_trace(jvm);*/
         dbg!(mangled);
+        int_state.debug_print_stack_trace(jvm);
         panic!()
     })
 }

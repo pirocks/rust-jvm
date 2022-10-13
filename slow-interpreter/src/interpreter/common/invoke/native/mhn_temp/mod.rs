@@ -10,9 +10,12 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::ClassView;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CMethodDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_descriptor};
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame, WasException};

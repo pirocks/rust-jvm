@@ -10,8 +10,11 @@ use inheritance_tree::{ClassID, InheritanceTree};
 use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::paths::{BitPath256, InheritanceClassIDPath};
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::field_numbers::{FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};

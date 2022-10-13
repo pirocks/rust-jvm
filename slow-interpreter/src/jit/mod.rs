@@ -14,11 +14,14 @@ use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};

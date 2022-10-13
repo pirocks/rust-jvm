@@ -8,8 +8,10 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
 use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};

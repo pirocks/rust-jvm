@@ -1,6 +1,6 @@
 use std::collections::HashMap;
+use crate::compressed_classfile::compressed_types::CPDType;
 
-use crate::compressed_classfile::CPDType;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct CPDTypeID(pub u32);

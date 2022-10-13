@@ -11,7 +11,8 @@ use libc::timer_delete;
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;

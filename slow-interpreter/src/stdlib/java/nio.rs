@@ -1,7 +1,7 @@
 pub mod heap_byte_buffer {
     use jvmti_jni_bindings::{jbyte, jint};
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 
 
     use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};

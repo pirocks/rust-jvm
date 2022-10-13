@@ -2,9 +2,10 @@ pub mod generics;
 
 pub mod reflection {
     use jvmti_jni_bindings::jboolean;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
     use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, PushableFrame, WasException};
     use crate::class_loading::check_initing_or_inited_class;

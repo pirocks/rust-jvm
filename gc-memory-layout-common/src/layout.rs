@@ -5,7 +5,8 @@ use memoffset::offset_of;
 
 use another_jit_vm::FramePointerOffset;
 use jvmti_jni_bindings::jlong;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 use rust_jvm_common::NativeJavaValue;
 
 pub struct ArrayMemoryLayout {

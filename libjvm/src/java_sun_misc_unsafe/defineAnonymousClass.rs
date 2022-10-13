@@ -20,6 +20,7 @@ use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, U
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 
+
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::create_class_object;

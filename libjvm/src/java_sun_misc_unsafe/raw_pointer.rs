@@ -5,7 +5,7 @@ use libc::c_void;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
-use rust_jvm_common::compressed_classfile::CPDType;
+
 use rust_jvm_common::NativeJavaValue;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;

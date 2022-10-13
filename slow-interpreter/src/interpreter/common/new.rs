@@ -1,5 +1,4 @@
-use rust_jvm_common::compressed_classfile::CPDType;
-
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::{JVMState, NewJavaValue, PushableFrame, WasException};
 use crate::class_loading::check_resolved_class;
 use crate::java_values::JavaValue;

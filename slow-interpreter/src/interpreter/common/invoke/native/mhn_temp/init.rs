@@ -6,6 +6,7 @@ use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 
+
 use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;

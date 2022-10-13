@@ -1,6 +1,8 @@
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle, WasException};

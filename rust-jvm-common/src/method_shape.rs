@@ -2,8 +2,9 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
-use crate::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDTypeOrderWrapper};
+use crate::compressed_classfile::compressed_types::{CMethodDescriptor, CPDTypeOrderWrapper};
 use crate::compressed_classfile::method_names::MethodName;
+use crate::compressed_classfile::string_pool::CompressedClassfileStringPool;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct MethodShape {

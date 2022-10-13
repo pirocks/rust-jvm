@@ -3,7 +3,8 @@ use itertools::Either;
 use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
 use crate::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};

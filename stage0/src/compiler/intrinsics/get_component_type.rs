@@ -3,8 +3,9 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
-use rust_jvm_common::compressed_classfile::CPDType;
+
 use rust_jvm_common::{MethodId, NativeJavaValue};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::compiler_common::MethodResolver;
 
 pub fn get_component_type_intrinsic<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {

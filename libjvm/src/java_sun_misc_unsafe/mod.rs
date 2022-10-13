@@ -9,7 +9,7 @@ use nix::convert_ioctl_res;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jclass, jint, jlong, JNIEnv, jobject, JVM_CALLER_DEPTH};
-use rust_jvm_common::compressed_classfile::CPDType;
+
 
 use rust_jvm_common::FieldId;
 use slow_interpreter::class_loading::check_initing_or_inited_class;

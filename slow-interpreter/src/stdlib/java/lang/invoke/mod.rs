@@ -3,10 +3,11 @@ pub mod method_type {
 
     use jvmti_jni_bindings::jint;
     use runtime_class_stuff::RuntimeClass;
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
     use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, WasException};
     use crate::better_java_stack::frames::PushableFrame;
@@ -167,6 +168,7 @@ pub mod method_type_form {
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
+
     use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo};
     use crate::better_java_stack::java_stack_guard::JavaStackGuard;
     use crate::better_java_stack::opaque_frame::OpaqueFrame;
@@ -262,10 +264,9 @@ pub mod method_type_form {
 
 pub mod method_handle {
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
-    use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+    use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
     use crate::{JVMState, NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
@@ -350,10 +351,10 @@ pub mod method_handles {
     pub mod lookup {
         use std::ops::Deref;
         use rust_jvm_common::compressed_classfile::class_names::CClassName;
-
-        use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+        use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
         use rust_jvm_common::compressed_classfile::field_names::FieldName;
         use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
         use crate::better_java_stack::frames::PushableFrame;
         use crate::class_loading::assert_inited_or_initing_class;
@@ -511,6 +512,7 @@ pub mod lambda_form {
 
         use jvmti_jni_bindings::jint;
         use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
 
         use crate::java_values::JavaValue;
         use crate::jvm_state::JVMState;
@@ -714,10 +716,9 @@ pub mod lambda_form {
 }
 
 pub mod call_site {
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
     use crate::{NewAsObjectOrJavaValue, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;

@@ -13,9 +13,10 @@ use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};

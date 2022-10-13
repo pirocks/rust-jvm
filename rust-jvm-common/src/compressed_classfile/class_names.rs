@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use add_only_static_vec::{AddOnlyId, AddOnlyVecIDType};
-use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedRefType};
+use crate::compressed_classfile::{CompressedClassfileString};
+use crate::compressed_classfile::compressed_types::CompressedParsedRefType;
 use crate::compressed_classfile::names::PredefinedStrings::*;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]

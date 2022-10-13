@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
 use crate::{PushableFrame, WasException};
 use crate::JVMState;

@@ -10,7 +10,7 @@ use jvmti_jni_bindings::{JNIEnv, jobject};
 use runtime_class_stuff::{FieldNameAndFieldType, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::hidden_fields::HiddenJVMFieldAndFieldType;
-use rust_jvm_common::compressed_classfile::code::CompressedInstructionInfo::new;
+
 use slow_interpreter::class_loading::assert_inited_or_initing_class;
 use slow_interpreter::java_values::{ArrayObject, NormalObject, Object, ObjectFieldsAndClass};
 use slow_interpreter::jvm_state::JVMState;

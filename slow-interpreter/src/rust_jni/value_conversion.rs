@@ -7,7 +7,8 @@ use libffi::middle::Type;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jshort};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::{JavaValueCommon, NewJavaValue};
 use crate::better_java_stack::native_frame::NativeFrame;

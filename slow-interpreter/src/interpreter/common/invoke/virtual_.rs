@@ -6,8 +6,10 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};

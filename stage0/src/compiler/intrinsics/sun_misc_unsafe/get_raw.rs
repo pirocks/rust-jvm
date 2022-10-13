@@ -1,7 +1,8 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 use rust_jvm_common::MethodId;
 use crate::compiler::fields::field_type_to_register_size;
 use crate::compiler_common::MethodResolver;

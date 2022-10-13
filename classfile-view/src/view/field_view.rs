@@ -1,7 +1,8 @@
 use wtf8::Wtf8Buf;
-
-use rust_jvm_common::compressed_classfile::{CompressedFieldInfo, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::compressed_classfile::CompressedFieldInfo;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 use crate::view::constant_info_view::ConstantInfoView;

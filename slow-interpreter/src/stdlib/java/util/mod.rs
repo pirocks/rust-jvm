@@ -5,6 +5,7 @@ pub mod hashtable {
         use jvmti_jni_bindings::jint;
         use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
+
         use crate::{JavaValueCommon, JVMState};
         use crate::new_java_values::NewJavaValueHandle;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -34,11 +35,10 @@ pub mod hashtable {
 }
 
 pub mod properties {
-    use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
     use crate::{JVMState, WasException};
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;

@@ -16,8 +16,9 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+
 
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -51,7 +52,7 @@ impl<'gc> NativeLibraries<'gc> {
 }
 
 pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException<'gc>> {
-    let mangled = mangling::mangle(&jvm.string_pool, &method_view);
+    let mangled = mangling::mangle(&jvm.mangling_regex,&jvm.string_pool, &method_view);
     // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
         let libraries_guard = jvm.native_libaries.native_libs.read().unwrap();

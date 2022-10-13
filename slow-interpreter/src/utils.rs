@@ -3,10 +3,11 @@ use std::sync::Arc;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frames::PushableFrame;

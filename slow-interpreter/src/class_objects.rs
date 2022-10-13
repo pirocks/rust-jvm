@@ -1,5 +1,5 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::loading::LoaderName;
 
 use crate::{JVMState, WasException};

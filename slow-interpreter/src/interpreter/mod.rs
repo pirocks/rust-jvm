@@ -5,8 +5,10 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use common::special::instance_of_exit_impl_impl_impl;
 use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CompressedParsedDescriptorType, CompressedParsedRefType};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CompressedParsedRefType};
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};

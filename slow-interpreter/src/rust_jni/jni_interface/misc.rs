@@ -10,9 +10,12 @@ use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CCString, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CCString;
+
+
 use rust_jvm_common::descriptor_parser::parse_field_type;
 use verification::verifier::filecorrectness::is_assignable;
 use verification::VerifierContext;

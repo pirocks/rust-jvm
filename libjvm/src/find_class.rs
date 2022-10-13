@@ -10,8 +10,9 @@ use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring, JVM_Available};
 use rust_jvm_common::classfile::AttributeType::RuntimeInvisibleAnnotations;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::CompressedClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;

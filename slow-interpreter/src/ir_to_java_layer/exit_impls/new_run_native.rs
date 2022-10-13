@@ -8,6 +8,7 @@ use another_jit_vm_ir::IRVMExitAction;
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+
 use rust_jvm_common::MethodId;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 

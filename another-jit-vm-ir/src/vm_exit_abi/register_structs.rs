@@ -1,7 +1,8 @@
 use std::collections::HashSet;
 
 use another_jit_vm::Register;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 pub trait ExitRegisterStruct {
     fn all_registers() -> HashSet<Register>;

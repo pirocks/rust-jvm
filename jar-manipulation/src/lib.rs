@@ -11,7 +11,8 @@ use zip::ZipArchive;
 use classfile_parser::parse_class_file;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
 
 #[derive(Debug)]
 pub struct JarHandle<R: Read + io::Seek> {

@@ -5,7 +5,8 @@ use std::ptr::NonNull;
 use itertools::Itertools;
 
 use another_jit_vm_ir::IRVMExitAction;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::NativeJavaValue;
 

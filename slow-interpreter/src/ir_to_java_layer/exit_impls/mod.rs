@@ -17,11 +17,13 @@ use jvmti_jni_bindings::{jint, jlong};
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, NativeJavaValue};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};

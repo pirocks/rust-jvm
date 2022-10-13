@@ -3,9 +3,11 @@ use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};

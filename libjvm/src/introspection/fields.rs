@@ -8,7 +8,8 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
 use jvmti_jni_bindings::{jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
 use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;

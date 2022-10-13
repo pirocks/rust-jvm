@@ -9,8 +9,10 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::CPDType;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
+
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};

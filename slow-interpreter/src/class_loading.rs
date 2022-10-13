@@ -12,10 +12,12 @@ use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
 use runtime_class_stuff::layout::ObjectLayout;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
+use rust_jvm_common::compressed_classfile::compressed_types::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+
+
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
 use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{ClassFileGetter, VerifierContext, verify};

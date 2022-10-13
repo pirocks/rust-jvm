@@ -8,8 +8,10 @@ use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset};
 use rust_jvm_common::classfile::{LookupSwitch, TableSwitch};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedExceptionTableElem, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+
+
 use rust_jvm_common::vtype::VType;
 
 pub enum ConstrainedInference {

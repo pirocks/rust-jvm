@@ -11,7 +11,7 @@ use sketch_jvm_version_of_utf8::ValidationError;
 use crate::classnames::ClassName;
 use crate::compressed_classfile::class_names::CClassName;
 use crate::compressed_classfile::code::LiveObjectIndex;
-use crate::compressed_classfile::CPRefType;
+use crate::compressed_classfile::compressed_types::CPRefType;
 use crate::loading::ClassfileParsingError::UTFValidationError;
 
 pub trait LivePoolGetter {

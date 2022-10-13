@@ -2,8 +2,11 @@ use std::sync::RwLock;
 
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::JavaThreadId;
 
 use crate::java_values::JavaValue;
