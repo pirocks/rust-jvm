@@ -394,8 +394,8 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
                 this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, *classname_ref_type))
             }
-            CompressedInstructionInfo::putstatic { name, desc: _, target_class } => {
-                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name))
+            CompressedInstructionInfo::putstatic { name, desc, target_class } => {
+                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name,*desc))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
                 this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, elem_type))

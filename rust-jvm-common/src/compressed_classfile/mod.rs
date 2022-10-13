@@ -753,7 +753,7 @@ impl CompressedMethodDescriptor {
 
 pub type CFieldDescriptor = CompressedFieldDescriptor;
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CompressedFieldDescriptor(pub CompressedParsedDescriptorType);
 
 impl CompressedFieldDescriptor {

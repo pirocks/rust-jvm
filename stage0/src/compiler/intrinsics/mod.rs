@@ -139,13 +139,13 @@ pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
 
 
 
-    if method_name != MethodName::method_registerNatives() &&
-        method_name.0.to_str(resolver.string_pool()) != "arrayBaseOffset" &&
-        method_name.0.to_str(resolver.string_pool()) != "objectFieldOffset" &&
-        method_name.0.to_str(resolver.string_pool()) != "arrayIndexScale" {
-        dbg!(method_name.0.to_str(resolver.string_pool()));
-        dbg!(desc.jvm_representation(resolver.string_pool()));
-        todo!()
-    }
+    // if method_name != MethodName::method_registerNatives() &&
+    //     method_name.0.to_str(resolver.string_pool()) != "arrayBaseOffset" &&
+    //     method_name.0.to_str(resolver.string_pool()) != "objectFieldOffset" &&
+    //     method_name.0.to_str(resolver.string_pool()) != "arrayIndexScale" {
+    //     dbg!(method_name.0.to_str(resolver.string_pool()));
+    //     dbg!(desc.jvm_representation(resolver.string_pool()));
+    //     todo!()
+    // }
     None
 }
