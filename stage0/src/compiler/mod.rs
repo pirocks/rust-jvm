@@ -521,8 +521,8 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::if_icmpgt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::GT, *offset as i32));
             }
-            CompressedInstructionInfo::getstatic { name, desc: _, target_class } => {
-                this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name));
+            CompressedInstructionInfo::getstatic { name, desc, target_class } => {
+                this_function_ir.extend(getstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name, *desc));
             }
             CompressedInstructionInfo::if_icmplt(offset) => {
                 this_function_ir.extend(if_icmp(method_frame_data, current_instr_data, IntEqualityType::LT, *offset as i32));

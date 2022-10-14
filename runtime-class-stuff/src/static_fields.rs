@@ -1,3 +1,4 @@
+use std::ptr::NonNull;
 use itertools::Itertools;
 
 use rust_jvm_common::NativeJavaValue;
@@ -25,8 +26,8 @@ impl<'gc> RawStaticFields<'gc> {
         self.ptr
     }
 
-    pub fn get(&self, static_number: StaticFieldNumber) -> *mut NativeJavaValue<'gc> {
+    pub fn get(&self, static_number: StaticFieldNumber) -> NonNull<NativeJavaValue<'gc>> {
         assert!((static_number.0 as usize) < self.len);
-        unsafe { self.raw_ptr().offset(static_number.0 as isize) }
+        NonNull::new(unsafe { self.raw_ptr().offset(static_number.0 as isize) }).unwrap()
     }
 }
