@@ -82,6 +82,7 @@ pub mod better_java_stack;
 pub mod exceptions;
 pub mod stdlib;
 pub mod leaked_interface_arrays;
+pub mod string_intern;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

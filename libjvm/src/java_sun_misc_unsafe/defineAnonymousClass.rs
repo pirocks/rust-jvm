@@ -15,12 +15,11 @@ use wtf8::Wtf8Buf;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use interfaces::jni_interface::define_class_safe;
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
-
-
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::create_class_object;
@@ -32,8 +31,7 @@ use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
-use slow_interpreter::rust_jni::jni_interface::define_class_safe;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
 use verification::{VerifierContext, verify};

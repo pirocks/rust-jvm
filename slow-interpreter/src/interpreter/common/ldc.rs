@@ -13,10 +13,10 @@ use crate::interpreter::run_function;
 use crate::interpreter_util::new_object;
 use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::rust_jni::jni_interface::string::intern_safe;
 use crate::stack_entry::StackEntryPush;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
+use crate::string_intern::intern_safe;
 
 pub fn load_class_constant_by_type<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, res_class_type: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, res_class_type.clone(), int_state)?;

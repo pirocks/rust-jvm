@@ -16,12 +16,14 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
-use slow_interpreter::rust_jni::jni_interface::define_class_safe;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+
+
+
+use interfaces::jni_interface::define_class_safe;
+use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::string::JString;
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::utils::throw_npe;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _the_unsafe: jobject, name: jstring, bytes: jbyteArray, off: jint, len: jint, loader: jobject, protection_domain: jobject) -> jclass {

@@ -7,14 +7,15 @@ use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::new_local_ref_public;
+
+
+use slow_interpreter::rust_jni::jni_utils::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::misc::launcher::ext_class_loader::ExtClassLoader;
 use slow_interpreter::stdlib::sun::misc::launcher::Launcher;
-use slow_interpreter::utils::pushable_frame_todo;
+use slow_interpreter::utils::pushable_frame_todo;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {

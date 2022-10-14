@@ -29,9 +29,10 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::jni_interface::misc::get_all_methods;
+
+
+
+use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::stdlib::java::lang::class::JClass;
@@ -39,6 +40,7 @@ use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass: jclass, publicOnly: jboolean) -> jobjectArray {

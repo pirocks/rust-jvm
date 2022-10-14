@@ -14,7 +14,7 @@ use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::{jchar, jobject, jshort};
+use jvmti_jni_bindings::{jchar, JmmInterface, jmmInterface_1_, JNIInvokeInterface_, JNINativeInterface_, jobject, jshort, jvmtiInterface_1_};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
@@ -26,7 +26,7 @@ use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
-use crate::rust_jni::jni_interface::jni::with_jni_interface;
+use crate::rust_jni::jni_utils::with_jni_interface;
 use crate::rust_jni::native_util::from_object_new;
 use crate::rust_jni::value_conversion::{to_native, to_native_type};
 
@@ -36,10 +36,38 @@ pub mod ffi_arg_holder;
 pub mod dlopen;
 pub mod native_util;
 pub mod stdarg;
-pub mod jni_interface;
-pub mod jvmti_interface;
-pub mod jmm_interface;
+pub mod jvmti;
+pub mod jni_utils;
 pub mod invoke_interface;
+
+#[derive(Clone)]
+pub struct PerStackInterfaces {
+    pub jni: JNINativeInterface_,
+    pub jmm: jmmInterface_1_,
+    pub jvmti: jvmtiInterface_1_,
+    pub invoke_interface: JNIInvokeInterface_,
+}
+
+impl PerStackInterfaces {
+
+    pub fn jni_inner_mut(&mut self) -> &mut JNINativeInterface_ {
+        &mut self.jni
+    }
+
+    pub fn jmm_inner_mut(&mut self) -> &mut JmmInterface {
+        &mut self.jmm
+    }
+
+    pub fn jvmti_inner_mut(&mut self) -> &mut jvmtiInterface_1_ {
+        &mut self.jvmti
+    }
+
+    pub fn invoke_interface_mut(&mut self) -> &mut JNIInvokeInterface_ {
+        &mut self.invoke_interface
+    }
+}
+
+
 
 impl<'gc> NativeLibraries<'gc> {
     pub fn new(libjava: OsString) -> NativeLibraries<'gc> {

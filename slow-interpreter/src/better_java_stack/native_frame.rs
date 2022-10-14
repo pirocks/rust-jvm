@@ -17,7 +17,7 @@ use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::interpreter_state::NativeFrameInfo;
-use crate::rust_jni::jni_interface::PerStackInterfaces;
+use crate::rust_jni::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 
 pub struct NativeFrame<'gc, 'k> {
@@ -56,7 +56,7 @@ impl<'gc, 'k> NativeFrame<'gc, 'k> {
         }
     }
 
-    pub(crate) fn stack_jni_interface(&mut self) -> &mut PerStackInterfaces {
+    pub fn stack_jni_interface(&mut self) -> &mut PerStackInterfaces {
         self.java_stack.stack_jni_interface()
     }
 }

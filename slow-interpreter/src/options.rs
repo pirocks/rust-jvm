@@ -9,24 +9,24 @@ use crate::JVMState;
 use crate::loading::Classpath;
 
 pub struct SharedLibraryPaths {
-    pub(crate) libjava: OsString,
-    pub(crate) libjdwp: OsString,
+    pub libjava: OsString,
+    pub libjdwp: OsString,
 }
 
 pub struct JVMOptions {
-    pub(crate) main_class_name: ClassName,
-    pub(crate) classpath: Classpath,
-    pub(crate) args: Vec<String>,
-    pub(crate) shared_libs: SharedLibraryPaths,
-    pub(crate) enable_tracing: bool,
-    pub(crate) enable_jvmti: bool,
-    pub(crate) properties: Vec<String>,
-    pub(crate) unittest_mode: bool,
-    pub(crate) store_generated_classes: bool,
-    pub(crate) debug_print_exceptions: bool,
-    pub(crate) assertions_enabled: bool,
-    pub(crate) instruction_trace_options: InstructionTraceOptions,
-    pub(crate) exit_trace_options: ExitTracingOptions,
+    pub main_class_name: ClassName,
+    pub classpath: Classpath,
+    pub args: Vec<String>,
+    pub shared_libs: SharedLibraryPaths,
+    pub enable_tracing: bool,
+    pub enable_jvmti: bool,
+    pub properties: Vec<String>,
+    pub unittest_mode: bool,
+    pub store_generated_classes: bool,
+    pub debug_print_exceptions: bool,
+    pub assertions_enabled: bool,
+    pub instruction_trace_options: InstructionTraceOptions,
+    pub exit_trace_options: ExitTracingOptions,
 }
 
 pub enum ExitTracingOptions {

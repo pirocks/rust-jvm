@@ -1,9 +1,10 @@
 use std::mem::transmute;
 
 use jvmti_jni_bindings::{jint, JNIEnv, jobject};
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::utils::throw_npe;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IHashCode(env: *mut JNIEnv, obj: jobject) -> jint {

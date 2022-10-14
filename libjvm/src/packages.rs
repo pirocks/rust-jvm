@@ -9,12 +9,14 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::native_allocation::AllocationType::CString;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+
+
+use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::pushable_frame_todo;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) -> jstring {

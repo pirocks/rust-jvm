@@ -9,12 +9,12 @@ use std::sync::RwLock;
 use lazy_static::lazy_static;
 use wtf8::Wtf8Buf;
 
+use interfaces::jni_interface::jmm::initial_jmm;
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use jvmti_jni_bindings::jmmInterface_1_;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::rust_jni::jni_interface::jmm::initial_jmm;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, to_object};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::util::properties::Properties;

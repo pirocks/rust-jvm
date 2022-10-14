@@ -49,5 +49,6 @@ members = [
     "thread-signal-handler",
     "pressure-stall-information-parser",
     "meminfo-parser",
-    "memory-limited-executor"
+    "memory-limited-executor",
+    "interfaces"
 ]

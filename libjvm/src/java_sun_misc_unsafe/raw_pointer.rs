@@ -9,9 +9,10 @@ use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::NativeJavaValue;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::utils::throw_npe;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, byte_: jbyte) {

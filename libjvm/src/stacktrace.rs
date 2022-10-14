@@ -16,13 +16,15 @@ use slow_interpreter::better_java_stack::frame_iter::FrameIterFrameRef;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
+
+use slow_interpreter::rust_jni::jni_utils::get_throw;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 struct OwnedStackEntry<'gc> {
     declaring_class: Arc<RuntimeClass<'gc>>,

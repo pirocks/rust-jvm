@@ -14,9 +14,8 @@ use crate::interpreter::common::invoke::native::mhn_temp::init::init;
 use crate::interpreter_util::new_object;
 use crate::java_values::ByAddressAllocatedObject;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::rust_jni::jni_interface::misc::get_all_fields;
 use crate::stdlib::java::lang::member_name::MemberName;
-use crate::utils::unwrap_or_npe;
+use crate::utils::{get_all_fields, unwrap_or_npe};
 
 pub fn MHN_resolve<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     //so as far as I can find this is undocumented.

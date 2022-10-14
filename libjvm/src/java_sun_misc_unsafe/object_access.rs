@@ -6,11 +6,10 @@ use std::ptr::null_mut;
 use libc::c_void;
 
 use classfile_view::view::HasAccessFlags;
+use interfaces::jni_interface::get_field::new_field_id;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::{FieldId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-
-
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
@@ -18,8 +17,7 @@ use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::runtime_class::static_vars;
-use slow_interpreter::rust_jni::jni_interface::get_field::new_field_id;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
 
 #[no_mangle]

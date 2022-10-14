@@ -12,7 +12,8 @@ use thread_signal_handler::SignalAccessibleJavaStackData;
 
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::rust_jni::jni_interface::PerStackInterfaces;
+use crate::JVMState;
+use crate::rust_jni::PerStackInterfaces;
 
 #[cfg(test)]
 pub mod test;
@@ -85,14 +86,14 @@ pub struct InterpreterFrameState {
 }
 
 impl<'gc> JavaStack<'gc> {
-    pub fn new(owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
+    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
         Self {
             phantom: Default::default(),
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
             thread_stack_data,
             has_been_used: false,
-            per_stack_interface: PerStackInterfaces::new()
+            per_stack_interface: jvm.default_per_stack_initial_interfaces.clone()
         }
     }
 

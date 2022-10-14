@@ -20,15 +20,13 @@ use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_method_de
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame, WasException};
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::rust_jni::jni_interface::field_object_from_view;
-use crate::rust_jni::jni_interface::misc::{get_all_fields, get_all_methods};
 use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::reflect::constructor::Constructor;
 use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::reflect::method::Method;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::sun::misc::unsafe_::Unsafe;
-use crate::utils::{throw_illegal_arg_res, unwrap_or_npe};
+use crate::utils::{field_object_from_view, get_all_fields, get_all_methods, throw_illegal_arg_res, unwrap_or_npe};
 
 pub mod resolve;
 

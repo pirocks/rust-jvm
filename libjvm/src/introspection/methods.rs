@@ -18,13 +18,15 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValue;
-use slow_interpreter::rust_jni::jni_interface::jni::{get_interpreter_state, get_state, get_throw};
-use slow_interpreter::rust_jni::jni_interface::local_frame::{new_local_ref_public, new_local_ref_public_new};
+
+
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {

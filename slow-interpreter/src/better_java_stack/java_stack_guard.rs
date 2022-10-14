@@ -19,7 +19,7 @@ use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::exceptions::WasException;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::rust_jni::jni_interface::PerStackInterfaces;
+use crate::rust_jni::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 use crate::threading::java_thread::JavaThread;
 

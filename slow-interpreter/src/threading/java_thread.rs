@@ -21,7 +21,7 @@ use crate::better_java_stack::frames::{HasFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::remote_frame::RemoteFrame;
 use crate::interpreter::safepoint_check;
-use crate::rust_jni::jvmti_interface::event_callbacks::ThreadJVMTIEnabledStatus;
+use crate::rust_jni::jvmti::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::threading::safepoints::SafePoint;
 
@@ -95,7 +95,7 @@ impl<'gc> JavaThread<'gc> {
             }
         };
         let underlying = jvm.thread_state.threads.create_thread(name.into());
-        let java_stack = Mutex::new(JavaStack::new(owned_ir_stack, stack_signal_safe_data.clone()));
+        let java_stack = Mutex::new(JavaStack::new(jvm, owned_ir_stack, stack_signal_safe_data.clone()));
         let res = Arc::new(JavaThread {
             java_tid,
             java_stack,

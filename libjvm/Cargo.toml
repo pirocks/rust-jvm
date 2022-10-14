@@ -20,6 +20,13 @@ runtime-class-stuff = { path = "../runtime-class-stuff" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 #jvm-args = { path = "../jvm-args" }
+interfaces = { path = "../interfaces" }
+inheritance-tree = { path = "../inheritance-tree" }
+method-table = { path = "../method-table" }
+perf-metrics = { path = "../perf-metrics" }
+stage0 = { path = "../stage0" }
+vtable = { path = "../vtable" }
+interface-vtable = { path = "../interface-vtable" }
 
 lazy_static = "1.4"
 libc = "0.2"

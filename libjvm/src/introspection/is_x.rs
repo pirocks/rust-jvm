@@ -10,10 +10,12 @@ use rust_jvm_common::classfile::ACC_INTERFACE;
 use rust_jvm_common::classnames::class_name;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
-use slow_interpreter::rust_jni::jni_interface::jni::get_state;
-use slow_interpreter::rust_jni::jvmti_interface::is::is_array_impl;
+
+
+use interfaces::jvmti_interface::is::is_array_impl;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new};
 use slow_interpreter::utils::throw_array_out_of_bounds;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_IsNaN(d: jdouble) -> jboolean {

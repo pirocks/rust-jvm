@@ -136,7 +136,7 @@ impl<'gc> ThreadState<'gc> {
         self.main_thread.read().unwrap().as_ref().unwrap().clone()
     }
 
-    pub(crate) fn set_current_thread(&'_ self, thread: Arc<JavaThread<'gc>>) {
+    pub fn set_current_thread(&'_ self, thread: Arc<JavaThread<'gc>>) {
         self.current_java_thread.with(|refcell| {
             assert!(refcell.borrow().is_none());
             unsafe {

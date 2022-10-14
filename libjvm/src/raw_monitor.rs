@@ -4,7 +4,7 @@ use std::os::raw::c_void;
 use parking_lot::ReentrantMutex;
 
 use jvmti_jni_bindings::{jint, JNI_OK};
-use slow_interpreter::rust_jni::jvmti_interface::monitor::create_raw_monitor;
+
 use slow_interpreter::threading::monitors::Monitor;
 
 #[no_mangle]

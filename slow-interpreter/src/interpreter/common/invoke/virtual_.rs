@@ -22,10 +22,9 @@ use crate::java_values::{ByAddressAllocatedObject, JavaValue};
 use crate::jit::MethodResolverImpl;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::rust_jni::jni_interface::misc::get_all_methods;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
 use crate::stdlib::java::lang::member_name::MemberName;
-use crate::utils::run_static_or_virtual;
+use crate::utils::{get_all_methods, run_static_or_virtual};
 
 /**
 Should only be used for an actual invoke_virtual instruction.

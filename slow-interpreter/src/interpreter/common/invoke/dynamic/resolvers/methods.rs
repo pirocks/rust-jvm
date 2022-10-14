@@ -8,9 +8,9 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use crate::{PushableFrame, WasException};
 use crate::JVMState;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::rust_jni::jni_interface::misc::get_all_methods;
 use crate::stdlib::java::lang::member_name::MemberName;
 use crate::stdlib::java::lang::reflect::method::Method;
+use crate::utils::get_all_methods;
 
 pub fn resolve_invoke_virtual<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, member_name: MemberName<'gc>) -> Result<Result<(Method<'gc>, u16, Arc<RuntimeClass<'gc>>), ResolutionError>, WasException<'gc>> {
     resolve_virtual_impl(jvm, int_state, member_name, false)

@@ -1,4 +1,6 @@
 use std::sync::Arc;
+use wtf8::Wtf8Buf;
+use classfile_view::view::field_view::FieldView;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::jint;
@@ -7,13 +9,15 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
 
-use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
+use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
+use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
@@ -22,11 +26,13 @@ use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsEx
 use crate::stdlib::java::lang::boolean::Boolean;
 use crate::stdlib::java::lang::byte::Byte;
 use crate::stdlib::java::lang::char::Char;
+use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::double::Double;
 use crate::stdlib::java::lang::float::Float;
 use crate::stdlib::java::lang::illegal_argument_exception::IllegalArgumentException;
 use crate::stdlib::java::lang::int::Int;
 use crate::stdlib::java::lang::long::Long;
+use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::short::Short;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
@@ -191,3 +197,108 @@ pub fn unwrap_or_npe<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
         Some(unwrapped) => Ok(unwrapped),
     }
 }
+
+pub fn get_all_fields<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, usize)>, WasException<'gc>> {
+    let mut res = vec![];
+    get_all_fields_impl(jvm, int_state, class, &mut res, include_interface)?;
+    Ok(res)
+}
+
+fn get_all_fields_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, usize)>, include_interface: bool) -> Result<(), WasException<'gc>> {
+    class.view().fields().enumerate().for_each(|(i, _)| {
+        res.push((class.clone(), i));
+    });
+
+    match class.view().super_name() {
+        None => {
+            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
+            object.view().fields().enumerate().for_each(|(i, _)| {
+                res.push((object.clone(), i));
+            });
+        }
+        Some(super_name) => {
+            let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
+            get_all_fields_impl(jvm, int_state, super_, res, include_interface)?
+        }
+    }
+
+    if include_interface {
+        for interface in class.view().interfaces() {
+            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            interface.view().fields().enumerate().for_each(|(i, _)| {
+                res.push((interface.clone(), i));
+            });
+        }
+    }
+    Ok(())
+}
+
+//shouldn't take class as arg and should be an impl method on Field
+pub fn field_object_from_view<'gc, 'l>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &mut impl PushableFrame<'gc>,
+    class_obj: Arc<RuntimeClass<'gc>>,
+    f: FieldView,
+) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
+    let field_class_name_ = class_obj.clone().cpdtype();
+    let parent_runtime_class = load_class_constant_by_type(jvm, int_state, field_class_name_)?;
+
+    let field_name = f.field_name();
+
+    let field_desc_str = f.field_desc();
+    let field_type = parse_field_descriptor(field_desc_str.as_str()).unwrap().field_type;
+
+    let signature = f.signature_attribute();
+
+    let modifiers = f.access_flags() as i32;
+    let slot = f.field_i() as i32;
+    let clazz = parent_runtime_class.cast_class().expect("todo");
+    let field_name_str = field_name.0.to_str(&jvm.string_pool);
+    let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
+    let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
+    let signature = match signature {
+        None => None,
+        Some(signature) => Some(JString::from_rust(jvm, int_state, signature)?),
+    };
+
+    let annotations_ = vec![]; //todo impl annotations.
+
+    Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.new_java_value_handle())
+}
+
+
+pub fn get_all_methods<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, include_interface: bool) -> Result<Vec<(Arc<RuntimeClass<'gc>>, u16)>, WasException<'gc>> {
+    let mut res = vec![];
+    get_all_methods_impl(jvm, int_state, class, &mut res, include_interface)?;
+    Ok(res)
+}
+
+fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Arc<RuntimeClass<'gc>>, res: &mut Vec<(Arc<RuntimeClass<'gc>>, u16)>, include_interface: bool) -> Result<(), WasException<'gc>> {
+    class.view().methods().for_each(|m| {
+        res.push((class.clone(), m.method_i()));
+    });
+    match class.view().super_name() {
+        None => {
+            let object = check_initing_or_inited_class(jvm, int_state, CClassName::object().into())?;
+            object.view().methods().for_each(|m| {
+                res.push((object.clone(), m.method_i()));
+            });
+        }
+        Some(super_name) => {
+            let super_ = check_initing_or_inited_class(jvm, int_state, super_name.into())?;
+            get_all_methods_impl(jvm, int_state, super_, res, include_interface)?;
+        }
+    }
+    if include_interface {
+        let view = class.view();
+        let interfaces = view.interfaces();
+        for interface in interfaces {
+            let interface = check_initing_or_inited_class(jvm, int_state, interface.interface_name().into())?;
+            interface.view().methods().for_each(|m| {
+                res.push((interface.clone(), m.method_i()));
+            });
+        }
+    }
+    Ok(())
+}
+

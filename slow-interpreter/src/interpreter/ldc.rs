@@ -11,8 +11,8 @@ use crate::better_java_stack::frames::PushableFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
-use crate::rust_jni::jni_interface::string::intern_safe;
 use crate::stdlib::java::lang::string::JString;
+use crate::string_intern::intern_safe;
 
 fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, type_: &CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     let object = get_or_create_class_object(jvm, *type_, int_state)?;
