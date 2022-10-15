@@ -1,5 +1,6 @@
 #![feature(c_variadic)]
-
+#![allow(unused_variables)]
+#![allow(unreachable_code)]
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::*;

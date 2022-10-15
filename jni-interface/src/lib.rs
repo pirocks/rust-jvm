@@ -1,6 +1,7 @@
 #![feature(c_variadic)]
 #![feature(box_syntax)]
-
+#![allow(unused_variables)]
+#![allow(unreachable_code)]
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fs::File;
@@ -14,7 +15,7 @@ use libc::rand;
 use wtf8::Wtf8Buf;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, JNIInvokeInterface_, jobject, jsize, jstring, jvalue};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, jobject, jsize, jstring, jvalue};
 
 
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
