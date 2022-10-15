@@ -116,7 +116,7 @@ fn main() -> anyhow::Result<()> {
                 Ok(globbed_path?)
             }).collect::<Result<Vec<PathBuf>,anyhow::Error>>()?;
             let class_files = source_files.into_iter().map(|source_file|{
-                Ok(compile(&javac, source_file.as_path(), test_resources.as_path())?)
+                Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
             }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
             run_classes(compilation_dir, class_files, exclude)?;

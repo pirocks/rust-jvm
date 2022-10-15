@@ -34,7 +34,7 @@ fn compare_and_swap_common<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Na
     } else {
         (4, 5)
     };
-    let size = field_type_to_register_size(cpdtype);
+    let size = field_type_to_register_size(cpdtype).lengthen_runtime_type();
     Some(vec![
         IRInstr::IRStart {
             temp_register: Register(2),

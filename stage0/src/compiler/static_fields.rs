@@ -53,7 +53,7 @@ pub fn putstatic<'vm>(
                 IRInstr::LoadFPRelative {
                     from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                     to: to_put,
-                    size: field_type_to_register_size(desc.0),
+                    size: field_type_to_register_size(desc.0).lengthen_runtime_type(),
                 },
                 IRInstr::Const64bit {
                     to: static_field_pointer,
@@ -100,7 +100,7 @@ pub fn getstatic<'vm>(
             let (_, address, field_cpdtype) = resolver.resolve_static_field(rc, field_name);
             let raw_ptr = address.as_ptr();
             assert_eq!(field_cpdtype, desc.0);
-            let size = runtime_type_to_size(&field_cpdtype.to_runtime_type().unwrap());
+            let size = runtime_type_to_size(&field_cpdtype.to_runtime_type().unwrap()).lengthen_runtime_type();
             let static_field_pointer = Register(1);
             let static_field_value = Register(2);
             Either::Right(array_into_iter([restart_point,

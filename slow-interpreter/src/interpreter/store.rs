@@ -42,42 +42,42 @@ pub fn fstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: Interpret
 
 pub fn castore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::CharType;
-    generic_array_store::<u16>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn fastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::FloatType;
-    generic_array_store::<u32>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn dastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::DoubleType;
-    generic_array_store::<u64>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn bastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ByteType;
-    generic_array_store::<u8>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn lastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::LongType;
-    generic_array_store::<u64>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn sastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ShortType;
-    generic_array_store::<u64>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn iastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::IntType;
-    generic_array_store::<u32>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 pub fn aastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::object();
-    generic_array_store::<u64>(current_frame, array_sub_type)
+    generic_array_store(current_frame, array_sub_type)
 }
 
 trait CastFromU64 {
@@ -109,7 +109,7 @@ impl CastFromU64 for u8 {
 }
 
 
-fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
+fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(array_sub_type.to_runtime_type().unwrap()).to_raw();
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let arrar_ref_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {

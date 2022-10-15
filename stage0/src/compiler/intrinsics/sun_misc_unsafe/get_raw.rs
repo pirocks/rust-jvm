@@ -18,7 +18,7 @@ pub fn unsafe_get_byte_raw<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Na
 fn get_raw_common<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID, cpdtype: CPDType) -> Option<Vec<IRInstr>> {
     let res = Register(0);
     let ptr = Register(1);
-    let size = field_type_to_register_size(cpdtype);
+    let size = field_type_to_register_size(cpdtype).lengthen_runtime_type();
     return Some(vec![
         IRInstr::IRStart {
             temp_register: Register(2),

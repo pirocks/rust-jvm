@@ -21,7 +21,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 
 
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
-use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::jvm_state::NativeLibraries;
