@@ -147,7 +147,7 @@ impl JVMOptions {
             //     combined: "ws/b".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/lang/Byte/valueOf".to_string(),
+            //     combined: "java/util/Arrays/toString".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

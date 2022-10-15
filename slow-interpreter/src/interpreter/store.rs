@@ -119,10 +119,10 @@ fn generic_array_store<'gc, 'l, 'k, 'j, T: CastFromU64>(mut current_frame: Inter
             /*return throw_npe(jvm, int_state);*/
         }
     };
-    let val = T::cast(val);
+    // let val = T::cast(val);
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     unsafe {
-        let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut T;
+        let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut u64;
         target_char_ptr.write(val);
     }
     PostInstructionAction::Next {}

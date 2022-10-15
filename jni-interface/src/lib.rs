@@ -57,7 +57,6 @@ use java5_verifier::type_infer;
 
 
 
-pub mod jvmti;
 pub mod jni;
 pub mod array;
 pub mod call;

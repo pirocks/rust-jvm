@@ -88,7 +88,7 @@ fn generic_array_load<'gc, 'l, 'k, 'j, T: Into<u64>>(jvm: &'gc JVMState<'gc>, mu
         }
     }
     let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
-    let read_u64 = unsafe { (res_ptr as *mut T).read() }.into();
+    let read_u64 = unsafe { (res_ptr as *mut u64).read() };
     let res = InterpreterJavaValue::from_raw(read_u64, array_sub_type.to_runtime_type().unwrap());
     current_frame.push(res);
     PostInstructionAction::Next {}

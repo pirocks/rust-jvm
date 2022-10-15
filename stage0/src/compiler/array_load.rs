@@ -70,7 +70,7 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
         IRInstr::BoundsCheck { length, index, size: Size::int(), exit: IRVMExitType::ArrayOutOfBounds { java_pc: current_instr_data.current_offset } },
         IRInstr::MulConst { res: index, a: elem_size as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
-        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size },
+        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size.lengthen_runtime_type() },
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: runtime_type_to_size(&arr_type.to_runtime_type().unwrap()) }
     ])
 }
