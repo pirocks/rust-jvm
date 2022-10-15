@@ -6,7 +6,7 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
-use crate::jni_interface::call::{call_static_method_impl, VarargProvider};
+use crate::call::{call_static_method_impl, VarargProvider};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state};
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {

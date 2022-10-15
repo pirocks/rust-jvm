@@ -8,6 +8,7 @@ use itertools::Itertools;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
+use jni_interface::define_class_safe;
 use jvmti_jni_bindings::{jbyteArray, jclass, jint, jio_fprintf, JNIEnv, jobject, jstring, JVM_DefineClass};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderName;
@@ -19,7 +20,6 @@ use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 
 
 
-use interfaces::jni_interface::define_class_safe;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::string::JString;

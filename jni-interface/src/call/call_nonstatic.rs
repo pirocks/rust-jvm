@@ -7,7 +7,7 @@ use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
-use crate::jni_interface::call::{call_nonstatic_method, VarargProvider};
+use crate::call::{call_nonstatic_method, VarargProvider};
 
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {

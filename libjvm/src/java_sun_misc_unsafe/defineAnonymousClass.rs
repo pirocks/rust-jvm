@@ -15,7 +15,7 @@ use wtf8::Wtf8Buf;
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use interfaces::jni_interface::define_class_safe;
+use jni_interface::define_class_safe;
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
 use rust_jvm_common::classnames::{class_name, ClassName};

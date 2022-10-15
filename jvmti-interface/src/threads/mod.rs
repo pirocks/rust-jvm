@@ -6,7 +6,7 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::utils::pushable_frame_todo;
 use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use crate::jvmti_interface::universal_error;
+use crate::universal_error;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 #[macro_export]

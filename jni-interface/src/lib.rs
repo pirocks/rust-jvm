@@ -1,3 +1,6 @@
+#![feature(c_variadic)]
+#![feature(box_syntax)]
+
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fs::File;
@@ -45,29 +48,29 @@ use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo, throw_npe};
-use crate::invoke_interface::get_env;
-use crate::jni_interface::call::VarargProvider;
+use crate::call::VarargProvider;
 use itertools::Itertools;
 use classfile_parser::parse_class_file;
 use java5_verifier::type_infer;
 
 
-pub(crate) fn initial_invoke_interface() -> JNIInvokeInterface_ {
-    JNIInvokeInterface_ {
-        reserved0: null_mut(),
-        reserved1: null_mut(),
-        reserved2: null_mut(),
-        DestroyJavaVM: None,
-        AttachCurrentThread: None,
-        DetachCurrentThread: None,
-        GetEnv: Some(get_env),
-        AttachCurrentThreadAsDaemon: None,
-    }
-}
 
-pub mod jmm;
+
 pub mod jvmti;
 pub mod jni;
+pub mod array;
+pub mod call;
+pub mod exception;
+pub mod get_field;
+pub mod global_ref;
+pub mod instance_of;
+pub mod local_frame;
+pub mod method;
+pub mod misc;
+pub mod new_object;
+pub mod set_field;
+pub mod string;
+pub mod util;
 
 ///MonitorEnter
 //
@@ -605,16 +608,3 @@ pub unsafe fn push_type_to_operand_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_s
     }
 }
 
-pub mod array;
-pub mod call;
-pub mod exception;
-pub mod get_field;
-pub mod global_ref;
-pub mod instance_of;
-pub mod local_frame;
-pub mod method;
-pub mod misc;
-pub mod new_object;
-pub mod set_field;
-pub mod string;
-pub mod util;

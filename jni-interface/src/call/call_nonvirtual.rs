@@ -10,7 +10,7 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public;
 use slow_interpreter::utils::pushable_frame_todo;
-use crate::jni_interface::call::{push_params_onto_frame, VarargProvider};
+use crate::call::{push_params_onto_frame, VarargProvider};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn call_nonvirtual_object_method(env: *mut JNIEnv, obj: jobject, clazz: jclass, method_id: jmethodID, mut l: ...) -> jobject {

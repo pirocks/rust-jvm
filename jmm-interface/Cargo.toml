@@ -1,5 +1,5 @@
 [package]
-name = "interfaces"
+name = "jmm-interface"
 version = "0.1.0"
 edition = "2021"
 
@@ -20,9 +20,6 @@ another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 java5-verifier = { path = "../java5-verifier" }
 classfile-parser = { path = "../classfile-parser" }
-jni-interface = { path = "../jni-interface" }
-jmm-interface = { path = "../jmm-interface" }
-jvmti-interface = { path = "../jvmti-interface" }
 by_address = "1"
 num-traits = "0.2"
 wtf8 = "0.1"

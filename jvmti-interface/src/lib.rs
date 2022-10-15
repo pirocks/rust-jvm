@@ -1,3 +1,5 @@
+#![feature(c_variadic)]
+
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::*;
@@ -6,7 +8,6 @@ use rust_jvm_common::FieldId;
 
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
-use crate::get_thread_or_error;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
@@ -14,26 +15,26 @@ use slow_interpreter::rust_jni::jvmti::set_event_callbacks;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::rust_jni::native_util::from_object;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use crate::jvmti_interface::agent::run_agent_thread;
-use crate::jvmti_interface::allocate::{allocate, deallocate, dispose_environment};
-use crate::jvmti_interface::breakpoint::{clear_breakpoint, set_breakpoint};
-use crate::jvmti_interface::capabilities::{add_capabilities, get_capabilities, get_potential_capabilities};
-use crate::jvmti_interface::classes::{get_class_loader, get_class_methods, get_class_signature, get_class_status, get_implemented_interfaces, get_loaded_classes, get_source_file_name};
-use crate::jvmti_interface::events::set_event_notification_mode;
-use crate::jvmti_interface::field::{get_class_fields, get_field_modifiers, get_field_name, is_field_synthetic};
-use crate::jvmti_interface::frame::{get_frame_count, get_frame_location, get_line_number_table, get_local_variable_table};
-use crate::jvmti_interface::is::{is_array_class, is_interface};
-use crate::jvmti_interface::locals::{get_local_double, get_local_float, get_local_int, get_local_long, get_local_object, set_local};
-use crate::jvmti_interface::methods::{get_arguments_size, get_method_declaring_class, get_method_location, get_method_modifiers, get_method_name, is_method_native, is_method_obsolete, is_method_synthetic};
-use crate::jvmti_interface::monitor::{create_raw_monitor, destroy_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_notify, raw_monitor_notify_all, raw_monitor_wait};
-use crate::jvmti_interface::object::get_object_hash_code;
-use crate::jvmti_interface::properties::get_system_property;
-use crate::jvmti_interface::tags::{get_tag, set_tag};
-use crate::jvmti_interface::thread_local_storage::{get_thread_local_storage, set_thread_local_storage};
-use crate::jvmti_interface::threads::{get_all_threads, get_thread_info, get_thread_state};
-use crate::jvmti_interface::threads::suspend_resume::{resume_thread, resume_thread_list, suspend_thread, suspend_thread_list};
-use crate::jvmti_interface::threads::thread_groups::{get_thread_group_info, get_top_thread_groups};
-use crate::jvmti_interface::version::get_version_number;
+use crate::agent::run_agent_thread;
+use crate::allocate::{allocate, deallocate, dispose_environment};
+use crate::breakpoint::{clear_breakpoint, set_breakpoint};
+use crate::capabilities::{add_capabilities, get_capabilities, get_potential_capabilities};
+use crate::classes::{get_class_loader, get_class_methods, get_class_signature, get_class_status, get_implemented_interfaces, get_loaded_classes, get_source_file_name};
+use crate::events::set_event_notification_mode;
+use crate::field::{get_class_fields, get_field_modifiers, get_field_name, is_field_synthetic};
+use crate::frame::{get_frame_count, get_frame_location, get_line_number_table, get_local_variable_table};
+use crate::is::{is_array_class, is_interface};
+use crate::locals::{get_local_double, get_local_float, get_local_int, get_local_long, get_local_object, set_local};
+use crate::methods::{get_arguments_size, get_method_declaring_class, get_method_location, get_method_modifiers, get_method_name, is_method_native, is_method_obsolete, is_method_synthetic};
+use crate::monitor::{create_raw_monitor, destroy_raw_monitor, raw_monitor_enter, raw_monitor_exit, raw_monitor_notify, raw_monitor_notify_all, raw_monitor_wait};
+use crate::object::get_object_hash_code;
+use crate::properties::get_system_property;
+use crate::tags::{get_tag, set_tag};
+use crate::thread_local_storage::{get_thread_local_storage, set_thread_local_storage};
+use crate::threads::{get_all_threads, get_thread_info, get_thread_state};
+use crate::threads::suspend_resume::{resume_thread, resume_thread_list, suspend_thread, suspend_thread_list};
+use crate::threads::thread_groups::{get_thread_group_info, get_top_thread_groups};
+use crate::version::get_version_number;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 pub fn initial_jvmti() -> jvmtiInterface_1_ {
@@ -205,7 +206,7 @@ pub mod event_callbacks;
 macro_rules! null_check {
     ($ptr: expr) => {
         if $ptr.is_null() {
-            return crate::jvmti_interface::jvmtiError_JVMTI_ERROR_NULL_POINTER;
+            return crate::jvmtiError_JVMTI_ERROR_NULL_POINTER;
         }
     };
 }

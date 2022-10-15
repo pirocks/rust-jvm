@@ -50,5 +50,8 @@ members = [
     "pressure-stall-information-parser",
     "meminfo-parser",
     "memory-limited-executor",
-    "interfaces"
+    "interfaces",
+    "jni-interface",
+    "jvmti-interface",
+    "jmm-interface"
 ]

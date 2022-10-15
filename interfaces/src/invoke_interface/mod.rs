@@ -64,3 +64,16 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
 
     JNI_OK as i32
 }
+
+pub fn initial_invoke_interface() -> JNIInvokeInterface_ {
+    JNIInvokeInterface_ {
+        reserved0: null_mut(),
+        reserved1: null_mut(),
+        reserved2: null_mut(),
+        DestroyJavaVM: None,
+        AttachCurrentThread: None,
+        DetachCurrentThread: None,
+        GetEnv: Some(get_env),
+        AttachCurrentThreadAsDaemon: None,
+    }
+}

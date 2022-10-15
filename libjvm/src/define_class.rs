@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::ClassBackedView;
+use jni_interface::define_class_safe;
 use jvmti_jni_bindings::{jbyte, jclass, JNIEnv, jobject, jsize};
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::exceptions::WasException;
@@ -13,7 +14,6 @@ use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 
 
-use interfaces::jni_interface::define_class_safe;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 

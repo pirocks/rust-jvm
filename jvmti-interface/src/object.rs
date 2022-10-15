@@ -3,7 +3,7 @@ use jvmti_jni_bindings::{jint, jobject, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_E
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::exceptions::WasException;
-use crate::jvmti_interface::universal_error;
+use crate::universal_error;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 ///Get Object Hash Code

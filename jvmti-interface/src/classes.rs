@@ -16,7 +16,7 @@ use slow_interpreter::rust_jni::jni_utils::new_local_ref_public;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, try_from_jclass};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::pushable_frame_todo;
-use crate::jvmti_interface::universal_error;
+use crate::universal_error;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn get_source_file_name(env: *mut jvmtiEnv, klass: jclass, source_name_ptr: *mut *mut ::std::os::raw::c_char) -> jvmtiError {

@@ -20,7 +20,7 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::get_throw;
 use slow_interpreter::rust_jni::native_util::from_object_new;
-use crate::jni_interface::{push_type_to_operand_stack, push_type_to_operand_stack_new};
+use crate::{push_type_to_operand_stack, push_type_to_operand_stack_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub mod call_nonstatic;

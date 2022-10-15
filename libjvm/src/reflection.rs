@@ -6,6 +6,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
+use jni_interface::util::class_object_to_runtime_class;
 use jvmti_jni_bindings::{jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
@@ -29,7 +30,6 @@ use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
 
-use interfaces::jni_interface::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;

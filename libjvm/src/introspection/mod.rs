@@ -43,7 +43,6 @@ use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, 
 
 
 
-use interfaces::jni_interface::string::new_string_with_string;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
@@ -367,5 +366,5 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
     let full_name = PTypeView::from_compressed(obj.cpdtype(), &jvm.string_pool).class_name_representation();
-    new_string_with_string(env, Wtf8Buf::from_string(full_name))
+    to_object_new(Some(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(full_name)).unwrap().full_object_ref()))
 }

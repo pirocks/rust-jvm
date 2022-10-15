@@ -27,7 +27,9 @@ perf-metrics = { path = "../perf-metrics" }
 stage0 = { path = "../stage0" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
-
+jmm-interface = { path = "../jmm-interface" }
+jni-interface = { path = "../jni-interface" }
+jvmti-interface = { path = "../jvmti-interface" }
 lazy_static = "1.4"
 libc = "0.2"
 num_cpus = "1"

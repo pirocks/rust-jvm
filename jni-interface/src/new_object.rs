@@ -9,8 +9,8 @@ use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
-use crate::jni_interface::call::VarargProvider;
-use crate::jni_interface::push_type_to_operand_stack_new;
+use crate::call::VarargProvider;
+use crate::push_type_to_operand_stack_new;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn new_object_v(env: *mut JNIEnv, _clazz: jclass, jmethod_id: jmethodID, mut args: VaList) -> jobject {

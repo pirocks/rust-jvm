@@ -1,9 +1,10 @@
+use std::intrinsics::transmute;
 use std::sync::Arc;
 use wtf8::Wtf8Buf;
 use classfile_view::view::field_view::FieldView;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::jint;
+use jvmti_jni_bindings::{jfieldID, jint};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
@@ -302,3 +303,7 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
     Ok(())
 }
 
+pub fn new_field_id<'gc>(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>, field_i: usize) -> jfieldID {
+    let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
+    unsafe { transmute(id) }
+}

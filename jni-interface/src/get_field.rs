@@ -19,8 +19,8 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
-use slow_interpreter::utils::{get_all_fields, throw_npe, throw_npe_res};
-use crate::jni_interface::util::class_object_to_runtime_class;
+use slow_interpreter::utils::{get_all_fields, new_field_id, throw_npe, throw_npe_res};
+use crate::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
@@ -157,11 +157,6 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
         .unwrap(); //unwrap is prob okay, spec doesn't say what to do
 
     new_field_id(jvm, field_rc, field_i)
-}
-
-pub fn new_field_id<'gc>(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>, field_i: usize) -> jfieldID {
-    let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
-    unsafe { transmute(id) }
 }
 
 pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jmethodID {

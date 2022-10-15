@@ -9,8 +9,8 @@ use rust_jvm_common::FieldId;
 
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::native_util::from_jclass;
-use crate::jni_interface::get_field::new_field_id;
 use slow_interpreter::rust_jni::jvmti::{get_state};
+use slow_interpreter::utils::new_field_id;
 
 pub unsafe extern "C" fn is_field_synthetic(env: *mut jvmtiEnv, klass: jclass, field: jfieldID, is_synthetic_ptr: *mut jboolean) -> jvmtiError {
     let jvm = get_state(env);
