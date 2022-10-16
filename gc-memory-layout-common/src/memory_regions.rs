@@ -21,14 +21,13 @@ use rust_jvm_common::loading::LoaderName;
 use vtable::RawNativeVTable;
 
 use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
-use crate::layout::ArrayMemoryLayout;
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
 pub enum AllocatedObjectType {
     Class {
         name: CClassName,
         loader: LoaderName,
-        size: usize,
+        // size: usize,
         vtable: NonNull<RawNativeVTable>,
         itable: NonNull<ITableRaw>,
         inheritance_bit_vec: Option<NonNull<BitPath256>>,
@@ -38,7 +37,7 @@ pub enum AllocatedObjectType {
     ObjectArray {
         sub_type: CPRefType,
         sub_type_loader: LoaderName,
-        len: i32,
+        // len: i32,
         object_vtable: NonNull<RawNativeVTable>,
         array_itable: NonNull<ITableRaw>,
         array_interfaces: *const ClassID,
@@ -46,13 +45,18 @@ pub enum AllocatedObjectType {
     },
     PrimitiveArray {
         primitive_type: CPDType,
-        len: i32,
+        // len: i32,
         object_vtable: NonNull<RawNativeVTable>,
         array_itable: NonNull<ITableRaw>,
         array_interfaces: *const ClassID,
         interfaces_len: usize,
     },
-    Raw { size: usize },
+    Raw { /*size: usize*/ },
+}
+
+pub struct AllocatedObjectTypeWithSize{
+    allocated_object_type: AllocatedObjectType,
+    size: usize
 }
 
 impl AllocatedObjectType {
@@ -90,7 +94,7 @@ impl AllocatedObjectType {
         }
     }
 
-    pub fn size(&self) -> usize {
+    /*pub fn size(&self) -> usize {
         match self {
             AllocatedObjectType::Class { size, .. } => {
                 if *size == 0 {
@@ -115,7 +119,7 @@ impl AllocatedObjectType {
                 *size
             }
         }
-    }
+    }*/
 
     pub fn as_cpdtype(&self) -> CPDType {
         match self {
@@ -264,18 +268,18 @@ impl MemoryRegions {
         Arc::into_raw(other_arc)
     }
 
-    pub fn lookup_or_add_type(&mut self, type_: &AllocatedObjectType) -> AllocatedTypeID {
+    pub fn lookup_or_add_type(&mut self, type_: &AllocatedObjectTypeWithSize) -> AllocatedTypeID {
         let new_id = AllocatedTypeID(self.types_reverse.len() as u64);
-        let object_size = type_.size();
-        match self.types_reverse.get(type_) {
+        let object_size = type_.size;
+        match self.types_reverse.get(&type_.allocated_object_type) {
             None => {
-                self.types.push(type_.clone());
+                self.types.push(type_.allocated_object_type.clone());
                 let region_to_use = Region::smallest_which_fits(object_size);
                 self.current_region_type.push(region_to_use);
                 self.current_region_index.push(None);
                 self.type_to_region_datas.push(vec![]);
                 self.current_region_header.push(Arc::new(AtomicPtr::new(null_mut())));
-                self.types_reverse.insert(type_.clone(), new_id);
+                self.types_reverse.insert(type_.allocated_object_type.clone(), new_id);
                 new_id
             }
             Some(cur_id) => *cur_id,
@@ -338,8 +342,8 @@ pub enum FindRegionError {
 }
 
 impl MemoryRegions {
-    fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectType) -> Result<NonNull<RegionHeader>, FindRegionError> {
-        let type_id = self.lookup_or_add_type(&to_allocate_type);
+    fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> Result<NonNull<RegionHeader>, FindRegionError> {
+        let type_id = self.lookup_or_add_type(to_allocate_type);
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
         let region_header_ptr = self.region_header_at(*region, *index, true);
         let num_current_elements = unsafe { region_header_ptr.as_ref() }.num_current_elements.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
@@ -347,7 +351,6 @@ impl MemoryRegions {
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
         if num_current_elements >= max_elements {
-            // eprintln!("was empty: {}", type_id.0);
             unsafe {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,

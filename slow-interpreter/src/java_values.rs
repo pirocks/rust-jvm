@@ -41,7 +41,6 @@ pub struct GC<'gc> {
     pub memory_region: Mutex<MemoryRegions>,
     //doesn't really need to be atomic usize
     vm_temp_owned_roots: RwLock<HashMap<NonNull<c_void>, AtomicUsize>>,
-    pub(crate) all_allocated_object: RwLock<HashSet<NonNull<c_void>>>,
     //todo deprecated/ not in use
     phantom: PhantomData<&'gc ()>,
     pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedNormalObjectHandle<'gc>>,
@@ -79,10 +78,6 @@ impl<'gc> GC<'gc> {
     }
 
     pub fn allocate_object<'l>(&'gc self, jvm: &'gc JVMState<'gc>, object: UnAllocatedObject<'gc, 'l>) -> AllocatedHandle<'gc> {
-        // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter(){
-        //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype() , CClassName::class().into())
-        // }
-        // let ptr = NonNull::new(Box::into_raw(box object)).unwrap();
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
                 assert!(arr.whole_array_runtime_class.cpdtype().is_array());
@@ -100,7 +95,11 @@ impl<'gc> GC<'gc> {
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
         drop(guard);
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
-        self.all_allocated_object.write().unwrap().insert(allocated);
+        Self::init_allocated(object, allocated, allocated_size);
+        handle
+    }
+
+    fn init_allocated(object: UnAllocatedObject, allocated: _, allocated_size: usize) {
         match object {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, object_fields }) => {
                 let ObjectFields { fields, hidden_fields } = object_fields;
@@ -126,10 +125,6 @@ impl<'gc> GC<'gc> {
                 }
             }
         }
-        // for (key, _) in jvm.classes.read().unwrap().class_object_pool.iter(){
-        //     assert_eq!(key.owned_inner_ref().runtime_class(jvm).cpdtype() , CClassName::class().into())
-        // }
-        handle
     }
 
 
@@ -137,7 +132,6 @@ impl<'gc> GC<'gc> {
         Self {
             memory_region: Mutex::new(MemoryRegions::new(regions)),
             vm_temp_owned_roots: RwLock::new(Default::default()),
-            all_allocated_object: Default::default(),
             phantom: PhantomData::default(),
             objects_that_live_for_gc_life: AddOnlyVec::new(),
         }
@@ -266,10 +260,7 @@ impl<'gc> GcManagedObject<'gc> {
     }
 
     pub fn self_check(&self) {
-        assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&(self.raw_ptr)));
-        if !self.gc.all_allocated_object.read().unwrap().contains(&(self.raw_ptr)) {
-            panic!()
-        }
+        assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&(self.raw_ptr)))
     }
 
     pub fn strong_count(&self) -> usize {
