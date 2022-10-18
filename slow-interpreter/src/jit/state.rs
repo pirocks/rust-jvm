@@ -2,7 +2,7 @@ use std::collections::btree_set::BTreeSet;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use gc_memory_layout_common::memory_regions::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 use inheritance_tree::ClassID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -18,7 +18,7 @@ use crate::jvm_state::JVMState;
 pub struct Opaque {}
 
 
-pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_type: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectType {
+pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_type: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedObjectTypeWithSize {
     let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, ref_type.clone());
     match ref_type.deref() {
         RuntimeClass::Byte => panic!(),
@@ -47,26 +47,31 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
                 RuntimeClass::Double => CompressedParsedDescriptorType::DoubleType,
                 RuntimeClass::Void => panic!(),
                 RuntimeClass::Object(_) | RuntimeClass::Array(_) => {
-                    return AllocatedObjectType::ObjectArray {
+                    let object_type = AllocatedObjectType::ObjectArray {
                         sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
-                        len: arr_len.unwrap() as i32,
+                        // len: arr_len.unwrap() as i32,
                         sub_type_loader: loader,
                         object_vtable,
                         array_itable: itable,
                         array_interfaces,
                         interfaces_len,
                     };
+                    return AllocatedObjectTypeWithSize{ allocated_object_type: object_type, size: todo!() };
                 }
                 RuntimeClass::Top => panic!(),
             };
 
-            AllocatedObjectType::PrimitiveArray {
+            let object_type = AllocatedObjectType::PrimitiveArray {
                 primitive_type,
-                len: arr_len.unwrap() as i32,
+                // len: arr_len.unwrap() as i32,
                 object_vtable,
                 array_itable: itable,
                 array_interfaces,
                 interfaces_len,
+            };
+            AllocatedObjectTypeWithSize{
+                allocated_object_type: todo!(),
+                size: todo!()
             }
         }
         RuntimeClass::Object(class_class) => {
@@ -75,15 +80,19 @@ pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_
 
 
             let (interfaces, interfaces_len) = jvm.interface_arrays.write().unwrap().add_interfaces(all_interfaces_recursive(jvm, class_class));
-            AllocatedObjectType::Class {
+            let object_type = AllocatedObjectType::Class {
                 name: class_class.class_view.name().unwrap_name(),
                 loader,
-                size: layout.size(),
+                // size: layout.size(),
                 vtable: jvm.vtables.lock().unwrap().lookup_or_new_vtable(ref_type.clone()),
                 itable,
                 inheritance_bit_vec,
                 interfaces,
                 interfaces_len,
+            };
+            AllocatedObjectTypeWithSize{
+                allocated_object_type: object_type,
+                size: todo!()
             }
         }
         RuntimeClass::Top => panic!(),

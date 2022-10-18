@@ -270,7 +270,7 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
     }
     //todo this is probably wrong what if there's a class with a same name private method?
     // like surely I need to start at the classname specified in the bytecode
-    let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
+    let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let maybe_non_null = NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() });
     let vtable = memory_region_guard.find_type_vtable(maybe_non_null.unwrap()).unwrap();
     let vtable_lookup_res = VTable::lookup(vtable, method_number);
@@ -278,7 +278,7 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
     let res = match vtable_lookup_res {
         None => {
             let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
-            let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
+            // let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
             drop(vtable);//make sure vtable is always guarded by memory region lock
             drop(memory_region_guard);
 
@@ -578,11 +578,10 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
     //todo fix current_loader
     let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
-    let array_size = object_array.size();
     let allocated_object = memory_region_guard.allocate(&object_array);
     unsafe { res_address.write(allocated_object) }
     unsafe {
-        memset(allocated_object.as_ptr(), 0, array_size);
+        memset(allocated_object.as_ptr(), 0, object_array.size);
     }//todo init this properly according to type
     unsafe { *allocated_object.cast::<jint>().as_mut() = len }//init the length
     assert!(memory_region_guard.find_object_allocated_type(allocated_object).as_cpdtype().is_array());

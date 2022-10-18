@@ -25,7 +25,7 @@ impl FunctionCallTargetsByFunction {
     }
 
     pub fn update_target(&self, method_id: MethodId, new_address: NonNull<c_void>, handle: CodeModificationHandle) {
-        for targets in self.inner.get(&method_id) {
+        if let Some(targets) = self.inner.get(&method_id) {
             for target in targets {
                 unsafe { handle.edit_code_at(target.0 as *mut u64, new_address.as_ptr() as u64) }
             }

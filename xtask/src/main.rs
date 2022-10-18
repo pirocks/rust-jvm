@@ -2,12 +2,12 @@
 
 use std::{env, fs};
 use std::collections::HashSet;
-use std::ffi::{OsStr};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use anyhow::anyhow;
-use clap::{Parser};
+use clap::Parser;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use xshell::{cmd, Shell};
@@ -43,7 +43,7 @@ pub enum OptsInner {
     #[clap(about = "run tests")]
     Test {},
     #[clap(about = "run openjdk tests")]
-    OpenJDKTest {}
+    OpenJDKTest {},
 }
 
 fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) -> anyhow::Result<()> {
@@ -104,27 +104,28 @@ fn main() -> anyhow::Result<()> {
             generic_copy(&sh, &java_executable, copied_jdk_dir.join("bin").join("java"))?;
             generic_copy(&sh, &libjvm_so, copied_jdk_dir.join("bin").join("libjvm.so"))?;
         }
-        OptsInner::Test { } => {
+        OptsInner::Test {} => {
             let config = load_or_create_xtask_config(workspace_dir)?;
             let compilation_dir = config.dep_dir.join("compiled_test_classes");
-            if !compilation_dir.exists(){
+            if !compilation_dir.exists() {
                 fs::create_dir(&compilation_dir)?;
             }
             let test_resources = workspace_dir.join("tests/resource_classes");
             let javac = javac_location(&config);
-            let source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path|{
+            let source_files = glob::glob(format!("{}/**/*.java", test_resources.to_string_lossy()).as_str())?.map(|globbed_path| {
                 Ok(globbed_path?)
-            }).collect::<Result<Vec<PathBuf>,anyhow::Error>>()?;
-            let class_files = source_files.into_iter().map(|source_file|{
+            }).collect::<Result<Vec<PathBuf>, anyhow::Error>>()?;
+            let class_files = source_files.into_iter().map(|source_file| {
                 Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
             }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
-            run_classes(compilation_dir, class_files, exclude)?;
+            let jdk_dir = config.dep_dir.join("jdk8u");
+            run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
-        OptsInner::OpenJDKTest {  } => {
+        OptsInner::OpenJDKTest {} => {
             let config = load_or_create_xtask_config(workspace_dir)?;
             let compilation_dir = config.dep_dir.join("compiled_test_classes");
-            if !compilation_dir.exists(){
+            if !compilation_dir.exists() {
                 fs::create_dir(&compilation_dir)?;
             }
             let test_resources_base = config.dep_dir.join("jdk8u/jdk/test");
@@ -164,28 +165,28 @@ fn main() -> anyhow::Result<()> {
                 "java/util/ArrayList/EnsureCapacity",
                 // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
                 // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
-
             ];
-            let class_files = classes.into_par_iter().map(|class|{
-                test_resources_base.join(format!("{}.java",class))
-            }).map(|source_file|{
+            let class_files = classes.into_par_iter().map(|class| {
+                test_resources_base.join(format!("{}.java", class))
+            }).map(|source_file| {
                 Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
             }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
-            run_classes(compilation_dir, class_files, exclude)?;
+            let jdk_dir = config.dep_dir.join("jdk8u");
+            run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
     }
     Ok(())
 }
 
-fn run_classes(compilation_dir: PathBuf, class_files: Vec<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
-    let classpath = "/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes /home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/classes_security";
-    let libjava = "/home/francis/build/openjdk-jdk8u/build/linux-x86_64-normal-server-release/jdk/lib/amd64/libjava.so";
+fn run_classes(jdk_dir: PathBuf, compilation_dir: PathBuf, class_files: Vec<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
+    let classpath = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes {}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display(), jdk_dir.display());
+    let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
 
     class_files.into_iter().try_for_each(|main| {
         if !exclude.contains(&main.name()) {
             let mut args = vec![];
-            args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {} {}", main.name(), libjava, compilation_dir.display(), classpath).as_str())?);
+            args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {} {}", main.name(), libjava.display(), compilation_dir.display(), classpath).as_str())?);
             Command::new("cargo").args(args).spawn()?.wait()?;
         }
         Ok::<_, anyhow::Error>(())

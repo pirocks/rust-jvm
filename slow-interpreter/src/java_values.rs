@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
@@ -99,7 +99,7 @@ impl<'gc> GC<'gc> {
         handle
     }
 
-    fn init_allocated(object: UnAllocatedObject, allocated: _, allocated_size: usize) {
+    fn init_allocated(object: UnAllocatedObject, allocated: NonNull<c_void>, allocated_size: usize) {
         match object {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, object_fields }) => {
                 let ObjectFields { fields, hidden_fields } = object_fields;

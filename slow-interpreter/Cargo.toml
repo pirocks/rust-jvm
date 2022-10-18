@@ -30,7 +30,6 @@ vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 method-table = { path = "../method-table" }
 inheritance-tree = { path = "../inheritance-tree" }
-xtask = { path = "../xtask" }
 thread-signal-handler = { path = "../thread-signal-handler" }
 rangemap = "1"
 num-traits = "0.2"
@@ -41,14 +40,12 @@ libc = "0.2"
 regex = "1"
 lock_api = "0.4"
 parking_lot = "0.12"
-thread-priority = "0.9"
 nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
-once_cell = "1.13.0"
 by_address = "1"
 bimap = "0.6"
 itertools = "0.10"
 wtf8 = "0.1"
-memoffset = "0.6"
+memoffset = "0.7"
 
 
 [dependencies.iced-x86]

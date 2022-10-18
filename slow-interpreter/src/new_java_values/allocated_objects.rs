@@ -52,14 +52,17 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
             AllocatedObjectType::Class { .. } => {
                 panic!()
             }
-            AllocatedObjectType::ObjectArray { len, .. } => {
+            /*AllocatedObjectType::ObjectArray { len, .. } => {
                 len as usize
             }
             AllocatedObjectType::PrimitiveArray { len, .. } => {
                 len as usize
-            }
+            }*/
             AllocatedObjectType::Raw { .. } => {
                 panic!()
+            }
+            _ => {
+                todo!()
             }
         }
     }

@@ -55,8 +55,8 @@ pub enum AllocatedObjectType {
 }
 
 pub struct AllocatedObjectTypeWithSize{
-    allocated_object_type: AllocatedObjectType,
-    size: usize
+    pub allocated_object_type: AllocatedObjectType,
+    pub size: usize
 }
 
 impl AllocatedObjectType {
@@ -286,7 +286,7 @@ impl MemoryRegions {
         }
     }
 
-    pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectType) -> (NonNull<c_void>, usize) {
+    pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> (NonNull<c_void>, usize) {
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
                 //todo need to use bigger region as needed.
@@ -317,7 +317,7 @@ impl MemoryRegions {
         (res_ptr, size)
     }
 
-    pub fn allocate(&mut self, to_allocate_type: &AllocatedObjectType) -> NonNull<c_void> {
+    pub fn allocate(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> NonNull<c_void> {
         self.allocate_with_size(to_allocate_type).0
     }
 
@@ -362,7 +362,7 @@ impl MemoryRegions {
     }
 
 
-    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectType, size_override: Option<Region>, prev_vtable_ptr: Option<*mut RawNativeVTable>) -> NonNull<RegionHeader> {
+    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<*mut RawNativeVTable>) -> NonNull<RegionHeader> {
         let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
@@ -375,10 +375,10 @@ impl MemoryRegions {
         let region_header_ptr = self.region_header_at(current_region_to_use, our_index, false);
         self.type_to_region_datas[type_id.0 as usize].push((current_region_to_use, our_index));
         if let Some(prev_vtable_ptr) = prev_vtable_ptr {
-            assert_eq!(to_allocate_type.vtable().unwrap().as_ptr(), prev_vtable_ptr);
+            assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr);
         }
         unsafe {
-            let region_elem_size = to_allocate_type.size();
+            let region_elem_size = to_allocate_type.size;
             assert_ne!(region_elem_size, 0);
             region_header_ptr.as_ptr().write(RegionHeader {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
@@ -386,12 +386,12 @@ impl MemoryRegions {
                 region_max_elements: (current_region_to_use.region_size() - size_of::<RegionHeader>()) / region_elem_size,
                 region_elem_size,
                 region_type: type_id,
-                vtable_ptr: to_allocate_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
+                vtable_ptr: to_allocate_type.allocated_object_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,
-                itable_ptr: to_allocate_type.itable().map(|itable| itable.as_ptr()).unwrap_or(null_mut()),
-                interface_ids_list: to_allocate_type.interfaces_ptr(),
-                interface_ids_list_len: to_allocate_type.interfaces_len(),
-                inheritance_bit_path_ptr: to_allocate_type.inheritance_bit_vec(),
+                itable_ptr: to_allocate_type.allocated_object_type.itable().map(|itable| itable.as_ptr()).unwrap_or(null_mut()),
+                interface_ids_list: to_allocate_type.allocated_object_type.interfaces_ptr(),
+                interface_ids_list_len: to_allocate_type.allocated_object_type.interfaces_len(),
+                inheritance_bit_path_ptr: to_allocate_type.allocated_object_type.inheritance_bit_vec(),
                 class_pointer_cache: null_mut(),
             });
         }

@@ -23,6 +23,5 @@ classfile-parser = { path = "../classfile-parser" }
 by_address = "1"
 num-traits = "0.2"
 wtf8 = "0.1"
-thread-priority = "0.9"
 libc = "0.2"
 itertools = "0.10"

@@ -10,7 +10,6 @@ assert_no_alloc = "1.1.2"
 nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
 threads = { path = "../threads" }
 libc = "0.2"
-another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 another-jit-vm = { path = "../another-jit-vm" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
