@@ -2,7 +2,6 @@ use num_traits::NumCast;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
 
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
@@ -40,8 +39,9 @@ unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let elem = T::from(array.get_i((start + i) as usize).unwrap_int()).unwrap();
-        buf.offset(i as isize).write(elem)
+        todo!("use array layout")
+        /*let elem = T::from(array.get_i((start + i) as i32).unwrap_int()).unwrap();
+        buf.offset(i as isize).write(elem)*/
     }
 }
 
@@ -57,8 +57,9 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let float = array.get_i(jvm, start + i).unwrap_float() as jfloat;
-        buf.offset(i as isize).write(float)
+        todo!("use array layout")
+        /*let float = array.get_i(jvm, start + i).unwrap_float() as jfloat;
+        buf.offset(i as isize).write(float)*/
     }
 }
 
@@ -73,8 +74,9 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let double = array.get_i(jvm, start + i).unwrap_double() as jdouble;
-        buf.offset(i as isize).write(double)
+        todo!("use array layout")
+        /*let double = array.get_i(jvm, start + i).unwrap_double() as jdouble;
+        buf.offset(i as isize).write(double)*/
     }
 }
 
@@ -89,8 +91,9 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        let long = array.get_i(jvm, start + i).unwrap_long() as jlong;
-        buf.offset(i as isize).write(long)
+        todo!("use array layout")
+        /*let long = array.get_i(jvm, start + i).unwrap_long() as jlong;
+        buf.offset(i as isize).write(long)*/
     }
 }
 
@@ -137,6 +140,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len
     };
     let vec_mut = non_nullarray.unwrap_array();
     for i in 0..len {
-        vec_mut.set_i((start + i) as usize, java_value_getter(i as isize).as_njv());
+        todo!("use array layout")
+        /*vec_mut.set_i((start + i) as i32, java_value_getter(i as isize).as_njv());*/
     }
 }

@@ -1,7 +1,7 @@
 use std::intrinsics::{size_of, volatile_copy_memory};
 use std::mem::transmute;
 use std::ptr::null_mut;
-use libc::c_void;
+use libc::{c_void, time};
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
@@ -92,8 +92,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
     //todo this needs a better more general impl
     // volatile_copy_memory(dst_address, src_address, len as usize)
     for i in 0..len{
-        let temp = src_address.offset(i as isize).read() as i32;
-        dst_address.offset((i as usize * size_of::<NativeJavaValue>() as usize) as isize).cast::<i32>().write(temp);
+        todo!("this nonsense needs to have way better array layout handling")
+        /*let temp = src_address.offset(i as isize).read() as i32;
+        dst_address.offset((i as usize * size_of::<NativeJavaValue>() as usize) as isize).cast::<i32>().write(temp);*/
     }
 
     // let nonnull = match from_object_new(jvm, src_obj) {

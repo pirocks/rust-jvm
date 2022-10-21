@@ -1,4 +1,5 @@
 use std::ptr::null_mut;
+use gc_memory_layout_common::layout::ArrayNativeJV;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::NativeJavaValue;
@@ -102,6 +103,47 @@ pub trait JavaValueCommon<'gc> {
             }
             _ => {
                 panic!()
+            }
+        }
+    }
+
+    fn set_array_native(&self, array_native: &mut ArrayNativeJV){
+        match self.as_njv() {
+            NewJavaValue::Long(long) => {
+                array_native.long = long;
+            }
+            NewJavaValue::Int(int) => {
+                array_native.int = int;
+            }
+            NewJavaValue::Short(short) => {
+                array_native.short = short;
+            }
+            NewJavaValue::Byte(byte) => {
+                array_native.byte = byte
+            }
+            NewJavaValue::Boolean(bool_) => {
+                array_native.bool = bool_;
+            }
+            NewJavaValue::Char(char_) => {
+                array_native.char = char_;
+            }
+            NewJavaValue::Float(_) => {
+                todo!()
+            }
+            NewJavaValue::Double(_) => {
+                todo!()
+            }
+            NewJavaValue::Null => {
+                todo!()
+            }
+            NewJavaValue::UnAllocObject(_) => {
+                todo!()
+            }
+            NewJavaValue::AllocObject(_) => {
+                todo!()
+            }
+            NewJavaValue::Top => {
+                todo!()
             }
         }
     }

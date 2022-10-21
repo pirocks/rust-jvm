@@ -1,5 +1,6 @@
-use std::mem::size_of;
 use std::os::raw::c_void;
+use std::ptr::NonNull;
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNI_COMMIT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jvalue};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -43,7 +44,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     };
     let int_state = get_interpreter_state(env);
     let array = notnull.unwrap_array();
-    new_local_ref_public_new(array.get_i(index as usize).unwrap_object().as_ref().map(|handle| AllocatedObject::Handle(handle)), int_state)
+    new_local_ref_public_new(array.get_i(index).unwrap_object().as_ref().map(|handle| AllocatedObject::Handle(handle)), int_state)
 }
 
 pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobjectArray, index: jsize, val: jobject) {
@@ -56,15 +57,17 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
         }
     };
     let array = notnull.unwrap_array();
-    array.set_i(index as usize, NewJavaValueHandle::from_optional_object(from_object_new(jvm, val)).as_njv());
+    array.set_i(index, NewJavaValueHandle::from_optional_object(from_object_new(jvm, val)).as_njv());
 }
 
 pub mod array_region;
 pub mod new;
 
-pub fn array_fast_copy_set<T>(carray: *const T, base: *mut jvalue, len: usize) {
+pub fn array_fast_copy_set<T>(carray: *const T, base: *mut jvalue, len: i32) {
     for i in 0..len {
-        unsafe { base.offset(i as isize).cast::<T>().write(carray.offset(i as isize).read()); }
+        //todo use layout
+        todo!();
+        // unsafe { base.offset(i as isize).cast::<T>().write(carray.offset(i as isize).read()); }
     }
 }
 pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, array: jarray, carray: *mut c_void, mode: jint) {
@@ -86,7 +89,8 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     // for i in 0..array.len() {
         match array_type {
             CPDType::ByteType => {
-                array_fast_copy_set::<jbyte>(carray as *const jbyte, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())
+                todo!("use array layout")
+                /*array_fast_copy_set::<jbyte>(carray as *const jbyte, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
                 // array.set_i(i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
             }
             CPDType::CharType => {
@@ -102,7 +106,8 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
                 todo!()
             }
             CPDType::IntType => {
-                array_fast_copy_set::<jint>(carray as *const jint, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())
+                todo!("use array layout")
+                /*array_fast_copy_set::<jint>(carray as *const jint, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
                 // array.set_i(i, NewJavaValue::Int((carray as *const jint).offset(i as isize).read()));
             }
             CPDType::LongType => {
@@ -131,14 +136,14 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     }
 }
 
-pub fn array_fast_copy_get<T>(base: *const jvalue, len: usize) -> Vec<T>{
-    let mut vec = Vec::with_capacity(len);
-    unsafe {
+pub fn array_fast_copy_get<T>(memory_layout: ArrayMemoryLayout,array: NonNull<c_void>, len: i32) -> Vec<T>{
+    let vec = Vec::with_capacity(len as usize);
+    // unsafe {
         for i in 0..len {
-            let val = base.offset(i as isize).cast::<T>().read();
+            let val: T = todo!()/*base.offset(i as isize).cast::<T>().read()*/;
             vec.push(val);
         }
-    }
+    // }
     vec
 }
 
@@ -160,48 +165,48 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
     //dup but difficult to make into template so ehh
     match &array.elem_cpdtype() {
         CPDType::ByteType => {
-            let res = array_fast_copy_get::<jbyte>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jbyte>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_byte_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::CharType => {
-            let res = array_fast_copy_get::<jchar>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jchar>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_char_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::DoubleType => {
-            let res = array_fast_copy_get::<jdouble>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jdouble>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_double_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::FloatType => {
-            let res = array_fast_copy_get::<jfloat>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jfloat>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_float_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::IntType => {
-            let res = array_fast_copy_get::<jint>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jint>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_int_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::LongType => {
-            let res = array_fast_copy_get::<jlong>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jlong>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_long_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::ShortType => {
-            let res = array_fast_copy_get::<jshort>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jshort>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_short_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::BooleanType => {
-            let res = array_fast_copy_get::<jboolean>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jboolean>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             // let res = array.array_iterator().map(|elem| elem.unwrap_bool_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::Class(_) | CPDType::Array { .. } => {
             // let res = array.array_iterator().map(|elem| to_object_new(elem.unwrap_object().as_ref().map(|handle| handle.as_allocated_obj()))).collect::<Vec<_>>();
-            let res = array_fast_copy_get::<jboolean>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());
+            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jboolean>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         _ => panic!(),

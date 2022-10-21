@@ -9,7 +9,7 @@ use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
-
+#[allow(unreachable_code, unused_variables)]
 pub fn intrinsic_array_copy<'gc>(
     resolver: &impl MethodResolver<'gc>,
     layout: &NativeStackframeMemoryLayout,
@@ -95,7 +95,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
     let src_length = Register(7);
-    let array_layout = ArrayMemoryLayout::from_unknown_cpdtype();
+    let array_layout : ArrayMemoryLayout = todo!()/*ArrayMemoryLayout::from_unknown_cpdtype()*/;
     assert_eq!(array_layout.len_entry_offset(), 0);
     res.push(IRInstr::Load {
         to: src_length,
@@ -117,7 +117,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
     let dst_length = Register(7);
-    let array_layout = ArrayMemoryLayout::from_unknown_cpdtype();
+    let array_layout :ArrayMemoryLayout= todo!() /*ArrayMemoryLayout::from_unknown_cpdtype()*/;
     assert_eq!(array_layout.len_entry_offset(), 0);
     res.push(IRInstr::Load {
         to: dst_length,
@@ -140,7 +140,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
 
-    let array_layout = ArrayMemoryLayout::from_unknown_cpdtype();
+    let array_layout :ArrayMemoryLayout= todo!()/*ArrayMemoryLayout::from_unknown_cpdtype()*/;
     assert_eq!(array_layout.elem_0_entry_offset(), 8);
     assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
     let src_address_register = Register(7);
@@ -161,7 +161,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::pointer(),
     });
 
-    let array_layout = ArrayMemoryLayout::from_unknown_cpdtype();
+    let array_layout : ArrayMemoryLayout= todo!() /*ArrayMemoryLayout::from_unknown_cpdtype()*/;
     assert_eq!(array_layout.elem_0_entry_offset(), 8);
     assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
     let dst_address_register = Register(8);

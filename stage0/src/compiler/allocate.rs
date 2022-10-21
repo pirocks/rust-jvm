@@ -40,7 +40,7 @@ pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                 class_type: cpd_type_id,
                 res: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 java_pc: current_instr_data.current_offset,
-            } }*/IRInstr::Allocate {
+            } }*/IRInstr::AllocateConstantSize {
                 region_header_ptr: allocated_object_region_pointer,
                 res_offset: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
                 allocate_exit: IRVMExitType::AllocateObject {

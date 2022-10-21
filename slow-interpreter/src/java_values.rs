@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::mem::{size_of, transmute};
+use std::mem::{transmute};
 use std::ops::{Deref, DerefMut};
 use std::ptr::{NonNull, null, null_mut};
 use std::sync::{Arc, Mutex, RwLock};
@@ -13,9 +13,9 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
+use gc_memory_layout_common::layout::{ArrayMemoryLayout, ArrayNativeJV};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
-use jvmti_jni_bindings::{jbyte, jfieldID, jint, jlong, jmethodID, jobject};
+use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -81,7 +81,7 @@ impl<'gc> GC<'gc> {
         let allocated_object_type = match &object {
             UnAllocatedObject::Array(arr) => {
                 assert!(arr.whole_array_runtime_class.cpdtype().is_array());
-                runtime_class_to_allocated_object_type(jvm, arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len()))
+                runtime_class_to_allocated_object_type(jvm, arr.whole_array_runtime_class.clone(), LoaderName::BootstrapLoader, Some(arr.elems.len() as jint))
             }//todo loader name nonsense
             UnAllocatedObject::Object(obj) => runtime_class_to_allocated_object_type(
                 jvm,
@@ -92,14 +92,14 @@ impl<'gc> GC<'gc> {
         };
         let mut guard = self.memory_region.lock().unwrap();
         let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
-        unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size); }
+        unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size.get()); }
         drop(guard);
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
-        Self::init_allocated(object, allocated, allocated_size);
+        Self::init_allocated(object, allocated);
         handle
     }
 
-    fn init_allocated(object: UnAllocatedObject, allocated: NonNull<c_void>, allocated_size: usize) {
+    fn init_allocated(object: UnAllocatedObject, allocated: NonNull<c_void>) {
         match object {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, object_fields }) => {
                 let ObjectFields { fields, hidden_fields } = object_fields;
@@ -118,7 +118,6 @@ impl<'gc> GC<'gc> {
                     let array_layout = ArrayMemoryLayout::from_cpdtype(whole_array_runtime_class.cpdtype().unwrap_array_type());
                     (allocated.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).write(elems.len() as i32);
                     let array_base = allocated.as_ptr().offset(array_layout.elem_0_entry_offset() as isize);
-                    assert_eq!(allocated_size, (elems.len() + 1) as usize * size_of::<jlong>());
                     for (i, elem) in elems.into_iter().enumerate() {
                         array_base.offset((i as isize) * array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
                     }
@@ -981,6 +980,7 @@ impl<'gc> ArrayObject<'gc, '_> {
 
     pub fn set_i(&mut self, jvm: &'gc JVMState<'gc>, i: i32, jv: JavaValue<'gc>) {
         let native = jv.to_native();
+        todo!("layout");
         unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
     }
 
@@ -1027,6 +1027,33 @@ pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDTyp
             }
             CPDType::ShortType => NewJavaValueHandle::Short(native.short),
             CPDType::BooleanType => NewJavaValueHandle::Boolean(native.boolean),
+            CPDType::VoidType => panic!(),
+        }
+    }
+}
+
+
+pub fn array_native_to_new_java_value<'gc>(native: &ArrayNativeJV, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+    unsafe {
+        match ptype {
+            CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
+            CPDType::CharType => NewJavaValueHandle::Char(native.char),
+            CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
+            CPDType::FloatType => NewJavaValueHandle::Float(native.float),
+            CPDType::IntType => NewJavaValueHandle::Int(native.int),
+            CPDType::LongType => NewJavaValueHandle::Long(native.long),
+            CPDType::Class(_) | CPDType::Array { .. } => {
+                match NonNull::new(native.obj) {
+                    None => {
+                        NewJavaValueHandle::Null
+                    }
+                    Some(ptr) => {
+                        NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+                    }
+                }
+            }
+            CPDType::ShortType => NewJavaValueHandle::Short(native.short),
+            CPDType::BooleanType => NewJavaValueHandle::Boolean(native.bool),
             CPDType::VoidType => panic!(),
         }
     }

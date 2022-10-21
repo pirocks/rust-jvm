@@ -1,16 +1,38 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::num::NonZeroUsize;
+use std::ptr::NonNull;
 
 use memoffset::offset_of;
 
 use another_jit_vm::FramePointerOffset;
-use jvmti_jni_bindings::jlong;
+use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 use rust_jvm_common::NativeJavaValue;
 
 pub struct ArrayMemoryLayout {
-    sub_type: Option<CPDType>,
+    sub_type: CPDType,
+}
+
+enum ArrayAlign{
+    Byte,
+    X86Word,
+    X86DWord,
+    X86QWord,
+}
+
+#[repr(C)]
+pub union ArrayNativeJV{
+    pub bool: u8,
+    pub byte: i8,
+    pub char: u16,
+    pub short: i16,
+    pub int: i32,
+    pub float: f32,
+    pub long: i64,
+    pub double: f64,
+    pub obj: *mut c_void
 }
 
 impl ArrayMemoryLayout {
@@ -18,26 +40,99 @@ impl ArrayMemoryLayout {
         assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
 
         Self {
-            sub_type: Some(sub_type)
+            sub_type
         }
     }
-    pub fn from_unknown_cpdtype() -> Self {
+    /*pub fn from_unknown_cpdtype() -> Self {
         Self {
-            sub_type: None
+            sub_type: todo!()
+        }
+    }*/
+
+    fn subtype_align(&self) -> ArrayAlign{
+        match self.sub_type{
+            CPDType::BooleanType => {
+                ArrayAlign::Byte
+            }
+            CPDType::ByteType => {
+                ArrayAlign::Byte
+            }
+            CPDType::ShortType => {
+                ArrayAlign::X86Word
+            }
+            CPDType::CharType => {
+                ArrayAlign::X86Word
+            }
+            CPDType::IntType => {
+                ArrayAlign::X86DWord
+            }
+            CPDType::LongType => {
+                ArrayAlign::X86QWord
+            }
+            CPDType::FloatType => {
+                ArrayAlign::X86DWord
+            }
+            CPDType::DoubleType => {
+                ArrayAlign::X86QWord
+            }
+            CPDType::VoidType => {
+                todo!("?")
+            }
+            CPDType::Class(_) => {
+                ArrayAlign::X86QWord
+            }
+            CPDType::Array { .. } => {
+                ArrayAlign::X86QWord
+            }
         }
     }
 
+    pub fn calculate_index_address(&self, array_pointer: NonNull<c_void>, index: i32) -> NonNull<ArrayNativeJV>{
+        assert!(index >= 0);
+        unsafe { NonNull::new(array_pointer.as_ptr().offset(self.elem_0_entry_offset() as isize).offset(index as isize * self.elem_size() as isize)).unwrap().cast::<ArrayNativeJV>() }
+    }
+
+    pub fn calculate_len_address(&self, array_pointer: NonNull<c_void>) -> NonNull<i32>{
+        unsafe { NonNull::new(array_pointer.as_ptr().offset(self.len_entry_offset() as isize)).unwrap().cast::<i32>() }
+    }
+
     pub fn elem_0_entry_offset(&self) -> usize {
-        size_of::<jlong>()
+        match self.subtype_align() {
+            ArrayAlign::Byte => {
+                size_of::<jint>()
+            }
+            ArrayAlign::X86Word => {
+                size_of::<jint>()
+            }
+            ArrayAlign::X86DWord => {
+                size_of::<jint>()
+            }
+            ArrayAlign::X86QWord => {
+                size_of::<jlong>()
+            }
+        }
     }
     pub fn len_entry_offset(&self) -> usize {
         0
     }
     pub fn elem_size(&self) -> usize {
-        size_of::<NativeJavaValue>()
+        match self.subtype_align(){
+            ArrayAlign::Byte => {
+                1
+            }
+            ArrayAlign::X86Word => {
+                2
+            }
+            ArrayAlign::X86DWord => {
+                4
+            }
+            ArrayAlign::X86QWord => {
+                8
+            }
+        }
     }
-    pub fn array_size(&self, len: i32) -> usize {
-        self.elem_0_entry_offset() + len as usize * self.elem_size()
+    pub fn array_size(&self, len: jint) -> NonZeroUsize {
+        NonZeroUsize::new(self.elem_0_entry_offset() + len as usize * self.elem_size()).unwrap()
     }
 }
 

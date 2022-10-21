@@ -15,6 +15,7 @@ interface-vtable = { path = "../interface-vtable" }
 inheritance-tree = { path = "../inheritance-tree" }
 
 nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
+nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
 libc = "0.2"
 itertools = "0.10"
 static_assertions = "1"

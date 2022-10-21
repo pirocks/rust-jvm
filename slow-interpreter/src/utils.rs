@@ -8,12 +8,11 @@ use jvmti_jni_bindings::{jfieldID, jint};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
 
-use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
+use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
@@ -75,16 +74,6 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
         }
         Some(method_view) => Some((method_view.method_i(), class.clone())),
     }
-}
-
-pub fn string_obj_to_string<'gc>(jvm: &'gc JVMState<'gc>, str_obj: &'_ AllocatedNormalObjectHandle<'gc>) -> String {
-    let str_class_pointer = assert_inited_or_initing_class(jvm, CClassName::string().into());
-    let temp = str_obj.get_var(jvm, &str_class_pointer, FieldName::field_value());
-    let nonnull = temp.unwrap_object_nonnull();
-    let chars = nonnull.unwrap_array();
-    let borrowed_elems = chars.array_iterator();
-    char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char_strict())).collect::<Result<String, _>>().expect("really weird string encountered")
-    //todo so techincally java strings need not be valid so we can't return a rust string and have to do everything on bytes
 }
 
 pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {

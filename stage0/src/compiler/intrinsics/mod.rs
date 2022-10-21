@@ -11,7 +11,6 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::MethodId;
 
 use crate::compiler::CompilerLabeler;
-use crate::compiler::intrinsics::array_copy::intrinsic_array_copy;
 use crate::compiler::intrinsics::get_class::intrinsic_get_class;
 use crate::compiler::intrinsics::get_component_type::get_component_type_intrinsic;
 use crate::compiler::intrinsics::hashcode::intrinsic_hashcode;
@@ -57,12 +56,12 @@ pub fn gen_intrinsic_ir<'vm>(
     if method_name == MethodName::method_identityHashCode() && desc == identity_hash_code && class_name == CClassName::system() {
         return system_identity_hashcode(resolver, layout, method_id, ir_method_id);
     }
-    let array_copy_hashcode = CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]);
-    if method_name == MethodName::method_arraycopy() &&
-        desc == array_copy_hashcode &&
-        class_name == CClassName::system() {
-        return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, labeler);
-    }
+    // let array_copy_hashcode = CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]);
+    // if method_name == MethodName::method_arraycopy() &&
+    //     desc == array_copy_hashcode &&
+    //     class_name == CClassName::system() {
+    //     return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, labeler);
+    // }
     let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
     if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class() {
         return get_component_type_intrinsic(resolver, layout, method_id, ir_method_id);

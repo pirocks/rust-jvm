@@ -509,6 +509,12 @@ impl From<CompressedClassName> for CompressedParsedDescriptorType {
     }
 }
 
+impl From<CompressedParsedRefType> for CompressedParsedDescriptorType{
+    fn from(value: CompressedParsedRefType) -> Self {
+        value.to_cpdtype()
+    }
+}
+
 pub type CMethodDescriptor = CompressedMethodDescriptor;
 
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::mem::size_of;
+use std::num::NonZeroUsize;
 use std::sync::Arc;
 
 
@@ -93,7 +94,9 @@ impl ObjectLayout {
         self.recursive_num_fields
     }
 
-    pub fn size(&self) -> usize {
-        self.recursive_num_fields() as usize * size_of::<NativeJavaValue>()
+    pub fn size(&self) -> NonZeroUsize {
+        let res_size = self.recursive_num_fields() as usize * size_of::<NativeJavaValue>();
+        //can't have zero size objects
+        NonZeroUsize::new(res_size).unwrap_or(NonZeroUsize::new(1).unwrap())
     }
 }

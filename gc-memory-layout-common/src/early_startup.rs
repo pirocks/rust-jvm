@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::mem::size_of;
+use std::num::NonZeroUsize;
 use std::ptr::NonNull;
 
 use crate::memory_regions::RegionHeader;
@@ -134,8 +135,8 @@ pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
 }
 
 impl Region {
-    pub fn smallest_which_fits(size: usize) -> Region {
-        match size + size_of::<RegionHeader>() {
+    pub fn smallest_which_fits(size: NonZeroUsize) -> Region {
+        match size.get() + size_of::<RegionHeader>() {
             0..SMALL_REGION_SIZE => Region::Small,
             SMALL_REGION_SIZE..MEDIUM_REGION_SIZE => Region::Medium,
             MEDIUM_REGION_SIZE..LARGE_REGION_SIZE => Region::Large,

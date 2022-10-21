@@ -11,6 +11,7 @@ use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
+use jvmti_jni_bindings::jint;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass, StaticFieldNumberAndFieldType};
 use runtime_class_stuff::method_numbers::MethodNumber;
@@ -209,7 +210,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         Some((rc, loader))
     }
 
-    fn allocated_object_type_id(&self, rc: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<usize>) -> AllocatedTypeID {
+    fn allocated_object_type_id(&self, rc: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<jint>) -> AllocatedTypeID {
         let allocated_object_type = runtime_class_to_allocated_object_type(self.jvm, rc, loader, arr_len);
         let mut guard = self.jvm.gc.memory_region.lock().unwrap();
         guard.lookup_or_add_type(&allocated_object_type)

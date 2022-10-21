@@ -1,181 +1,32 @@
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::mem::size_of;
-use std::ptr::{NonNull, null, null_mut};
+use std::num::NonZeroUsize;
+use std::ptr::{NonNull, null_mut};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 use iced_x86::code_asm::{cl, CodeAssembler, CodeLabel, ecx, rcx};
 use memoffset::offset_of;
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::Register;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jclass;
-use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CPDType, CPRefType};
-
-
-use rust_jvm_common::loading::LoaderName;
 use vtable::RawNativeVTable;
+use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 
 use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
-
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
-pub enum AllocatedObjectType {
-    Class {
-        name: CClassName,
-        loader: LoaderName,
-        // size: usize,
-        vtable: NonNull<RawNativeVTable>,
-        itable: NonNull<ITableRaw>,
-        inheritance_bit_vec: Option<NonNull<BitPath256>>,
-        interfaces: *const ClassID,
-        interfaces_len: usize,
-    },
-    ObjectArray {
-        sub_type: CPRefType,
-        sub_type_loader: LoaderName,
-        // len: i32,
-        object_vtable: NonNull<RawNativeVTable>,
-        array_itable: NonNull<ITableRaw>,
-        array_interfaces: *const ClassID,
-        interfaces_len: usize,
-    },
-    PrimitiveArray {
-        primitive_type: CPDType,
-        // len: i32,
-        object_vtable: NonNull<RawNativeVTable>,
-        array_itable: NonNull<ITableRaw>,
-        array_interfaces: *const ClassID,
-        interfaces_len: usize,
-    },
-    Raw { /*size: usize*/ },
-}
-
-pub struct AllocatedObjectTypeWithSize{
-    pub allocated_object_type: AllocatedObjectType,
-    pub size: usize
-}
-
-impl AllocatedObjectType {
-    pub fn inheritance_bit_vec(&self) -> *const BitPath256 {
-        match self {
-            AllocatedObjectType::Class { inheritance_bit_vec, .. } => inheritance_bit_vec.map(|x| x.as_ptr() as *const BitPath256).unwrap_or(null()),
-            AllocatedObjectType::ObjectArray { .. } |
-            AllocatedObjectType::PrimitiveArray { .. } |
-            AllocatedObjectType::Raw { .. } => {
-                null_mut()
-            }
-        }
-    }
-
-
-    pub fn vtable(&self) -> Option<NonNull<RawNativeVTable>> {
-        match self {
-            AllocatedObjectType::Class { vtable, .. } => {
-                Some(*vtable)
-            }
-            AllocatedObjectType::ObjectArray { object_vtable, .. } => Some(*object_vtable),
-            AllocatedObjectType::PrimitiveArray { object_vtable, .. } => Some(*object_vtable),
-            AllocatedObjectType::Raw { .. } => None,
-        }
-    }
-
-    pub fn itable(&self) -> Option<NonNull<ITableRaw>> {
-        match self {
-            AllocatedObjectType::Class { itable, .. } => {
-                Some(*itable)
-            }
-            AllocatedObjectType::ObjectArray { array_itable, .. } => Some(*array_itable),
-            AllocatedObjectType::PrimitiveArray { array_itable, .. } => Some(*array_itable),
-            AllocatedObjectType::Raw { .. } => None,
-        }
-    }
-
-    /*pub fn size(&self) -> usize {
-        match self {
-            AllocatedObjectType::Class { size, .. } => {
-                if *size == 0 {
-                    return 1;
-                }
-                *size
-            }
-            AllocatedObjectType::ObjectArray { len, .. } => {
-                let array_layout = ArrayMemoryLayout::from_cpdtype(CClassName::object().into());
-                let res = array_layout.array_size(*len);
-                if res == 0 {
-                    panic!()
-                } else {
-                    res
-                }
-            }
-            AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
-                let array_layout = ArrayMemoryLayout::from_cpdtype(*primitive_type);
-                array_layout.array_size(*len)
-            }
-            AllocatedObjectType::Raw { size } => {
-                *size
-            }
-        }
-    }*/
-
-    pub fn as_cpdtype(&self) -> CPDType {
-        match self {
-            AllocatedObjectType::Class { name, .. } => {
-                (*name).into()
-            }
-            AllocatedObjectType::ObjectArray { sub_type, .. } => {
-                CPDType::array(sub_type.to_cpdtype())
-            }
-            AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
-                CPDType::array(*primitive_type)
-            }
-            AllocatedObjectType::Raw { .. } => {
-                panic!()
-            }
-        }
-    }
-
-    pub fn interfaces_ptr(&self) -> *const ClassID {
-        *match self {
-            AllocatedObjectType::Class { interfaces, .. } => {
-                interfaces
-            }
-            AllocatedObjectType::ObjectArray { array_interfaces, .. } => {
-                array_interfaces
-            }
-            AllocatedObjectType::PrimitiveArray { array_interfaces, .. } => {
-                array_interfaces
-            }
-            AllocatedObjectType::Raw { .. } => panic!()
-        }
-    }
-
-    pub fn interfaces_len(&self) -> usize {
-        *match self {
-            AllocatedObjectType::Class { interfaces_len, .. } => {
-                interfaces_len
-            }
-            AllocatedObjectType::ObjectArray { interfaces_len, .. } => {
-                interfaces_len
-            }
-            AllocatedObjectType::PrimitiveArray { interfaces_len, .. } => {
-                interfaces_len
-            }
-            AllocatedObjectType::Raw { .. } => panic!()
-        }
-    }
-}
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct RegionHeader {
     region_header_magic_1: u32,
-    pub num_current_elements: AtomicUsize,
-    pub region_max_elements: usize,
-    pub region_elem_size: usize,
+    pub current_ptr: AtomicPtr<c_void>,
+    pub region_max_ptr: AtomicPtr<c_void>,
+    pub region_elem_size: Option<NonZeroUsize>,
     pub region_type: AllocatedTypeID,
     pub inheritance_bit_path_ptr: *const BitPath256,
     pub vtable_ptr: *mut RawNativeVTable,
@@ -187,29 +38,90 @@ pub struct RegionHeader {
     region_header_magic_2: u32,
 }
 
-impl RegionHeader {
-    pub const REGION_HEADER_MAGIC: u32 = 0xddeeaadd;
+pub enum RegionHeaderWrappers<'l> {
+    Constant(ConstantRegionHeaderWrapper<'l>),
+    Variable(VariableRegionHeaderWrapper<'l>),
+}
+
+pub struct ConstantRegionHeaderWrapper<'l> {
+    region_header_raw: NonNullConst<RegionHeader>,
+    inner: &'l RegionHeader,
+}
+
+impl ConstantRegionHeaderWrapper<'_> {
+    fn region_elem_size(&self) -> NonZeroUsize {
+        self.inner.region_elem_size.unwrap()
+    }
+
+    unsafe fn get_allocation_impl(&self) -> Option<NonNull<c_void>> {
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
+        let before_type = self.inner.region_type;
+        let region_base = self.region_header_raw.as_ptr().add(1);
+        assert_eq!((self.region_header_raw.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
+        let region_elem_size = self.region_elem_size().get();
+        if self.inner.current_ptr.load(Ordering::SeqCst) == self.inner.region_max_ptr.load(Ordering::SeqCst) {
+            return None;
+        }
+        let res = loop {
+            let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
+            let expected_res = current_ptr.add(region_elem_size);
+            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res, Ordering::SeqCst, Ordering::SeqCst) {
+                break expected_res
+            }
+        };
+        assert!(res < self.inner.region_max_ptr.load(Ordering::SeqCst));
+        libc::memset(res, 0, self.region_elem_size().get());
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(before_type, self.inner.region_type);
+        Some(NonNull::new(res).unwrap())
+    }
 
     pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>) -> Option<NonNull<c_void>> {
         // assert!(dbg!(size_of::<RegionHeader>()) < SMALL_REGION_SIZE);//todo deal with this
-        let region_base = region_header.as_ptr().add(1);
-        assert_eq!(region_header.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
-        assert_eq!(region_header.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
-        let before_type = region_header.as_ref().region_type;
-        assert_eq!((region_header.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
-        let current_index = region_header.as_ref().num_current_elements.fetch_add(1, Ordering::SeqCst);
-        assert!(current_index < region_header.as_ref().region_max_elements);
-        if current_index == region_header.as_ref().region_max_elements {
-            return None;
-        }
-        assert!(current_index < region_header.as_ref().region_max_elements);
-        let res = (region_base as *mut c_void).add((current_index * region_header.as_ref().region_elem_size) as usize);
-        libc::memset(res, 0, region_header.as_ref().region_elem_size);
-        assert_eq!(region_header.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
-        assert_eq!(region_header.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
-        assert_eq!(before_type, region_header.as_ref().region_type);
+        let region_header_ref = region_header.as_ref();
+        ConstantRegionHeaderWrapper { region_header_raw: region_header.into(), inner: region_header_ref }.get_allocation_impl()
+    }
+}
+
+pub struct VariableRegionHeaderWrapper<'l> {
+    inner: &'l RegionHeader,
+    region_header_raw: NonNullConst<RegionHeader>
+}
+
+impl VariableRegionHeaderWrapper<'_> {
+    unsafe fn get_allocation_impl(&self, size: NonZeroUsize) -> Option<NonNull<c_void>> {
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
+        let before_type = self.inner.region_type;
+        let region_base = self.region_header_raw.as_ptr().add(1);
+        let res = loop {
+            let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
+            let expected_res_address = current_ptr.add(size.get());
+            if expected_res_address >= self.inner.region_max_ptr.load(Ordering::SeqCst) {
+                return None;
+            }
+            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res_address, Ordering::SeqCst, Ordering::SeqCst) {
+                break expected_res_address
+            }
+        };
+        assert!(res < self.inner.region_max_ptr.load(Ordering::SeqCst));
+        libc::memset(res, 0, size.get());
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(before_type, self.inner.region_type);
         Some(NonNull::new(res).unwrap())
     }
+
+    pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>, size: NonZeroUsize) -> Option<NonNull<c_void>> {
+        let region_header_ref = region_header.as_ref();
+        Self { inner: region_header_ref, region_header_raw: region_header.into() }.get_allocation_impl(size)
+    }
+}
+
+impl RegionHeader {
+    pub const REGION_HEADER_MAGIC: u32 = 0xddeeaadd;
 }
 
 
@@ -286,7 +198,7 @@ impl MemoryRegions {
         }
     }
 
-    pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> (NonNull<c_void>, usize) {
+    pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> (NonNull<c_void>, NonZeroUsize) {
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
                 //todo need to use bigger region as needed.
@@ -297,25 +209,48 @@ impl MemoryRegions {
             }
             Ok(region) => region,
         };
+        unsafe { OBJECT_ALLOCS += to_allocate_type.size.get() as u64; }
         let region_type = unsafe { region.as_ref() }.region_type;
-        let size = unsafe { region.as_ref() }.region_elem_size;
-        unsafe { OBJECT_ALLOCS += size as u64; }
+        self.current_region_header[region_type.0 as usize].store(region.as_ptr(), Ordering::SeqCst);
+        if to_allocate_type.allocated_object_type.constant_size_type() {
+            self.with_constant_size(region, region_type)
+        } else {
+            self.with_variable_size(region, region_type, to_allocate_type.size)
+        }
+    }
+
+    fn with_variable_size(&mut self, region: NonNull<RegionHeader>, region_type: AllocatedTypeID, size: NonZeroUsize) -> (NonNull<c_void>, NonZeroUsize) {
+        let should_be_none_size = unsafe { region.as_ref() }.region_elem_size;
+        assert_eq!(should_be_none_size, None);
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
-        assert_ne!(size, 0);
-        self.current_region_header[region_type.0 as usize].store(region.as_ptr(), Ordering::SeqCst);
         let res_ptr = unsafe {
-            match RegionHeader::get_allocation(region) {
+            match VariableRegionHeaderWrapper::get_allocation(region, size) {
                 Some(x) => x,
                 None => panic!("this allocation failure really shouldn't happen"),
             }
         };
-        let size = unsafe { region.as_ref() }.region_elem_size;
-        assert_ne!(size, 0);
         let after_region_type = MemoryRegions::find_object_region_header(res_ptr).region_type;
         assert_eq!(region_type, after_region_type);
         (res_ptr, size)
     }
+
+    fn with_constant_size(&mut self, region: NonNull<RegionHeader>, region_type: AllocatedTypeID) -> (NonNull<c_void>, NonZeroUsize) {
+        let size = unsafe { region.as_ref() }.region_elem_size;
+        unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
+        unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
+        let res_ptr = unsafe {
+            match ConstantRegionHeaderWrapper::get_allocation(region) {
+                Some(x) => x,
+                None => panic!("this allocation failure really shouldn't happen"),
+            }
+        };
+        let size = unsafe { region.as_ref() }.region_elem_size.unwrap();
+        let after_region_type = MemoryRegions::find_object_region_header(res_ptr).region_type;
+        assert_eq!(region_type, after_region_type);
+        (res_ptr, size)
+    }
+
 
     pub fn allocate(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> NonNull<c_void> {
         self.allocate_with_size(to_allocate_type).0
@@ -327,7 +262,6 @@ impl MemoryRegions {
         if assert {
             unsafe { assert_eq!(res.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
             unsafe { assert_eq!(res.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
-            unsafe { assert_ne!(res.as_ref().region_elem_size, 0); }
         }
         res
     }
@@ -346,11 +280,11 @@ impl MemoryRegions {
         let type_id = self.lookup_or_add_type(to_allocate_type);
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
         let region_header_ptr = self.region_header_at(*region, *index, true);
-        let num_current_elements = unsafe { region_header_ptr.as_ref() }.num_current_elements.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
-        let max_elements = unsafe { region_header_ptr.as_ref() }.region_max_elements;
+        let curent_ptr = unsafe { region_header_ptr.as_ref() }.current_ptr.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
+        let max_ptr = unsafe { region_header_ptr.as_ref() }.region_max_ptr.load(Ordering::SeqCst);
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
-        if num_current_elements >= max_elements {
+        if curent_ptr >= max_ptr {
             unsafe {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,
@@ -378,21 +312,27 @@ impl MemoryRegions {
             assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr);
         }
         unsafe {
-            let region_elem_size = to_allocate_type.size;
-            assert_ne!(region_elem_size, 0);
+            let (region_elem_size, region_max_elements) = if to_allocate_type.allocated_object_type.constant_size_type() {
+                let region_elem_size = to_allocate_type.size;
+                (Some(region_elem_size), Some(NonZeroUsize::new((current_region_to_use.region_size() - size_of::<RegionHeader>()) / region_elem_size).unwrap()))
+            } else {
+                (None, None)
+            };
+            let start_current_ptr = AtomicPtr::new(region_header_ptr.as_ptr().add(1) as *mut c_void);
+            let region_max_ptr = AtomicPtr::new(region_header_ptr.as_ptr().cast::<c_void>().add(current_region_to_use.region_size()));
             region_header_ptr.as_ptr().write(RegionHeader {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
-                num_current_elements: AtomicUsize::new(0),
-                region_max_elements: (current_region_to_use.region_size() - size_of::<RegionHeader>()) / region_elem_size,
                 region_elem_size,
                 region_type: type_id,
                 vtable_ptr: to_allocate_type.allocated_object_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,
+                current_ptr: start_current_ptr,
                 itable_ptr: to_allocate_type.allocated_object_type.itable().map(|itable| itable.as_ptr()).unwrap_or(null_mut()),
                 interface_ids_list: to_allocate_type.allocated_object_type.interfaces_ptr(),
                 interface_ids_list_len: to_allocate_type.allocated_object_type.interfaces_len(),
                 inheritance_bit_path_ptr: to_allocate_type.allocated_object_type.inheritance_bit_vec(),
                 class_pointer_cache: null_mut(),
+                region_max_ptr
             });
         }
         region_header_ptr
@@ -557,29 +497,55 @@ impl MemoryRegions {
 
 #[cfg(test)]
 pub mod test {
+    use std::ptr::{NonNull, null};
+
+    use libc::c_void;
+
+    use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
+    use vtable::RawNativeVTable;
+
     use crate::early_startup::get_regions;
-    use crate::memory_regions::{AllocatedObjectType, MemoryRegions};
+    use crate::memory_regions::{AllocatedObjectType, AllocatedObjectTypeWithSize, MemoryRegions};
 
     #[test]
     pub fn allocate_small() {
         let mut memory_regions = MemoryRegions::new(get_regions());
-        let size_1 = AllocatedObjectType::Raw { size: 1 };
-        let size_2 = AllocatedObjectType::Raw { size: 8 };
+        let size_1 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 1 };
+        let size_2 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 8 };
         let res_1_1 = memory_regions.allocate(&size_1);
         let res_1_2 = memory_regions.allocate(&size_1);
         let res_8_1 = memory_regions.allocate(&size_2);
         let res_8_2 = memory_regions.allocate(&size_2);
-        assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1);
-        assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2);
+        assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1.allocated_object_type);
+        assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
         for _ in 0..1000 {
             let res_1 = memory_regions.allocate(&size_1);
-            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1);
+            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1.allocated_object_type);
         }
-        let size_3 = AllocatedObjectType::Raw { size: 16 };
+        let size_3 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 16 };
         for _ in 0..10000 {
             let res_1 = memory_regions.allocate(&size_3);
             unsafe { libc::memset(res_1.as_ptr(), 0, 16); }
-            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3);
+            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3.allocated_object_type);
         }
+    }
+
+    #[test]
+    pub fn test_array_non_overlapping() {
+        let object_vtable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
+        let array_itable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
+        let mut memory_regions = MemoryRegions::new(get_regions());
+        let allocated_object_type = AllocatedObjectType::PrimitiveArray {
+            primitive_type: CompressedParsedDescriptorType::BooleanType,
+            object_vtable,
+            array_itable,
+            array_interfaces: null(),
+            interfaces_len: 0,
+        };
+        let allocated_first = memory_regions.allocate(&AllocatedObjectTypeWithSize { allocated_object_type: allocated_object_type.clone(), size: 10 });
+        unsafe { allocated_first.as_ptr().offset(10).cast::<u8>().write(255); }
+        let allocated_second = memory_regions.allocate(&AllocatedObjectTypeWithSize { allocated_object_type, size: 10 });
+        unsafe { assert_eq!(allocated_first.as_ptr().offset(10).cast::<u8>().read(), 255); }
+        todo!()
     }
 }

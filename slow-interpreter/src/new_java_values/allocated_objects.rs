@@ -1,12 +1,11 @@
 use std::ffi::c_void;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
-use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use gc_memory_layout_common::memory_regions::AllocatedObjectType;
-use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
@@ -18,7 +17,7 @@ use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
-use crate::java_values::{GcManagedObject, native_to_new_java_value};
+use crate::java_values::{array_native_to_new_java_value, GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
 impl<'gc> Clone for AllocatedNormalObjectHandle<'gc> {
@@ -46,25 +45,16 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
         jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(ptr).clone()
     }
 
-    pub fn len(&self) -> usize {
+    fn array_layout(&self) -> ArrayMemoryLayout{
         let allocated_type = self.allocated_type();
-        match allocated_type {
-            AllocatedObjectType::Class { .. } => {
-                panic!()
-            }
-            /*AllocatedObjectType::ObjectArray { len, .. } => {
-                len as usize
-            }
-            AllocatedObjectType::PrimitiveArray { len, .. } => {
-                len as usize
-            }*/
-            AllocatedObjectType::Raw { .. } => {
-                panic!()
-            }
-            _ => {
-                todo!()
-            }
-        }
+        ArrayMemoryLayout::from_cpdtype(self.elem_cpdtype())
+    }
+
+    pub fn len(&self) -> i32 {
+        let memory_layout = self.array_layout();
+        let res = *unsafe { memory_layout.calculate_len_address(self.ptr).as_ref() };
+        assert!(res >= 0);
+        res
     }
 
     pub fn elem_cpdtype(&self) -> CPDType {
@@ -85,21 +75,22 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
         }
     }
 
-    pub fn get_i(&self, i: usize) -> NewJavaValueHandle<'gc> {
+    pub fn get_i(&self, i: i32) -> NewJavaValueHandle<'gc> {
         assert!(i < self.len());
         let jvm = self.jvm;
         let ptr = self.ptr;
-        let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
-        let native_jv = unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).read() };
+        let array_layout = self.array_layout();
+        let native_jv_ptr = array_layout.calculate_index_address(ptr, i);
         let cpdtype = self.elem_cpdtype();
-        native_to_new_java_value(native_jv, cpdtype, jvm)
+        unsafe { array_native_to_new_java_value(native_jv_ptr.as_ref(), cpdtype, jvm) }
     }
 
-    pub fn set_i(&self, i: usize, elem: NewJavaValue<'gc, '_>) {
+    pub fn set_i(&self, i: i32, elem: NewJavaValue<'gc, '_>) {
         assert!(i < self.len());
         let ptr = self.ptr;
-        let array_base = unsafe { ptr.as_ptr().offset(size_of::<jlong>() as isize) };
-        unsafe { array_base.cast::<NativeJavaValue>().offset(i as isize).write(elem.to_native()) };
+        let array_layout = self.array_layout();
+        let mut native_jv_ptr = array_layout.calculate_index_address(ptr, i);
+        unsafe { elem.set_array_native(native_jv_ptr.as_mut()) }
     }
 
     pub fn array_iterator<'l>(&'l self) -> ArrayIterator<'gc, 'l> {
@@ -111,7 +102,7 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
 }
 
 pub struct ArrayIterator<'gc, 'l> {
-    i: usize,
+    i: i32,
     array_wrapper: &'l AllocatedArrayObjectHandle<'gc>,
 }
 

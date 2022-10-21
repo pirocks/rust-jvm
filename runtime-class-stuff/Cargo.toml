@@ -12,3 +12,4 @@ inheritance-tree = { path = "../inheritance-tree" }
 itertools = "0.10"
 strum = "0.24"
 strum_macros = "0.24"
+nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }

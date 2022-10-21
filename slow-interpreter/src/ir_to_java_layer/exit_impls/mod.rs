@@ -445,7 +445,7 @@ pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName,
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let (allocated_object, object_size) = memory_region_guard.allocate_with_size(&object_type);
     unsafe {
-        memset(allocated_object.as_ptr(), 0, object_size);
+        memset(allocated_object.as_ptr(), 0, object_size.get());
     }//todo do correct initing of fields
     unsafe { res_address.write(allocated_object) }
     drop(guard);
@@ -562,7 +562,7 @@ pub fn top_level_return(jvm: &JVMState, return_value: u64) -> IRVMExitAction {
 }
 
 #[inline(never)]
-pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, len: i32, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
+pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, len: jint, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("AllocateObjectArray");
     }
@@ -576,12 +576,12 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
     // int_state.debug_print_stack_trace(jvm);
     let rc = check_initing_or_inited_class(jvm,int_state, type_.to_cpdtype()).expect("exception initing an array object but those don't have an initializer?");
     //todo fix current_loader
-    let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len as usize));
+    let object_array = runtime_class_to_allocated_object_type(jvm, rc.clone(), int_state.current_loader(jvm), Some(len));
     let mut memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let allocated_object = memory_region_guard.allocate(&object_array);
     unsafe { res_address.write(allocated_object) }
     unsafe {
-        memset(allocated_object.as_ptr(), 0, object_array.size);
+        memset(allocated_object.as_ptr(), 0, object_array.size.get());
     }//todo init this properly according to type
     unsafe { *allocated_object.cast::<jint>().as_mut() = len }//init the length
     assert!(memory_region_guard.find_object_allocated_type(allocated_object).as_cpdtype().is_array());

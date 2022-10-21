@@ -41,7 +41,7 @@ use slow_interpreter::stdlib::java::lang::integer::Integer;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{run_static_or_virtual, string_obj_to_string, throw_npe};
+use slow_interpreter::utils::{run_static_or_virtual, throw_npe};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]

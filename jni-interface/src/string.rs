@@ -98,7 +98,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
 
-pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut ::std::os::raw::c_char) {
+pub unsafe extern "C" fn get_string_utfregion(env: *mut JNIEnv, str: jstring, start: jsize, len: jsize, buf: *mut c_char) {
     get_rust_str(env, str, |rust_str| {
         let chars = rust_str.chars().skip(start as usize).take(len as usize);
         let new_str = chars.collect::<String>();

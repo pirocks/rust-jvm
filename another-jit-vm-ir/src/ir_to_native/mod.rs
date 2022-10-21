@@ -430,7 +430,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
 
             assembler.je(*code_label).unwrap();
         }
-        IRInstr::Allocate { region_header_ptr, res_offset, allocate_exit } => {
+        IRInstr::AllocateConstantSize { region_header_ptr, res_offset, allocate_exit } => {
             let mut after_exit_label = assembler.create_label();
             let mut skip_to_exit_label = assembler.create_label();
             let region_header = Register(4);

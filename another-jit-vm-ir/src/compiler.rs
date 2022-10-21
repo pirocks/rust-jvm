@@ -172,7 +172,7 @@ pub enum IRInstr {
         return_val: Register,
     },
     VMExit2 { exit_type: IRVMExitType },
-    Allocate {
+    AllocateConstantSize {
         region_header_ptr: *const AtomicPtr<RegionHeader>,
         res_offset: FramePointerOffset,
         allocate_exit: IRVMExitType,
@@ -473,7 +473,7 @@ impl IRInstr {
             IRInstr::BranchEqualVal { .. } => {
                 "BranchEqualVal".to_string()
             }
-            IRInstr::Allocate { .. } => {
+            IRInstr::AllocateConstantSize { .. } => {
                 "Allocate".to_string()
             }
             IRInstr::GetClassOrExit { .. } => {

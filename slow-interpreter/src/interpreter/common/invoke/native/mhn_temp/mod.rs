@@ -113,7 +113,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'gc, 'l>(jvm: &'gc J
     let len = member_names.len();
     for member in member_names {
         if i < results.unwrap_array().len() as jint {
-            results.unwrap_array().set_i(i as usize, member.new_java_value());
+            results.unwrap_array().set_i(i, member.new_java_value());
         }
         i += 1;
     }

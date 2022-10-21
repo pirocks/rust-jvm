@@ -534,7 +534,6 @@ pub mod string {
     use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
     use crate::stdlib::java::NewAsObjectOrJavaValue;
     use crate::utils::run_static_or_virtual;
-    use crate::utils::string_obj_to_string;
 
     pub struct JString<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
@@ -569,7 +568,13 @@ pub mod string {
 
     impl<'gc> JString<'gc> {
         pub fn to_rust_string(&self, jvm: &'gc JVMState<'gc>) -> String {
-            string_obj_to_string(jvm, &self.normal_object)
+            let str_obj = &self.normal_object;
+            let str_class_pointer = assert_inited_or_initing_class(jvm, CClassName::string().into());
+            let temp = str_obj.get_var(jvm, &str_class_pointer, FieldName::field_value());
+            let nonnull = temp.unwrap_object_nonnull();
+            let chars = nonnull.unwrap_array();
+            let borrowed_elems = chars.array_iterator();
+            char::decode_utf16(borrowed_elems.map(|jv| jv.unwrap_char_strict())).collect::<Result<String, _>>().expect("really weird string encountered")
         }
 
         pub fn from_rust(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, rust_str: Wtf8Buf) -> Result<JString<'gc>, WasException<'gc>> {
@@ -582,6 +587,7 @@ pub mod string {
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
+            dbg!(array.as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|elem| elem.unwrap_char_strict()).collect_vec());
             run_constructor(jvm, int_state, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }

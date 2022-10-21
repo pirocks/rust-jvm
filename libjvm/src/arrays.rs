@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             if index < 0 || index >= len {
                 return throw_array_out_of_bounds(jvm, int_state, throw, index);
             }
-            let java_value = nonnull.unwrap_array().get_i(index as usize);
+            let java_value = nonnull.unwrap_array().get_i(index);
             new_local_ref_public(
                 match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
                     Ok(boxed) => todo!()/*boxed*/,
@@ -170,10 +170,10 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     }
     let mut to_copy = vec![];
     for i in 0..length {
-        let temp = src.get_i((src_pos + i) as usize);
+        let temp = src.get_i((src_pos + i));
         to_copy.push(temp);
     }
     for i in 0..length {
-        dest.set_i((dst_pos + i) as usize, to_copy[i as usize].as_njv());
+        dest.set_i((dst_pos + i), to_copy[i as usize].as_njv());
     }
 }
