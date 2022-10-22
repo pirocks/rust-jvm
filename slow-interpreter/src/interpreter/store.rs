@@ -1,3 +1,5 @@
+use std::ptr::null_mut;
+use libc::c_void;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
 
@@ -5,7 +7,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDe
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::InterpreterFrame;
+use crate::interpreter::real_interpreter_state::{InterpreterFrame};
 use crate::JVMState;
 
 fn generic_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16, runtime_type: RuntimeType) -> PostInstructionAction<'gc> {
@@ -110,7 +112,7 @@ impl CastFromU64 for u8 {
 
 
 fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, array_sub_type: CompressedParsedDescriptorType) -> PostInstructionAction<'gc> {
-    let val = current_frame.pop(array_sub_type.to_runtime_type().unwrap()).to_raw();
+    let val = current_frame.pop(array_sub_type.to_runtime_type().unwrap());
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let arrar_ref_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {
         Some(x) => x,
@@ -122,7 +124,43 @@ fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc,
     // let val = T::cast(val);
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     unsafe {
-        todo!()
+        let res_pointer = array_layout.calculate_index_address(arrar_ref_o,index);
+        match array_sub_type {
+            CompressedParsedDescriptorType::BooleanType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::ByteType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::ShortType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::CharType => {
+                let int = val.unwrap_int();
+                let char_ = int as u16;
+                res_pointer.cast::<u16>().as_ptr().write(char_);
+            }
+            CompressedParsedDescriptorType::IntType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::LongType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::FloatType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::DoubleType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::VoidType => {
+                todo!()
+            }
+            CompressedParsedDescriptorType::Class(_) |
+            CompressedParsedDescriptorType::Array { .. } => {
+                let obj = val.unwrap_object().map(|ptr|ptr.as_ptr()).unwrap_or(null_mut());
+                res_pointer.cast::<*mut c_void>().as_ptr().write(obj);
+            }
+        }
         // let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut u64;
         // target_char_ptr.write(val);
     }

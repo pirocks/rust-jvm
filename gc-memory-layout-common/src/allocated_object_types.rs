@@ -37,7 +37,7 @@ pub enum AllocatedObjectType {
         array_interfaces: *const ClassID,
         interfaces_len: usize,
     },
-    Raw { /*size: usize*/ },
+    RawConstantSize { /*size: usize*/ },
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]
@@ -52,7 +52,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::Class { inheritance_bit_vec, .. } => inheritance_bit_vec.map(|x| x.as_ptr() as *const BitPath256).unwrap_or(null()),
             AllocatedObjectType::ObjectArray { .. } |
             AllocatedObjectType::PrimitiveArray { .. } |
-            AllocatedObjectType::Raw { .. } => {
+            AllocatedObjectType::RawConstantSize { .. } => {
                 null_mut()
             }
         }
@@ -66,7 +66,7 @@ impl AllocatedObjectType {
             }
             AllocatedObjectType::ObjectArray { object_vtable, .. } => Some(*object_vtable),
             AllocatedObjectType::PrimitiveArray { object_vtable, .. } => Some(*object_vtable),
-            AllocatedObjectType::Raw { .. } => None,
+            AllocatedObjectType::RawConstantSize { .. } => None,
         }
     }
 
@@ -77,7 +77,7 @@ impl AllocatedObjectType {
             }
             AllocatedObjectType::ObjectArray { array_itable, .. } => Some(*array_itable),
             AllocatedObjectType::PrimitiveArray { array_itable, .. } => Some(*array_itable),
-            AllocatedObjectType::Raw { .. } => None,
+            AllocatedObjectType::RawConstantSize { .. } => None,
         }
     }
 
@@ -119,7 +119,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
                 CPDType::array(*primitive_type)
             }
-            AllocatedObjectType::Raw { .. } => {
+            AllocatedObjectType::RawConstantSize { .. } => {
                 panic!()
             }
         }
@@ -136,7 +136,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::PrimitiveArray { array_interfaces, .. } => {
                 array_interfaces
             }
-            AllocatedObjectType::Raw { .. } => &null()
+            AllocatedObjectType::RawConstantSize { .. } => &null()
         }
     }
 
@@ -151,7 +151,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::PrimitiveArray { interfaces_len, .. } => {
                 interfaces_len
             }
-            AllocatedObjectType::Raw { .. } => &0
+            AllocatedObjectType::RawConstantSize { .. } => &0
         }
     }
 
@@ -160,7 +160,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::Class { .. } => true,
             AllocatedObjectType::ObjectArray { .. } => false,
             AllocatedObjectType::PrimitiveArray { .. } => false,
-            AllocatedObjectType::Raw { .. } => todo!(),
+            AllocatedObjectType::RawConstantSize { .. } => true,
         }
     }
 }

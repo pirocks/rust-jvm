@@ -60,7 +60,7 @@ impl ConstantRegionHeaderWrapper<'_> {
         let before_type = self.inner.region_type;
         let region_base = self.region_header_raw.as_ptr().add(1);
         assert_eq!((self.region_header_raw.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
-        let region_elem_size = dbg!(self.region_elem_size().get());
+        let region_elem_size = self.region_elem_size().get();
         if self.inner.current_ptr.load(Ordering::SeqCst) >= self.inner.region_max_ptr.as_ptr() {
             return None;
         }
@@ -209,7 +209,7 @@ impl MemoryRegions {
                 self.new_region_for(to_allocate_type, None, None)
             }
             Err(FindRegionError::RegionFull { prev_region_size, prev_vtable_ptr }) => {
-                self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()), Some(prev_vtable_ptr))
+                self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()), prev_vtable_ptr)
             }
             Ok(region) => region,
         };
@@ -274,7 +274,7 @@ impl MemoryRegions {
 pub enum FindRegionError {
     RegionFull {
         prev_region_size: Region,
-        prev_vtable_ptr: *mut RawNativeVTable,
+        prev_vtable_ptr: Option<NonNull<RawNativeVTable>>,
     },
     NoRegion,
 }
@@ -292,7 +292,7 @@ impl MemoryRegions {
             if curent_ptr.add(to_allocate_type.size.get()) >= max_ptr {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,
-                    prev_vtable_ptr: region_header_ptr.as_ref().vtable_ptr,
+                    prev_vtable_ptr: NonNull::new(region_header_ptr.as_ref().vtable_ptr),
                 });
             }
         }
@@ -300,7 +300,7 @@ impl MemoryRegions {
     }
 
 
-    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<*mut RawNativeVTable>) -> NonNull<RegionHeader> {
+    fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<NonNull<RawNativeVTable>>) -> NonNull<RegionHeader> {
         let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
@@ -312,8 +312,8 @@ impl MemoryRegions {
         *free_index += 1;
         let region_header_ptr = self.region_header_at(current_region_to_use, our_index, false);
         self.type_to_region_datas[type_id.0 as usize].push((current_region_to_use, our_index));
-        if let Some(prev_vtable_ptr) = prev_vtable_ptr {
-            assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr);
+        if let Some(prev_vtable_ptr) = dbg!(prev_vtable_ptr) {
+            assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr.as_ptr());
         }
         unsafe {
             let (region_elem_size, region_max_elements) = if to_allocate_type.allocated_object_type.constant_size_type() {
@@ -496,60 +496,5 @@ impl MemoryRegions {
             dbg!(ptr.as_ptr());
             todo!()
         }
-    }
-}
-
-#[cfg(test)]
-pub mod test {
-    use std::ptr::{NonNull, null};
-
-    use libc::c_void;
-
-    use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
-    use vtable::RawNativeVTable;
-
-    use crate::early_startup::get_regions;
-    use crate::memory_regions::{AllocatedObjectType, AllocatedObjectTypeWithSize, MemoryRegions};
-
-    #[test]
-    pub fn allocate_small() {
-        let mut memory_regions = MemoryRegions::new(get_regions());
-        let size_1 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 1 };
-        let size_2 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 8 };
-        let res_1_1 = memory_regions.allocate(&size_1);
-        let res_1_2 = memory_regions.allocate(&size_1);
-        let res_8_1 = memory_regions.allocate(&size_2);
-        let res_8_2 = memory_regions.allocate(&size_2);
-        assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1.allocated_object_type);
-        assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
-        for _ in 0..1000 {
-            let res_1 = memory_regions.allocate(&size_1);
-            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1.allocated_object_type);
-        }
-        let size_3 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::Raw {}, size: 16 };
-        for _ in 0..10000 {
-            let res_1 = memory_regions.allocate(&size_3);
-            unsafe { libc::memset(res_1.as_ptr(), 0, 16); }
-            assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3.allocated_object_type);
-        }
-    }
-
-    #[test]
-    pub fn test_array_non_overlapping() {
-        let object_vtable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
-        let array_itable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
-        let mut memory_regions = MemoryRegions::new(get_regions());
-        let allocated_object_type = AllocatedObjectType::PrimitiveArray {
-            primitive_type: CompressedParsedDescriptorType::BooleanType,
-            object_vtable,
-            array_itable,
-            array_interfaces: null(),
-            interfaces_len: 0,
-        };
-        let allocated_first = memory_regions.allocate(&AllocatedObjectTypeWithSize { allocated_object_type: allocated_object_type.clone(), size: 10 });
-        unsafe { allocated_first.as_ptr().offset(10).cast::<u8>().write(255); }
-        let allocated_second = memory_regions.allocate(&AllocatedObjectTypeWithSize { allocated_object_type, size: 10 });
-        unsafe { assert_eq!(allocated_first.as_ptr().offset(10).cast::<u8>().read(), 255); }
-        todo!()
     }
 }

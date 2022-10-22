@@ -22,18 +22,18 @@ enum ArrayAlign{
     X86QWord,
 }
 
-#[repr(C)]
-pub union ArrayNativeJV{
-    pub bool: u8,
-    pub byte: i8,
-    pub char: u16,
-    pub short: i16,
-    pub int: i32,
-    pub float: f32,
-    pub long: i64,
-    pub double: f64,
-    pub obj: *mut c_void
-}
+// #[repr(C)]
+// pub union ArrayNativeJV{
+//     pub bool: u8,
+//     pub byte: i8,
+//     pub char: u16,
+//     pub short: i16,
+//     pub int: i32,
+//     pub float: f32,
+//     pub long: i64,
+//     pub double: f64,
+//     pub obj: *mut c_void
+// }
 
 impl ArrayMemoryLayout {
     pub fn from_cpdtype(sub_type: CPDType) -> Self {
@@ -87,9 +87,9 @@ impl ArrayMemoryLayout {
         }
     }
 
-    pub fn calculate_index_address(&self, array_pointer: NonNull<c_void>, index: i32) -> NonNull<ArrayNativeJV>{
+    pub fn calculate_index_address(&self, array_pointer: NonNull<c_void>, index: i32) -> NonNull<c_void>{
         assert!(index >= 0);
-        unsafe { NonNull::new(array_pointer.as_ptr().offset(self.elem_0_entry_offset() as isize).offset(index as isize * self.elem_size() as isize)).unwrap().cast::<ArrayNativeJV>() }
+        unsafe { NonNull::new(array_pointer.as_ptr().offset(self.elem_0_entry_offset() as isize).offset(index as isize * self.elem_size() as isize)).unwrap() }
     }
 
     pub fn calculate_len_address(&self, array_pointer: NonNull<c_void>) -> NonNull<i32>{

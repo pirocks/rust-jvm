@@ -35,6 +35,14 @@ pub struct Regions {
     pub extra_large_regions: NonNull<c_void>,
 }
 
+unsafe impl Send for Regions{
+
+}
+
+unsafe impl Sync for Regions{
+
+}
+
 impl Regions {
     pub fn base_regions_address(&self, region: Region) -> NonNull<c_void> {
         match region {
@@ -166,37 +174,5 @@ impl Region {
 
 #[cfg(test)]
 pub mod test {
-    use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, SMALL_REGION_SIZE_SIZE};
 
-    #[test]
-    pub fn test_size() {
-        let regions = get_regions();
-        let size = region_pointer_to_region_size(regions.small_regions.as_ptr() as usize as u64) as usize;
-        assert_eq!(size, SMALL_REGION_SIZE_SIZE);
-
-        let size = region_pointer_to_region_size(regions.medium_regions.as_ptr() as usize as u64) as usize;
-        assert_eq!(size, MEDIUM_REGION_SIZE_SIZE);
-
-        let size = region_pointer_to_region_size(regions.large_regions.as_ptr() as usize as u64) as usize;
-        assert_eq!(size, LARGE_REGION_SIZE_SIZE);
-
-        let size = region_pointer_to_region_size(regions.extra_large_regions.as_ptr() as usize as u64) as usize;
-        assert_eq!(size, EXTRA_LARGE_REGION_SIZE_SIZE);
-    }
-
-    #[test]
-    pub fn test_region() {
-        let regions = get_regions();
-        let small_region = region_pointer_to_region(regions.small_regions.as_ptr() as usize as u64);
-        match small_region {
-            Region::Small => {}
-            _ => panic!()
-        }
-
-        let medium_region = region_pointer_to_region(regions.medium_regions.as_ptr() as usize as u64);
-        match medium_region {
-            Region::Medium => {}
-            _ => panic!()
-        }
-    }
 }

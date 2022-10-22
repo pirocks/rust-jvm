@@ -1,5 +1,5 @@
 use std::ptr::null_mut;
-use gc_memory_layout_common::layout::ArrayNativeJV;
+use libc::c_void;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::NativeJavaValue;
@@ -107,43 +107,45 @@ pub trait JavaValueCommon<'gc> {
         }
     }
 
-    fn set_array_native(&self, array_native: &mut ArrayNativeJV){
-        match self.as_njv() {
-            NewJavaValue::Long(long) => {
-                array_native.long = long;
-            }
-            NewJavaValue::Int(int) => {
-                array_native.int = int;
-            }
-            NewJavaValue::Short(short) => {
-                array_native.short = short;
-            }
-            NewJavaValue::Byte(byte) => {
-                array_native.byte = byte
-            }
-            NewJavaValue::Boolean(bool_) => {
-                array_native.bool = bool_;
-            }
-            NewJavaValue::Char(char_) => {
-                array_native.char = char_;
-            }
-            NewJavaValue::Float(_) => {
-                todo!()
-            }
-            NewJavaValue::Double(_) => {
-                todo!()
-            }
-            NewJavaValue::Null => {
-                todo!()
-            }
-            NewJavaValue::UnAllocObject(_) => {
-                todo!()
-            }
-            NewJavaValue::AllocObject(_) => {
-                todo!()
-            }
-            NewJavaValue::Top => {
-                todo!()
+    fn set_array_native(&self, array_native: *mut c_void){
+        unsafe {
+            match self.as_njv() {
+                NewJavaValue::Long(long) => {
+                    array_native.cast::<jlong>().write(long);
+                }
+                NewJavaValue::Int(int) => {
+                    array_native.cast::<jint>().write(int);
+                }
+                NewJavaValue::Short(short) => {
+                    array_native.cast::<jshort>().write(short);
+                }
+                NewJavaValue::Byte(byte) => {
+                    array_native.cast::<jbyte>().write(byte);
+                }
+                NewJavaValue::Boolean(boolean) => {
+                    array_native.cast::<jboolean>().write(boolean);
+                }
+                NewJavaValue::Char(char_) => {
+                    array_native.cast::<jchar>().write(char_);
+                }
+                NewJavaValue::Float(_) => {
+                    todo!()
+                }
+                NewJavaValue::Double(_) => {
+                    todo!()
+                }
+                NewJavaValue::Null => {
+                    todo!()
+                }
+                NewJavaValue::UnAllocObject(_) => {
+                    todo!()
+                }
+                NewJavaValue::AllocObject(_) => {
+                    todo!()
+                }
+                NewJavaValue::Top => {
+                    todo!()
+                }
             }
         }
     }

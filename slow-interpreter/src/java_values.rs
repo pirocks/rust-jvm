@@ -13,7 +13,7 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::layout::{ArrayMemoryLayout, ArrayNativeJV};
+use gc_memory_layout_common::layout::{ArrayMemoryLayout};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
@@ -1034,31 +1034,31 @@ pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDTyp
 }
 
 
-pub fn array_native_to_new_java_value<'gc>(native: &ArrayNativeJV, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-    unsafe {
-        match ptype {
-            CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
-            CPDType::CharType => NewJavaValueHandle::Char(native.char),
-            CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
-            CPDType::FloatType => NewJavaValueHandle::Float(native.float),
-            CPDType::IntType => NewJavaValueHandle::Int(native.int),
-            CPDType::LongType => NewJavaValueHandle::Long(native.long),
-            CPDType::Class(_) | CPDType::Array { .. } => {
-                match NonNull::new(native.obj) {
-                    None => {
-                        NewJavaValueHandle::Null
-                    }
-                    Some(ptr) => {
-                        NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
-                    }
-                }
-            }
-            CPDType::ShortType => NewJavaValueHandle::Short(native.short),
-            CPDType::BooleanType => NewJavaValueHandle::Boolean(native.bool),
-            CPDType::VoidType => panic!(),
-        }
-    }
-}
+// pub fn array_native_to_new_java_value<'gc>(native: &ArrayNativeJV, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+//     unsafe {
+//         match ptype {
+//             CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
+//             CPDType::CharType => NewJavaValueHandle::Char(native.char),
+//             CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
+//             CPDType::FloatType => NewJavaValueHandle::Float(native.float),
+//             CPDType::IntType => NewJavaValueHandle::Int(native.int),
+//             CPDType::LongType => NewJavaValueHandle::Long(native.long),
+//             CPDType::Class(_) | CPDType::Array { .. } => {
+//                 match NonNull::new(native.obj) {
+//                     None => {
+//                         NewJavaValueHandle::Null
+//                     }
+//                     Some(ptr) => {
+//                         NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+//                     }
+//                 }
+//             }
+//             CPDType::ShortType => NewJavaValueHandle::Short(native.short),
+//             CPDType::BooleanType => NewJavaValueHandle::Boolean(native.bool),
+//             CPDType::VoidType => panic!(),
+//         }
+//     }
+// }
 
 
 pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {

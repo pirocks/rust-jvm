@@ -333,7 +333,7 @@ fn invoke_virtual_full<'gc>(
         AllocatedObjectType::ObjectArray { .. } => {
             assert_inited_or_initing_class(jvm, CClassName::object().into())
         }
-        AllocatedObjectType::Raw { .. } => {
+        AllocatedObjectType::RawConstantSize { .. } => {
             panic!()
         }
     };

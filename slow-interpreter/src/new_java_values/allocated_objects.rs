@@ -17,7 +17,7 @@ use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
-use crate::java_values::{array_native_to_new_java_value, GcManagedObject, native_to_new_java_value};
+use crate::java_values::{GcManagedObject, native_to_new_java_value};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
 impl<'gc> Clone for AllocatedNormalObjectHandle<'gc> {
@@ -69,7 +69,7 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
             AllocatedObjectType::PrimitiveArray { primitive_type, .. } => {
                 primitive_type
             }
-            AllocatedObjectType::Raw { .. } => {
+            AllocatedObjectType::RawConstantSize { .. } => {
                 panic!()
             }
         }
@@ -82,7 +82,8 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
         let array_layout = self.array_layout();
         let native_jv_ptr = array_layout.calculate_index_address(ptr, i);
         let cpdtype = self.elem_cpdtype();
-        unsafe { array_native_to_new_java_value(native_jv_ptr.as_ref(), cpdtype, jvm) }
+        //todo this read should be changed to be better
+        unsafe { native_to_new_java_value(native_jv_ptr.cast::<NativeJavaValue>().as_ptr().read(), cpdtype, jvm) }
     }
 
     pub fn set_i(&self, i: i32, elem: NewJavaValue<'gc, '_>) {
