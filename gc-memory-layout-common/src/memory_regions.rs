@@ -16,8 +16,8 @@ use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jclass;
 use vtable::RawNativeVTable;
-use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 
+use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region_size_size, Regions, SMALL_REGION_SIZE, SMALL_REGION_SIZE_SIZE, TERABYTE};
 
 #[repr(C)]
@@ -25,7 +25,7 @@ use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_SIZE_SIZE,
 pub struct RegionHeader {
     region_header_magic_1: u32,
     pub current_ptr: AtomicPtr<c_void>,
-    pub region_max_ptr: AtomicPtr<c_void>,
+    pub region_max_ptr: NonNull<c_void>,
     pub region_elem_size: Option<NonZeroUsize>,
     pub region_type: AllocatedTypeID,
     pub inheritance_bit_path_ptr: *const BitPath256,
@@ -54,23 +54,27 @@ impl ConstantRegionHeaderWrapper<'_> {
     }
 
     unsafe fn get_allocation_impl(&self) -> Option<NonNull<c_void>> {
+        //todo align
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         let before_type = self.inner.region_type;
         let region_base = self.region_header_raw.as_ptr().add(1);
         assert_eq!((self.region_header_raw.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
-        let region_elem_size = self.region_elem_size().get();
-        if self.inner.current_ptr.load(Ordering::SeqCst) == self.inner.region_max_ptr.load(Ordering::SeqCst) {
+        let region_elem_size = dbg!(self.region_elem_size().get());
+        if self.inner.current_ptr.load(Ordering::SeqCst) >= self.inner.region_max_ptr.as_ptr() {
             return None;
         }
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
             let expected_res = current_ptr.add(region_elem_size);
+            if expected_res >= self.inner.region_max_ptr.as_ptr() {
+                return None;
+            }
             if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res, Ordering::SeqCst, Ordering::SeqCst) {
-                break expected_res
+                break expected_res;
             }
         };
-        assert!(res < self.inner.region_max_ptr.load(Ordering::SeqCst));
+        assert!(res < self.inner.region_max_ptr.as_ptr());
         libc::memset(res, 0, self.region_elem_size().get());
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
@@ -78,7 +82,7 @@ impl ConstantRegionHeaderWrapper<'_> {
         Some(NonNull::new(res).unwrap())
     }
 
-    pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>) -> Option<NonNull<c_void>> {
+    pub unsafe fn get_allocation(region_header: NonNullConst<RegionHeader>) -> Option<NonNull<c_void>> {
         // assert!(dbg!(size_of::<RegionHeader>()) < SMALL_REGION_SIZE);//todo deal with this
         let region_header_ref = region_header.as_ref();
         ConstantRegionHeaderWrapper { region_header_raw: region_header.into(), inner: region_header_ref }.get_allocation_impl()
@@ -87,7 +91,7 @@ impl ConstantRegionHeaderWrapper<'_> {
 
 pub struct VariableRegionHeaderWrapper<'l> {
     inner: &'l RegionHeader,
-    region_header_raw: NonNullConst<RegionHeader>
+    region_header_raw: NonNullConst<RegionHeader>,
 }
 
 impl VariableRegionHeaderWrapper<'_> {
@@ -99,14 +103,14 @@ impl VariableRegionHeaderWrapper<'_> {
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
             let expected_res_address = current_ptr.add(size.get());
-            if expected_res_address >= self.inner.region_max_ptr.load(Ordering::SeqCst) {
+            if expected_res_address >= self.inner.region_max_ptr.as_ptr() {
                 return None;
             }
             if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res_address, Ordering::SeqCst, Ordering::SeqCst) {
-                break expected_res_address
+                break expected_res_address;
             }
         };
-        assert!(res < self.inner.region_max_ptr.load(Ordering::SeqCst));
+        assert!(res < self.inner.region_max_ptr.as_ptr());
         libc::memset(res, 0, size.get());
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
@@ -225,7 +229,7 @@ impl MemoryRegions {
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         let res_ptr = unsafe {
-            match VariableRegionHeaderWrapper::get_allocation(region, size) {
+            match VariableRegionHeaderWrapper::get_allocation(region.into(), size) {
                 Some(x) => x,
                 None => panic!("this allocation failure really shouldn't happen"),
             }
@@ -240,7 +244,7 @@ impl MemoryRegions {
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         let res_ptr = unsafe {
-            match ConstantRegionHeaderWrapper::get_allocation(region) {
+            match ConstantRegionHeaderWrapper::get_allocation(region.into()) {
                 Some(x) => x,
                 None => panic!("this allocation failure really shouldn't happen"),
             }
@@ -281,11 +285,11 @@ impl MemoryRegions {
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
         let region_header_ptr = self.region_header_at(*region, *index, true);
         let curent_ptr = unsafe { region_header_ptr.as_ref() }.current_ptr.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
-        let max_ptr = unsafe { region_header_ptr.as_ref() }.region_max_ptr.load(Ordering::SeqCst);
+        let max_ptr = unsafe { region_header_ptr.as_ref() }.region_max_ptr.as_ptr();
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
-        if curent_ptr >= max_ptr {
-            unsafe {
+        unsafe {
+            if curent_ptr.add(to_allocate_type.size.get()) >= max_ptr {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,
                     prev_vtable_ptr: region_header_ptr.as_ref().vtable_ptr,
@@ -319,7 +323,7 @@ impl MemoryRegions {
                 (None, None)
             };
             let start_current_ptr = AtomicPtr::new(region_header_ptr.as_ptr().add(1) as *mut c_void);
-            let region_max_ptr = AtomicPtr::new(region_header_ptr.as_ptr().cast::<c_void>().add(current_region_to_use.region_size()));
+            let region_max_ptr = NonNull::new(region_header_ptr.as_ptr().cast::<c_void>().add(current_region_to_use.region_size())).unwrap();
             region_header_ptr.as_ptr().write(RegionHeader {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
                 region_elem_size,
@@ -332,7 +336,7 @@ impl MemoryRegions {
                 interface_ids_list_len: to_allocate_type.allocated_object_type.interfaces_len(),
                 inheritance_bit_path_ptr: to_allocate_type.allocated_object_type.inheritance_bit_vec(),
                 class_pointer_cache: null_mut(),
-                region_max_ptr
+                region_max_ptr,
             });
         }
         region_header_ptr

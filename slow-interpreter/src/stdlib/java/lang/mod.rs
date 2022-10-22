@@ -587,7 +587,7 @@ pub mod string {
             };
             //todo what about check_inited_class for this array type
             let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
-            dbg!(array.as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|elem| elem.unwrap_char_strict()).collect_vec());
+            // dbg!(array.as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|elem| elem.unwrap_char_strict()).collect_vec());
             run_constructor(jvm, int_state, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
             Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
         }

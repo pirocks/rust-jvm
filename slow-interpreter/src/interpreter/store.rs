@@ -122,8 +122,9 @@ fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc,
     // let val = T::cast(val);
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     unsafe {
-        let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut u64;
-        target_char_ptr.write(val);
+        todo!()
+        // let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut u64;
+        // target_char_ptr.write(val);
     }
     PostInstructionAction::Next {}
 }

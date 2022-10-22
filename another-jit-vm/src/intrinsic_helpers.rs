@@ -5,12 +5,16 @@ use memoffset::offset_of;
 
 use crate::JITContext;
 
-extern "C" fn fremf(a: f32, b: f32) -> f32{
+extern "C" fn fremf(a: f32, b: f32) -> f32 {
     a % b
 }
 
-extern "C" fn dremd(a: f64, b: f64) -> f64{
+extern "C" fn dremd(a: f64, b: f64) -> f64 {
     a % b
+}
+
+pub struct ExtraIntrinsicHelpers {
+    pub constant_size_allocation: *const c_void,
 }
 
 #[repr(C)]
@@ -22,17 +26,22 @@ pub struct IntrinsicHelpers {
     instanceof_helper: *const c_void,
     malloc: *const c_void,
     free: *const c_void,
+    constant_size_allocation: *const c_void,
 }
 
 impl IntrinsicHelpers {
-    pub fn new() -> IntrinsicHelpers {
+    pub fn new(extra: ExtraIntrinsicHelpers) -> IntrinsicHelpers {
+        let ExtraIntrinsicHelpers {
+            constant_size_allocation
+        } = extra;
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
             fremf: fremf as *const c_void,
             dremd: dremd as *const c_void,
             instanceof_helper: null_mut(),
             malloc: libc::malloc as *const c_void,
-            free: libc::free as *const c_void
+            free: libc::free as *const c_void,
+            constant_size_allocation,
         }
     }
 }
@@ -45,6 +54,7 @@ pub enum IntrinsicHelperType {
     InstanceOf,
     Malloc,
     Free,
+    GetConstantAllocation
 }
 
 impl IntrinsicHelperType {
@@ -67,6 +77,9 @@ impl IntrinsicHelperType {
             }
             IntrinsicHelperType::Free => {
                 offset_of!(IntrinsicHelpers,free)
+            }
+            IntrinsicHelperType::GetConstantAllocation => {
+                offset_of!(IntrinsicHelpers,constant_size_allocation)
             }
         }
     }

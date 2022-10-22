@@ -2,9 +2,9 @@ use std::collections::btree_set::BTreeSet;
 use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use gc_memory_layout_common::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
-use gc_memory_layout_common::memory_regions::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 use inheritance_tree::ClassID;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jint;

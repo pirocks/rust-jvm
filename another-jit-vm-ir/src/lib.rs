@@ -18,6 +18,7 @@ use itertools::Itertools;
 
 use another_jit_vm::{BaseAddress, IRMethodID, MethodImplementationID, NativeInstructionLocation, VMExitEvent, VMState};
 use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRuntimeModificationTarget, CodeModificationHandle, FunctionCallTarget};
+use another_jit_vm::intrinsic_helpers::ExtraIntrinsicHelpers;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
@@ -216,7 +217,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, ir_method_id: IRMethodID, rbp_and_rsp: RBPAndRSP, handler_extra_data: &mut HandlerExtraData) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method<'g, 'l, 'f>(&'g self, extra_intrinsics: ExtraIntrinsicHelpers, ir_method_id: IRMethodID, rbp_and_rsp: RBPAndRSP, handler_extra_data: &mut HandlerExtraData) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -229,7 +230,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = handler_extra_data.ir_stack_mut();
-        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, current_implementation, initial_registers);
+        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, extra_intrinsics, current_implementation, initial_registers);
         handler_extra_data.notify_guest_enter();
         while let Some(vm_exit_event) = launched_vm.next() {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);

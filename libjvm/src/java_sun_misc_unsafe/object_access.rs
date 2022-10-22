@@ -3,13 +3,14 @@ use std::mem::{size_of, transmute};
 use std::ops::Deref;
 use std::ptr::null_mut;
 
-use libc::c_void;
+use libc::{c_void, initgroups};
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::{FieldId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -60,7 +61,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     let class_view = clazz.view();
     let field = match class_view.lookup_field(name) {
         Some(x) => x,
-        None => todo!(),
+        None => {
+            dbg!(name.0.to_str(&jvm.string_pool));
+            get_interpreter_state(env).debug_print_stack_trace(jvm);
+            todo!()
+        }
     };
     let field_numbers = &clazz.unwrap_class_class().object_layout.field_numbers;
     let field_number = field_numbers[&name].number;

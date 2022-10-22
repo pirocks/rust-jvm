@@ -1,10 +1,11 @@
+use libc::c_void;
 use num_traits::NumCast;
 
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
-
-use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
+use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::utils::throw_npe;
 
 pub unsafe extern "C" fn get_boolean_array_region(env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *mut jboolean) {
@@ -98,49 +99,47 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
 }
 
 pub unsafe extern "C" fn set_boolean_array_region(env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *const jboolean) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Boolean(buf.offset(index).read()))
+    set_array_region(env, array, CPDType::BooleanType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jboolean>().write(buf.offset(index).read()))
 }
 
 pub unsafe extern "C" fn set_byte_array_region(env: *mut JNIEnv, array: jbyteArray, start: jsize, len: jsize, buf: *const jbyte) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Byte(buf.offset(index).read() as i8))
+    set_array_region(env, array, CPDType::ByteType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jbyte>().write(buf.offset(index).read() as i8))
 }
 
 pub unsafe extern "C" fn set_char_array_region(env: *mut JNIEnv, array: jcharArray, start: jsize, len: jsize, buf: *const jchar) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Char(buf.offset(index).read()))
+    set_array_region(env, array, CPDType::CharType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jchar>().write(buf.offset(index).read()))
 }
 
 pub unsafe extern "C" fn set_short_array_region(env: *mut JNIEnv, array: jshortArray, start: jsize, len: jsize, buf: *const jshort) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Short(buf.offset(index).read() as i16))
+    set_array_region(env, array, CPDType::ShortType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jshort>().write(buf.offset(index).read() as i16))
 }
 
 pub unsafe extern "C" fn set_int_array_region(env: *mut JNIEnv, array: jintArray, start: jsize, len: jsize, buf: *const jint) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Int(buf.offset(index).read() as i32))
+    set_array_region(env, array, CPDType::IntType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jint>().write(buf.offset(index).read() as i32))
 }
 
 pub unsafe extern "C" fn set_float_array_region(env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *const jfloat) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Float(buf.offset(index).read() as f32))
+    set_array_region(env, array, CPDType::FloatType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jfloat>().write(buf.offset(index).read() as f32))
 }
 
 pub unsafe extern "C" fn set_double_array_region(env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *const jdouble) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Double(buf.offset(index).read() as f64))
+    set_array_region(env, array, CPDType::DoubleType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jdouble>().write(buf.offset(index).read() as f64))
 }
 
 pub unsafe extern "C" fn set_long_array_region(env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *const jlong) {
-    set_array_region(env, array, start, len, &mut |index: isize| NewJavaValueHandle::Long(buf.offset(index).read() as i64))
+    set_array_region(env, array, CPDType::LongType, start, len, &mut |index: isize, write_to: *mut c_void| write_to.cast::<jlong>().write(buf.offset(index).read() as i64))
 }
 
-unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, start: i32, len: i32, java_value_getter: &mut dyn FnMut(isize) -> NewJavaValueHandle<'gc>) {
+unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, array_sub_type: CPDType, start: i32, len: i32, java_value_setter: &mut dyn FnMut(isize, *mut c_void)) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_nullarray = match from_object_new(jvm, array) {
-        None => {
-            return throw_npe(jvm, int_state);
-        }
-        Some(x) => x,
-    };
-    let vec_mut = non_nullarray.unwrap_array();
+    if let None = from_object_new(jvm, array) {
+        return throw_npe(jvm, int_state);
+    }
+    // let vec_mut = non_nullarray.unwrap_array();
+    let memory_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     for i in 0..len {
-        todo!("use array layout")
-        /*vec_mut.set_i((start + i) as i32, java_value_getter(i as isize).as_njv());*/
+        let write_to = array.cast::<c_void>().add(memory_layout.elem_0_entry_offset()).add((i as usize) * memory_layout.elem_size());
+        java_value_setter(i as isize, write_to);
     }
 }

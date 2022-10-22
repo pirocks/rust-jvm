@@ -22,6 +22,7 @@ use crate::better_java_stack::frames::HasFrame;
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::exceptions::WasException;
+use crate::extra_intrinsics::extra_intrinsics;
 use crate::function_call_targets_updating::FunctionCallTargetsByFunction;
 use crate::ir_to_java_layer::{ByteCodeIRMapping, JavaVMStateMethod, JavaVMStateWrapperInner};
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
@@ -89,7 +90,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         }
         let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         let res = int_state.within_guest(|java_stack_guard, rbp_and_rsp| {
-            match self.ir.run_method(ir_method_id, rbp_and_rsp, java_stack_guard) {
+            match self.ir.run_method(extra_intrinsics(),ir_method_id, rbp_and_rsp, java_stack_guard) {
                 Ok(res) => {
                     // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                     Ok(res)

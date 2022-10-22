@@ -11,7 +11,7 @@ use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::ir_stack::{IsOpaque, read_frame_ir_header};
 use another_jit_vm_ir::IRVMExitAction;
 use another_jit_vm_ir::vm_exit_abi::register_structs::InvokeVirtualResolve;
-use gc_memory_layout_common::memory_regions::AllocatedObjectType;
+use gc_memory_layout_common::allocated_object_types::AllocatedObjectType;
 use interface_vtable::{InterfaceVTableEntry, ITable, ResolvedInterfaceVTableEntry};
 use jvmti_jni_bindings::{jint, jlong};
 use method_table::interface_table::InterfaceID;

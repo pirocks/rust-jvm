@@ -119,6 +119,7 @@ impl<'gc> GC<'gc> {
                     (allocated.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).write(elems.len() as i32);
                     let array_base = allocated.as_ptr().offset(array_layout.elem_0_entry_offset() as isize);
                     for (i, elem) in elems.into_iter().enumerate() {
+                        //todo fix all ub usages of NativeJavaValue
                         array_base.offset((i as isize) * array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
                     }
                 }
