@@ -83,11 +83,12 @@ fn generic_array_load<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_fram
         },
     };
     unsafe {
-        if index < 0 || index >= (array_ptr.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).read() {
+        let array_len = array_layout.calculate_len_address(array_ptr).as_ptr().read();
+        if index < 0 || index >= array_len {
             return PostInstructionAction::Exception { exception: throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err() };
         }
     }
-    let res_ptr = unsafe { array_ptr.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) };
+    let res_ptr = array_layout.calculate_index_address(array_ptr,index).as_ptr();
     let read_u64 = unsafe { (res_ptr as *mut u64).read() };
     let res = InterpreterJavaValue::from_raw(read_u64, array_sub_type.to_runtime_type().unwrap());
     current_frame.push(res);

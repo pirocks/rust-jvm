@@ -1,3 +1,4 @@
+use std::ptr::NonNull;
 use libc::c_void;
 use num_traits::NumCast;
 
@@ -136,10 +137,10 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, array_sub_type:
     if let None = from_object_new(jvm, array) {
         return throw_npe(jvm, int_state);
     }
-    // let vec_mut = non_nullarray.unwrap_array();
     let memory_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
+    let array_pointer = NonNull::new(array as *mut c_void).unwrap();
     for i in 0..len {
-        let write_to = array.cast::<c_void>().add(memory_layout.elem_0_entry_offset()).add((i as usize) * memory_layout.elem_size());
-        java_value_setter(i as isize, write_to);
+        let write_to = memory_layout.calculate_index_address(array_pointer, i);
+        java_value_setter(i as isize, write_to.as_ptr());
     }
 }

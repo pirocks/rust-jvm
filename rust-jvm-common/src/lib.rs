@@ -46,6 +46,7 @@ pub struct InheritanceMethodID(pub u64);
 
 pub type MethodI = u16;
 
+#[deprecated = "native java value causes word tearing and is therefore is considered harmful"]
 #[derive(Copy, Clone)]
 pub union NativeJavaValue<'gc> {
     pub byte: i8,

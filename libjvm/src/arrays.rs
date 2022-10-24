@@ -165,6 +165,16 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     };
     let nonnull = new_jv_handle.unwrap_object_nonnull();
     let dest = nonnull.unwrap_array();
+    // if let CPDType::CharType = dest.elem_cpdtype() {
+    //     dbg!(src.array_iterator().map(|elem| {
+    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
+    //     }).collect::<String>());
+    // }
+    // if let CPDType::CharType = dest.elem_cpdtype() {
+    //     dbg!(dest.array_iterator().map(|elem| {
+    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
+    //     }).collect::<String>());
+    // }
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }
@@ -176,4 +186,9 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     for i in 0..length {
         dest.set_i((dst_pos + i), to_copy[i as usize].as_njv());
     }
+    // if let CPDType::CharType = dest.elem_cpdtype() {
+    //     dbg!(dest.array_iterator().map(|elem| {
+    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
+    //     }).collect::<String>());
+    // }
 }

@@ -118,7 +118,7 @@ impl<'gc> GC<'gc> {
             UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }) => {
                 unsafe {
                     let array_layout = ArrayMemoryLayout::from_cpdtype(whole_array_runtime_class.cpdtype().unwrap_array_type());
-                    (allocated.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).write(elems.len() as i32);
+                    array_layout.calculate_len_address(allocated).as_ptr().write(elems.len() as jint);
                     for (i, elem) in elems.into_iter().enumerate() {
                         //todo fix all ub usages of NativeJavaValue
                         match elem.as_njv() {

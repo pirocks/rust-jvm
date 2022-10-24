@@ -6,6 +6,7 @@ use std::ptr::null_mut;
 use libc::{c_void, initgroups};
 
 use classfile_view::view::HasAccessFlags;
+use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use rust_jvm_common::{FieldId, NativeJavaValue};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -18,7 +19,7 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object_new};
 use slow_interpreter::utils::new_field_id;
 
 #[no_mangle]
@@ -28,9 +29,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_arrayBaseOffset(env: *mut JNIEnv, obj: jobject, cb: jclass) -> jint {
-    size_of::<jlong>() as jint
-    //unimplemented but can't return nothing.
-    //essentially the amount at the beginning of the array which is reserved
+    let jvm = get_state(env);
+    let runtime_class = from_jclass(jvm, cb).as_runtime_class(jvm);
+    assert!(runtime_class.cpdtype().is_array());
+    let memory_layout = ArrayMemoryLayout::from_cpdtype(runtime_class.cpdtype().unwrap_array_type());
+    memory_layout.elem_0_entry_offset() as jint
 }
 
 #[no_mangle]
@@ -41,8 +44,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldBase(env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv, obj: jobject, cb: jclass) -> jint {
-    size_of::<jlong>() as jint
-    //todo unimplemented but can't return nothing, and need to return a power of 2,1 counts as a power of two. This essentially reprs the size of an elem in java arrays
+    let jvm = get_state(env);
+    let runtime_class = from_jclass(jvm, cb).as_runtime_class(jvm);
+    assert!(runtime_class.cpdtype().is_array());
+    let memory_layout = ArrayMemoryLayout::from_cpdtype(runtime_class.cpdtype().unwrap_array_type());
+    memory_layout.elem_size() as jint
 }
 
 #[no_mangle]

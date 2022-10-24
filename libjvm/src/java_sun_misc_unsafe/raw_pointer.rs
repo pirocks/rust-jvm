@@ -88,6 +88,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
     for i in 0..len {
         dbg!(src_address.offset(i as isize).read());
     }
+    todo!("use array memory layout or something this func is jank");
     assert!(len > 0);
     //todo this needs a better more general impl
     // volatile_copy_memory(dst_address, src_address, len as usize)

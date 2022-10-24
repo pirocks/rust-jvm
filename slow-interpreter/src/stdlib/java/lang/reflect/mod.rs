@@ -521,7 +521,9 @@ pub mod field {
                                                      CClassName::string().into(),
                                                      CPDType::array(CPDType::ByteType)]),
             )?;
-            Ok(field_object.cast_field())
+            let field_res = field_object.cast_field();
+            dbg!(field_res.name(jvm).to_rust_string(jvm));
+            Ok(field_res)
         }
 
         pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {

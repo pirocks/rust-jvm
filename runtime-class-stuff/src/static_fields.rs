@@ -1,16 +1,16 @@
+use std::ffi::c_void;
 use std::ptr::NonNull;
 use itertools::Itertools;
 
-use rust_jvm_common::NativeJavaValue;
 
 use crate::StaticFieldNumber;
 
-pub struct RawStaticFields<'gc> {
+pub struct RawStaticFields {
     len: usize,
-    ptr: *mut NativeJavaValue<'gc>,
+    ptr: *mut c_void,
 }
 
-impl<'gc> RawStaticFields<'gc> {
+impl<'gc> RawStaticFields {
     pub fn new(len: usize) -> Self {
         let mut native_jv_vec = (0..len).map(|_| NativeJavaValue { as_u64: 0 }).collect_vec();
         native_jv_vec.shrink_to_fit();
