@@ -1,5 +1,6 @@
 use std::num::NonZeroUsize;
 use std::ptr::{NonNull, null};
+use itertools::Itertools;
 
 use libc::c_void;
 use once_cell::sync::OnceCell;
@@ -15,8 +16,8 @@ static REGIONS: OnceCell<Regions> = OnceCell::new();
 pub fn allocate_small() {
     let regions = *REGIONS.get_or_init(||get_regions());
     let mut memory_regions = MemoryRegions::new(regions);
-    let size_1 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize {}, size: NonZeroUsize::new(1).unwrap() };
-    let size_2 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize {}, size: NonZeroUsize::new(8).unwrap() };
+    let size_1 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 1 }, size: NonZeroUsize::new(1).unwrap() };
+    let size_2 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 2 }, size: NonZeroUsize::new(8).unwrap() };
     let res_1_1 = memory_regions.allocate(&size_1);
     let res_1_2 = memory_regions.allocate(&size_1);
     let res_8_1 = memory_regions.allocate(&size_2);
@@ -27,20 +28,15 @@ pub fn allocate_small() {
         let res_1 = memory_regions.allocate(&size_1);
         assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1.allocated_object_type);
     }
-    let size_3 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize {}, size: NonZeroUsize::new(16).unwrap() };
-    for _ in 0..10000 {
+    let size_3 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 3 }, size: NonZeroUsize::new(16).unwrap() };
+    let size_3_allocs = (0..10000).map(|i|{
         let res_1 = memory_regions.allocate(&size_3);
         unsafe { libc::memset(res_1.as_ptr(), 0, 16); }
         assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3.allocated_object_type);
-    }
-}
-
-#[test]
-pub fn test_array_non_overlapping() {
-    let regions = *REGIONS.get_or_init(||get_regions());
+        res_1
+    }).collect_vec();
     let object_vtable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
     let array_itable = NonNull::new(0x1111111111111111 as *mut c_void).unwrap().cast();
-    let mut memory_regions = MemoryRegions::new(regions);
     let allocated_object_type = AllocatedObjectType::PrimitiveArray {
         primitive_type: CompressedParsedDescriptorType::BooleanType,
         object_vtable,
@@ -53,7 +49,11 @@ pub fn test_array_non_overlapping() {
     let allocated_second = memory_regions.allocate(&AllocatedObjectTypeWithSize { allocated_object_type, size: NonZeroUsize::new(10).unwrap() });
     unsafe { allocated_second.as_ptr().cast::<u8>().write(15); }
     unsafe { assert_eq!(allocated_first.as_ptr().offset(9).cast::<u8>().read(), 255); }
-    todo!()
+    assert!(size_3_allocs.into_iter().all(|ptr|{
+        memory_regions.find_object_allocated_type(ptr) ==  &size_3.allocated_object_type
+    }));
+    assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1.allocated_object_type);
+    assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
 }
 
 use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE_SIZE};

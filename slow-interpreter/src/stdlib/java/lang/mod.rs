@@ -763,7 +763,8 @@ pub mod thread {
     use crate::utils::run_static_or_virtual;
 
     pub struct JThread<'gc> {
-        normal_object: AllocatedNormalObjectHandle<'gc>,
+        jvm: &'gc JVMState<'gc>,
+        pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
     }
 
     impl<'gc> JavaValue<'gc> {
@@ -777,18 +778,24 @@ pub mod thread {
     }
 
     impl<'gc> NewJavaValueHandle<'gc> {
-        pub fn cast_thread(self) -> JThread<'gc> {
-            JThread { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
+        pub fn cast_thread(self, jvm: &'gc JVMState<'gc>) -> JThread<'gc> {
+            let normal_object = self.unwrap_object_nonnull().unwrap_normal_object();
+            // assert_eq!(normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
+            JThread { jvm, normal_object }
         }
 
-        pub fn try_cast_thread(self) -> Option<JThread<'gc>> {
-            Some(JThread { normal_object: self.unwrap_object()?.unwrap_normal_object() }.into())
+        pub fn try_cast_thread(self, jvm: &'gc JVMState<'gc>) -> Option<JThread<'gc>> {
+            let normal_object = self.unwrap_object()?.unwrap_normal_object();
+            // assert_eq!(normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
+            Some(JThread { jvm, normal_object }.into())
         }
     }
 
     impl Clone for JThread<'_> {
         fn clone(&self) -> Self {
-            JThread { normal_object: self.normal_object.duplicate_discouraged() }
+            let jvm = self.jvm;
+            // assert_eq!(self.normal_object.duplicate_discouraged().as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
+            JThread { jvm, normal_object: self.normal_object.duplicate_discouraged() }
         }
     }
 
@@ -872,7 +879,7 @@ pub mod thread {
             let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class, false)));
             let thread_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(thread_name))?;
             run_constructor(jvm, int_state, thread_class, vec![thread_object.as_njv(), thread_group.new_java_value_handle().as_njv(), thread_name.new_java_value_handle().as_njv()], &CMethodDescriptor::void_return(vec![CClassName::thread_group().into(), CClassName::string().into()]))?;
-            Ok(thread_object.cast_thread())
+            Ok(thread_object.cast_thread(jvm))
         }
 
         pub fn get_java_thread(&self, jvm: &'gc JVMState<'gc>) -> Arc<JavaThread<'gc>> {
@@ -922,6 +929,8 @@ pub mod thread {
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {
         fn object(self) -> AllocatedNormalObjectHandle<'gc> {
+            let jvm = self.jvm;
+            assert_eq!(self.normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
             self.normal_object
         }
 

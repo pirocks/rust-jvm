@@ -41,7 +41,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe: jobject, thread: jthread) {
     let jvm = get_state(env);
-    let thread_obj = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread();
+    let thread_obj = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let target_thread = thread_obj.get_java_thread(jvm);
     let interpreter_state = get_interpreter_state(env);
     target_thread.unpark(jvm, interpreter_state);

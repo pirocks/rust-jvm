@@ -78,7 +78,7 @@ pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads
             jvm.verify_class_and_object(object_rc, jvm.classes.read().unwrap().class_class.clone());
             let thread_classfile = check_initing_or_inited_class(jvm, java_stack_guard, CClassName::thread().into()).expect("couldn't load thread class");
 
-            let thread_object = NewJavaValueHandle::Object(new_object_full(jvm, java_stack_guard, &thread_classfile)).cast_thread();
+            let thread_object = NewJavaValueHandle::Object(new_object_full(jvm, java_stack_guard, &thread_classfile)).cast_thread(jvm);
             thread_object.set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
             *bootstrap_thread.thread_object.write().unwrap() = thread_object.into();
             let thread_group_class = check_initing_or_inited_class(jvm, java_stack_guard, CClassName::thread_group().into()).expect("couldn't load thread group class");

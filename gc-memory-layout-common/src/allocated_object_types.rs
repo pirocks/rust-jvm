@@ -37,7 +37,10 @@ pub enum AllocatedObjectType {
         array_interfaces: *const ClassID,
         interfaces_len: usize,
     },
-    RawConstantSize { /*size: usize*/ },
+    RawConstantSize {
+        id: usize
+        /*size: usize*/
+    },
 }
 
 #[derive(Clone, Eq, PartialEq, Debug, Hash)]

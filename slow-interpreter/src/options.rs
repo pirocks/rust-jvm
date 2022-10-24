@@ -146,9 +146,9 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "ws/b".to_string(),
             // },
-            // MethodToTrace {
-            //     combined: "java/util/Arrays/toString".to_string(),
-            // },
+            MethodToTrace {
+                combined: "java/lang/Thread/currentThread".to_string(),
+            },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {

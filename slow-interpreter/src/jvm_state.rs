@@ -395,7 +395,10 @@ impl<'gc> JVMState<'gc> {
     }
 
     pub fn allocate_object(&'gc self, object: UnAllocatedObject<'gc, '_>) -> AllocatedHandle<'gc> {
-        self.gc.allocate_object(self, object)
+        self.thread_state.debug_assert(self);
+        let res = self.gc.allocate_object(self, object);
+        self.thread_state.debug_assert(self);
+        res
     }
 
     pub fn jvmti_state(&self) -> Option<&JVMTIState> {

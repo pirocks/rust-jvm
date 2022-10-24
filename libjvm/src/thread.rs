@@ -25,7 +25,6 @@ use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 
 
-
 use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
@@ -42,7 +41,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
     //todo need to assert not on main thread
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let thread_object = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread();
+    let thread_object = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread(jvm);
     jvm.thread_state.start_thread_from_obj(jvm, int_state, thread_object, false);
 }
 
@@ -66,7 +65,9 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
     let jvm = get_state(env);
 
     let int_state = get_interpreter_state(env);
-    let java_thread = match NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread().try_get_java_thread(jvm) {
+    let java_thread = match NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap())
+        .cast_thread(jvm)
+        .try_get_java_thread(jvm) {
         None => return 0 as jboolean,
         Some(jt) => jt,
     };
@@ -118,6 +119,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
     let current_thread_allocated_object_handle = current_thread.thread_object().object();
+    assert_eq!(current_thread_allocated_object_handle.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), "Ljava/lang/Thread;");
     let res = new_local_ref_public_new(current_thread_allocated_object_handle.as_allocated_obj().into(), int_state);
     assert_ne!(res, null_mut());
     res
@@ -134,7 +136,7 @@ unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
 unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, clearInterrupted: jboolean) -> jboolean {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let thread_object = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread();
+    let thread_object = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let thread = thread_object.get_java_thread(jvm);
     let guard = thread.thread_status.lock().unwrap();
     guard.interrupted as jboolean

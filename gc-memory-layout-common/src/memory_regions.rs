@@ -187,6 +187,7 @@ impl MemoryRegions {
     pub fn lookup_or_add_type(&mut self, type_: &AllocatedObjectTypeWithSize) -> AllocatedTypeID {
         let new_id = AllocatedTypeID(self.types_reverse.len() as u64);
         let object_size = type_.size;
+        assert_eq!(self.types.len(), self.types_reverse.len());
         match self.types_reverse.get(&type_.allocated_object_type) {
             None => {
                 self.types.push(type_.allocated_object_type.clone());
@@ -196,6 +197,9 @@ impl MemoryRegions {
                 self.type_to_region_datas.push(vec![]);
                 self.current_region_header.push(Arc::new(AtomicPtr::new(null_mut())));
                 self.types_reverse.insert(type_.allocated_object_type.clone(), new_id);
+                assert_eq!(self.types.len(), self.types_reverse.len());
+                assert!(self.types_reverse.contains_key(&type_.allocated_object_type));
+                assert!(self.types_reverse.len() > 0);
                 new_id
             }
             Some(cur_id) => *cur_id,
@@ -312,7 +316,7 @@ impl MemoryRegions {
         *free_index += 1;
         let region_header_ptr = self.region_header_at(current_region_to_use, our_index, false);
         self.type_to_region_datas[type_id.0 as usize].push((current_region_to_use, our_index));
-        if let Some(prev_vtable_ptr) = dbg!(prev_vtable_ptr) {
+        if let Some(prev_vtable_ptr) = prev_vtable_ptr {
             assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr.as_ptr());
         }
         unsafe {
@@ -457,6 +461,7 @@ impl MemoryRegions {
     pub fn find_object_allocated_type(&self, ptr: NonNull<c_void>) -> &AllocatedObjectType {
         let header = MemoryRegions::find_object_region_header(ptr);
         let allocated_type_id = header.region_type;
+        assert_eq!(self.types.len(), self.types_reverse.len());
         &self.types[allocated_type_id.0 as usize]
     }
 

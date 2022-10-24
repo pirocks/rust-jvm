@@ -354,7 +354,7 @@ pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
                 }
         })
         .unwrap_or_else(|| {
-            todo!();/*int_state.debug_print_stack_trace(jvm);*/
+            int_state.debug_print_stack_trace(jvm);
             dbg!(method_name.0.to_str(&jvm.string_pool));
             dbg!(md);
             dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));

@@ -94,8 +94,10 @@ impl<'gc> GC<'gc> {
         let (allocated, allocated_size) = guard.allocate_with_size(&allocated_object_type);
         unsafe { libc::memset(allocated.as_ptr(), 0, allocated_size.get()); }
         drop(guard);
+        jvm.thread_state.debug_assert(jvm);
         let handle = self.register_root_reentrant(jvm, allocated);//should register before putting in all objects so can't be gced
         Self::init_allocated(object, allocated);
+        jvm.thread_state.debug_assert(jvm);
         handle
     }
 
@@ -117,10 +119,46 @@ impl<'gc> GC<'gc> {
                 unsafe {
                     let array_layout = ArrayMemoryLayout::from_cpdtype(whole_array_runtime_class.cpdtype().unwrap_array_type());
                     (allocated.as_ptr().offset(array_layout.len_entry_offset() as isize) as *mut i32).write(elems.len() as i32);
-                    let array_base = allocated.as_ptr().offset(array_layout.elem_0_entry_offset() as isize);
                     for (i, elem) in elems.into_iter().enumerate() {
                         //todo fix all ub usages of NativeJavaValue
-                        array_base.offset((i as isize) * array_layout.elem_size() as isize).cast::<NativeJavaValue>().write(elem.to_native())
+                        match elem.as_njv() {
+                            NewJavaValue::Long(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Int(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Short(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Byte(byte_) => {
+                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<i8>().write(byte_)
+                            }
+                            NewJavaValue::Boolean(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Char(char_) => {
+                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<u16>().write(char_)
+                            }
+                            NewJavaValue::Float(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Double(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::Null => {
+                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<jobject>().write(null_mut());
+                            }
+                            NewJavaValue::UnAllocObject(_) => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                            NewJavaValue::AllocObject(obj) => {
+                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<jobject>().write(obj.ptr().as_ptr() as jobject)
+                            }
+                            NewJavaValue::Top => {
+                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
+                            }
+                        }
                     }
                 }
             }
