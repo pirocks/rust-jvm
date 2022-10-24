@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
+use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
@@ -164,7 +165,7 @@ pub struct RuntimeClassClass<'gc> {
     pub recursive_num_methods: u32,
     pub static_field_numbers: HashMap<FieldName, StaticFieldNumberAndFieldType>,
     pub static_field_numbers_reverse: HashMap<StaticFieldNumber, FieldNameAndFieldType>,
-    pub static_vars: RawStaticFields<'gc>,
+    pub static_vars: RawStaticFields,
     // pub static_vars: Vec<UnsafeCell<NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
@@ -173,6 +174,7 @@ pub struct RuntimeClassClass<'gc> {
     //n/a for interfaces
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
+    phantom: PhantomData<&'gc ()>
 }
 
 
@@ -250,6 +252,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             class_id_path: Some(class_id_path),
             inheritance_tree_vec,
             status,
+            phantom: Default::default()
         }
     }
 

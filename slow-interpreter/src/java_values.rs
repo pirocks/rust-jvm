@@ -1099,7 +1099,7 @@ pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDTyp
 // }
 
 
-pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+pub fn native_to_new_java_value_rtype<'gc>(native: StackNativeJavaValue<'gc>, rtype: RuntimeType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
     unsafe {
         match rtype {
             RuntimeType::DoubleType => NewJavaValueHandle::Double(native.double),
@@ -1132,10 +1132,10 @@ pub fn native_to_new_java_value_rtype<'gc>(native: NativeJavaValue<'gc>, rtype: 
 
 #[derive(Copy, Clone)]
 pub union StackNativeJavaValue<'gc> {
-    int: i32,
-    long: i64,
-    float: f32,
-    double: f64,
+    pub(crate) int: i32,
+    pub(crate) long: i64,
+    pub(crate) float: f32,
+    pub(crate) double: f64,
     pub(crate) object: *mut c_void,
     pub as_u64: u64,
     phantom_data: PhantomData<&'gc ()>,

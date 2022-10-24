@@ -115,7 +115,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
         let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().read() };
-        Some(native_to_new_java_value(native, cpd_type.cpdtype, self.jvm))
+        Some(native_to_new_java_value(todo!()/*native*/, cpd_type.cpdtype, self.jvm))
     }
 
     pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {

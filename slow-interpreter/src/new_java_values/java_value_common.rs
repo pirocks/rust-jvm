@@ -5,6 +5,7 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, j
 use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, NewJavaValue};
+use crate::java_values::StackNativeJavaValue;
 
 pub trait JavaValueCommon<'gc> {
     fn as_njv(&self) -> NewJavaValue<'gc, '_>;
@@ -149,6 +150,51 @@ pub trait JavaValueCommon<'gc> {
             }
         }
     }
+
+    fn to_stack_native(&self) -> StackNativeJavaValue<'gc> {
+        let mut all_zero = StackNativeJavaValue { as_u64: 0 };
+        match self.as_njv() {
+            NewJavaValue::Long(long) => {
+                all_zero.long = long;
+            }
+            NewJavaValue::Int(int) => {
+                all_zero.int = int;
+            }
+            NewJavaValue::Short(short) => {
+                all_zero.int = short as i32;
+            }
+            NewJavaValue::Byte(byte) => {
+                all_zero.int = byte as i32;
+            }
+            NewJavaValue::Boolean(bool) => {
+                all_zero.int = bool as i32;
+            }
+            NewJavaValue::Char(char) => {
+                all_zero.int = char as i32;
+            }
+            NewJavaValue::Float(float) => {
+                all_zero.float = float;
+            }
+            NewJavaValue::Double(double) => {
+                all_zero.double = double;
+            }
+            NewJavaValue::Null => {
+                all_zero.object = null_mut();
+            }
+            NewJavaValue::UnAllocObject(_) => {
+                todo!()
+            }
+            NewJavaValue::AllocObject(obj) => {
+                all_zero.object = obj.ptr().as_ptr();
+            }
+            NewJavaValue::Top => {
+                all_zero.as_u64 = 0xdddd_dddd_dddd_dddd;
+            }
+        }
+        all_zero
+    }
+
+
 
     fn to_native(&self) -> NativeJavaValue<'gc> {
         let mut all_zero = NativeJavaValue { as_u64: 0 };

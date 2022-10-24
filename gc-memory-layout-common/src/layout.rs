@@ -9,7 +9,6 @@ use another_jit_vm::FramePointerOffset;
 use jvmti_jni_bindings::{jint, jlong};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
-use rust_jvm_common::NativeJavaValue;
 
 pub struct ArrayMemoryLayout {
     sub_type: CPDType,
@@ -37,8 +36,6 @@ enum ArrayAlign{
 
 impl ArrayMemoryLayout {
     pub fn from_cpdtype(sub_type: CPDType) -> Self {
-        assert_eq!(size_of::<jlong>(), size_of::<NativeJavaValue>());
-
         Self {
             sub_type
         }

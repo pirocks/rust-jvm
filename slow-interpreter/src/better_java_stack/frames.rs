@@ -15,7 +15,7 @@ use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::java_values::native_to_new_java_value_rtype;
+use crate::java_values::{native_to_new_java_value_rtype, StackNativeJavaValue};
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 use crate::threading::java_thread::JavaThread;
 
@@ -51,19 +51,19 @@ pub trait HasFrame<'gc> {
         let jvm = self.jvm();
         let ir_frame_ref = self.frame_ref();
         let data = ir_frame_ref.data(i as usize);//todo replace this with a layout lookup thing again
-        let native_jv = NativeJavaValue { as_u64: data };
+        let native_jv = StackNativeJavaValue { as_u64: data };
         native_to_new_java_value_rtype(native_jv, expected_type, jvm)
     }
 
     fn local_set_njv(&mut self, i: u16, njv: NewJavaValue<'gc, '_>) {
         assert!(i < self.num_locals().unwrap());
-        let native_jv = njv.to_native();
+        let native_jv = njv.to_stack_native();
         let ir_frame_mut = self.frame_mut();
         ir_frame_mut.write_data(i as usize, unsafe { native_jv.as_u64 });
     }
 
     fn os_set_from_start(&mut self, from_start: u16, njv: NewJavaValue<'gc, '_>) {
-        let native_jv = njv.to_native();
+        let native_jv = njv.to_stack_native();
         self.os_set_from_start_raw(from_start, unsafe { native_jv.as_u64 })
     }
 
@@ -79,7 +79,7 @@ pub trait HasFrame<'gc> {
         let ir_frame_ref = self.frame_ref();
         let num_locals = self.num_locals().unwrap() as usize;
         let data = ir_frame_ref.data(num_locals + from_start as usize);//todo replace this with a layout lookup thing again
-        let native_jv = NativeJavaValue { as_u64: data };
+        let native_jv = StackNativeJavaValue { as_u64: data };
         native_to_new_java_value_rtype(native_jv, expected_type, self.jvm())
     }
 

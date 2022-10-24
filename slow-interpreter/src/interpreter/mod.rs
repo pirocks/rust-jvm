@@ -19,7 +19,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
-use crate::java_values::native_to_new_java_value;
+use crate::java_values::{native_to_new_java_value, native_to_new_java_value_rtype, StackNativeJavaValue};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
@@ -101,11 +101,11 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     Ok(match return_type {
         CompressedParsedDescriptorType::VoidType => None,
         return_type => {
-            let native_value = NativeJavaValue { as_u64: function_res };
+            let native_value = StackNativeJavaValue { as_u64: function_res };
             /*unsafe {
                 eprintln!("{:X}",native_value.as_u64);
             }*/
-            Some(native_to_new_java_value(native_value, *return_type, jvm))
+            Some(native_to_new_java_value_rtype(native_value, return_type.to_runtime_type().unwrap(), jvm))
         }
     })
 }

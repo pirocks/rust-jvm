@@ -10,7 +10,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRe
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
-use rust_jvm_common::NativeJavaValue;
 
 use crate::{FieldNameAndFieldType, FieldNumber, FieldNumberAndFieldType, get_field_numbers, RuntimeClass};
 use crate::hidden_fields::{HiddenJVMField, HiddenJVMFieldAndFieldType};
@@ -87,7 +86,7 @@ impl ObjectLayout {
 
     pub fn field_entry(&self, field_number: FieldNumber) -> usize {
         assert!(field_number.0 < self.recursive_num_fields());
-        (field_number.0 as usize) * size_of::<NativeJavaValue>()
+        (field_number.0 as usize) * size_of::<u64>()
     }
 
     pub fn recursive_num_fields(&self) -> u32 {
@@ -95,7 +94,7 @@ impl ObjectLayout {
     }
 
     pub fn size(&self) -> NonZeroUsize {
-        let res_size = self.recursive_num_fields() as usize * size_of::<NativeJavaValue>();
+        let res_size = self.recursive_num_fields() as usize * size_of::<u64>();
         //can't have zero size objects
         NonZeroUsize::new(res_size).unwrap_or(NonZeroUsize::new(1).unwrap())
     }

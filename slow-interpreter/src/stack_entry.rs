@@ -27,7 +27,7 @@ use rust_jvm_common::vtype::VType;
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value_rtype};
+use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value, native_to_new_java_value_rtype, StackNativeJavaValue};
 use crate::jit::state::Opaque;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
@@ -560,7 +560,7 @@ impl<'gc> LocalVarsRef<'gc, '_, '_> {
                     }
                 }
                 let data = frame_view.ir_ref.data(i as usize);//todo replace this with a layout lookup thing again
-                let native_jv = NativeJavaValue { as_u64: data };
+                let native_jv = StackNativeJavaValue { as_u64: data };
                 native_to_new_java_value_rtype(native_jv, expected_type, jvm)
             }
         }
@@ -624,7 +624,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
         todo!()
     }
 
-    pub unsafe fn raw_get(&self, from_start: u16) -> NativeJavaValue {
+    pub unsafe fn raw_get(&self, from_start: u16) -> StackNativeJavaValue {
         match self {
             OperandStackRef::Jit { frame_view, jvm, pc } => {
                 let num_locals = LocalVarsRef::Jit {
@@ -633,7 +633,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                     pc: *pc,
                 }.num_vars();
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
-                NativeJavaValue { as_u64: data }
+                StackNativeJavaValue { as_u64: data }
             }
         }
     }
@@ -662,8 +662,8 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let num_locals = self.num_locals();
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert_eq!(self.types().iter().nth(from_start as usize).unwrap(), &expected_type);
-                let native_jv = NativeJavaValue { as_u64: data };
-                native_to_new_java_value_rtype(native_jv, expected_type, jvm)
+                let native_jv = StackNativeJavaValue { as_u64: data };
+                native_to_new_java_value_rtype(native_jv,expected_type, jvm)
             }
         }
     }
@@ -676,7 +676,7 @@ impl<'gc, 'l, 'k> OperandStackRef<'gc, 'l, 'k> {
                 let from_start = types_len - from_end as usize - 1;
                 let data = frame_view.ir_ref.data((num_locals as usize + from_start as usize) as usize);//todo replace this with a layout lookup thing again
                 assert!(self.types().iter().rev().nth(from_end as usize).unwrap().compatible_with_dumb(&expected_type));
-                let native_jv = NativeJavaValue { as_u64: data };
+                let native_jv = StackNativeJavaValue { as_u64: data };
                 native_to_new_java_value_rtype(native_jv, expected_type, jvm)
             }
         }
@@ -787,7 +787,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
     pub fn loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
         let method_id = match self.frame_view.ir_ref.method_id() {
             Ok(x) => x,
-            Err(IsOpaque{}) => {
+            Err(IsOpaque {}) => {
                 //opaque frame todo, should lookup loader by opaque id
                 return LoaderName::BootstrapLoader;
             }
@@ -837,7 +837,7 @@ impl<'gc, 'l> StackEntryRef<'gc, 'l> {
 
     pub fn is_native_method(&self) -> bool {
         match self.frame_view.ir_ref.method_id() {
-            Err(IsOpaque{}) => false,
+            Err(IsOpaque {}) => false,
             Ok(method_id) => {
                 self.frame_view.jvm.is_native_by_method_id(method_id)
             }

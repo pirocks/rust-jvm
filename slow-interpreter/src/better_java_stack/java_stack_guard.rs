@@ -128,10 +128,10 @@ impl<'vm> JavaStackGuard<'vm> {
             if let Some(Some(obj)) = local_var.try_unwrap_object_alloc() {
                 jvm.gc.memory_region.lock().unwrap().find_object_allocated_type(obj.ptr());
             }
-            data.push(unsafe { local_var.to_native().as_u64 });
+            data.push(unsafe { local_var.to_stack_native().as_u64 });
         }
         for jv in operand_stack {
-            data.push(unsafe { jv.to_native().as_u64 });
+            data.push(unsafe { jv.to_stack_native().as_u64 });
         }
         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
         unsafe {
@@ -183,7 +183,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
         //todo use NativeStackframeMemoryLayout for this
-        let mut data = local_vars.iter().map(|local_var| unsafe { local_var.to_native().as_u64 }).collect_vec();
+        let mut data = local_vars.iter().map(|local_var| unsafe { local_var.to_stack_native().as_u64 }).collect_vec();
         data.push(raw_frame_info_pointer as *const c_void as usize as u64);
         unsafe {
             self.guard.as_mut().unwrap().owned_ir_stack.write_frame(
