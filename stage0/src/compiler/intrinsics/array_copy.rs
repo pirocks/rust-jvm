@@ -5,7 +5,7 @@ use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::layout::{ArrayMemoryLayout, NativeStackframeMemoryLayout};
-use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
@@ -141,14 +141,14 @@ pub fn intrinsic_array_copy<'gc>(
     });
 
     let array_layout :ArrayMemoryLayout= todo!()/*ArrayMemoryLayout::from_unknown_cpdtype()*/;
-    assert_eq!(array_layout.elem_0_entry_offset(), 8);
-    assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
+    // assert_eq!(array_layout.elem_0_entry_offset(), 8);
+    // assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
     let src_address_register = Register(7);
     res.push(IRInstr::CopyRegister {
         from: src,
         to: src_address_register,
     });
-    res.push(IRInstr::AddConst { res: src_address_register, a: 8 });
+    res.push(IRInstr::AddConst { res: src_address_register, a: todo!() });
     res.push(IRInstr::MulConst {
         res: src_pos,
         a: array_layout.elem_size() as i32,
@@ -163,7 +163,7 @@ pub fn intrinsic_array_copy<'gc>(
 
     let array_layout : ArrayMemoryLayout= todo!() /*ArrayMemoryLayout::from_unknown_cpdtype()*/;
     assert_eq!(array_layout.elem_0_entry_offset(), 8);
-    assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
+    // assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
     let dst_address_register = Register(8);
     res.push(IRInstr::CopyRegister {
         from: dst,

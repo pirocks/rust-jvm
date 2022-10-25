@@ -67,3 +67,16 @@ impl Debug for NativeJavaValue<'_> {
         unsafe { write!(f, "NativeJavaValue({:?})", self.object) }
     }
 }
+
+
+//todo not sure where to put this:
+#[derive(Copy, Clone)]
+pub union StackNativeJavaValue<'gc> {
+    pub int: i32,
+    pub long: i64,
+    pub float: f32,
+    pub double: f64,
+    pub object: *mut c_void,
+    pub as_u64: u64,
+    phantom_data: PhantomData<&'gc ()>,
+}

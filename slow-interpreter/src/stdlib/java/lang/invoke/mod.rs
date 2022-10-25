@@ -362,7 +362,7 @@ pub mod method_handles {
         use crate::jvm_state::JVMState;
         use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
         use crate::new_java_values::owned_casts::OwnedCastAble;
-        use crate::runtime_class::static_vars;
+        use crate::static_vars::static_vars;
         use crate::stdlib::java::lang::class::JClass;
         use crate::stdlib::java::lang::invoke::method_handle::MethodHandle;
         use crate::stdlib::java::lang::invoke::method_type::MethodType;

@@ -84,6 +84,7 @@ pub mod stdlib;
 pub mod leaked_interface_arrays;
 pub mod string_intern;
 pub mod extra_intrinsics;
+pub mod static_vars;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");

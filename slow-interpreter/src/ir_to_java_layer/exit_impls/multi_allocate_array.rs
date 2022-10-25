@@ -8,12 +8,11 @@ use another_jit_vm_ir::IRVMExitAction;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 use rust_jvm_common::cpdtype_table::CPDTypeID;
-use rust_jvm_common::NativeJavaValue;
-
+use rust_jvm_common::StackNativeJavaValue;
 use crate::{check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, UnAllocatedObject, UnAllocatedObjectArray};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::java_values::default_value;
+use crate::java_values::{default_value};
 
 #[inline(never)]
 pub fn multi_allocate_array<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, '_>, elem_type: CPDTypeID, num_arrays: u8, len_start: *const i64, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
@@ -31,7 +30,7 @@ pub fn multi_allocate_array<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
     let default = default_value(elem_type.to_cpdtype());
     let rc = check_initing_or_inited_class(jvm, int_state, array_type).unwrap();
     let res = multi_new_array_impl(jvm, rc.cpdtype(), lens.as_slice(), default.as_njv());
-    unsafe { res_address.cast::<NativeJavaValue<'gc>>().write(res.to_native()) }
+    unsafe { res_address.cast::<StackNativeJavaValue<'gc>>().write(res.to_stack_native()) }
     std::mem::forget(res);
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }

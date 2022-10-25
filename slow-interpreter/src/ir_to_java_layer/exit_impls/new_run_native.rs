@@ -50,7 +50,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
         }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
-    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));
+    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_stack_native().as_u64 }).unwrap_or(0));
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
@@ -97,7 +97,7 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
         }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
-    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_native().as_u64 }).unwrap_or(0));
+    diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_stack_native().as_u64 }).unwrap_or(0));
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),

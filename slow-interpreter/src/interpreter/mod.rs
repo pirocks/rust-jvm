@@ -4,7 +4,7 @@ use std::sync::Arc;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use common::special::instance_of_exit_impl_impl_impl;
-use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, StackNativeJavaValue};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CompressedParsedRefType};
 
@@ -19,7 +19,7 @@ use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
-use crate::java_values::{native_to_new_java_value, native_to_new_java_value_rtype, StackNativeJavaValue};
+use crate::java_values::{native_to_new_java_value_rtype};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;

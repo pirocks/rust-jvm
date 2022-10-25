@@ -8,7 +8,7 @@ use another_jit_vm_ir::RBPAndRSP;
 use classfile_view::view::ClassView;
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{ByteCodeOffset, MethodI, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodI, StackNativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -101,8 +101,8 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
         unsafe {
             FramePointer(NonNull::new(self.frame_ptr.0.as_ptr()
                 .sub(FRAME_HEADER_END_OFFSET)
-                .sub((self.num_locals as usize * size_of::<NativeJavaValue<'gc>>()) as usize)
-                .sub((self.max_stack as usize * size_of::<NativeJavaValue<'gc>>()) as usize)).unwrap())
+                .sub((self.num_locals as usize * size_of::<StackNativeJavaValue<'gc>>()) as usize)
+                .sub((self.max_stack as usize * size_of::<StackNativeJavaValue<'gc>>()) as usize)).unwrap())
         }
     }
 

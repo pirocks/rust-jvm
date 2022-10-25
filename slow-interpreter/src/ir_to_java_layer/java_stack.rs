@@ -7,7 +7,7 @@ use nonnull_const::NonNullConst;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
-use rust_jvm_common::{MethodId, NativeJavaValue};
+use rust_jvm_common::{MethodId, StackNativeJavaValue};
 use rust_jvm_common::opaque_id_table::OpaqueID;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -130,9 +130,9 @@ pub struct RuntimeJavaStackFrameRef<'vm, 'l> {
 }
 
 impl<'vm> RuntimeJavaStackFrameRef<'vm, '_> {
-    pub fn read_target(&self, offset: FramePointerOffset) -> NativeJavaValue<'vm> {
+    pub fn read_target(&self, offset: FramePointerOffset) -> StackNativeJavaValue<'vm> {
         let res = self.ir_ref.read_at_offset(offset);
-        NativeJavaValue { as_u64: res }
+        StackNativeJavaValue { as_u64: res }
         /*match rtype {
             RuntimeType::IntType => JavaValue::Int(res as i32),
             RuntimeType::FloatType => JavaValue::Float(f32::from_le_bytes((res as u32).to_le_bytes())),
@@ -154,7 +154,7 @@ impl<'vm> RuntimeJavaStackFrameRef<'vm, '_> {
         self.read_target(offset, rtype)*/
     }
 
-    pub fn nth_local(&self, n: usize) -> NativeJavaValue<'vm> {
+    pub fn nth_local(&self, n: usize) -> StackNativeJavaValue<'vm> {
         let offset = FramePointerOffset(n * size_of::<u64>());
         self.read_target(offset)
     }

@@ -4,7 +4,7 @@ use another_jit_vm_ir::compiler::{IRInstr, Size};
 use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 
-use rust_jvm_common::{MethodId, NativeJavaValue};
+use rust_jvm_common::{MethodId};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::compiler_common::MethodResolver;
 
@@ -16,7 +16,8 @@ pub fn get_component_type_intrinsic<'gc>(resolver: &impl MethodResolver<'gc>, la
         Some((class_class, _)) => {
             let object_layout = &class_class.unwrap_class_class().object_layout;
             //todo should really be using a function for this:
-            let component_type_offset = object_layout.hidden_field_numbers.get(&HiddenJVMField::class_component_type()).unwrap().number.0 * (size_of::<NativeJavaValue>() as u32);
+            //todo should have object layout to get offset for hidden fields
+            let component_type_offset = object_layout.hidden_field_numbers.get(&HiddenJVMField::class_component_type()).unwrap().number.0 * (size_of::<u64>() as u32);
             return Some(vec![
                 IRInstr::IRStart {
                     temp_register: Register(2),

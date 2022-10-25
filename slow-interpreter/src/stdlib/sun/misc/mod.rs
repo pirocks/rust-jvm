@@ -12,7 +12,7 @@ pub mod unsafe_ {
     use crate::java_values::JavaValue;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
-    use crate::runtime_class::static_vars;
+    use crate::static_vars::static_vars;
     use crate::stdlib::java::lang::reflect::field::Field;
     use crate::utils::run_static_or_virtual;
 

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use classfile_view::view::HasAccessFlags;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{ByteCodeOffset, MethodI, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodI, StackNativeJavaValue};
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -15,7 +15,7 @@ use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
-use crate::java_values::{native_to_new_java_value_rtype, StackNativeJavaValue};
+use crate::java_values::{native_to_new_java_value_rtype};
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 use crate::threading::java_thread::JavaThread;
 

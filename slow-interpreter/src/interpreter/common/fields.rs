@@ -6,7 +6,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use crate::{JVMState, PushableFrame, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::runtime_class::static_vars;
+use crate::static_vars::static_vars;
 
 pub(crate) fn get_static_impl<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,

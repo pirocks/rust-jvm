@@ -2,18 +2,16 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use classfile_view::view::{ClassView, HasAccessFlags};
-use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::{RuntimeClass};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
-use rust_jvm_common::NativeJavaValue;
-
-use crate::{JavaValueCommon, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, run_function, StackEntryPush, WasException};
+use crate::{JVMState, MethodResolverImpl, NewJavaValue, run_function, StackEntryPush, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::interpreter::common::ldc::from_constant_pool_entry;
-use crate::java_values::{default_value, native_to_new_java_value};
+use crate::java_values::{default_value};
+use crate::static_vars::{static_vars, StaticVarGuard};
 
 pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     // assert!(int_state.throw().is_none());
@@ -83,58 +81,3 @@ pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut impl 
     }
 }
 
-
-pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc>) -> StaticVarGuard<'gc, 'l> {
-    match class {
-        RuntimeClass::Byte => panic!(),
-        RuntimeClass::Boolean => panic!(),
-        RuntimeClass::Short => panic!(),
-        RuntimeClass::Char => panic!(),
-        RuntimeClass::Int => panic!(),
-        RuntimeClass::Long => panic!(),
-        RuntimeClass::Float => panic!(),
-        RuntimeClass::Double => panic!(),
-        RuntimeClass::Void => panic!(),
-        RuntimeClass::Array(_) => panic!(),
-        RuntimeClass::Object(runtime_class_class) => {
-            StaticVarGuard {
-                jvm,
-                runtime_class_class,
-            }
-        }
-        RuntimeClass::Top => panic!(),
-    }
-}
-
-pub struct StaticVarGuard<'gc, 'l> {
-    jvm: &'gc JVMState<'gc>,
-    runtime_class_class: &'l RuntimeClassClass<'gc>,
-}
-
-impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
-    pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
-        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().read() };
-        Some(native_to_new_java_value(todo!()/*native*/, cpd_type.cpdtype, self.jvm))
-    }
-
-    pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {
-        self.try_get(name).unwrap()
-    }
-
-    pub fn set_raw(&mut self, name: FieldName, native: NativeJavaValue<'gc>) -> Option<()> {
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
-        unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().write(native); }
-        Some(())
-    }
-
-    pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
-        self.try_set(name, elem).unwrap()
-    }
-
-    fn try_set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) -> Option<()> {
-        let native_jv = elem.to_native();
-        self.set_raw(name, elem.to_native())?;
-        Some(())
-    }
-}

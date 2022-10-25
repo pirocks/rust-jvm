@@ -7,7 +7,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use crate::{JVMState, PushableFrame};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::runtime_class::static_vars;
+use crate::static_vars::static_vars;
 use crate::stdlib::java::util::properties::Properties;
 
 pub struct System<'gc> {

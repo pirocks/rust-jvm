@@ -39,7 +39,7 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter_util::new_object;
 use slow_interpreter::java_values::{ByAddressAllocatedObject, JavaValue};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::runtime_class::{initialize_class, prepare_class, static_vars};
+use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
@@ -53,8 +53,7 @@ use crate::call::VarargProvider;
 use itertools::Itertools;
 use classfile_parser::parse_class_file;
 use java5_verifier::type_infer;
-
-
+use slow_interpreter::static_vars::static_vars;
 
 
 pub mod jni;

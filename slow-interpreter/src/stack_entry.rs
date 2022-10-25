@@ -17,7 +17,7 @@ use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout}
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{ByteCodeOffset, MethodId, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, MethodId, StackNativeJavaValue};
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::opaque_id_table::OpaqueID;
@@ -27,7 +27,7 @@ use rust_jvm_common::vtype::VType;
 use crate::interpreter::real_interpreter_state::InterpreterJavaValue;
 use crate::interpreter_state::{NativeFrameInfo, OpaqueFrameInfo};
 use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID, OwnedJavaStack, RuntimeJavaStackFrameMut, RuntimeJavaStackFrameRef};
-use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value, native_to_new_java_value_rtype, StackNativeJavaValue};
+use crate::java_values::{GcManagedObject, JavaValue, native_to_new_java_value_rtype};
 use crate::jit::state::Opaque;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;

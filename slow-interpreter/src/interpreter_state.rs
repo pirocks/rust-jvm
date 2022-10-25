@@ -2,11 +2,11 @@ use std::collections::HashSet;
 
 use another_jit_vm_ir::ir_stack::IRPushFrameGuard;
 use jvmti_jni_bindings::jobject;
-use rust_jvm_common::NativeJavaValue;
 use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::StackNativeJavaValue;
 
 use crate::ir_to_java_layer::java_stack::JavaStackPosition;
-use crate::java_values::JavaValue;
+use crate::java_values::{JavaValue};
 
 // thread_local! {
 // pub static CURRENT_INT_STATE_GUARD_VALID :RefCell<bool> = RefCell::new(false);
@@ -400,13 +400,13 @@ pub struct OpaqueFrameInfo<'gc> {
     pub operand_stack: Vec<JavaValue<'gc>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct NativeFrameInfo<'gc> {
     pub method_id: usize,
     pub loader: LoaderName,
     pub native_local_refs: Vec<HashSet<jobject>>,
     // pub local_vars: Vec<NativeJavaValue<'gc>>,
-    pub operand_stack: Vec<NativeJavaValue<'gc>>,
+    pub operand_stack: Vec<StackNativeJavaValue<'gc>>,
 }
 
 pub enum AddFrameNotifyError {

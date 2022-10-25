@@ -8,7 +8,7 @@ use libc::{c_void, initgroups};
 use classfile_view::view::HasAccessFlags;
 use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
-use rust_jvm_common::{FieldId, NativeJavaValue};
+use rust_jvm_common::{FieldId};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use slow_interpreter::better_java_stack::frames::HasFrame;
@@ -17,9 +17,9 @@ use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
-use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object_new};
+use slow_interpreter::static_vars::static_vars;
 use slow_interpreter::utils::new_field_id;
 
 #[no_mangle]
@@ -134,7 +134,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getInt__Ljava_lang_Object_2J(env:
 unsafe extern "system" fn Java_sun_misc_Unsafe_putLong__Ljava_lang_Object_2JJ(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, long_: jlong) {
     let jvm = get_state(env);
     let obj_option = from_object_new(jvm, obj);
-    putVolatileImpl(offset, NativeJavaValue { long: long_ }, jvm, obj_option);
+    todo!("should be intrinsic")
+    /*putVolatileImpl(offset, NativeJavaValue { long: long_ }, jvm, obj_option);*/
 }
 
 
@@ -185,7 +186,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__Ljava_lang_Object_2JI(env
 unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
     let jvm = get_state(env);
     let obj_option = from_object_new(jvm, obj);
-    putVolatileImpl(offset, NativeJavaValue { int: val }, jvm, obj_option);
+    todo!("should be intrinsic")
+    /*putVolatileImpl(offset, NativeJavaValue { int: val }, jvm, obj_option);*/
 }
 
 #[no_mangle]
@@ -214,24 +216,26 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
 unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
     let jvm = get_state(env);
     let obj_option = from_object_new(jvm, obj);
-    putVolatileImpl(offset, NativeJavaValue { object: to_put as *mut c_void }, jvm, obj_option);
+    todo!("this should be a intrinsic anyway")
+    // putVolatileImpl(offset, /*NativeJavaValue { object: to_put as *mut c_void }*/, jvm, obj_option);
 }
-
-unsafe fn putVolatileImpl<'gc>(offset: jlong, to_put: NativeJavaValue<'gc>, jvm: &'gc JVMState<'gc>, obj_option: Option<AllocatedHandle<'gc>>) {
-    match obj_option {
-        None => {
-            let field_id = offset as FieldId;
-            let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-            let runtime_class_view = runtime_class.view();
-            let field_view = runtime_class_view.field(i as usize);
-            assert!(field_view.is_static());
-            let name = field_view.field_name();
-            let mut static_vars_guard = static_vars(runtime_class.deref(), jvm);
-            static_vars_guard.set_raw(name, to_put).unwrap();
-        }
-        Some(object_to_read) => {
-            let offseted = object_to_read.ptr().as_ptr().offset(offset as isize) as *mut c_void;
-            (offseted as *mut NativeJavaValue<'gc>).write_volatile(to_put);
-        }
-    }
-}
+//
+// unsafe fn putVolatileImpl<'gc>(offset: jlong, to_put: NativeJavaValue<'gc>, jvm: &'gc JVMState<'gc>, obj_option: Option<AllocatedHandle<'gc>>) {
+//     match obj_option {
+//         None => {
+//             let field_id = offset as FieldId;
+//             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
+//             let runtime_class_view = runtime_class.view();
+//             let field_view = runtime_class_view.field(i as usize);
+//             assert!(field_view.is_static());
+//             let name = field_view.field_name();
+//             let mut static_vars_guard = static_vars(runtime_class.deref(), jvm);
+//             // static_vars_guard.set_raw(name, to_put).unwrap();
+//             todo!("this should be an intrinsic anyway")
+//         }
+//         Some(object_to_read) => {
+//             let offseted = object_to_read.ptr().as_ptr().offset(offset as isize) as *mut c_void;
+//             (offseted as *mut NativeJavaValue<'gc>).write_volatile(to_put);
+//         }
+//     }
+// }

@@ -1,6 +1,6 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use rust_jvm_common::NativeJavaValue;
+use rust_jvm_common::{StackNativeJavaValue};
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
 use crate::compiler_common::JavaCompilerMethodAndFrameData;
@@ -29,13 +29,13 @@ pub fn bipush(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
 }
 
 pub fn fconst(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, float_const: f32) -> impl Iterator<Item=IRInstr> {
-    let mut zeroed_native = NativeJavaValue { as_u64: 0 };
+    let mut zeroed_native = StackNativeJavaValue { as_u64: 0 };
     zeroed_native.float = float_const;
     const_64(method_frame_data, current_instr_data, unsafe { zeroed_native.as_u64 })
 }
 
 pub fn dconst(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData, double_const: f64) -> impl Iterator<Item=IRInstr> {
-    let mut zeroed_native = NativeJavaValue { as_u64: 0 };
+    let mut zeroed_native = StackNativeJavaValue { as_u64: 0 };
     zeroed_native.double = double_const;
     const_64(method_frame_data, current_instr_data, unsafe { zeroed_native.as_u64 })
 }

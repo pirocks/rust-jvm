@@ -19,7 +19,7 @@ use method_table::interface_table::InterfaceID;
 use method_table::MethodTable;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
-use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, FieldId, MethodId, NativeJavaValue};
+use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction};
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -204,5 +204,5 @@ pub trait MethodResolver<'gc> {
     // fn invocation_count(&self, method_id: MethodId) -> u64;
     fn compile_interpreted(&self, method_id: MethodId) -> bool;
     fn string_pool(&self) -> &CompressedClassfileStringPool;
-    fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<NativeJavaValue<'gc>>, CPDType);
+    fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType);
 }

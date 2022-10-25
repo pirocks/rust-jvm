@@ -10,7 +10,7 @@ use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
 use java5_verifier::SimplifiedVType;
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::{ByteCodeOffset, NativeJavaValue};
+use rust_jvm_common::{ByteCodeOffset, StackNativeJavaValue};
 use rust_jvm_common::vtype::VType;
 
 use crate::{JVMState, OpaqueFrame, StackEntryPush, WasException};
@@ -51,8 +51,8 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
         JavaInterpreterFrame::from_frame_pointer_interpreter(self.java_stack, self.frame_pointer, |frame| { Ok(within_interpreter(frame)) }).unwrap()
     }
 
-    pub fn read_target(&self, frame_point_offset: FramePointerOffset) -> NativeJavaValue<'gc> {
-        unsafe { self.frame_pointer.as_const_ptr().sub(frame_point_offset.0).cast::<NativeJavaValue<'gc>>().read() }
+    pub fn read_target(&self, frame_point_offset: FramePointerOffset) -> StackNativeJavaValue<'gc> {
+        unsafe { self.frame_pointer.as_const_ptr().sub(frame_point_offset.0).cast::<StackNativeJavaValue<'gc>>().read() }
     }
 
     pub fn assert_current_pc_is(&self, current_pc: Option<ByteCodeOffset>) {
@@ -109,7 +109,7 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
         unsafe {
             self.frame_pointer.as_const_ptr()
                 .sub(FRAME_HEADER_END_OFFSET)
-                .sub((i as usize * size_of::<NativeJavaValue>()) as usize)
+                .sub((i as usize * size_of::<StackNativeJavaValue>()) as usize)
                 .cast::<u64>()
                 .read()
         }
@@ -121,7 +121,7 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
         unsafe {
             self.frame_pointer.as_const_ptr()
                 .sub(FRAME_HEADER_END_OFFSET)
-                .sub(((i as usize + max_locals as usize) * size_of::<NativeJavaValue>()) as usize)
+                .sub(((i as usize + max_locals as usize) * size_of::<StackNativeJavaValue>()) as usize)
                 .cast::<u64>()
                 .read()
         }

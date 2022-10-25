@@ -22,7 +22,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::NativeJavaValue;
+use rust_jvm_common::{StackNativeJavaValue};
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
@@ -110,8 +110,8 @@ impl<'gc> GC<'gc> {
                     let object_layout = &object_rc_class_class.object_layout;
                     unsafe {
                         let offset = object_layout.field_entry(*i);
-                        let field_ptr = allocated.as_ptr().offset(offset as isize).cast::<NativeJavaValue>();
-                        field_ptr.write(field.to_native());
+                        let field_ptr = allocated.as_ptr().offset(offset as isize).cast::<c_void>();
+                        field_ptr.write(todo!()/*field.to_native()*/);/*field.to_native()*/
                     }
                 }
             }
@@ -340,7 +340,8 @@ impl Drop for GcManagedObject<'_> {
 
 impl<'gc> GcManagedObject<'gc> {
     pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName) -> JavaValue<'gc> {
-        self.deref().lookup_field(jvm, field_name)
+        todo!()
+        // self.deref().lookup_field(jvm, field_name)
     }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'gc> {
@@ -377,31 +378,6 @@ impl<'gc> JavaValue<'gc> {
         if let JavaValue::Object(Some(obj)) = self {
             obj.self_check()
         }
-    }
-
-    pub fn to_native(&self) -> NativeJavaValue<'gc> {
-        /*match self.clone() {
-            JavaValue::Long(val_) => NativeJavaValue { long: val_ },
-            JavaValue::Int(val_) => NativeJavaValue { int: val_ },
-            JavaValue::Short(val_) => NativeJavaValue { int: val_ as i32 },
-            JavaValue::Byte(val_) => NativeJavaValue { int: val_ as i32 },
-            JavaValue::Boolean(val_) => NativeJavaValue { int: val_ as i32 },
-            JavaValue::Char(val_) => NativeJavaValue { int: val_ as i32 },
-            JavaValue::Float(val_) => NativeJavaValue { float: val_ },
-            JavaValue::Double(val_) => NativeJavaValue { double: val_ },
-            JavaValue::Object(val_) => {
-                NativeJavaValue {
-                    object: match val_ {
-                        None => null_mut(),
-                        Some(gc_managed) => {
-                            gc_managed.raw_ptr.as_ptr()
-                        }
-                    },
-                }
-            }
-            JavaValue::Top => unsafe { transmute(0xDEADDEADDEADDEADusize) },
-        }*/
-        todo!()
     }
 
     pub fn to_new<'anything>(&self) -> NewJavaValue<'gc, 'anything> {
@@ -868,20 +844,6 @@ unsafe impl<'gc> Send for Object<'gc, '_> {}
 unsafe impl<'gc> Sync for Object<'gc, '_> {}
 
 impl<'gc, 'l> Object<'gc, 'l> {
-    pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, s: FieldName) -> JavaValue<'gc> {
-        let class_pointer = self.unwrap_normal_object().objinfo.class_pointer.clone();
-        let FieldNumberAndFieldType { number: field_number, cpdtype } = match class_pointer.unwrap_class_class().object_layout.field_numbers.get(&s) {
-            None => {
-                dbg!(class_pointer.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));
-                dbg!(s.0.to_str(&jvm.string_pool));
-                panic!()
-            }
-            Some(res) => res,
-        };
-        let normal_object = self.unwrap_normal_object();
-        let guard = normal_object.objinfo.fields.read().unwrap();
-        native_to_new_java_value(guard[field_number.0 as usize], *cpdtype, jvm).to_jv()
-    }
 
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'l> {
         match self {
@@ -984,7 +946,7 @@ pub struct ArrayObject<'gc, 'l> {
     pub whole_array_runtime_class: Arc<RuntimeClass<'gc>>,
     pub loader: LoaderName,
     pub len: jint,
-    pub elems_base: *mut NativeJavaValue<'gc/*, 'l*/>,
+    pub elems_base: *mut !,
     //pointer to elems bas
     pub phantom_data: PhantomData<&'l ()>,
     pub elem_type: CPDType,
@@ -1013,14 +975,14 @@ impl<'gc> ArrayObject<'gc, '_> {
     pub fn get_i(&self, jvm: &'gc JVMState<'gc>, i: i32) -> JavaValue<'gc> {
         let inner_type = &self.elem_type;
         todo!("layout");
-        let native = *unsafe { self.elems_base.offset(i as isize).as_ref() }.unwrap();
-        native_to_new_java_value(native, *inner_type, jvm).to_jv()
+        // let native = *unsafe { self.elems_base.offset(i as isize).as_ref() }.unwrap();
+        // native_to_new_java_value(native, *inner_type, jvm).to_jv()
     }
 
     pub fn set_i(&mut self, jvm: &'gc JVMState<'gc>, i: i32, jv: JavaValue<'gc>) {
-        let native = jv.to_native();
+        // let native = jv.to_native();
         todo!("layout");
-        unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
+        // unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
     }
 
     pub fn array_iterator<'l>(&'l self, jvm: &'gc JVMState<'gc>) -> ArrayIterator<'gc, 'l, '_> {
@@ -1045,31 +1007,31 @@ impl<'gc> ArrayObject<'gc, '_> {
 }
 
 
-pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
-    unsafe {
-        match ptype {
-            CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
-            CPDType::CharType => NewJavaValueHandle::Char(native.char),
-            CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
-            CPDType::FloatType => NewJavaValueHandle::Float(native.float),
-            CPDType::IntType => NewJavaValueHandle::Int(native.int),
-            CPDType::LongType => NewJavaValueHandle::Long(native.long),
-            CPDType::Class(_) | CPDType::Array { .. } => {
-                match NonNull::new(native.object) {
-                    None => {
-                        NewJavaValueHandle::Null
-                    }
-                    Some(ptr) => {
-                        NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
-                    }
-                }
-            }
-            CPDType::ShortType => NewJavaValueHandle::Short(native.short),
-            CPDType::BooleanType => NewJavaValueHandle::Boolean(native.boolean),
-            CPDType::VoidType => panic!(),
-        }
-    }
-}
+// pub fn native_to_new_java_value<'gc>(native: NativeJavaValue<'gc>, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+//     unsafe {
+//         match ptype {
+//             CPDType::ByteType => NewJavaValueHandle::Byte(native.byte),
+//             CPDType::CharType => NewJavaValueHandle::Char(native.char),
+//             CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
+//             CPDType::FloatType => NewJavaValueHandle::Float(native.float),
+//             CPDType::IntType => NewJavaValueHandle::Int(native.int),
+//             CPDType::LongType => NewJavaValueHandle::Long(native.long),
+//             CPDType::Class(_) | CPDType::Array { .. } => {
+//                 match NonNull::new(native.object) {
+//                     None => {
+//                         NewJavaValueHandle::Null
+//                     }
+//                     Some(ptr) => {
+//                         NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+//                     }
+//                 }
+//             }
+//             CPDType::ShortType => NewJavaValueHandle::Short(native.short),
+//             CPDType::BooleanType => NewJavaValueHandle::Boolean(native.boolean),
+//             CPDType::VoidType => panic!(),
+//         }
+//     }
+// }
 
 
 // pub fn array_native_to_new_java_value<'gc>(native: &ArrayNativeJV, ptype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
@@ -1130,47 +1092,15 @@ pub fn native_to_new_java_value_rtype<'gc>(native: StackNativeJavaValue<'gc>, rt
     }
 }
 
-#[derive(Copy, Clone)]
-pub union StackNativeJavaValue<'gc> {
-    pub(crate) int: i32,
-    pub(crate) long: i64,
-    pub(crate) float: f32,
-    pub(crate) double: f64,
-    pub(crate) object: *mut c_void,
-    pub as_u64: u64,
-    phantom_data: PhantomData<&'gc ()>,
-}
-
-impl<'gc> StackNativeJavaValue<'gc> {
-    pub fn to_java_value(&self, rtype: RuntimeType, jvm: &'gc JVMState<'gc>) -> JavaValue<'gc> {
-        unsafe {
-            match rtype {
-                RuntimeType::DoubleType => JavaValue::Double(self.double),
-                RuntimeType::FloatType => JavaValue::Float(self.float),
-                RuntimeType::IntType => {
-                    // assert_eq!(self.as_u64 & 0xffff_ffff, 0);
-                    JavaValue::Int(self.int)
-                }
-                RuntimeType::LongType => JavaValue::Long(self.long),
-                RuntimeType::Ref(_) => match NonNull::new(self.object) {
-                    None => JavaValue::Object(None),
-                    Some(nonnull) => JavaValue::Object(Some(GcManagedObject::from_native(nonnull, jvm))),
-                },
-                RuntimeType::TopType => panic!(),
-            }
-        }
-    }
-}
-
 pub struct ObjectFieldsAndClass<'gc, 'l> {
     //ordered by alphabetical and super first
-    pub fields: RwLock<&'l mut [NativeJavaValue<'gc>]>,
+    pub fields: RwLock<&'l mut [!]>,
     pub class_pointer: Arc<RuntimeClass<'gc>>,
 }
 
 pub struct NormalObject<'gc, 'l> {
     pub objinfo: ObjectFieldsAndClass<'gc, 'l>,
-    pub obj_ptr: Option<NonNull<NativeJavaValue<'gc>>>, //None means we have no object allocated backing this
+    pub obj_ptr: Option<NonNull<!>>, //None means we have no object allocated backing this
 }
 
 impl<'gc, 'l> NormalObject<'gc, 'l> {
@@ -1197,7 +1127,7 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
                     do_class_check = false;
                 }
                 Some(FieldNumberAndFieldType { number: field_index, cpdtype: ptype }) => {
-                    self.objinfo.fields.write().unwrap().get_mut(field_index.0 as usize).map(|set| *set = jv.to_native());
+                    self.objinfo.fields.write().unwrap().get_mut(field_index.0 as usize).map(|set| *set = todo!()/*jv.to_native()*/);
                     return;
                 }
             };

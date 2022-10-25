@@ -98,7 +98,7 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc,
             };
             let ptr = obj.ptr();
             let ref_data = obj.unwrap_normal_object().get_var_top_level(jvm, FieldName::field_reflectionData());
-            eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, ref_data.as_njv().to_native().object)
+            eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, ref_data.as_njv().to_stack_native().object)
         } /*else if obj_type == CClassName::concurrent_hash_map().into() {
             obj.cast_concurrent_hash_map().debug_print_table(jvm);
             //todo display hashtable entrys

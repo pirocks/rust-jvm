@@ -10,7 +10,6 @@ use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::java_values::ExceptionReturn;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::runtime_class::static_vars;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -19,6 +18,7 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::utils::{get_all_fields, new_field_id, throw_npe, throw_npe_res};
 use crate::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::static_vars::static_vars;
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {

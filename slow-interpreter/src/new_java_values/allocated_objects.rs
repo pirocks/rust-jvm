@@ -11,13 +11,12 @@ use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::StackNativeJavaValue;
 
-
-use rust_jvm_common::NativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
-use crate::java_values::{GcManagedObject, native_to_new_java_value};
+use crate::java_values::{GcManagedObject};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
 impl<'gc> Clone for AllocatedNormalObjectHandle<'gc> {
@@ -83,7 +82,8 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
         let native_jv_ptr = array_layout.calculate_index_address(ptr, i);
         let cpdtype = self.elem_cpdtype();
         //todo this read should be changed to be better
-        unsafe { native_to_new_java_value(native_jv_ptr.cast::<NativeJavaValue>().as_ptr().read(), cpdtype, jvm) }
+        todo!("figure out how to read these values")
+        /*unsafe { native_to_new_java_value(native_jv_ptr.cast::<NativeJavaValue>().as_ptr().read(), cpdtype, jvm) }*/
     }
 
     pub fn set_i(&self, i: i32, elem: NewJavaValue<'gc, '_>) {
@@ -161,7 +161,7 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
 
     fn raw_set_var<'any>(ptr: NonNull<c_void>, field_number: FieldNumber, val: NewJavaValue<'gc, 'any>) {
         unsafe {
-            ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_native());
+            ptr.cast::<StackNativeJavaValue<'gc>>().as_ptr().offset(field_number.0 as isize).write(val.to_stack_native());
         }
     }
 
@@ -193,8 +193,9 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
 
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
         unsafe {
-            let native_jv = self.ptr.cast::<NativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
-            native_to_new_java_value(native_jv, cpdtype, jvm)
+            let native_jv = self.ptr.cast::<StackNativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
+            todo!("figure out how to read these values")
+            /*native_to_new_java_value(native_jv, cpdtype, jvm)*/
         }
     }
 
