@@ -1,4 +1,5 @@
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::StackNativeJavaValue;
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle};
@@ -32,8 +33,9 @@ pub struct StaticVarGuard<'gc, 'l> {
 }
 
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
-    pub fn try_get(&self, name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
+    pub fn try_get(&self, field_name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
+        let class_name = self.runtime_class_class.class_view.name().unwrap_name();
+        let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
         let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().read() };
         Some(native_to_new_java_value_rtype(StackNativeJavaValue { as_u64: native }, cpd_type.cpdtype.to_runtime_type().unwrap(), self.jvm))
     }
@@ -42,8 +44,9 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
         self.try_get(name).unwrap()
     }
 
-    fn set_raw(&mut self, name: FieldName, native: u64) -> Option<()> {
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&name)?;
+    fn set_raw(&mut self, field_name: FieldName, native: u64) -> Option<()> {
+        let class_name = self.runtime_class_class.class_view.name().unwrap_name();
+        let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
         unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().write(native); }
         Some(())
     }

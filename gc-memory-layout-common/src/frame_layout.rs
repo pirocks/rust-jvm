@@ -27,7 +27,6 @@ pub const FRAME_HEADER_PREV_MAGIC_1_OFFSET: usize = offset_of!(FrameHeader,magic
 pub const FRAME_HEADER_PREV_MAGIC_2_OFFSET: usize = offset_of!(FrameHeader,magic_part_2);
 pub const FRAME_HEADER_END_OFFSET: usize = size_of::<FrameHeader>();
 
-const MAX_OPERAND_STACK_NEEDED_FOR_FUNCTION_INVOCATION: usize = 256 * size_of::<jlong>();
 
 
 pub struct NativeStackframeMemoryLayout {

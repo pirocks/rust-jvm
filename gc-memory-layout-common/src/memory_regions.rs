@@ -91,7 +91,6 @@ impl ConstantRegionHeaderWrapper<'_> {
 
 pub struct VariableRegionHeaderWrapper<'l> {
     inner: &'l RegionHeader,
-    region_header_raw: NonNullConst<RegionHeader>,
 }
 
 impl VariableRegionHeaderWrapper<'_> {
@@ -99,7 +98,6 @@ impl VariableRegionHeaderWrapper<'_> {
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         let before_type = self.inner.region_type;
-        let region_base = self.region_header_raw.as_ptr().add(1);
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
             let expected_res_address = current_ptr.add(size.get());
@@ -120,7 +118,7 @@ impl VariableRegionHeaderWrapper<'_> {
 
     pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>, size: NonZeroUsize) -> Option<NonNull<c_void>> {
         let region_header_ref = region_header.as_ref();
-        Self { inner: region_header_ref, region_header_raw: region_header.into() }.get_allocation_impl(size)
+        Self { inner: region_header_ref }.get_allocation_impl(size)
     }
 }
 
@@ -244,7 +242,6 @@ impl MemoryRegions {
     }
 
     fn with_constant_size(&mut self, region: NonNull<RegionHeader>, region_type: AllocatedTypeID) -> (NonNull<c_void>, NonZeroUsize) {
-        let size = unsafe { region.as_ref() }.region_elem_size;
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
         let res_ptr = unsafe {
@@ -305,7 +302,6 @@ impl MemoryRegions {
 
 
     fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<NonNull<RawNativeVTable>>) -> NonNull<RegionHeader> {
-        let early_mapped_regions = self.early_mmaped_regions;
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
         if let Some(size_override) = size_override {
@@ -320,11 +316,11 @@ impl MemoryRegions {
             assert_eq!(to_allocate_type.allocated_object_type.vtable().unwrap().as_ptr(), prev_vtable_ptr.as_ptr());
         }
         unsafe {
-            let (region_elem_size, region_max_elements) = if to_allocate_type.allocated_object_type.constant_size_type() {
+            let region_elem_size = if to_allocate_type.allocated_object_type.constant_size_type() {
                 let region_elem_size = to_allocate_type.size;
-                (Some(region_elem_size), Some(NonZeroUsize::new((current_region_to_use.region_size() - size_of::<RegionHeader>()) / region_elem_size).unwrap()))
+                Some(region_elem_size)
             } else {
-                (None, None)
+                None
             };
             let start_current_ptr = AtomicPtr::new(region_header_ptr.as_ptr().add(1) as *mut c_void);
             let region_max_ptr = NonNull::new(region_header_ptr.as_ptr().cast::<c_void>().add(current_region_to_use.region_size())).unwrap();
@@ -379,10 +375,6 @@ impl MemoryRegions {
     pub fn generate_find_class_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
         Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,class_pointer_cache)).unwrap();
-    }
-
-    pub fn generate_find_allocated_type_id(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, out: Register) {
-        todo!()
     }
 
     pub fn generate_find_object_region_header(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {

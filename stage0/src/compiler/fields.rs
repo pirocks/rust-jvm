@@ -8,6 +8,7 @@ use another_jit_vm_ir::compiler::{IRInstr, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClassClass};
+use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -71,7 +72,7 @@ pub fn putfield<'vm>(
             }]))
         }
         Some((rc, _)) => {
-            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass{ field_name: name, class_name: target_class });
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
@@ -144,7 +145,7 @@ pub fn getfield<'vm>(
             }]))
         }
         Some((rc, _)) => {
-            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), name);
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass{ field_name: name, class_name: target_class });
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
             let offset = Register(3);
@@ -194,7 +195,7 @@ pub fn getfield<'vm>(
     }
 }
 
-pub fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldName) -> FieldNumberAndFieldType {
+pub fn recursively_find_field_number_and_type(rc: &RuntimeClassClass, name: FieldNameAndClass) -> FieldNumberAndFieldType {
     match rc.object_layout.field_numbers.get(&name) {
         Some(x) => *x,
         None => recursively_find_field_number_and_type(rc.parent.as_ref().unwrap().unwrap_class_class(), name),

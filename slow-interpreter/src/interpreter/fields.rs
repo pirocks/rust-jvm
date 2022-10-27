@@ -2,6 +2,7 @@ use std::mem::size_of;
 use std::ops::Deref;
 
 use jvmti_jni_bindings::jlong;
+use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -26,11 +27,11 @@ pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
     PostInstructionAction::Next {}
 }
 
-pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
+pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
     let mut entry_mut = int_state.current_frame_mut();
     let CompressedFieldDescriptor(field_type) = field_descriptor;
-    let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name).number;
+    let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass{ field_name, class_name }).number;
     let val = entry_mut.pop(field_type.to_runtime_type().unwrap());
     let object_ref = entry_mut.pop(RuntimeType::object());
     match object_ref {
@@ -101,9 +102,9 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
     Ok(field_value)
 }
 
-pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, field_class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
-    let target_class = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), field_name).number;
+pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
+    let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass{ field_name, class_name }).number;
     let object_ref = current_frame.pop(RuntimeType::object());
     unsafe {
         match object_ref {

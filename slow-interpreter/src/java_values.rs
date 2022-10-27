@@ -17,17 +17,18 @@ use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
-use rust_jvm_common::StackNativeJavaValue;
+use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
+use rust_jvm_common::StackNativeJavaValue;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
+use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
-use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
@@ -1064,8 +1065,9 @@ pub struct NormalObject<'gc, 'l> {
 }
 
 impl<'gc, 'l> NormalObject<'gc, 'l> {
-    pub fn set_var_top_level(&self, name: FieldName, jv: JavaValue<'gc>) {
-        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&name).unwrap();
+    pub fn set_var_top_level(&self, field_name: FieldName, jv: JavaValue<'gc>) {
+        let class_name = self.objinfo.class_pointer.cpdtype().unwrap_class_type();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&FieldNameAndClass { field_name, class_name }).unwrap();
         /*unsafe {
                                                                                                                                                     /*self.objinfo.fields[*field_index].get().as_mut()*/
                                                                                                                                                 }.unwrap() = jv.to_native();*/
@@ -1080,9 +1082,13 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
         }
     }
 
-    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, name: FieldName, jv: JavaValue<'gc>, mut do_class_check: bool) {
-        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
-            let field_index = match current_class_pointer.object_layout.field_numbers.get(&name) {
+    unsafe fn set_var_impl(&self, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, field_name: FieldName, jv: JavaValue<'gc>, mut do_class_check: bool) {
+        todo!()
+        /*if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+            let field_index = match current_class_pointer.object_layout.field_numbers.get(&FieldNameAndClass {
+                field_name,
+                class_name: current_class_pointer.class_view.name().unwrap_name(),
+            }) {
                 None => {
                     do_class_check = false;
                 }
@@ -1093,15 +1099,16 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
             };
         }
         if let Some(parent_class) = current_class_pointer.parent.as_ref() {
-            self.set_var_impl(parent_class.unwrap_class_class(), class_pointer, name, jv, do_class_check);
+            self.set_var_impl(parent_class.unwrap_class_class(), class_pointer, field_name, jv, do_class_check);
         } else {
             panic!()
-        }
+        }*/
     }
 
     pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, name: FieldName) -> JavaValue<'gc> {
-        let name = name.into();
-        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&name).unwrap();
+        let field_name = name.into();
+        let class_name = self.objinfo.class_pointer.cpdtype().unwrap_class_type();
+        let FieldNumberAndFieldType { .. }/*(field_index, ptype)*/ = self.objinfo.class_pointer.unwrap_class_class().object_layout.field_numbers.get(&FieldNameAndClass{ field_name, class_name }).unwrap();
         todo!()
         /*unsafe {
             self.objinfo.fields[*field_index].get().as_ref()
@@ -1187,22 +1194,23 @@ impl<'gc, 'l> NormalObject<'gc, 'l> {
     }*/
 
     unsafe fn get_var_impl(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &RuntimeClassClass, class_pointer: Arc<RuntimeClass<'gc>>, name: FieldName, mut do_class_check: bool) -> JavaValue<'gc> {
-        if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
-            match current_class_pointer.object_layout.field_numbers.get(&name) {
-                Some(_/*(field_number, ptype)*/) => {
-                    todo!()
-                    /*return self.objinfo.fields[*field_number].get().as_ref().unwrap().to_java_value(ptype.clone(), jvm);*/
-                }
-                None => {
-                    do_class_check = false;
-                }
-            }
-        }
-        if let Some(parent_class) = current_class_pointer.parent.as_ref() {
-            return self.get_var_impl(jvm, parent_class.unwrap_class_class(), class_pointer, name, do_class_check);
-        } else {
-            panic!()
-        }
+        // if current_class_pointer.class_view.name() == class_pointer.view().name() || !do_class_check {
+        //     match current_class_pointer.object_layout.field_numbers.get(&name) {
+        //         Some(_/*(field_number, ptype)*/) => {
+        //             todo!()
+        //             /*return self.objinfo.fields[*field_number].get().as_ref().unwrap().to_java_value(ptype.clone(), jvm);*/
+        //         }
+        //         None => {
+        //             do_class_check = false;
+        //         }
+        //     }
+        // }
+        // if let Some(parent_class) = current_class_pointer.parent.as_ref() {
+        //     return self.get_var_impl(jvm, parent_class.unwrap_class_class(), class_pointer, name, do_class_check);
+        // } else {
+        //     panic!()
+        // }
+        todo!()
     }
 }
 

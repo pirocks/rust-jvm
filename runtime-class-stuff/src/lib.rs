@@ -20,10 +20,7 @@ use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::paths::{BitPath256, InheritanceClassIDPath};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-
-
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::field_numbers::{FieldNameAndClass, FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};
@@ -164,7 +161,7 @@ pub struct StaticFieldNumberAndFieldType {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct FieldNameAndFieldType {
-    pub name: FieldName,
+    pub name: FieldNameAndClass,
     pub cpdtype: CPDType,
 }
 
@@ -174,7 +171,7 @@ pub struct RuntimeClassClass<'gc> {
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
     pub object_layout: ObjectLayout,
     pub recursive_num_methods: u32,
-    pub static_field_numbers: HashMap<FieldName, StaticFieldNumberAndFieldType>,
+    pub static_field_numbers: HashMap<FieldNameAndClass, StaticFieldNumberAndFieldType>,
     pub static_field_numbers_reverse: HashMap<StaticFieldNumber, FieldNameAndFieldType>,
     pub static_vars: RawStaticFields,
     // pub static_vars: Vec<UnsafeCell<NativeJavaValue<'gc>>>,
@@ -185,7 +182,7 @@ pub struct RuntimeClassClass<'gc> {
     //n/a for interfaces
     //class may not be prepared
     pub status: RwLock<ClassStatus>,
-    phantom: PhantomData<&'gc ()>
+    phantom: PhantomData<&'gc ()>,
 }
 
 
@@ -203,7 +200,8 @@ impl<'gc> RuntimeClassClass<'gc> {
     ) -> Self {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
-        let (recursive_num_static_fields, static_field_numbers) = get_field_numbers_static(&class_view, &parent);
+        let static_field_numbers = get_field_numbers_static(&class_view, &parent);
+        let recursive_num_static_fields = static_field_numbers.len() as u32;
         Self::new(inheritance_tree, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, static_field_numbers, recursive_num_static_fields, class_id_path)
     }
 
@@ -216,11 +214,11 @@ impl<'gc> RuntimeClassClass<'gc> {
         status: RwLock<ClassStatus>,
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_methods: u32,
-        static_field_numbers: HashMap<FieldName, (StaticFieldNumber, CPDType)>,
+        static_field_numbers: HashMap<FieldNameAndClass, (StaticFieldNumber, CPDType)>,
         recursive_num_static_fields: u32,
         class_id_path: Vec<ClassID>,
     ) -> Self {
-        fn static_reverse_fields(field_numbers: HashMap<FieldName, (StaticFieldNumber, CPDType)>) -> (HashMap<FieldName, StaticFieldNumberAndFieldType>, HashMap<StaticFieldNumber, FieldNameAndFieldType>) {
+        fn static_reverse_fields(field_numbers: HashMap<FieldNameAndClass, (StaticFieldNumber, CPDType)>) -> (HashMap<FieldNameAndClass, StaticFieldNumberAndFieldType>, HashMap<StaticFieldNumber, FieldNameAndFieldType>) {
             let reverse = field_numbers.clone().into_iter()
                 .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
                 .collect();
@@ -263,12 +261,18 @@ impl<'gc> RuntimeClassClass<'gc> {
             class_id_path: Some(class_id_path),
             inheritance_tree_vec,
             status,
-            phantom: Default::default()
+            phantom: Default::default(),
         }
     }
 
-    pub fn num_vars(&self) -> usize {
-        self.class_view.fields().filter(|field| !field.is_static()).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars()).unwrap_or(0)
+    pub fn num_vars(&self, static_: bool) -> usize {
+        self.class_view.fields().filter(|field| {
+            if static_ {
+                field.is_static()
+            } else {
+                !field.is_static()
+            }
+        }).count() + self.parent.as_ref().map(|parent| parent.unwrap_class_class().num_vars(static_)).unwrap_or(0)
     }
 
     pub fn num_virtual_methods(&self) -> usize {

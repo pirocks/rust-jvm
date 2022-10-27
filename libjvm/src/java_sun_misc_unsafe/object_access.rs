@@ -8,6 +8,7 @@ use libc::{c_void, initgroups};
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
+use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::{FieldId};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
@@ -62,19 +63,20 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_addressSize(env: *mut JNIEnv, obj
 unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEnv, the_unsafe: jobject, field_obj: jobject) -> jlong {
     let jvm = get_state(env);
     let jfield = NewJavaValueHandle::Object(from_object_new(jvm, field_obj).unwrap()).cast_field();
-    let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
+    let field_name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
     let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
     let class_view = clazz.view();
-    let field = match class_view.lookup_field(name) {
+    let field = match class_view.lookup_field(field_name) {
         Some(x) => x,
         None => {
-            dbg!(name.0.to_str(&jvm.string_pool));
+            dbg!(field_name.0.to_str(&jvm.string_pool));
             get_interpreter_state(env).debug_print_stack_trace(jvm);
             todo!()
         }
     };
     let field_numbers = &clazz.unwrap_class_class().object_layout.field_numbers;
-    let field_number = field_numbers[&name].number;
+    let class_name = class_view.name().unwrap_name();
+    let field_number = field_numbers[&FieldNameAndClass{ field_name, class_name }].number;
     let res = field_number.0 as jlong * size_of::<jlong>() as jlong;
     res
     /*class_view.fields().enumerate().for_each(|(i, f)| {

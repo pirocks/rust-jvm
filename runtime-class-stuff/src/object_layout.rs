@@ -1,35 +1,37 @@
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
+use std::ptr::NonNull;
 use std::sync::Arc;
 
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRefType, CPDType};
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
 
-use crate::{FieldNameAndFieldType, FieldNumber, FieldNumberAndFieldType, get_field_numbers, RuntimeClass};
+use crate::{FieldNameAndClass, FieldNameAndFieldType, FieldNumber, FieldNumberAndFieldType, get_field_numbers, RuntimeClass};
 use crate::hidden_fields::{HiddenJVMField, HiddenJVMFieldAndFieldType};
 
 #[derive(Clone)]
 pub struct ObjectLayout {
     pub hidden_field_numbers: HashMap<HiddenJVMField, FieldNumberAndFieldType>,
     pub hidden_field_numbers_reverse: HashMap<FieldNumber, HiddenJVMFieldAndFieldType>,
-    pub field_numbers: HashMap<FieldName, FieldNumberAndFieldType>,
+    pub field_numbers: HashMap<FieldNameAndClass, FieldNumberAndFieldType>,
     pub field_numbers_reverse: HashMap<FieldNumber, FieldNameAndFieldType>,
     pub recursive_num_fields: u32,
     recursive_num_fields_non_hidden: u32,
 }
 
 
-fn reverse_fields(field_numbers: HashMap<FieldName, (FieldNumber, CPDType)>) -> (HashMap<FieldName, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
+fn reverse_fields(field_numbers: HashMap<FieldNameAndClass, (FieldNumber, CPDType)>) -> (HashMap<FieldNameAndClass, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
     let reverse: HashMap<FieldNumber, FieldNameAndFieldType> = field_numbers.clone().into_iter()
         .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
         .collect();
-    let forward: HashMap<FieldName, FieldNumberAndFieldType> = field_numbers.into_iter()
+    let forward: HashMap<FieldNameAndClass, FieldNumberAndFieldType> = field_numbers.into_iter()
         .map(|(name, (number, cpdtype))| (name, FieldNumberAndFieldType { number, cpdtype }))
         .collect();
     assert_eq!(forward.len(), reverse.len());
@@ -45,7 +47,8 @@ fn reverse_hidden_fields(hidden_field_numbers_reverse: &HashMap<FieldNumber, Hid
 
 impl ObjectLayout {
     pub fn new<'gc>(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass<'gc>>>) -> Self {
-        let (mut recursive_num_fields, field_numbers) = get_field_numbers(&class_view, &parent);
+        let field_numbers = get_field_numbers(class_view.clone(), &parent);
+        let mut recursive_num_fields = field_numbers.len() as u32;
         let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
         //todo hidden fields won't work with non-final classes
         let hidden_fields = if class_view.name() == CompressedParsedRefType::Class(CClassName::class()) {

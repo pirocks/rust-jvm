@@ -153,24 +153,25 @@
 //    }
 //}
 
-import java.io.Serializable;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.*;
-import java.math.BigInteger;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        for (int i = 0; i < 100000; i++) {
-            test();
-        }
+        new DebuggingClass().non_static();
+        new DebuggingClass().static_();
     }
 
-    static void test() {
-        short x = 0;
-        short y = Short.MIN_VALUE;
-        if(Short.compare((short) x, (short) y) !=
-                Short.valueOf((short) x).compareTo(Short.valueOf((short) y))){
-            System.out.println("fail");
-        }
+    public void non_static(){
+        final B b = new B();
+        b.a = 1;
+        System.out.println(((A) b).a);
     }
+
+    public void static_(){
+        A.a_static = 1;
+        A.inherited = 1;
+        System.out.println(B.a_static);
+        System.out.println(B.inherited);
+    }
+
 }
