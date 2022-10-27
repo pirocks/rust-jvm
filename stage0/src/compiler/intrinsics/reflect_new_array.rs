@@ -9,6 +9,7 @@ use rust_jvm_common::{MethodId};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::compiler_common::MethodResolver;
 
+#[allow(unreachable_code)]
 pub fn reflect_new_array<'gc>(resolver: &impl MethodResolver<'gc>, _layout: &NativeStackframeMemoryLayout, _method_id: MethodId, _ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
     let _component_type = Register(1);
     let _length = Register(2);

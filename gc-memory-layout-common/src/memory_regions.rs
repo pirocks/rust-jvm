@@ -97,6 +97,7 @@ impl VariableRegionHeaderWrapper<'_> {
     unsafe fn get_allocation_impl(&self, size: NonZeroUsize) -> Option<NonNull<c_void>> {
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
+        assert!(self.inner.region_elem_size.is_none());
         let before_type = self.inner.region_type;
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
