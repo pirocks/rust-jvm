@@ -49,6 +49,7 @@ impl<'gc> Field<'gc> {
         }));
         let annotations = allocated_object_handle.new_java_value();
 
+        dbg!(name.to_rust_string(jvm));
         run_constructor(
             jvm,
             int_state,
