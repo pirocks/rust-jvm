@@ -10,7 +10,7 @@ use wtf8::Wtf8Buf;
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
-use runtime_class_stuff::layout::ObjectLayout;
+use runtime_class_stuff::object_layout::ObjectLayout;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;

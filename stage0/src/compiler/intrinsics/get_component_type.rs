@@ -1,7 +1,7 @@
 use std::mem::size_of;
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 
 use rust_jvm_common::{MethodId};

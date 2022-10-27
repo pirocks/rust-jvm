@@ -1,8 +1,8 @@
 use std::os::raw::c_void;
 use std::ptr::NonNull;
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNI_COMMIT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jvalue};
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 

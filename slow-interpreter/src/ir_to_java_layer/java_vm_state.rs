@@ -9,7 +9,7 @@ use another_jit_vm::code_modification::GlobalCodeEditingLock;
 use another_jit_vm_ir::{ExitHandlerType, HasRBPAndRSP, IRInstructIndex, IRVMExitAction, IRVMExitEvent, IRVMState, RBPAndRSP};
 use another_jit_vm_ir::compiler::{IRInstr, RestartPointID};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};

@@ -1,10 +1,9 @@
-use std::ptr::null_mut;
-use libc::c_void;
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
 
 
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::accessor_ext::ArrayAccessorExt;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame};
@@ -121,48 +120,8 @@ fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc,
             /*return throw_npe(jvm, int_state);*/
         }
     };
-    // let val = T::cast(val);
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
-    unsafe {
-        let res_pointer = array_layout.calculate_index_address(arrar_ref_o,index);
-        match array_sub_type {
-            CompressedParsedDescriptorType::BooleanType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::ByteType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::ShortType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::CharType => {
-                let int = val.unwrap_int();
-                let char_ = int as u16;
-                res_pointer.cast::<u16>().as_ptr().write(char_);
-            }
-            CompressedParsedDescriptorType::IntType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::LongType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::FloatType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::DoubleType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::VoidType => {
-                todo!()
-            }
-            CompressedParsedDescriptorType::Class(_) |
-            CompressedParsedDescriptorType::Array { .. } => {
-                let obj = val.unwrap_object().map(|ptr|ptr.as_ptr()).unwrap_or(null_mut());
-                res_pointer.cast::<*mut c_void>().as_ptr().write(obj);
-            }
-        }
-        // let target_char_ptr = arrar_ref_o.as_ptr().offset(array_layout.elem_0_entry_offset() as isize).offset((array_layout.elem_size() * index as usize) as isize) as *mut u64;
-        // target_char_ptr.write(val);
-    }
+    let accessor = array_layout.calculate_index_address(arrar_ref_o,index);
+    accessor.write_interpreter_jv(val, array_sub_type);
     PostInstructionAction::Next {}
 }

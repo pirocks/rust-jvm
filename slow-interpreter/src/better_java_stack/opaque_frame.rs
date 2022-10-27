@@ -2,7 +2,7 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;
 

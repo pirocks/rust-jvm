@@ -8,7 +8,7 @@ use wtf8::Wtf8Buf;
 use another_jit_vm::IRMethodID;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
 use jvmti_jni_bindings::jint;

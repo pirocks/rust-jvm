@@ -5,7 +5,7 @@ use std::sync::Arc;
 use libc::c_void;
 
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
-use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use gc_memory_layout_common::frame_layout::FRAME_HEADER_END_OFFSET;
 use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::ByteCodeOffset;

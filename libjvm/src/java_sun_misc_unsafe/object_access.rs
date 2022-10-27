@@ -6,8 +6,8 @@ use std::ptr::null_mut;
 use libc::{c_void, initgroups};
 
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::{FieldId};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;

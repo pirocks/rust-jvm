@@ -84,9 +84,28 @@ impl ObjectLayout {
         assert_eq!(self.recursive_num_fields_non_hidden as usize, self.field_numbers.len());
     }
 
-    pub fn field_entry(&self, field_number: FieldNumber) -> usize {
+    pub fn field_entry_offset(&self, field_number: FieldNumber) -> usize {
         assert!(field_number.0 < self.recursive_num_fields());
         (field_number.0 as usize) * size_of::<u64>()
+    }
+
+    pub fn field_entry_type(&self, field_number: FieldNumber) -> CPDType{
+        self.self_check();
+        match &self.field_numbers_reverse.get(&field_number) {
+            Some(FieldNameAndFieldType{  cpdtype, .. }) => *cpdtype,
+            None => {
+                self.hidden_field_numbers_reverse.get(&field_number).unwrap().cpdtype
+            },
+        }
+    }
+
+    pub fn field_entry_pointer(&self, object: NonNull<c_void>, field_number: FieldNumber) -> FieldAccessor {
+        self.self_check();
+        let inner_ptr = NonNull::new(unsafe { object.as_ptr().offset(self.field_entry_offset(field_number) as isize) }).unwrap();
+        FieldAccessor{
+            expected_type: self.field_entry_type(field_number),
+            inner: inner_ptr
+        }
     }
 
     pub fn recursive_num_fields(&self) -> u32 {
@@ -99,3 +118,112 @@ impl ObjectLayout {
         NonZeroUsize::new(res_size).unwrap_or(NonZeroUsize::new(1).unwrap())
     }
 }
+
+// todo dup with array layout
+#[derive(Copy, Clone)]
+pub struct FieldAccessor{
+    expected_type: CPDType,
+    inner: NonNull<c_void>
+}
+
+impl FieldAccessor{
+    fn read_impl<T>(self) -> T{
+        unsafe { self.inner.cast::<T>().as_ptr().read() }
+    }
+
+    pub fn read_boolean(self) -> jboolean{
+        assert_eq!(CPDType::BooleanType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_byte(self) -> jbyte{
+        assert_eq!(CPDType::ByteType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_short(self) -> jshort{
+        assert_eq!(CPDType::ShortType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_char(self) -> jchar{
+        assert_eq!(CPDType::CharType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_int(self) -> jint{
+        assert_eq!(CPDType::IntType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_float(self) -> jfloat{
+        assert_eq!(CPDType::FloatType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_long(self) -> jlong{
+        assert_eq!(CPDType::LongType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_double(self) -> jdouble{
+        assert_eq!(CPDType::FloatType, self.expected_type);
+        self.read_impl()
+    }
+
+    pub fn read_object(self) -> jobject{
+        assert!(self.expected_type.try_unwrap_ref_type().is_some());
+        self.read_impl()
+    }
+
+
+    fn write_impl<T>(self, to_write: T){
+        unsafe { self.inner.cast::<T>().as_ptr().write(to_write) }
+    }
+
+    pub fn write_boolean(self, to_write: jboolean) {
+        assert_eq!(CPDType::BooleanType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_byte(self, to_write: jbyte) {
+        assert_eq!(CPDType::ByteType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_short(self, to_write: jshort) {
+        assert_eq!(CPDType::ShortType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_char(self, to_write: jchar) {
+        assert_eq!(CPDType::CharType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_int(self, to_write: jint) {
+        assert_eq!(CPDType::IntType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_float(self, to_write: jfloat) {
+        assert_eq!(CPDType::FloatType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_long(self, to_write: jlong) {
+        assert_eq!(CPDType::LongType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_double(self, to_write: jdouble) {
+        assert_eq!(CPDType::FloatType, self.expected_type);
+        self.write_impl(to_write)
+    }
+
+    pub fn write_object(self, to_write: jobject) {
+        assert!(self.expected_type.try_unwrap_ref_type().is_some());
+        self.write_impl(to_write)
+    }
+}
+

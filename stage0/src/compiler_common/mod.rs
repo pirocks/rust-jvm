@@ -11,7 +11,7 @@ use wtf8::Wtf8Buf;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use gc_memory_layout_common::layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
 use jvmti_jni_bindings::jint;

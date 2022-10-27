@@ -1,6 +1,6 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use rust_jvm_common::MethodId;
 
@@ -29,7 +29,13 @@ pub mod malloc_interface;
 //         }
 //     }
 // }
-pub fn get_int_volatile<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, labeler: &mut CompilerLabeler, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
+pub fn get_int_volatile<'gc>(
+    resolver: &impl MethodResolver<'gc>,
+    layout: &NativeStackframeMemoryLayout,
+    labeler: &mut CompilerLabeler,
+    method_id: MethodId,
+    ir_method_id: IRMethodID
+) -> Option<Vec<IRInstr>> {
     let obj = Register(1);
     let zero = Register(2);
     let res = Register(3);

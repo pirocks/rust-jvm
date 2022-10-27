@@ -1,9 +1,10 @@
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
 
 
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::accessor_ext::ArrayAccessorExt;
 
 use crate::JVMState;
 use crate::better_java_stack::frames::HasFrame;
@@ -88,9 +89,8 @@ fn generic_array_load<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_fram
             return PostInstructionAction::Exception { exception: throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err() };
         }
     }
-    let res_ptr = array_layout.calculate_index_address(array_ptr,index).as_ptr();
-    let read_u64 = unsafe { (res_ptr as *mut u64).read() };
-    let res = InterpreterJavaValue::from_raw(read_u64, array_sub_type.to_runtime_type().unwrap());
+    let accessor = array_layout.calculate_index_address(array_ptr,index);
+    let res: InterpreterJavaValue = accessor.read_interpreter_jv(array_sub_type);
     current_frame.push(res);
     PostInstructionAction::Next {}
 }

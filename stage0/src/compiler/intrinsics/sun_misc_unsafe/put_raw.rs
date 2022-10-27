@@ -1,6 +1,6 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::MethodId;
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
@@ -11,7 +11,13 @@ use crate::compiler_common::MethodResolver;
 //             ptr.write(val);
 //         }
 
-pub fn unsafe_put_long<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, _labeler: &mut CompilerLabeler, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
+pub fn unsafe_put_long<'gc>(
+    resolver: &impl MethodResolver<'gc>,
+    layout: &NativeStackframeMemoryLayout,
+    _labeler: &mut CompilerLabeler,
+    method_id: MethodId,
+    ir_method_id: IRMethodID
+) -> Option<Vec<IRInstr>> {
     let ptr = Register(0);
     let val = Register(1);
     return Some(vec![

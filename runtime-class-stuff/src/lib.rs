@@ -1,3 +1,11 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![feature(int_roundings)]
+#![feature(box_syntax)]
+#![feature(exclusive_range_pattern)]
+#![feature(const_refs_to_cell)]
+#![feature(strict_provenance_atomic_ptr)]
+#![feature(once_cell)]
 #![feature(vec_into_raw_parts)]
 
 use std::collections::HashMap;
@@ -18,15 +26,18 @@ use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStrin
 
 use rust_jvm_common::method_shape::MethodShape;
 
-use crate::field_numbers::{FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};
-use crate::layout::ObjectLayout;
+use crate::field_numbers::{FieldNameAndClass, FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};
 use crate::method_numbers::{get_method_numbers, MethodNumber};
+use crate::object_layout::ObjectLayout;
 use crate::static_fields::RawStaticFields;
 
+pub mod object_layout;
+pub mod array_layout;
+#[cfg(test)]
+pub mod test;
 pub mod method_numbers;
 pub mod field_numbers;
 pub mod static_fields;
-pub mod layout;
 pub mod hidden_fields;
 
 

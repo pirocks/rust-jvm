@@ -6,7 +6,7 @@ use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
 use another_jit_vm_ir::IRVMExitAction;
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 
 use rust_jvm_common::MethodId;

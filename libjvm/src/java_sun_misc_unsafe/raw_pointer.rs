@@ -2,7 +2,6 @@ use std::intrinsics::{size_of, volatile_copy_memory};
 use std::mem::transmute;
 use std::ptr::null_mut;
 use libc::{c_void, time};
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
 

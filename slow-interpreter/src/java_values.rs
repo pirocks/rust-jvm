@@ -1,9 +1,9 @@
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::mem::{transmute};
+use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::ptr::{NonNull, null, null_mut};
 use std::sync::{Arc, Mutex, RwLock};
@@ -13,27 +13,25 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::layout::{ArrayMemoryLayout};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
+use rust_jvm_common::StackNativeJavaValue;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-
-
 use rust_jvm_common::loading::LoaderName;
-use rust_jvm_common::{StackNativeJavaValue};
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
+use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedArrayObjectHandle, AllocatedNormalObjectHandle};
-use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::threading::safepoints::Monitor2;
 
@@ -105,60 +103,23 @@ impl<'gc> GC<'gc> {
         match object {
             UnAllocatedObject::Object(UnAllocatedObjectObject { object_rc, object_fields }) => {
                 let ObjectFields { fields, hidden_fields } = object_fields;
-                for (i, field) in fields.iter().chain(hidden_fields.iter()) {
+                for (field_number, field) in fields.into_iter().chain(hidden_fields.into_iter()) {
                     let object_rc_class_class = object_rc.unwrap_class_class();
                     let object_layout = &object_rc_class_class.object_layout;
-                    unsafe {
-                        let offset = object_layout.field_entry(*i);
-                        let field_ptr = allocated.as_ptr().offset(offset as isize).cast::<c_void>();
-                        field_ptr.write(todo!()/*field.to_native()*/);/*field.to_native()*/
-                    }
+                    let field_type = object_layout.field_entry_type(field_number);
+                    let accessor = object_layout.field_entry_pointer(allocated, field_number);
+                    accessor.write_njv(field, field_type)
                 }
             }
             UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems }) => {
                 unsafe {
-                    let array_layout = ArrayMemoryLayout::from_cpdtype(whole_array_runtime_class.cpdtype().unwrap_array_type());
+                    let sub_type = whole_array_runtime_class.cpdtype().unwrap_array_type();
+                    let array_layout = ArrayMemoryLayout::from_cpdtype(sub_type);
                     array_layout.calculate_len_address(allocated).as_ptr().write(elems.len() as jint);
                     for (i, elem) in elems.into_iter().enumerate() {
                         //todo fix all ub usages of NativeJavaValue
-                        match elem.as_njv() {
-                            NewJavaValue::Long(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Int(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Short(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Byte(byte_) => {
-                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<i8>().write(byte_)
-                            }
-                            NewJavaValue::Boolean(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Char(char_) => {
-                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<u16>().write(char_)
-                            }
-                            NewJavaValue::Float(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Double(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::Null => {
-                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<jobject>().write(null_mut());
-                            }
-                            NewJavaValue::UnAllocObject(_) => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                            NewJavaValue::AllocObject(obj) => {
-                                array_layout.calculate_index_address(allocated, i as i32).as_ptr().cast::<jobject>().write(obj.ptr().as_ptr() as jobject)
-                            }
-                            NewJavaValue::Top => {
-                                todo!()// array_layout.calculate_index_address(allocated, i as i32).cast::<NativeJavaValue>().write(elem.to_native())
-                            }
-                        }
+                        let accessor = array_layout.calculate_index_address(allocated, i as i32);
+                        accessor.write_njv(elem, sub_type)
                     }
                 }
             }
@@ -844,7 +805,6 @@ unsafe impl<'gc> Send for Object<'gc, '_> {}
 unsafe impl<'gc> Sync for Object<'gc, '_> {}
 
 impl<'gc, 'l> Object<'gc, 'l> {
-
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'l> {
         match self {
             Object::Array(_) => panic!(),

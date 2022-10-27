@@ -3,12 +3,12 @@ use std::ops::Deref;
 use std::ptr::NonNull;
 use std::sync::Arc;
 use gc_memory_layout_common::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use inheritance_tree::ClassID;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
 use rust_jvm_common::loading::LoaderName;

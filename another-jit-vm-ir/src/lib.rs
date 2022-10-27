@@ -21,7 +21,7 @@ use another_jit_vm::code_modification::{AssemblerFunctionCallTarget, AssemblerRu
 use another_jit_vm::intrinsic_helpers::ExtraIntrinsicHelpers;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIP, SavedRegistersWithoutIPDiff};
 use compiler::{IRInstr, LabelName, RestartPointID};
-use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use gc_memory_layout_common::frame_layout::FRAME_HEADER_END_OFFSET;
 use ir_stack::OPAQUE_FRAME_SIZE;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;

@@ -1,10 +1,10 @@
-use std::mem::size_of;
 
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use gc_memory_layout_common::layout::{ArrayMemoryLayout, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::compiler::CompilerLabeler;

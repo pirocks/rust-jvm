@@ -62,6 +62,7 @@ impl ThreadSignalBasedInterrupter {
 
 #[cfg(test)]
 pub mod test {
+    use std::cell::OnceCell;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::thread;

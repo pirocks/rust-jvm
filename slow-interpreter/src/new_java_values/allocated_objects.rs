@@ -4,9 +4,9 @@ use std::hash::{Hash, Hasher};
 use std::ptr::NonNull;
 use std::sync::Arc;
 use gc_memory_layout_common::allocated_object_types::AllocatedObjectType;
-use gc_memory_layout_common::layout::ArrayMemoryLayout;
 
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
+use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use runtime_class_stuff::field_numbers::FieldNumber;
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -16,6 +16,7 @@ use rust_jvm_common::StackNativeJavaValue;
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
+use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::java_values::{GcManagedObject};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 
@@ -79,19 +80,18 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
         let jvm = self.jvm;
         let ptr = self.ptr;
         let array_layout = self.array_layout();
-        let native_jv_ptr = array_layout.calculate_index_address(ptr, i);
+        let accessor = array_layout.calculate_index_address(ptr, i);
         let cpdtype = self.elem_cpdtype();
-        //todo this read should be changed to be better
-        todo!("figure out how to read these values")
-        /*unsafe { native_to_new_java_value(native_jv_ptr.cast::<NativeJavaValue>().as_ptr().read(), cpdtype, jvm) }*/
+        accessor.read_njv(jvm, cpdtype)
     }
 
     pub fn set_i(&self, i: i32, elem: NewJavaValue<'gc, '_>) {
         assert!(i < self.len());
         let ptr = self.ptr;
         let array_layout = self.array_layout();
-        let mut native_jv_ptr = array_layout.calculate_index_address(ptr, i);
-        unsafe { elem.set_array_native(native_jv_ptr.as_mut()) }
+        let accessor = array_layout.calculate_index_address(ptr, i);
+        let cpdtype = self.elem_cpdtype();
+        accessor.write_njv(elem, cpdtype)
     }
 
     pub fn array_iterator<'l>(&'l self) -> ArrayIterator<'gc, 'l> {
@@ -181,7 +181,8 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     }
 
     pub fn get_var(&self, jvm: &'gc JVMState<'gc>, current_class_pointer: &Arc<RuntimeClass<'gc>>, field_name: FieldName) -> NewJavaValueHandle<'gc> {
-        let FieldNumberAndFieldType { number, cpdtype } = &current_class_pointer.unwrap_class_class().object_layout.field_numbers.get(&field_name).unwrap();
+        dbg!(field_name.0.to_str(&jvm.string_pool));
+        let FieldNumberAndFieldType { number, cpdtype } = &dbg!(&current_class_pointer.unwrap_class_class().object_layout.field_numbers).get(&field_name).unwrap();
         self.raw_get_var(jvm, *number, *cpdtype)
     }
 
@@ -192,11 +193,10 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
     }
 
     pub fn raw_get_var(&self, jvm: &'gc JVMState<'gc>, number: FieldNumber, cpdtype: CPDType) -> NewJavaValueHandle<'gc> {
-        unsafe {
-            let native_jv = self.ptr.cast::<StackNativeJavaValue<'gc>>().as_ptr().offset(number.0 as isize).read();
-            todo!("figure out how to read these values")
-            /*native_to_new_java_value(native_jv, cpdtype, jvm)*/
-        }
+        let runtime_class = self.runtime_class(jvm);
+        let object_class = runtime_class.unwrap_class_class();
+        let accessor = object_class.object_layout.field_entry_pointer(self.ptr,number);
+        accessor.read_njv(jvm, cpdtype)
     }
 
     pub fn get_var_top_level(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName) -> NewJavaValueHandle<'gc> {

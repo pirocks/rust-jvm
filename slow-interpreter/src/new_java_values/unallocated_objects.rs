@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use runtime_class_stuff::field_numbers::FieldNumber;
-use runtime_class_stuff::layout::ObjectLayout;
 use runtime_class_stuff::{FieldNameAndFieldType, RuntimeClass};
 use runtime_class_stuff::hidden_fields::HiddenJVMFieldAndFieldType;
+use runtime_class_stuff::object_layout::ObjectLayout;
 use crate::java_values::default_value_njv;
 
 use crate::{NewJavaValue};

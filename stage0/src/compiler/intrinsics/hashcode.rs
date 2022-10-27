@@ -1,6 +1,6 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{BitwiseLogicType, IRInstr, Size};
-use gc_memory_layout_common::layout::NativeStackframeMemoryLayout;
+use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::MethodId;
 
 use crate::compiler_common::MethodResolver;

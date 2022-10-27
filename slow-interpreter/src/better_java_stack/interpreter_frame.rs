@@ -6,7 +6,7 @@ use std::sync::atomic::Ordering;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use another_jit_vm_ir::RBPAndRSP;
 use classfile_view::view::ClassView;
-use gc_memory_layout_common::layout::FRAME_HEADER_END_OFFSET;
+use gc_memory_layout_common::frame_layout::FRAME_HEADER_END_OFFSET;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, MethodI, StackNativeJavaValue};
 use rust_jvm_common::loading::LoaderName;

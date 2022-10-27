@@ -13,7 +13,7 @@ use itertools::Itertools;
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
 use another_jit_vm_ir::ir_stack::IsOpaque;
 use classfile_view::view::HasAccessFlags;
-use gc_memory_layout_common::layout::{FrameHeader, NativeStackframeMemoryLayout};
+use gc_memory_layout_common::frame_layout::{FrameHeader, NativeStackframeMemoryLayout};
 use java5_verifier::SimplifiedVType;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;

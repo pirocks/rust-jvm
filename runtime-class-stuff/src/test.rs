@@ -1,3 +1,4 @@
+use std::cell::OnceCell;
 use std::num::NonZeroUsize;
 use std::ptr::{NonNull, null};
 use itertools::Itertools;
@@ -6,9 +7,9 @@ use libc::c_void;
 use once_cell::sync::OnceCell;
 
 use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
-use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
+use gc_memory_layout_common::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 
-use crate::memory_regions::{MemoryRegions};
+use gc_memory_layout_common::memory_regions::{MemoryRegions};
 
 static REGIONS: OnceCell<Regions> = OnceCell::new();
 
@@ -56,7 +57,7 @@ pub fn allocate_small() {
     assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
 }
 
-use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE_SIZE};
+use gc_memory_layout_common::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE_SIZE};
 
 #[test]
 pub fn test_size() {

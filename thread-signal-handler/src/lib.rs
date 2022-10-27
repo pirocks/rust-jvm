@@ -7,7 +7,7 @@ use libc::{c_int, c_void, siginfo_t, sigset_t, sigwaitinfo};
 use nix::sys::signal::{SigmaskHow, Signal, sigprocmask, SigSet};
 
 use another_jit_vm::{MAGIC_1_EXPECTED, MAGIC_2_EXPECTED};
-use gc_memory_layout_common::layout::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET};
+use gc_memory_layout_common::frame_layout::{FRAME_HEADER_PREV_MAGIC_1_OFFSET, FRAME_HEADER_PREV_MAGIC_2_OFFSET};
 use threads::signal::ucontext_t;
 
 use crate::remote_queries::{GetGuestFrameStackInstructionPointer, RemoteQuerySafe, RemoteQueryUnsafe};
