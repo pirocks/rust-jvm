@@ -4,6 +4,7 @@ use std::mem::size_of;
 use std::num::NonZeroUsize;
 use std::ptr::NonNull;
 use std::sync::Arc;
+use itertools::Itertools;
 
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -27,16 +28,7 @@ pub struct ObjectLayout {
 }
 
 
-fn reverse_fields(field_numbers: HashMap<FieldNameAndClass, (FieldNumber, CPDType)>) -> (HashMap<FieldNameAndClass, FieldNumberAndFieldType>, HashMap<FieldNumber, FieldNameAndFieldType>) {
-    let reverse: HashMap<FieldNumber, FieldNameAndFieldType> = field_numbers.clone().into_iter()
-        .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
-        .collect();
-    let forward: HashMap<FieldNameAndClass, FieldNumberAndFieldType> = field_numbers.into_iter()
-        .map(|(name, (number, cpdtype))| (name, FieldNumberAndFieldType { number, cpdtype }))
-        .collect();
-    assert_eq!(forward.len(), reverse.len());
-    (forward, reverse)
-}
+
 
 fn reverse_hidden_fields(hidden_field_numbers_reverse: &HashMap<FieldNumber, HiddenJVMFieldAndFieldType>) -> HashMap<HiddenJVMField, FieldNumberAndFieldType> {
     hidden_field_numbers_reverse.clone().into_iter()
@@ -47,9 +39,10 @@ fn reverse_hidden_fields(hidden_field_numbers_reverse: &HashMap<FieldNumber, Hid
 
 impl ObjectLayout {
     pub fn new<'gc>(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass<'gc>>>) -> Self {
-        let field_numbers = get_field_numbers(class_view.clone(), &parent);
-        let mut recursive_num_fields = field_numbers.len() as u32;
-        let (field_numbers, field_numbers_reverse) = reverse_fields(field_numbers);
+        let field_numbers = get_field_numbers(class_view, &parent);
+        let (field_numbers, field_numbers_reverse) = field_numbers.reverse_fields();
+        let mut recursive_num_fields = field_numbers_reverse.len() as u32;
+        assert_eq!(field_numbers_reverse.keys().map(|num|num.0).sorted().collect_vec(), (0..recursive_num_fields).collect_vec());
         //todo hidden fields won't work with non-final classes
         let hidden_fields = if class_view.name() == CompressedParsedRefType::Class(CClassName::class()) {
             HiddenJVMField::class_hidden_fields()
@@ -69,7 +62,7 @@ impl ObjectLayout {
         let hidden_field_numbers = reverse_hidden_fields(&hidden_field_numbers_reverse);
 
         assert_eq!(hidden_field_numbers.len(), hidden_field_numbers_reverse.len());
-        let recursive_num_fields_non_hidden = field_numbers.len() as u32;
+        let recursive_num_fields_non_hidden = field_numbers_reverse.len() as u32;
         Self {
             hidden_field_numbers,
             hidden_field_numbers_reverse,
@@ -81,10 +74,9 @@ impl ObjectLayout {
     }
 
     pub fn self_check(&self) {
-        assert_eq!(self.field_numbers.len() + self.hidden_field_numbers.len(), self.recursive_num_fields as usize);
-        assert_eq!(self.field_numbers_reverse.len(), self.field_numbers.len());
+        assert_eq!(self.field_numbers_reverse.len() + self.hidden_field_numbers.len(), self.recursive_num_fields as usize);
         assert_eq!(self.hidden_field_numbers.len(), self.hidden_field_numbers_reverse.len());
-        assert_eq!(self.recursive_num_fields_non_hidden as usize, self.field_numbers.len());
+        assert_eq!(self.recursive_num_fields_non_hidden as usize, self.field_numbers_reverse.len());
     }
 
     pub fn field_entry_offset(&self, field_number: FieldNumber) -> usize {

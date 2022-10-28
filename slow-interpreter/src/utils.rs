@@ -245,14 +245,11 @@ pub fn field_object_from_view<'gc, 'l>(
     let clazz = parent_runtime_class.cast_class().expect("todo");
     let field_name_str = field_name.0.to_str(&jvm.string_pool);
     let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(field_name_str))?.intern(jvm, int_state)?;
-    dbg!(name.to_rust_string(jvm));
     let type_ = JClass::from_type(jvm, int_state, CPDType::from_ptype(&field_type, &jvm.string_pool))?;
-    dbg!(name.to_rust_string(jvm));
     let signature = match signature {
         None => None,
         Some(signature) => Some(JString::from_rust(jvm, int_state, signature)?),
     };
-    dbg!(name.to_rust_string(jvm));
 
     let annotations_ = vec![]; //todo impl annotations.
 

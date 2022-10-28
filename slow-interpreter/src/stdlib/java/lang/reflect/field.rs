@@ -49,7 +49,6 @@ impl<'gc> Field<'gc> {
         }));
         let annotations = allocated_object_handle.new_java_value();
 
-        dbg!(name.to_rust_string(jvm));
         run_constructor(
             jvm,
             int_state,
@@ -70,9 +69,7 @@ impl<'gc> Field<'gc> {
                                                  CClassName::string().into(),
                                                  CPDType::array(CPDType::ByteType)]),
         )?;
-        let field_res = field_object.cast_field();
-        dbg!(field_res.name(jvm).to_rust_string(jvm));
-        Ok(field_res)
+        Ok(field_object.cast_field())
     }
 
     pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {

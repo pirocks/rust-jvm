@@ -369,8 +369,8 @@ pub fn static_field_address_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, class_class: 
             }
             None
         }
-        Some(StaticFieldNumberAndFieldType { static_number, cpdtype }) => {
-            Some((class_class, class_class.static_vars.get(*static_number), *cpdtype))
+        Some(StaticFieldNumberAndFieldType { number, cpdtype }) => {
+            Some((class_class, class_class.static_vars.get(*number), *cpdtype))
         }
     };
 }

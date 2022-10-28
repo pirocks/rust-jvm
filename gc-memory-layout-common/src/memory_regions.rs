@@ -106,10 +106,11 @@ impl VariableRegionHeaderWrapper<'_> {
                 return None;
             }
             if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res_address, Ordering::SeqCst, Ordering::SeqCst) {
-                break expected_res_address;
+                break current_ptr;
             }
         };
         assert!(res < self.inner.region_max_ptr.as_ptr());
+        assert_eq!(res.cast::<u8>().read(), 0);//todo remove when gc exists
         libc::memset(res, 0, size.get());
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
@@ -286,12 +287,13 @@ impl MemoryRegions {
         let type_id = self.lookup_or_add_type(to_allocate_type);
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
         let region_header_ptr = self.region_header_at(*region, *index, true);
-        let curent_ptr = unsafe { region_header_ptr.as_ref() }.current_ptr.load(Ordering::SeqCst);//atomic not useful atm b/c protected by memeory region lock but in future will need atomics
+        //todo race what if region gets fuller after checking for fullness. needs to be handled where I currently panic
+        let current_ptr = unsafe { region_header_ptr.as_ref() }.current_ptr.load(Ordering::SeqCst);
         let max_ptr = unsafe { region_header_ptr.as_ref() }.region_max_ptr.as_ptr();
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe { assert_eq!(region_header_ptr.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC) }
         unsafe {
-            if curent_ptr.add(to_allocate_type.size.get()) >= max_ptr {
+            if current_ptr.add(to_allocate_type.size.get()) >= max_ptr {
                 return Err(FindRegionError::RegionFull {
                     prev_region_size: *region,
                     prev_vtable_ptr: NonNull::new(region_header_ptr.as_ref().vtable_ptr),

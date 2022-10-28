@@ -7,6 +7,7 @@
 #![feature(strict_provenance_atomic_ptr)]
 #![feature(once_cell)]
 #![feature(vec_into_raw_parts)]
+#![feature(entry_insert)]
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
@@ -23,7 +24,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
 use rust_jvm_common::method_shape::MethodShape;
 
-use crate::field_numbers::{FieldNameAndClass, FieldNumber, get_field_numbers, get_field_numbers_static, StaticFieldNumber};
+use crate::field_numbers::{FieldNameAndClass, FieldNumber, FieldNumbers, get_field_numbers, get_field_numbers_static, StaticFieldNumber, StaticOrNormalFieldNumber};
 use crate::method_numbers::{get_method_numbers, MethodNumber};
 use crate::object_layout::ObjectLayout;
 use crate::static_fields::RawStaticFields;
@@ -148,16 +149,14 @@ pub struct RuntimeClassArray<'gc> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct FieldNumberAndFieldType {
-    pub number: FieldNumber,
+pub struct FieldNumberAndFieldTypeImpl<T: StaticOrNormalFieldNumber> {
+    pub number: T,
     pub cpdtype: CPDType,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct StaticFieldNumberAndFieldType {
-    pub static_number: StaticFieldNumber,
-    pub cpdtype: CPDType,
-}
+
+pub type FieldNumberAndFieldType = FieldNumberAndFieldTypeImpl<FieldNumber>;
+pub type StaticFieldNumberAndFieldType = FieldNumberAndFieldTypeImpl<StaticFieldNumber>;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct FieldNameAndFieldType {
@@ -201,8 +200,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
         let static_field_numbers = get_field_numbers_static(&class_view, &parent);
-        let recursive_num_static_fields = static_field_numbers.len() as u32;
-        Self::new(inheritance_tree, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, static_field_numbers, recursive_num_static_fields, class_id_path)
+        Self::new(inheritance_tree, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, static_field_numbers, class_id_path)
     }
 
     pub fn new(
@@ -214,19 +212,9 @@ impl<'gc> RuntimeClassClass<'gc> {
         status: RwLock<ClassStatus>,
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_methods: u32,
-        static_field_numbers: HashMap<FieldNameAndClass, (StaticFieldNumber, CPDType)>,
-        recursive_num_static_fields: u32,
+        static_field_numbers: FieldNumbers<StaticFieldNumber>,
         class_id_path: Vec<ClassID>,
     ) -> Self {
-        fn static_reverse_fields(field_numbers: HashMap<FieldNameAndClass, (StaticFieldNumber, CPDType)>) -> (HashMap<FieldNameAndClass, StaticFieldNumberAndFieldType>, HashMap<StaticFieldNumber, FieldNameAndFieldType>) {
-            let reverse = field_numbers.clone().into_iter()
-                .map(|(name, (number, cpdtype))| (number, FieldNameAndFieldType { name, cpdtype }))
-                .collect();
-            let forward = field_numbers.into_iter()
-                .map(|(name, (static_number, cpdtype))| (name, StaticFieldNumberAndFieldType { static_number, cpdtype }))
-                .collect();
-            (forward, reverse)
-        }
 
         let inheritance_tree_vec = if !class_view.is_interface() {
             match inheritance_tree.insert(&InheritanceClassIDPath::Borrowed { inner: class_id_path.as_slice() }).ok() {
@@ -240,7 +228,8 @@ impl<'gc> RuntimeClassClass<'gc> {
             None
         };
 
-        let (static_field_numbers, static_field_numbers_reverse) = static_reverse_fields(static_field_numbers);
+        let (static_field_numbers, static_field_numbers_reverse) = static_field_numbers.reverse_fields();
+        let recursive_num_static_fields = static_field_numbers_reverse.len();
 
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))

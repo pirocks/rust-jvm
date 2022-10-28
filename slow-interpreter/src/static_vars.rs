@@ -36,7 +36,7 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, field_name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
-        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().read() };
+        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.number).as_ptr().read() };
         Some(native_to_new_java_value_rtype(StackNativeJavaValue { as_u64: native }, cpd_type.cpdtype.to_runtime_type().unwrap(), self.jvm))
     }
 
@@ -45,9 +45,10 @@ impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     }
 
     fn set_raw(&mut self, field_name: FieldName, native: u64) -> Option<()> {
+        //todo really need static objects layout for all objects
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
         let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
-        unsafe { self.runtime_class_class.static_vars.get(cpd_type.static_number).as_ptr().write(native); }
+        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number).as_ptr().write(native); }
         Some(())
     }
 
