@@ -118,13 +118,15 @@ pub fn main_<'l, 'env>() {
     std::thread::scope::<'env>(|scope: &Scope<'_, 'env>| {
         let gc_ref: &'l GC = unsafe { transmute(&gc) };//todo why do I need this?
         let scope_ref: &'l Scope<'l, 'l> = unsafe { transmute(scope) };
-        within_thread_scope(scope_ref, jvm_options, gc_ref);
+        let string_pool = CompressedClassfileStringPool::new();
+        let string_pool_ref: &'l CompressedClassfileStringPool = unsafe { transmute(&string_pool) };
+        within_thread_scope(scope_ref, jvm_options, gc_ref, string_pool_ref);
     });
     panic!();
 }
 
-fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc: &'l GC<'l>) {
-    let (args, jvm): (Vec<String>, JVMState<'l>) = initial_jvm_state(jvm_options, scope, gc, CompressedClassfileStringPool::new());
+fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc: &'l GC<'l>, string_pool: &'l CompressedClassfileStringPool) {
+    let (args, jvm): (Vec<String>, JVMState<'l>) = initial_jvm_state(jvm_options, scope, gc, string_pool);
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
     main_run(args, &jvm_ref);
@@ -162,7 +164,7 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     jvm_ref.thread_state.wait_all_non_daemon_threads(jvm_ref);
 }
 
-pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'gc>, gc: &'gc GC<'gc>, string_pool: CompressedClassfileStringPool) -> (Vec<String>, JVMState<'gc>) {
+pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'gc>, gc: &'gc GC<'gc>, string_pool: &'gc CompressedClassfileStringPool) -> (Vec<String>, JVMState<'gc>) {
     let JVMOptions {
         main_class_name,
         classpath,
@@ -193,7 +195,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
     } else {
         None
     };
-    let all_the_static_fields = AllTheStaticFields::new();
+    let all_the_static_fields = AllTheStaticFields::new(string_pool);
     let thread_state = ThreadState::new(scope);
     let class_ids = ClassIDs::new();
     let object_class_id = class_ids.get_id_or_add(CPDType::object());
@@ -262,7 +264,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         program_args_array: Default::default(),
         mangling_regex: ManglingRegex::new(),
         default_per_stack_initial_interfaces: initial_per_stack_interfaces(),
-        all_the_static_fields: all_the_static_fields
+        all_the_static_fields: all_the_static_fields,
     };
     (args, jvm)
 }
@@ -370,8 +372,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, all_the_static_fields
         class_loaders: Default::default(),
         protection_domains: Default::default(),
         class_class_view: class_view,
-        object_view: object_class_view
-
+        object_view: object_class_view,
     });
     classes
 }

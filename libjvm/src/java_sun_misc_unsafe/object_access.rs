@@ -10,6 +10,7 @@ use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::{FieldId};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use slow_interpreter::better_java_stack::frames::HasFrame;
@@ -121,7 +122,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
             let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name).unwrap_int()
+            static_vars.get(field_name, CPDType::IntType).unwrap_int()
         }
     }
 }
@@ -168,7 +169,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
             let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name).to_jv().unwrap_long()
+            static_vars.get(field_name, CPDType::LongType).to_jv().unwrap_long()
         }
     }
     /*Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env, the_unsafe, obj, offset)*/
@@ -203,7 +204,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             let field_view = runtime_class_view.field(i as usize);
             assert!(field_view.is_static());
             let name = field_view.field_name();
-            let res = static_vars(runtime_class.deref(), jvm).get(name);
+            let res = static_vars(runtime_class.deref(), jvm).get(name, CPDType::object());
             to_object_new(res.as_njv().unwrap_object_alloc())
         }
         Some(object_to_read) => {

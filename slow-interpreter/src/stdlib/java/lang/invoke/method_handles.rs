@@ -1,7 +1,7 @@
 pub mod lookup {
     use std::ops::Deref;
     use rust_jvm_common::compressed_classfile::class_names::CClassName;
-    use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
+    use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
     use rust_jvm_common::compressed_classfile::field_names::FieldName;
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
@@ -36,7 +36,7 @@ pub mod lookup {
         pub fn trusted_lookup<'l>(jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Self {
             let lookup = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
             let static_vars = static_vars(lookup.deref(), jvm);
-            static_vars.get(FieldName::field_IMPL_LOOKUP()).cast_lookup()
+            static_vars.get(FieldName::field_IMPL_LOOKUP(), CPDType::object()).cast_lookup()
         }
 
         //noinspection DuplicatedCode

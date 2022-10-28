@@ -29,7 +29,7 @@ impl<'gc> Unsafe<'gc> {
     pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Unsafe<'gc> {
         let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
         let static_vars = static_vars(unsafe_class.deref(), jvm);
-        static_vars.get(FieldName::field_theUnsafe()).cast_unsafe()
+        static_vars.get(FieldName::field_theUnsafe(),CPDType::object()).cast_unsafe()
     }
 
     pub fn object_field_offset<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, field: Field<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

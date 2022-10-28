@@ -37,7 +37,7 @@ pub mod method_numbers;
 pub mod field_numbers;
 pub mod static_fields;
 pub mod hidden_fields;
-
+pub mod accessor;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClassStatus {

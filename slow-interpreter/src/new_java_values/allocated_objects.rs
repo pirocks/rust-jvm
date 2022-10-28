@@ -15,8 +15,8 @@ use rust_jvm_common::StackNativeJavaValue;
 
 
 use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
+use crate::accessor_ext::AccessorExt;
 use crate::class_loading::assert_loaded_class;
-use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::java_values::{GcManagedObject};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 

@@ -3,6 +3,7 @@ use libc::c_void;
 use num_traits::NumCast;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
+use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::array_layout::{ArrayAccessor, ArrayMemoryLayout};
 use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};

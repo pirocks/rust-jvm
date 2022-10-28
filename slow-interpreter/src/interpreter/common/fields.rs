@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
@@ -6,7 +5,6 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use crate::{JVMState, PushableFrame, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::static_vars::static_vars;
 
 pub(crate) fn get_static_impl<'gc, 'l>(
     jvm: &'gc JVMState<'gc>,
@@ -16,8 +14,9 @@ pub(crate) fn get_static_impl<'gc, 'l>(
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     //todo handle interfaces in setting as well
-    let temp = static_vars(target_classfile.deref(), jvm);
-    let attempted_get = temp.try_get(field_name);
+    todo!();
+    /*let temp = static_vars(target_classfile.deref(), jvm);
+    let attempted_get = try_get(&temp, field_name);
     match attempted_get {
         None => {
             let possible_super = target_classfile.view().super_name();
@@ -34,6 +33,6 @@ pub(crate) fn get_static_impl<'gc, 'l>(
         if interface_lookup_res.is_some() {
             return Ok(interface_lookup_res);
         }
-    }
+    }*/
     panic!()
 }

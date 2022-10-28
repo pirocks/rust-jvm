@@ -99,7 +99,7 @@ pub struct JVMState<'gc> {
     pub gc: &'gc GC<'gc>,
     pub native_libaries: NativeLibraries<'gc>,
     pub properties: Vec<String>,
-    pub string_pool: CompressedClassfileStringPool,
+    pub string_pool: &'gc CompressedClassfileStringPool,
     pub string_internment: RwLock<StringInternment<'gc>>,
     pub start_instant: Instant,
     pub classes: RwLock<Classes<'gc>>,
@@ -140,7 +140,7 @@ pub struct JVMState<'gc> {
     pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
     pub mangling_regex : ManglingRegex,
     pub default_per_stack_initial_interfaces: PerStackInterfaces,
-    pub all_the_static_fields: AllTheStaticFields
+    pub all_the_static_fields: AllTheStaticFields<'gc>
 }
 
 

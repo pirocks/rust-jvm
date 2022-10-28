@@ -3,7 +3,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDe
 
 
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::accessor_ext::ArrayAccessorExt;
+use crate::accessor_ext::AccessorExt;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame};

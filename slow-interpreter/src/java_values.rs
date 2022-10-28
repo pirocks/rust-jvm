@@ -24,7 +24,6 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::StackNativeJavaValue;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
-use crate::accessor_ext::{ArrayAccessorExt, FieldAccessorExt};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
@@ -34,6 +33,7 @@ use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedArrayObjectHandle, AllocatedNormalObjectHandle};
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::threading::safepoints::Monitor2;
+use crate::accessor_ext::AccessorExt;
 
 pub struct GC<'gc> {
     pub memory_region: Mutex<MemoryRegions>,

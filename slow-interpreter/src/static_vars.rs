@@ -1,7 +1,9 @@
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle};
+use crate::accessor_ext::AccessorExt;
 
 pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc>) -> StaticVarGuard<'gc, 'l> {
     match class {
@@ -31,17 +33,18 @@ pub struct StaticVarGuard<'gc, 'l> {
 }
 
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
-    pub fn try_get(&self, field_name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
+    pub fn try_get(&self, field_name: FieldName, expected_type: CPDType) -> NewJavaValueHandle<'gc> {
+        let class_name = self.runtime_class_class.class_view.name().unwrap_name();
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
+        static_field.read_njv(self.jvm, expected_type)
+    }
+
+    pub fn get(&self, name: FieldName, expected_type: CPDType) -> NewJavaValueHandle<'gc> {
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
         //todo need to figure out aliasing
 
-        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
-        todo!()
-        // Some(native_to_new_java_value_rtype(StackNativeJavaValue { as_u64: native }, static_field_number_and_type.cpdtype.to_runtime_type().unwrap(), self.jvm))
-    }
-
-    pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {
-        self.try_get(name).unwrap()
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name: name, class_name });
+        static_field.read_njv(self.jvm, expected_type)
     }
 
     fn set_raw(&mut self, field_name: FieldName, native: u64) {

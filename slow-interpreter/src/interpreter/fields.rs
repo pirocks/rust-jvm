@@ -31,7 +31,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     let mut entry_mut = int_state.current_frame_mut();
     let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass{ field_name, class_name }).number;
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name }).number;
     let val = entry_mut.pop(field_type.to_runtime_type().unwrap());
     let object_ref = entry_mut.pop(RuntimeType::object());
     match object_ref {
@@ -63,42 +63,24 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
 
 //
 pub fn getstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {  //todo make sure class pointer is updated correctly
-    let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name, field_descriptor.0) {
+    let field_value = match get_static_impl(jvm, int_state, field_class_name, field_name, field_descriptor.0) {
         Ok(val) => val,
         Err(WasException { exception_obj }) => return PostInstructionAction::Exception { exception: WasException { exception_obj } },
-    } {
-        None => {
-            todo!()
-        }
-        Some(val) => val,
     };
     int_state.current_frame_mut().push(field_value.to_interpreter_jv());
     PostInstructionAction::Next {}
 }
 
-fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
+fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {
     dbg!(field_class_name.0.to_str(&jvm.string_pool));
     let target_class = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
     let temp = static_vars(target_class.deref(), jvm);
-    let attempted_get = temp.try_get(field_name);
-    let field_value = match attempted_get {
-        None => {
-            let possible_super = target_class.view().super_name();
-            match possible_super {
-                None => None,
-                Some(super_) => {
-                    return get_static_impl(jvm, int_state, super_, field_name, cpdtype).into();
-                }
-            }
-        }
-        Some(val) => Some(val)
-    };
-    Ok(field_value)
+    Ok(temp.get(field_name, cpdtype))
 }
 
 pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
     let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass{ field_name, class_name }).number;
+    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name }).number;
     let object_ref = current_frame.pop(RuntimeType::object());
     unsafe {
         match object_ref {

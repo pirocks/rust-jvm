@@ -187,12 +187,14 @@ unsafe fn get_static_field<'gc, 'l>(env: *mut JNIEnv, klass: jclass, field_id_ra
     let int_state = get_interpreter_state(env);
     let (rc, field_i) = jvm.field_table.write().unwrap().lookup(field_id_raw as usize);
     let view = rc.view();
-    let name = view.field(field_i as usize).field_name();
+    let field_view = view.field(field_i as usize);
+    let name = field_view.field_name();
+    let expected_type = field_view.field_type();
     let jclass = from_jclass(jvm, klass);
     let rc = jclass.as_runtime_class(jvm);
     check_initing_or_inited_class(jvm, int_state, rc.cpdtype())?;
     let guard = static_vars(rc.deref(), jvm);
-    Ok(guard.borrow().get(name))
+    Ok(guard.borrow().get(name, expected_type))
 }
 
 pub unsafe extern "C" fn get_static_object_field(env: *mut JNIEnv, clazz: jclass, field_id: jfieldID) -> jobject {
