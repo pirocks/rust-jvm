@@ -439,6 +439,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             // assembler.int3().unwrap();
             // assembler.jmp( skip_to_exit_label.clone()).unwrap();
             assembler.mov(region_header.to_native_64(), *region_header_ptr as u64).unwrap();
+            assembler.mov(region_header.to_native_64(), qword_ptr(region_header.to_native_64())).unwrap();
             assembler.mov(rdi,region_header.to_native_64()).unwrap();
             assembler.call(qword_ptr(r15 + IntrinsicHelperType::GetConstantAllocation.r15_offset())).unwrap();
             assembler.mov(res.to_native_64(), rax).unwrap();

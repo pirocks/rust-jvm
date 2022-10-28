@@ -1,9 +1,6 @@
-use std::mem::size_of;
-
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use jvmti_jni_bindings::jint;
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;

@@ -54,7 +54,7 @@ impl ConstantRegionHeaderWrapper<'_> {
     }
 
     unsafe fn get_allocation_impl(&self) -> Option<NonNull<c_void>> {
-        //todo align
+        //todo align of allocations? or of headers?
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         let before_type = self.inner.region_type;
@@ -64,6 +64,8 @@ impl ConstantRegionHeaderWrapper<'_> {
         if self.inner.current_ptr.load(Ordering::SeqCst) >= self.inner.region_max_ptr.as_ptr() {
             return None;
         }
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
             let expected_res = current_ptr.add(region_elem_size);
@@ -75,6 +77,8 @@ impl ConstantRegionHeaderWrapper<'_> {
             }
         };
         assert!(res < self.inner.region_max_ptr.as_ptr());
+        assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
+        assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         libc::memset(res, 0, self.region_elem_size().get());
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
@@ -82,6 +86,7 @@ impl ConstantRegionHeaderWrapper<'_> {
         Some(NonNull::new(res).unwrap())
     }
 
+    #[inline(never)]
     pub unsafe fn get_allocation(region_header: NonNullConst<RegionHeader>) -> Option<NonNull<c_void>> {
         // assert!(dbg!(size_of::<RegionHeader>()) < SMALL_REGION_SIZE);//todo deal with this
         let region_header_ref = region_header.as_ref();
@@ -206,6 +211,7 @@ impl MemoryRegions {
         }
     }
 
+    #[inline(never)]
     pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> (NonNull<c_void>, NonZeroUsize) {
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
@@ -227,6 +233,7 @@ impl MemoryRegions {
         }
     }
 
+    #[inline(never)]
     fn with_variable_size(&mut self, region: NonNull<RegionHeader>, region_type: AllocatedTypeID, size: NonZeroUsize) -> (NonNull<c_void>, NonZeroUsize) {
         let should_be_none_size = unsafe { region.as_ref() }.region_elem_size;
         assert_eq!(should_be_none_size, None);
@@ -243,6 +250,7 @@ impl MemoryRegions {
         (res_ptr, size)
     }
 
+    #[inline(never)]
     fn with_constant_size(&mut self, region: NonNull<RegionHeader>, region_type: AllocatedTypeID) -> (NonNull<c_void>, NonZeroUsize) {
         unsafe { assert_eq!(region.as_ref().region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC); }
         unsafe { assert_eq!(region.as_ref().region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC); }
@@ -263,6 +271,7 @@ impl MemoryRegions {
         self.allocate_with_size(to_allocate_type).0
     }
 
+    #[inline(never)]
     fn region_header_at(&self, region: Region, index: usize, assert: bool) -> NonNull<RegionHeader> {
         let regions_base = self.early_mmaped_regions.base_regions_address(region);
         let res = NonNull::new(unsafe { regions_base.as_ptr().add(region.region_size() * index) }).unwrap().cast::<RegionHeader>();
@@ -283,6 +292,7 @@ pub enum FindRegionError {
 }
 
 impl MemoryRegions {
+    #[inline(never)]
     fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> Result<NonNull<RegionHeader>, FindRegionError> {
         let type_id = self.lookup_or_add_type(to_allocate_type);
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;

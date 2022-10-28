@@ -1,4 +1,5 @@
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
