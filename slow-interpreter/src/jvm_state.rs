@@ -28,6 +28,7 @@ use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus};
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use runtime_class_stuff::RuntimeClass;
+use runtime_class_stuff::static_fields::AllTheStaticFields;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
@@ -138,7 +139,8 @@ pub struct JVMState<'gc> {
     pub interface_arrays: RwLock<InterfaceArrays>,
     pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
     pub mangling_regex : ManglingRegex,
-    pub default_per_stack_initial_interfaces: PerStackInterfaces
+    pub default_per_stack_initial_interfaces: PerStackInterfaces,
+    pub all_the_static_fields: AllTheStaticFields
 }
 
 

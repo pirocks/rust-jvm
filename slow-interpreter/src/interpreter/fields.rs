@@ -62,7 +62,7 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
 }
 
 //
-pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {  //todo make sure class pointer is updated correctly
+pub fn getstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {  //todo make sure class pointer is updated correctly
     let field_value = match match get_static_impl(jvm, int_state, field_class_name, field_name, field_descriptor.0) {
         Ok(val) => val,
         Err(WasException { exception_obj }) => return PostInstructionAction::Exception { exception: WasException { exception_obj } },
@@ -77,19 +77,13 @@ pub fn get_static<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealI
 }
 
 fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, cpdtype: CPDType) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
-    let target_classfile = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
-    //todo handle interfaces in setting as well
-    for interfaces in target_classfile.view().interfaces() {
-        let interface_lookup_res = get_static_impl(jvm, int_state, interfaces.interface_name(), field_name.clone(), cpdtype)?;
-        if interface_lookup_res.is_some() {
-            return Ok(interface_lookup_res);
-        }
-    }
-    let temp = static_vars(target_classfile.deref(), jvm);
+    dbg!(field_class_name.0.to_str(&jvm.string_pool));
+    let target_class = check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into())?;
+    let temp = static_vars(target_class.deref(), jvm);
     let attempted_get = temp.try_get(field_name);
     let field_value = match attempted_get {
         None => {
-            let possible_super = target_classfile.view().super_name();
+            let possible_super = target_class.view().super_name();
             match possible_super {
                 None => None,
                 Some(super_) => {

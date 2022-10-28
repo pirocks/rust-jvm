@@ -2,6 +2,7 @@
 #![feature(box_syntax)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
+
 use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fs::File;
@@ -417,7 +418,7 @@ pub fn define_class_safe<'gc, 'l>(
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
     let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
-        RuntimeClassClass::new_new(&jvm.inheritance_tree, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
+        RuntimeClassClass::new_new(&jvm.inheritance_tree, &jvm.all_the_static_fields, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
     ));
     jvm.classpath.class_cache.write().unwrap().insert(class_view.name().unwrap_name(), parsed.clone());
     let mut class_view_cache = HashMap::new();
@@ -469,11 +470,11 @@ pub fn define_class_safe<'gc, 'l>(
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassFileInvalid(_))) => panic!(),
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
     };
-    let class_object = create_class_object(jvm, int_state, None, current_loader,ClassIntrinsicsData{
+    let class_object = create_class_object(jvm, int_state, None, current_loader, ClassIntrinsicsData {
         is_array: false,
         is_primitive: false,
         component_type: None,
-        this_cpdtype: class_name.into()
+        this_cpdtype: class_name.into(),
     })?;
     let mut classes = jvm.classes.write().unwrap();
     classes.anon_classes.push(runtime_class.clone());

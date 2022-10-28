@@ -1,9 +1,7 @@
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-use rust_jvm_common::StackNativeJavaValue;
 use crate::{JavaValueCommon, JVMState, NewJavaValueHandle};
-use crate::java_values::{native_to_new_java_value_rtype};
 
 pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc>) -> StaticVarGuard<'gc, 'l> {
     match class {
@@ -35,31 +33,27 @@ pub struct StaticVarGuard<'gc, 'l> {
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
     pub fn try_get(&self, field_name: FieldName) -> Option<NewJavaValueHandle<'gc>> {
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
-        let native = unsafe { self.runtime_class_class.static_vars.get(cpd_type.number).as_ptr().read() };
-        Some(native_to_new_java_value_rtype(StackNativeJavaValue { as_u64: native }, cpd_type.cpdtype.to_runtime_type().unwrap(), self.jvm))
+        //todo need to figure out aliasing
+
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
+        todo!()
+        // Some(native_to_new_java_value_rtype(StackNativeJavaValue { as_u64: native }, static_field_number_and_type.cpdtype.to_runtime_type().unwrap(), self.jvm))
     }
 
     pub fn get(&self, name: FieldName) -> NewJavaValueHandle<'gc> {
         self.try_get(name).unwrap()
     }
 
-    fn set_raw(&mut self, field_name: FieldName, native: u64) -> Option<()> {
+    fn set_raw(&mut self, field_name: FieldName, native: u64) {
         //todo really need static objects layout for all objects
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
-        let cpd_type = self.runtime_class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name })?;
-        unsafe { self.runtime_class_class.static_vars.get(cpd_type.number).as_ptr().write(native); }
-        Some(())
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
+        static_field.write_impl(native)
     }
 
     pub fn set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) {
-        self.try_set(name, elem).unwrap()
-    }
-
-    fn try_set(&mut self, name: FieldName, elem: NewJavaValueHandle<'gc>) -> Option<()> {
         let native_jv = elem.to_stack_native();
         let as_u64 = unsafe { native_jv.as_u64 };//todo this needs to be cleaner
-        self.set_raw(name, as_u64)?;
-        Some(())
+        self.set_raw(name, as_u64);
     }
 }

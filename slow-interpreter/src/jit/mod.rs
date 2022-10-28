@@ -13,8 +13,7 @@ use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
 use jvmti_jni_bindings::jint;
 use method_table::interface_table::InterfaceID;
-use runtime_class_stuff::{RuntimeClass, RuntimeClassClass, StaticFieldNumberAndFieldType};
-use runtime_class_stuff::field_numbers::FieldNameAndClass;
+use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -355,22 +354,5 @@ pub fn static_field_address<'gc, 'l>(jvm: &'gc JVMState<'gc>, runtime_class: &'l
 
 pub fn static_field_address_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, class_class: &'l RuntimeClassClass<'gc>, field_name: FieldName) -> Option<(&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType)> {
     let class_name = class_class.class_view.name().unwrap_name();
-    return match class_class.static_field_numbers.get(&FieldNameAndClass{ field_name, class_name }) {
-        None => {
-            if let Some(parent) = class_class.parent.as_ref() {
-                if let Some(res) = static_field_address_impl(jvm, parent.unwrap_class_class(), field_name) {
-                    return Some(res);
-                }
-            }
-            for interface_class in class_class.interfaces.iter() {
-                if let Some(res) = static_field_address_impl(jvm, interface_class.unwrap_class_class(), field_name) {
-                    return Some(res);
-                }
-            }
-            None
-        }
-        Some(StaticFieldNumberAndFieldType { number, cpdtype }) => {
-            Some((class_class, class_class.static_vars.get(*number), *cpdtype))
-        }
-    };
+    todo!();
 }

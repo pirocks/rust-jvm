@@ -23,7 +23,7 @@ use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
 use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
-use crate::interpreter::fields::{get_field, get_static, putfield, putstatic};
+use crate::interpreter::fields::{get_field, getstatic, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
 use crate::interpreter::new::{anewarray, multi_a_new_array, new, newarray};
@@ -51,13 +51,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //hd#readByte
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
-    // if true/*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
-    //     if let CInstructionInfo::ireturn = instruct{
-    //         interpreter_state.inner().debug_print_stack_trace(jvm);
-    //     }
-    //     dump_frame(interpreter_state, method, code, current_pc, instruct)
-    // }
+    if method.name().0.to_str(&jvm.string_pool) == "acquireConstructorAccessor"/*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
+        if let CInstructionInfo::ireturn = instruct{
+            interpreter_state.inner().debug_print_stack_trace(jvm);
+        }
+        dump_frame(interpreter_state, method, code, current_pc, instruct)
+    }
     jvm.thread_state.debug_assert(jvm);
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -151,7 +151,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::getfield { desc, target_class, name } => get_field(jvm, interpreter_state.current_frame_mut(), *target_class, *name, desc),
-        CInstructionInfo::getstatic { name, target_class, desc } => get_static(jvm, interpreter_state, *target_class, *name, desc),
+        CInstructionInfo::getstatic { name, target_class, desc } => getstatic(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::goto_(target) => goto_(jvm, *target as i32),
         CInstructionInfo::goto_w(target) => goto_(jvm, *target),
         CInstructionInfo::i2b => i2b(jvm, interpreter_state.current_frame_mut()),

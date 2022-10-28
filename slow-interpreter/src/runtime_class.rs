@@ -23,13 +23,16 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
         for field in view.fields() {
             if field.is_static() && field.is_final() {
                 //todo do I do this for non-static? Should I?
-                let constant_info_view = match field.constant_value_attribute() {
-                    None => continue,
-                    Some(i) => i,
-                };
-                let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
-                let name = field.field_name();
-                static_vars(runtime_class.deref(), jvm).set(name, constant_value);
+                let field_name = field.field_name();
+                match field.constant_value_attribute() {
+                    None => {
+                        static_vars(runtime_class.deref(), jvm).set(field_name, default_value(field.field_type()));
+                    },
+                    Some(constant_info_view) => {
+                        let constant_value = from_constant_pool_entry(&constant_info_view, jvm, int_state);
+                        static_vars(runtime_class.deref(), jvm).set(field_name, constant_value);
+                    },
+                }
             }
         }
     }
@@ -66,14 +69,14 @@ pub fn initialize_class<'gc, 'l>(runtime_class: Arc<RuntimeClass<'gc>>, jvm: &'g
     })
 }
 
-pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut impl PushableFrame<'vm>, classfile: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
+pub fn prepare_class<'vm, 'l, 'k>(jvm: &'vm JVMState<'vm>, int_state: &mut impl PushableFrame<'vm>, class_view: Arc<dyn ClassView>, res: &mut StaticVarGuard<'vm, 'k>) {
     if let Some(jvmti) = jvm.jvmti_state() {
-        if let CPDType::Class(cn) = classfile.type_() {
+        if let CPDType::Class(cn) = class_view.type_() {
             jvmti.built_in_jdwp.class_prepare(jvm, &cn, int_state)
         }
     }
 
-    for field in classfile.fields() {
+    for field in class_view.fields() {
         if field.is_static() {
             let val = default_value(field.field_type());
             res.set(field.field_name(), val);

@@ -264,7 +264,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
             }
 
             let res = Arc::new(RuntimeClass::Object(
-                RuntimeClassClass::new_new(&jvm.inheritance_tree, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(), &jvm.string_pool, &jvm.class_ids)
+                RuntimeClassClass::new_new(&jvm.inheritance_tree, &jvm.all_the_static_fields,&mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), parent, interfaces, ClassStatus::UNPREPARED.into(), &jvm.string_pool, &jvm.class_ids)
             ));
             let mut verifier_context = VerifierContext {
                 live_pool_getter: Arc::new(DefaultLivePoolGetter {}) as Arc<dyn LivePoolGetter>,

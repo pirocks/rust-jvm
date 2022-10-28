@@ -10,6 +10,7 @@ use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
+use itertools::all;
 use raw_cpuid::CpuId;
 use classfile_view::view::ClassBackedView;
 
@@ -24,6 +25,7 @@ use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
+use runtime_class_stuff::static_fields::AllTheStaticFields;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -191,12 +193,13 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
     } else {
         None
     };
+    let all_the_static_fields = AllTheStaticFields::new();
     let thread_state = ThreadState::new(scope);
     let class_ids = ClassIDs::new();
     let object_class_id = class_ids.get_id_or_add(CPDType::object());
     let inheritance_tree = InheritanceTree::new(object_class_id);
     let bt_vec_paths = RwLock::new(BitVecPaths::new());
-    let classes = init_classes(&string_pool, &class_ids, &inheritance_tree, &mut bt_vec_paths.write().unwrap(), &classpath_arc);
+    let classes = init_classes(&string_pool, &all_the_static_fields, &class_ids, &inheritance_tree, &mut bt_vec_paths.write().unwrap(), &classpath_arc);
     let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 
     let jvm = JVMState {
@@ -258,13 +261,14 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         interface_arrays: RwLock::new(InterfaceArrays::new()),
         program_args_array: Default::default(),
         mangling_regex: ManglingRegex::new(),
-        default_per_stack_initial_interfaces: initial_per_stack_interfaces()
+        default_per_stack_initial_interfaces: initial_per_stack_interfaces(),
+        all_the_static_fields: all_the_static_fields
     };
     (args, jvm)
 }
 
 
-fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs, inheritance_tree: &InheritanceTree, bit_vec_paths: &mut BitVecPaths, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
+fn init_classes<'gc>(pool: &CompressedClassfileStringPool, all_the_static_fields: &AllTheStaticFields, class_ids: &ClassIDs, inheritance_tree: &InheritanceTree, bit_vec_paths: &mut BitVecPaths, classpath_arc: &Arc<Classpath>) -> RwLock<Classes<'gc>> {
     //todo turn this into a ::new
     let class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::class(), pool).unwrap(), pool));
     let serializable_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::serializable(), pool).unwrap(), pool));
@@ -274,6 +278,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
     let object_class_view = Arc::new(ClassBackedView::from(classpath_arc.lookup(&CClassName::object(), pool).unwrap(), pool));
     let temp_object_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         object_class_view.clone(),
         None,
@@ -285,6 +290,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
 
     let annotated_element_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         annotated_element_view,
         None,
@@ -296,6 +302,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
 
     let type_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         type_view,
         None,
@@ -307,6 +314,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
 
     let serializable_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         serializable_view,
         None,
@@ -319,6 +327,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
 
     let generic_declaration_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         generic_declaration_view,
         None,
@@ -330,6 +339,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
     //todo Class does implement several interfaces, but non handled here
     let class_class = Arc::new(RuntimeClass::Object(RuntimeClassClass::new_new(
         inheritance_tree,
+        all_the_static_fields,
         bit_vec_paths,
         class_view.clone(),
         Some(temp_object_class),
@@ -344,7 +354,7 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, class_ids: &ClassIDs,
     loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::type_().into(), type_class.clone());
     loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::generic_declaration().into(), generic_declaration_class.clone());
     loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_default().insert(CClassName::annotated_element().into(), annotated_element_class.clone());
-    let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>), RandomState> = Default::default();
+    let mut initiating_loaders: HashMap<CPDType, (LoaderName, Arc<RuntimeClass<'gc>>)> = Default::default();
     initiating_loaders.insert(CClassName::class().into(), (LoaderName::BootstrapLoader, class_class.clone()));
     initiating_loaders.insert(CClassName::serializable().into(), (LoaderName::BootstrapLoader, serializable_class.clone()));
     initiating_loaders.insert(CClassName::type_().into(), (LoaderName::BootstrapLoader, type_class.clone()));

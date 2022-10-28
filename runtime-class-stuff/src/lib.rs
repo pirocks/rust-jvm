@@ -24,10 +24,10 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
 use rust_jvm_common::method_shape::MethodShape;
 
-use crate::field_numbers::{FieldNameAndClass, FieldNumber, FieldNumbers, get_field_numbers, get_field_numbers_static, StaticFieldNumber, StaticOrNormalFieldNumber};
+use crate::field_numbers::{FieldNameAndClass, FieldNumber, get_field_numbers};
 use crate::method_numbers::{get_method_numbers, MethodNumber};
 use crate::object_layout::ObjectLayout;
-use crate::static_fields::RawStaticFields;
+use crate::static_fields::{AllTheStaticFields, get_field_numbers_static};
 
 pub mod object_layout;
 pub mod array_layout;
@@ -149,14 +149,10 @@ pub struct RuntimeClassArray<'gc> {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
-pub struct FieldNumberAndFieldTypeImpl<T: StaticOrNormalFieldNumber> {
-    pub number: T,
+pub struct FieldNumberAndFieldType {
+    pub number: FieldNumber,
     pub cpdtype: CPDType,
 }
-
-
-pub type FieldNumberAndFieldType = FieldNumberAndFieldTypeImpl<FieldNumber>;
-pub type StaticFieldNumberAndFieldType = FieldNumberAndFieldTypeImpl<StaticFieldNumber>;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub struct FieldNameAndFieldType {
@@ -170,10 +166,6 @@ pub struct RuntimeClassClass<'gc> {
     pub method_numbers_reverse: HashMap<MethodNumber, MethodShape>,
     pub object_layout: ObjectLayout,
     pub recursive_num_methods: u32,
-    pub static_field_numbers: HashMap<FieldNameAndClass, StaticFieldNumberAndFieldType>,
-    pub static_field_numbers_reverse: HashMap<StaticFieldNumber, FieldNameAndFieldType>,
-    pub static_vars: RawStaticFields,
-    // pub static_vars: Vec<UnsafeCell<NativeJavaValue<'gc>>>,
     pub parent: Option<Arc<RuntimeClass<'gc>>>,
     pub interfaces: Vec<Arc<RuntimeClass<'gc>>>,
     pub class_id_path: Option<Vec<ClassID>>,
@@ -189,6 +181,7 @@ pub struct RuntimeClassClass<'gc> {
 
 impl<'gc> RuntimeClassClass<'gc> {
     pub fn new_new(inheritance_tree: &InheritanceTree,
+                   all_the_static_fields: &AllTheStaticFields,
                    bit_vec_paths: &mut BitVecPaths,
                    class_view: Arc<ClassBackedView>,
                    parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -199,12 +192,12 @@ impl<'gc> RuntimeClassClass<'gc> {
     ) -> Self {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
-        let static_field_numbers = get_field_numbers_static(&class_view, &parent);
-        Self::new(inheritance_tree, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, static_field_numbers, class_id_path)
+        Self::new(inheritance_tree, all_the_static_fields,bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, class_id_path)
     }
 
     pub fn new(
         inheritance_tree: &InheritanceTree,
+        all_the_static_fields: &AllTheStaticFields,
         bit_vec_paths: &mut BitVecPaths,
         class_view: Arc<ClassBackedView>,
         parent: Option<Arc<RuntimeClass<'gc>>>,
@@ -212,7 +205,6 @@ impl<'gc> RuntimeClassClass<'gc> {
         status: RwLock<ClassStatus>,
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_methods: u32,
-        static_field_numbers: FieldNumbers<StaticFieldNumber>,
         class_id_path: Vec<ClassID>,
     ) -> Self {
 
@@ -228,8 +220,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             None
         };
 
-        let (static_field_numbers, static_field_numbers_reverse) = static_field_numbers.reverse_fields();
-        let recursive_num_static_fields = static_field_numbers_reverse.len();
+        all_the_static_fields.sink_class_load(get_field_numbers_static(&class_view, &parent));
 
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
@@ -242,9 +233,6 @@ impl<'gc> RuntimeClassClass<'gc> {
             method_numbers_reverse,
             object_layout,
             recursive_num_methods,
-            static_field_numbers,
-            static_field_numbers_reverse,
-            static_vars: RawStaticFields::new(recursive_num_static_fields as usize),
             parent,
             interfaces,
             class_id_path: Some(class_id_path),
