@@ -52,7 +52,6 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
     let array_ref = Register(2);
     let array_layout = ArrayMemoryLayout::from_cpdtype(arr_type);
     assert_eq!(array_layout.len_entry_offset(), 0);//needs to be zero for this impl
-    assert_eq!(array_layout.elem_0_entry_offset(), size_of::<jint>());
     let elem_0_offset_register = Register(3);
     let length = Register(4);
     let res = Register(5);
@@ -68,7 +67,7 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
         IRInstr::BoundsCheck { length, index, size: Size::int(), exit: IRVMExitType::ArrayOutOfBounds { java_pc: current_instr_data.current_offset } },
         IRInstr::MulConst { res: index, a: array_layout.elem_size() as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
-        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size },
+        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size },//todo need sign extend now for reals
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: runtime_type_to_size(&arr_type.to_runtime_type().unwrap()) }
     ])
 }

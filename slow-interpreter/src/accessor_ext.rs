@@ -1,6 +1,7 @@
+use std::ffi::c_void;
 use std::ptr::{NonNull, null_mut};
 
-use jvmti_jni_bindings::{jboolean, jobject};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jobject};
 use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::array_layout::ArrayAccessor;
 use runtime_class_stuff::object_layout::FieldAccessor;
@@ -19,13 +20,13 @@ pub trait AccessorExt: Accessor {
                 self.write_boolean(njv.unwrap_int() as jboolean)//todo add an assert that there can be no other vals set?
             }
             CPDType::ByteType => {
-                todo!()
+                self.write_byte(njv.unwrap_int() as jbyte) //todo assert?
             }
             CPDType::ShortType => {
                 todo!()
             }
             CPDType::CharType => {
-                todo!()
+                self.write_char(njv.unwrap_int() as jchar);//todo assert?
             }
             CPDType::IntType => {
                 self.write_int(njv.unwrap_int());
@@ -59,7 +60,7 @@ pub trait AccessorExt: Accessor {
     fn read_njv<'gc>(&self, jvm: &'gc JVMState<'gc>, expected_type: CPDType) -> NewJavaValueHandle<'gc> {
         match expected_type {
             CPDType::BooleanType => {
-                todo!()
+                NewJavaValueHandle::Boolean(self.read_boolean())
             }
             CPDType::ByteType => {
                 todo!()
@@ -68,7 +69,7 @@ pub trait AccessorExt: Accessor {
                 todo!()
             }
             CPDType::CharType => {
-                todo!()
+                NewJavaValueHandle::Char(self.read_char())
             }
             CPDType::IntType => {
                 NewJavaValueHandle::Int(self.read_int())
@@ -98,11 +99,75 @@ pub trait AccessorExt: Accessor {
     }
 
     fn read_interpreter_jv(&self, expected_type: CPDType) -> InterpreterJavaValue {
-        todo!()
+        match expected_type {
+            CPDType::BooleanType => {
+                todo!()
+            }
+            CPDType::ByteType => {
+                InterpreterJavaValue::Int(self.read_byte() as i32)
+            }
+            CPDType::ShortType => {
+                todo!()
+            }
+            CPDType::CharType => {
+                InterpreterJavaValue::Int(self.read_char() as i32)
+            }
+            CPDType::IntType => {
+                todo!()
+            }
+            CPDType::LongType => {
+                todo!()
+            }
+            CPDType::FloatType => {
+                todo!()
+            }
+            CPDType::DoubleType => {
+                todo!()
+            }
+            CPDType::VoidType => {
+                todo!()
+            }
+            CPDType::Class(_) |
+            CPDType::Array { .. } => {
+                InterpreterJavaValue::Object(NonNull::new(self.read_object() as *mut c_void))
+            }
+        }
     }
 
     fn write_interpreter_jv(&self, to_write: InterpreterJavaValue, expected_type: CPDType) {
-        todo!()
+        match expected_type {
+            CPDType::BooleanType => {
+                todo!()
+            }
+            CPDType::ByteType => {
+                todo!()
+            }
+            CPDType::ShortType => {
+                todo!()
+            }
+            CPDType::CharType => {
+                self.write_char(to_write.unwrap_int() as jchar) //todo assert zero
+            }
+            CPDType::IntType => {
+                todo!()
+            }
+            CPDType::LongType => {
+                todo!()
+            }
+            CPDType::FloatType => {
+                todo!()
+            }
+            CPDType::DoubleType => {
+                todo!()
+            }
+            CPDType::VoidType => {
+                todo!()
+            }
+            CPDType::Class(_) |
+            CPDType::Array { .. } => {
+                self.write_object(to_write.unwrap_object().map(|obj|obj.cast().as_ptr()).unwrap_or(null_mut()))
+            }
+        }
     }
 }
 
