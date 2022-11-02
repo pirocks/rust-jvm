@@ -1,7 +1,8 @@
 use std::os::raw::c_void;
 use std::ptr::NonNull;
 
-use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNI_COMMIT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize, jvalue};
+use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNI_ABORT, JNI_COMMIT, JNIEnv, jobject, jobjectArray, jshort, jshortArray, jsize};
+use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
@@ -63,14 +64,14 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
 pub mod array_region;
 pub mod new;
 
-pub fn array_fast_copy_set<T>(carray: *const T, base: *mut jvalue, len: i32) {
+pub fn array_fast_copy_set<T>(carray: *const T, array_layout: ArrayMemoryLayout, raw_array: NonNull<c_void>, len: i32) {
     for i in 0..len {
-        //todo use layout
-        todo!();
-        // unsafe { base.offset(i as isize).cast::<T>().write(carray.offset(i as isize).read()); }
+        let accessor = array_layout.calculate_index_address(raw_array,i);
+        accessor.write_impl(unsafe { carray.offset(i as isize).read(); });
     }
 }
-pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, array: jarray, carray: *mut c_void, mode: jint) {
+
+pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, raw_array: jarray, carray: *mut c_void, mode: jint) {
     // assert_eq!(mode, 0);
     if mode == JNI_ABORT as i32 {
         return;
@@ -78,81 +79,79 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, arra
     //todo handle JNI_COMMIT
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object_new(jvm, array) {
+    let not_null = match from_object_new(jvm, raw_array) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
         }
     };
     let array = not_null.unwrap_array();
-    let array_type = &array.elem_cpdtype();
+    let array_subtype = &array.elem_cpdtype();
     // for i in 0..array.len() {
-        match array_type {
-            CPDType::ByteType => {
-                todo!("use array layout")
-                /*array_fast_copy_set::<jbyte>(carray as *const jbyte, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
-                // array.set_i(i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
-            }
-            CPDType::CharType => {
-                // array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
-                todo!()
-            }
-            CPDType::DoubleType => {
-                // array.set_i(jvm, i, JavaValue::Double((carray as *const jdouble).offset(i as isize).read()));
-                todo!()
-            }
-            CPDType::FloatType => {
-                // array.set_i(jvm, i, JavaValue::Float((carray as *const jfloat).offset(i as isize).read()));
-                todo!()
-            }
-            CPDType::IntType => {
-                todo!("use array layout")
-                /*array_fast_copy_set::<jint>(carray as *const jint, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
-                // array.set_i(i, NewJavaValue::Int((carray as *const jint).offset(i as isize).read()));
-            }
-            CPDType::LongType => {
-                // array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
-                todo!()
-            }
-            CPDType::Class(_) | CPDType::Array { .. } => {
-                // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
-                todo!()
-            }
-            CPDType::ShortType => {
-                // array.set_i(jvm, i, JavaValue::Short((carray as *const jshort).offset(i as isize).read()));
-                todo!()
-            }
-            CPDType::BooleanType => {
-                // let boolean = (carray as *const jboolean).offset(i as isize).read();
-                // assert!(boolean == 1 || boolean == 0);
-                // array.set_i(jvm, i, JavaValue::Boolean(boolean));
-                todo!()
-            }
-            _ => panic!(),
+    let array_memory_layout = ArrayMemoryLayout::from_cpdtype(*array_subtype);
+    match array_subtype {
+        CPDType::ByteType => {
+            array_fast_copy_set::<jbyte>(carray as *const jbyte, array_memory_layout, NonNull::new(raw_array as *mut c_void).unwrap(), array.len())
+            // array.set_i(i, NewJavaValue::Byte((carray as *const jbyte).offset(i as isize).read()));
         }
+        CPDType::CharType => {
+            // array.set_i(jvm, i, JavaValue::Char((carray as *const jchar).offset(i as isize).read()));
+            todo!()
+        }
+        CPDType::DoubleType => {
+            // array.set_i(jvm, i, JavaValue::Double((carray as *const jdouble).offset(i as isize).read()));
+            todo!()
+        }
+        CPDType::FloatType => {
+            // array.set_i(jvm, i, JavaValue::Float((carray as *const jfloat).offset(i as isize).read()));
+            todo!()
+        }
+        CPDType::IntType => {
+            todo!("use array layout")
+            /*array_fast_copy_set::<jint>(carray as *const jint, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
+            // array.set_i(i, NewJavaValue::Int((carray as *const jint).offset(i as isize).read()));
+        }
+        CPDType::LongType => {
+            // array.set_i(jvm, i, JavaValue::Long((carray as *const jlong).offset(i as isize).read()));
+            todo!()
+        }
+        CPDType::Class(_) | CPDType::Array { .. } => {
+            // array.set_i(jvm, i, JavaValue::Object(from_object(jvm, (carray as *const jobject).offset(i as isize).read())));
+            todo!()
+        }
+        CPDType::ShortType => {
+            // array.set_i(jvm, i, JavaValue::Short((carray as *const jshort).offset(i as isize).read()));
+            todo!()
+        }
+        CPDType::BooleanType => {
+            // let boolean = (carray as *const jboolean).offset(i as isize).read();
+            // assert!(boolean == 1 || boolean == 0);
+            // array.set_i(jvm, i, JavaValue::Boolean(boolean));
+            todo!()
+        }
+        _ => panic!(),
+    }
     // }
     if mode != JNI_COMMIT as jint {
         //todo free carray
     }
 }
 
-pub fn array_fast_copy_get<T>(memory_layout: ArrayMemoryLayout,array: NonNull<c_void>, len: i32) -> Vec<T>{
-    let vec = Vec::with_capacity(len as usize);
-    // unsafe {
-        for i in 0..len {
-            let val: T = todo!()/*base.offset(i as isize).cast::<T>().read()*/;
-            vec.push(val);
-        }
-    // }
+pub fn array_fast_copy_get<T>(memory_layout: ArrayMemoryLayout, array: NonNull<c_void>, len: i32) -> Vec<T> {
+    let mut vec = Vec::with_capacity(len as usize);
+    for i in 0..len {
+        let val: T = memory_layout.calculate_index_address(array, i).read_impl();
+        vec.push(val);
+    }
     vec
 }
 
-pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: jarray, is_copy: *mut jboolean) -> *mut c_void {
+pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array_raw: jarray, is_copy: *mut jboolean) -> *mut c_void {
     //todo this is slow for some reason?
     // todo fast path copy for non-object arrays?
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let not_null = match from_object_new(jvm, array) {
+    let not_null = match from_object_new(jvm, array_raw) {
         Some(x) => x,
         None => {
             return throw_npe(jvm, int_state);
@@ -165,7 +164,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array: j
     //dup but difficult to make into template so ehh
     match &array.elem_cpdtype() {
         CPDType::ByteType => {
-            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jbyte>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
+            let res: Vec<jbyte> = array_fast_copy_get::<jbyte>(ArrayMemoryLayout::from_cpdtype(array.elem_cpdtype()), NonNull::new(array_raw as *mut c_void).unwrap(), array.len());
             // let res = array.array_iterator().map(|elem| elem.unwrap_byte_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }

@@ -3,6 +3,7 @@ use itertools::Either;
 use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
@@ -85,7 +86,7 @@ pub fn checkcast_impl<'vm>(
                             label: checkcast_succeeds,
                             size: Size::int(),
                         },
-                        IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset } }
+                        IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset, todo_case: TodoCase::CheckcastFailure } }
                     ]));
                 }
             } else if rc.view().is_interface() {
@@ -101,7 +102,7 @@ pub fn checkcast_impl<'vm>(
                         label: checkcast_succeeds,
                         size: Size::int(),
                     },
-                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset } }
+                    IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset, todo_case: TodoCase::CheckcastFailure2 } }
                 ]))
             } else {
                 res.push(restart_point);

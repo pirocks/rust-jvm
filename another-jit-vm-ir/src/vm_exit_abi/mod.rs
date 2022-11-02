@@ -15,7 +15,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
 use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
-use crate::vm_exit_abi::runtime_input::RawVMExitType;
+use crate::vm_exit_abi::runtime_input::{RawVMExitType, TodoCase};
 
 pub mod register_structs;
 pub mod runtime_input;
@@ -120,7 +120,8 @@ pub enum IRVMExitType {
     },
     TopLevelReturn,
     Todo {
-        java_pc: ByteCodeOffset
+        java_pc: ByteCodeOffset,
+        todo_case: TodoCase
     },
     InstanceOf {
         value: FramePointerOffset,
@@ -358,9 +359,10 @@ impl IRVMExitType {
                 assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(GetStatic::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::Todo { java_pc } => {
+            IRVMExitType::Todo { java_pc, todo_case } => {
                 assembler.mov(rax, RawVMExitType::Todo as u64).unwrap();
                 assembler.mov(Todo::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.mov(Todo::TODO_CASE.to_native_64(), *todo_case as u64).unwrap();
             }
             IRVMExitType::InstanceOf { value, res, cpdtype, java_pc } => {
                 assembler.mov(rax, RawVMExitType::InstanceOf as u64).unwrap();

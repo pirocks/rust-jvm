@@ -201,9 +201,9 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::ArrayOutOfBounds { pc } => {
                 exit_impls::array_out_of_bounds(&jvm, int_state.unwrap())
             }
-            RuntimeVMExitInput::Todo { pc } => {
-                todo!();
-                // /*int_state.unwrap()*/.debug_print_stack_trace(jvm);
+            RuntimeVMExitInput::Todo { pc, todo_case } => {
+                dbg!(todo_case);
+                int_state.unwrap().debug_print_stack_trace(jvm);
                 todo!()
             }
             RuntimeVMExitInput::AllocateObjectArrayIntrinsic { type_, len, return_to_ptr, res_address } => {

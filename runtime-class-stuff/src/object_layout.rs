@@ -109,6 +109,10 @@ impl ObjectLayout {
         //can't have zero size objects
         NonZeroUsize::new(res_size).unwrap_or(NonZeroUsize::new(1).unwrap())
     }
+
+    pub fn lookup_hidden_field_offset(&self, to_lookup: HiddenJVMField) -> usize{
+        (self.hidden_field_numbers.get(&to_lookup).unwrap().number.0 as usize * size_of::<u64>()) as usize
+    }
 }
 
 // todo dup with array layout
@@ -116,6 +120,15 @@ impl ObjectLayout {
 pub struct FieldAccessor {
     expected_type: CPDType,
     inner: NonNull<c_void>,
+}
+
+impl FieldAccessor{
+    pub fn new(address: NonNull<c_void>, expected_type: CPDType) -> Self{
+        Self{
+            expected_type,
+            inner: address
+        }
+    }
 }
 
 impl Accessor for FieldAccessor {

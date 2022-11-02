@@ -60,9 +60,20 @@ pub enum RawVMExitType {
     RunStaticNativeNew,
     RunSpecialNativeNew,
     RunInterpreted,
-    AllocateObjectArrayIntrinsic
+    AllocateObjectArrayIntrinsic,
 }
 
+
+#[derive(FromPrimitive)]
+#[repr(u64)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TodoCase {
+    CheckcastFailure,
+    CheckcastFailure2,
+    TableSwitchFallthrough,
+    ArrayCopyFailure,
+    Other
+}
 
 #[derive(Debug)]
 pub enum RuntimeVMExitInput {
@@ -281,6 +292,7 @@ pub enum RuntimeVMExitInput {
     },
     Todo {
         pc: ByteCodeOffset,
+        todo_case: TodoCase,
     },
 }
 
@@ -497,7 +509,10 @@ impl RuntimeVMExitInput {
                 }
             }
             RawVMExitType::Todo => {
-                RuntimeVMExitInput::Todo { pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(Todo::JAVA_PC) as u16) }
+                RuntimeVMExitInput::Todo {
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(Todo::JAVA_PC) as u16),
+                    todo_case: TodoCase::from_u64(register_state.saved_registers_without_ip.get_register(Todo::TODO_CASE) as u64).unwrap(),
+                }
             }
             RawVMExitType::InvokeInterfaceResolve => {
                 RuntimeVMExitInput::InvokeInterfaceResolve {
@@ -561,7 +576,7 @@ impl RuntimeVMExitInput {
                         type_: CPDTypeID((register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::TYPE) as *const u32).read()),
                         len: (register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::LEN) as *const i32).read(),
                         return_to_ptr: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RESTART_IP) as *const c_void,
-                        res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RES_PTR) as *mut NonNull<c_void>
+                        res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RES_PTR) as *mut NonNull<c_void>,
                     }
                 }
             }
@@ -605,7 +620,7 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::MonitorEnterRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::MonitorExitRegister { pc, .. } => Some(*pc),
             RuntimeVMExitInput::ArrayOutOfBounds { pc, .. } => Some(*pc),
-            RuntimeVMExitInput::Todo { pc } => Some(*pc),
+            RuntimeVMExitInput::Todo { pc, .. } => Some(*pc),
             RuntimeVMExitInput::AllocateObjectArrayIntrinsic { .. } => None
         }
     }

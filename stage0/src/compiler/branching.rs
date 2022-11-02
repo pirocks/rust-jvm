@@ -1,6 +1,7 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use rust_jvm_common::ByteCodeOffset;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData};
@@ -195,6 +196,6 @@ pub fn tableswitch(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
             size: Size::int(),
         });
     }
-    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset } });
+    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: current_instr_data.current_offset, todo_case: TodoCase::TableSwitchFallthrough } });
     res.into_iter()
 }

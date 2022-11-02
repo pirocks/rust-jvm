@@ -166,12 +166,13 @@ pub struct Todo;
 
 impl Todo {
     pub const JAVA_PC: Register = Register(6);
+    pub const TODO_CASE: Register = Register(5);
 }
 
 impl ExitRegisterStruct for Todo {
     fn all_registers() -> HashSet<Register> {
         HashSet::from([Register(0),
-            Self::JAVA_PC
+            Self::JAVA_PC, Self::TODO_CASE
         ])
     }
 }

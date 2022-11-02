@@ -3,6 +3,7 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
+use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
@@ -193,7 +194,7 @@ pub fn intrinsic_array_copy<'gc>(
     res.push(IRInstr::BranchToLabel { label: copy_label });
     res.push(IRInstr::Label(IRLabel { name: todo_label }));
     // res.push(IRInstr::DebuggerBreakpoint);
-    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: ByteCodeOffset(0) } });
+    res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: ByteCodeOffset(0), todo_case: TodoCase::ArrayCopyFailure } });
     res.push(IRInstr::Label(IRLabel { name: copy_label }));
     // pub fn memmove(dest: *mut c_void, src: *const c_void, n: size_t) -> *mut c_void;
     res.push(IRInstr::CallIntrinsicHelper {
