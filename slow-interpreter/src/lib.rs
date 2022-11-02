@@ -15,7 +15,8 @@
 #![feature(once_cell)]
 #![feature(is_sorted)]
 #![feature(allocator_api)]
-
+#![feature(print_internals)]
+#![feature(fmt_internals)]
 
 extern crate alloc;
 

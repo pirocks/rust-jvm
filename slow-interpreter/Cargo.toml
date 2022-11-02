@@ -14,6 +14,7 @@ classfile-view = { path = "../classfile-view" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 threads = { path = "../threads" }
+xtask = { path = "../xtask" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
 another-jit-vm = { path = "../another-jit-vm" }
 another-jit-vm-ir = { path = "../another-jit-vm-ir" }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, xmm0, xmm1, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, rsp, xmm0, xmm1, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
 use another_jit_vm::{Register, VMState};
@@ -441,6 +441,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.mov(region_header.to_native_64(), *region_header_ptr as u64).unwrap();
             assembler.mov(region_header.to_native_64(), qword_ptr(region_header.to_native_64())).unwrap();
             assembler.mov(rdi,region_header.to_native_64()).unwrap();
+            assembler.and(rsp, -32).unwrap();//align stack pointer
             assembler.call(qword_ptr(r15 + IntrinsicHelperType::GetConstantAllocation.r15_offset())).unwrap();
             assembler.mov(res.to_native_64(), rax).unwrap();
             assembler.sub(zero.to_native_64(), zero.to_native_64()).unwrap();
@@ -557,6 +558,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
+                    assembler.and(rsp, -32).unwrap();//align stack pointer
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                 }
                 IntrinsicHelperType::Malloc => {
@@ -568,6 +570,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
+                    assembler.and(rsp, -32).unwrap();//align stack pointer
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                     let integer_res = integer_res.unwrap();
                     assembler.mov(integer_res.to_native_64(), rax).unwrap();
@@ -581,6 +584,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     for (from_arg, to_arg) in integer_args.iter().zip(args.iter()) {
                         assembler.mov(*to_arg, from_arg.to_native_64()).unwrap();
                     }
+                    assembler.and(rsp, -32).unwrap();//align stack pointer
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                     assert!(integer_res.is_none());
                 }
@@ -596,6 +600,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     }
                     assert!(integer_args.is_empty());
                     assert!(double_args.is_empty());
+                    assembler.and(rsp, -32).unwrap();//align stack pointer
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                     let float_res = float_res.unwrap();
                     assembler.movdqa(float_res.to_xmm(), xmm0).unwrap();
@@ -614,6 +619,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     }
                     assert!(integer_args.is_empty());
                     assert!(float_args.is_empty());
+                    assembler.and(rsp, -32).unwrap();//align stack pointer
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                     let double_res = double_res.unwrap();
                     assembler.movdqa(double_res.to_xmm(), xmm0).unwrap();

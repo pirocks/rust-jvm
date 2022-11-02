@@ -32,7 +32,7 @@ enum ArrayAlign {
 // }
 
 impl ArrayMemoryLayout {
-    pub fn from_cpdtype(sub_type: CPDType) -> Self {
+    pub const fn from_cpdtype(sub_type: CPDType) -> Self {
         Self {
             sub_type
         }

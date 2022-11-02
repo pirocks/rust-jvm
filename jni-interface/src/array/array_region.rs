@@ -1,6 +1,5 @@
 use std::ptr::NonNull;
 use libc::c_void;
-use num_traits::NumCast;
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
 use runtime_class_stuff::accessor::Accessor;
@@ -30,21 +29,22 @@ pub unsafe extern "C" fn get_int_array_region(env: *mut JNIEnv, array: jintArray
     array_region_integer_types(env, array, start, len, buf)
 }
 
-unsafe fn array_region_integer_types<T: NumCast>(env: *mut JNIEnv, array: jarray, start: jsize, len: jsize, buf: *mut T) {
+unsafe fn array_region_integer_types<T>(env: *mut JNIEnv, raw_array: jarray, start: jsize, len: jsize, buf: *mut T) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
 
-    let non_null_array_obj = match from_object_new(jvm, array) {
+    let non_null_array_obj = match from_object_new(jvm, raw_array) {
         None => {
             return throw_npe(jvm, int_state);
         }
         Some(x) => x,
     };
     let array = non_null_array_obj.unwrap_array();
+    let array_subtype = array.elem_cpdtype();
+    let layout = ArrayMemoryLayout::from_cpdtype(array_subtype);
     for i in 0..len {
-        todo!("use array layout")
-        /*let elem = T::from(array.get_i((start + i) as i32).unwrap_int()).unwrap();
-        buf.offset(i as isize).write(elem)*/
+        let elem = layout.calculate_index_address(NonNull::new(raw_array as *mut c_void).unwrap(),i);
+        buf.offset(i as isize).write(elem.read_impl())
     }
 }
 

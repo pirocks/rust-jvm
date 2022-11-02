@@ -61,22 +61,23 @@ impl ConstantRegionHeaderWrapper<'_> {
         let region_base = self.region_header_raw.as_ptr().add(1);
         assert_eq!((self.region_header_raw.as_ptr() as *mut c_void).add(size_of::<RegionHeader>()), region_base as *mut c_void);
         let region_elem_size = self.region_elem_size().get();
-        if self.inner.current_ptr.load(Ordering::SeqCst) >= self.inner.region_max_ptr.as_ptr() {
+        if self.inner.current_ptr.load(Ordering::SeqCst).add(region_elem_size) >= self.inner.region_max_ptr.as_ptr() {
             return None;
         }
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
-            let expected_res = current_ptr.add(region_elem_size);
-            if expected_res >= self.inner.region_max_ptr.as_ptr() {
+            let new_current_pointer = current_ptr.add(region_elem_size);
+            if new_current_pointer >= self.inner.region_max_ptr.as_ptr() {
                 return None;
             }
-            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res, Ordering::SeqCst, Ordering::SeqCst) {
-                break expected_res;
+            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, new_current_pointer, Ordering::SeqCst, Ordering::SeqCst) {
+                break new_current_pointer.sub(region_elem_size);
             }
         };
         assert!(res < self.inner.region_max_ptr.as_ptr());
+        assert!(res.add(self.region_elem_size().get()) < self.inner.region_max_ptr.as_ptr());
         assert_eq!(self.inner.region_header_magic_1, RegionHeader::REGION_HEADER_MAGIC);
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         libc::memset(res, 0, self.region_elem_size().get());
@@ -104,14 +105,17 @@ impl VariableRegionHeaderWrapper<'_> {
         assert_eq!(self.inner.region_header_magic_2, RegionHeader::REGION_HEADER_MAGIC);
         assert!(self.inner.region_elem_size.is_none());
         let before_type = self.inner.region_type;
+        if self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()) >= self.inner.region_max_ptr.as_ptr() {
+            return None;
+        }
         let res = loop {
             let current_ptr = self.inner.current_ptr.load(Ordering::SeqCst);
-            let expected_res_address = current_ptr.add(size.get());
-            if expected_res_address >= self.inner.region_max_ptr.as_ptr() {
+            let next_current_ptr = current_ptr.add(size.get());
+            if next_current_ptr >= self.inner.region_max_ptr.as_ptr() {
                 return None;
             }
-            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, expected_res_address, Ordering::SeqCst, Ordering::SeqCst) {
-                break current_ptr;
+            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, next_current_ptr, Ordering::SeqCst, Ordering::SeqCst) {
+                break next_current_ptr.sub(size.get());
             }
         };
         assert!(res < self.inner.region_max_ptr.as_ptr());
@@ -352,6 +356,7 @@ impl MemoryRegions {
                 region_max_ptr,
             });
         }
+        self.region_header_at(current_region_to_use, our_index, true);
         region_header_ptr
     }
 

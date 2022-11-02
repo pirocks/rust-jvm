@@ -1,6 +1,5 @@
 #![feature(box_syntax)]
 #![feature(box_patterns)]
-#![feature(arbitrary_enum_discriminant)]
 #![allow(unreachable_code)]
 #![allow(dead_code)]
 

@@ -13,7 +13,7 @@ use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::memory_regions::MemoryRegions;
+use gc_memory_layout_common::memory_regions::{MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{RuntimeClass};
 use runtime_class_stuff::array_layout::ArrayMemoryLayout;

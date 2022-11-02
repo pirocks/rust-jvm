@@ -68,7 +68,7 @@ impl<'gc> AllTheStaticFields<'gc> {
             let static_field = write_guard.entry(field_and_name_class).or_insert(StaticField::new(cpdtype)).clone();
             for alias in aliases {
                 let inserted = write_guard.entry(alias).or_insert(static_field.clone()).clone();
-                assert!(Arc::ptr_eq(&inserted, &static_field));
+                // assert!(Arc::ptr_eq(&inserted, &static_field));
             }
         }
     }

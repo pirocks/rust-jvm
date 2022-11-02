@@ -63,7 +63,7 @@ pub trait AccessorExt: Accessor {
                 NewJavaValueHandle::Boolean(self.read_boolean())
             }
             CPDType::ByteType => {
-                todo!()
+                NewJavaValueHandle::Byte(self.read_byte())
             }
             CPDType::ShortType => {
                 todo!()
@@ -113,10 +113,10 @@ pub trait AccessorExt: Accessor {
                 InterpreterJavaValue::Int(self.read_char() as i32)
             }
             CPDType::IntType => {
-                todo!()
+                InterpreterJavaValue::Int(self.read_int())
             }
             CPDType::LongType => {
-                todo!()
+                InterpreterJavaValue::Long(self.read_long())
             }
             CPDType::FloatType => {
                 todo!()
@@ -140,7 +140,7 @@ pub trait AccessorExt: Accessor {
                 todo!()
             }
             CPDType::ByteType => {
-                todo!()
+                self.write_byte(to_write.unwrap_int() as jbyte)
             }
             CPDType::ShortType => {
                 todo!()
@@ -149,10 +149,10 @@ pub trait AccessorExt: Accessor {
                 self.write_char(to_write.unwrap_int() as jchar) //todo assert zero
             }
             CPDType::IntType => {
-                todo!()
+                self.write_int(to_write.unwrap_int())
             }
             CPDType::LongType => {
-                todo!()
+                self.write_long(to_write.unwrap_long())
             }
             CPDType::FloatType => {
                 todo!()

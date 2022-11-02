@@ -63,23 +63,23 @@ impl ThreadSignalBasedInterrupter {
 #[cfg(test)]
 pub mod test {
     use std::cell::OnceCell;
+    use std::ptr::null_mut;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::thread;
 
     use nix::sys::pthread::pthread_self;
-    use once_cell::sync::OnceCell;
+    use thread_signal_handler::SignalAccessibleJavaStackData;
 
-    use thread_signal_handler::{RemoteQuery, SignalAccessibleJavaStackData};
 
-    use crate::better_java_stack::thread_remote_read_mechanism::{perform_remote_query, RemoteQuery, sigaction_setup, SignalAccessibleJavaStackData};
+    use crate::better_java_stack::thread_remote_read_mechanism::{RemoteQuery, ThreadSignalBasedInterrupter};
 
     #[test]
     pub fn test() {
-        sigaction_setup();
+        let thread_signal_handler = ThreadSignalBasedInterrupter::sigaction_setup();
         let tid = OnceCell::new();
         let answered = Arc::new(AtomicBool::new(false));
-        let signal_accessible = SignalAccessibleJavaStackData::new();
+        let signal_accessible = SignalAccessibleJavaStackData::new(null_mut(), null_mut());
         thread::scope(|scope| {
             scope.spawn(|| {
                 tid.set(pthread_self()).unwrap();
@@ -90,7 +90,7 @@ pub mod test {
             });
             scope.spawn(|| {
                 let tid = *tid.wait();
-                let _remote_query_answer = perform_remote_query(tid, RemoteQuery::GetGuestFrameStackInstructionPointer, &signal_accessible);
+                let _remote_query_answer = thread_signal_handler.perform_remote_query(tid, RemoteQuery::GetGuestFrameStackInstructionPointer, &signal_accessible);
             }).join().unwrap();
             answered.store(true, Ordering::SeqCst);
         })
