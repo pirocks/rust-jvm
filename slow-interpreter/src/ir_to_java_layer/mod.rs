@@ -198,8 +198,9 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::AssertInstanceOf { res, value, cpdtype_id, return_to_ptr, pc, expected } => {
                 exit_impls::assert_instance_of(jvm, todo!()/*int_state.unwrap()*/, res, value, cpdtype_id, return_to_ptr, *expected)
             }
-            RuntimeVMExitInput::ArrayOutOfBounds { pc } => {
-                exit_impls::array_out_of_bounds(&jvm, int_state.unwrap())
+            RuntimeVMExitInput::ArrayOutOfBounds { pc, index } => {
+                let index = unsafe { index.cast::<i32>().as_ptr().read() };
+                exit_impls::array_out_of_bounds(&jvm, int_state.unwrap(), index)
             }
             RuntimeVMExitInput::Todo { pc, todo_case } => {
                 dbg!(todo_case);

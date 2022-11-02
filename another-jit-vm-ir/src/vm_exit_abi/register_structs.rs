@@ -565,11 +565,12 @@ pub struct ArrayOutOfBounds;
 
 impl ArrayOutOfBounds {
     pub const JAVA_PC: Register = Register(4);
+    pub const INDEX: Register = Register(5);
 }
 
 impl ExitRegisterStruct for ArrayOutOfBounds {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::JAVA_PC])
+        HashSet::from([Register(0), Self::JAVA_PC, Self::INDEX])
     }
 }
 

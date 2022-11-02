@@ -64,7 +64,8 @@ pub enum IRVMExitType {
         java_pc: ByteCodeOffset
     },
     ArrayOutOfBounds {
-        java_pc: ByteCodeOffset
+        java_pc: ByteCodeOffset,
+        index: FramePointerOffset
     },
     LoadClassAndRecompile {
         class: CPDTypeID,
@@ -277,9 +278,10 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::NPE as u64).unwrap();
                 assembler.mov(NPE::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::ArrayOutOfBounds { java_pc } => {
+            IRVMExitType::ArrayOutOfBounds { java_pc, index } => {
                 assembler.mov(rax, RawVMExitType::ArrayOutOfBounds as u64).unwrap();
                 assembler.mov(ArrayOutOfBounds::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.lea(ArrayOutOfBounds::INDEX.to_native_64(), rbp - index.0).unwrap();
             }
             IRVMExitType::PutStatic { field_id, value, java_pc } => {
                 assembler.mov(rax, RawVMExitType::PutStatic as u64).unwrap();

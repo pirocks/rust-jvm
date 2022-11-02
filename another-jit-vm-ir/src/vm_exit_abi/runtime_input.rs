@@ -1,5 +1,6 @@
 use std::ffi::c_void;
 use std::ptr::{NonNull, null_mut};
+use nonnull_const::NonNullConst;
 
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
@@ -135,7 +136,8 @@ pub enum RuntimeVMExitInput {
         pc: ByteCodeOffset
     },
     ArrayOutOfBounds {
-        pc: ByteCodeOffset
+        pc: ByteCodeOffset,
+        index: NonNullConst<c_void>
     },
     TopLevelReturn {
         return_value: u64,
@@ -567,7 +569,8 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::ArrayOutOfBounds => {
                 RuntimeVMExitInput::ArrayOutOfBounds {
-                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::JAVA_PC) as u16)
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::JAVA_PC) as u16),
+                    index: NonNullConst::new(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::INDEX) as *const c_void).unwrap()
                 }
             }
             RawVMExitType::AllocateObjectArrayIntrinsic => {

@@ -56,11 +56,11 @@ pub mod multi_allocate_array;
 pub mod new_run_native;
 
 #[inline(never)]
-pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>) -> IRVMExitAction {
+pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, index: i32) -> IRVMExitAction {
     if jvm.exit_trace_options.tracing_enabled() {
         eprintln!("ArrayOutOfBounds");
     }
-    let array_out_of_bounds = ArrayOutOfBoundsException::new_no_index(jvm, int_state).unwrap();
+    let array_out_of_bounds = ArrayOutOfBoundsException::new(jvm, int_state, index).unwrap();
     let throwable = array_out_of_bounds.object().cast_throwable();
     throw_impl(&jvm, int_state, throwable, false)
 }

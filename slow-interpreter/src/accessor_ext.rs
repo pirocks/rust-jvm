@@ -38,7 +38,7 @@ pub trait AccessorExt: Accessor {
                 self.write_float(njv.unwrap_float_strict());
             }
             CPDType::DoubleType => {
-                todo!()
+                self.write_double(njv.unwrap_double_strict());
             }
             CPDType::VoidType => {
                 todo!()
