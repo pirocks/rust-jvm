@@ -157,21 +157,7 @@ import java.lang.reflect.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        new DebuggingClass().non_static();
-        new DebuggingClass().static_();
-    }
-
-    public void non_static(){
-        final B b = new B();
-        b.a = 1;
-        System.out.println(((A) b).a);
-    }
-
-    public void static_(){
-        A.a_static = 1;
-        A.inherited = 1;
-        System.out.println(B.a_static);
-        System.out.println(B.inherited);
+        System.out.println(Integer.toString(77));
     }
 
 }
