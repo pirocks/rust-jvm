@@ -411,6 +411,44 @@ impl CompressedParsedDescriptorType {
         matches!(self, CompressedParsedDescriptorType::Array { .. })
     }
 
+    pub fn is_signed_integer(&self) -> bool{
+        match self {
+            CompressedParsedDescriptorType::BooleanType => {
+                false
+            }
+            CompressedParsedDescriptorType::ByteType => {
+                true
+            }
+            CompressedParsedDescriptorType::ShortType => {
+                true
+            }
+            CompressedParsedDescriptorType::CharType => {
+                false
+            }
+            CompressedParsedDescriptorType::IntType => {
+                true
+            }
+            CompressedParsedDescriptorType::LongType => {
+                true
+            }
+            CompressedParsedDescriptorType::FloatType => {
+                false
+            }
+            CompressedParsedDescriptorType::DoubleType => {
+                false
+            }
+            CompressedParsedDescriptorType::VoidType => {
+                false
+            }
+            CompressedParsedDescriptorType::Class(_) => {
+                false
+            }
+            CompressedParsedDescriptorType::Array { .. } => {
+                false
+            }
+        }
+    }
+
     pub fn is_void(&self) -> bool {
         matches!(self, CompressedParsedDescriptorType::VoidType)
     }

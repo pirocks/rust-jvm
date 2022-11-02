@@ -7,9 +7,9 @@ use crate::Size;
 pub fn ir_store(assembler: &mut CodeAssembler, from: Register, to_address: Register, size: Size) {
 //todo in future will need to make size actually respected here and not zx
     match size {
-        Size::Byte => assembler.mov(byte_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
-        Size::X86Word => assembler.mov(word_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
-        Size::X86DWord => assembler.mov(dword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
+        Size::Byte => assembler.mov(byte_ptr(to_address.to_native_64()), from.to_native_8()).unwrap(),
+        Size::X86Word => assembler.mov(word_ptr(to_address.to_native_64()), from.to_native_16()).unwrap(),
+        Size::X86DWord => assembler.mov(dword_ptr(to_address.to_native_64()), from.to_native_32()).unwrap(),
         Size::X86QWord => assembler.mov(qword_ptr(to_address.to_native_64()), from.to_native_64()).unwrap(),
     }
 }

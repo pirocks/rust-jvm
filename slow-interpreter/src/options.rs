@@ -140,11 +140,11 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "uv/a".to_string(),
             // },
+            MethodToTrace {
+                combined: "java/lang/Short/shortValue".to_string(),
+            },
             // MethodToTrace {
-            //     combined: "asd/a".to_string(),
-            // },
-            // MethodToTrace {
-            //     combined: "ws/b".to_string(),
+            //     combined: "java/lang/Short/<init>".to_string(),
             // },
             MethodToTrace {
                 combined: "java/lang/Thread/currentThread".to_string(),

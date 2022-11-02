@@ -1,4 +1,5 @@
 use std::borrow::Borrow;
+use std::ffi::c_void;
 use std::mem::size_of;
 use std::num::NonZeroU8;
 use std::ops::Deref;
@@ -180,6 +181,27 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let mut to_copy = vec![];
     for i in 0..length {
         let temp = src.get_i((src_pos + i));
+        // dbg!(temp.as_njv());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(0).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(1).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(2).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(3).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(4).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(5).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(6).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(7).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(8).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(9).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(10).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(11).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(12).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(13).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(14).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(15).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(16).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(17).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(18).read());
+        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(19).read());
         to_copy.push(temp);
     }
     for i in 0..length {

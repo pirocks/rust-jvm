@@ -54,15 +54,26 @@ fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_
     let elem_register_size = field_type_to_register_size(elem_type);
     let index_offset = method_frame_data.operand_stack_entry(current_instr_data.current_index, 1);
     array_into_iter([
+        /*if elem_type == CPDType::CharType {
+            IRInstr::DebuggerBreakpoint
+        } else {
+            IRInstr::NOP
+        },*/
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 2), to: array_ref, size: Size::pointer() },
         IRInstr::NPECheck { possibly_null: array_ref, temp_register: index, npe_exit_type: IRVMExitType::NPE { java_pc: current_instr_data.current_offset } },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 2), to: array_ref, size: Size::pointer() },
         IRInstr::LoadFPRelative { from: index_offset, to: index, size: Size::int() },
         IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value, size: elem_register_size },
         IRInstr::Const64bit { to: elem_0_offset_register, const_: array_layout.elem_0_entry_offset() as u64 },
-        IRInstr::Load { to: length, from_address: array_ref, size: Size::int() },
+        IRInstr::Load { to: length, from_address: array_ref, size: Size::int() },//todo shouldn't this check length offset
         IRInstr::Add { res: array_ref, a: elem_0_offset_register, size: Size::pointer() },
         IRInstr::BoundsCheck { length, index, size: Size::int(), exit: IRVMExitType::ArrayOutOfBounds { java_pc: current_instr_data.current_offset, index: index_offset } },
+        IRInstr::SignExtend {
+            from: index,
+            to: index,
+            from_size: Size::int(),
+            to_size: Size::pointer(),
+        },
         IRInstr::MulConst { res: index, a: array_layout.elem_size() as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
         IRInstr::Store { from: value, to_address: array_ref, size: elem_register_size }

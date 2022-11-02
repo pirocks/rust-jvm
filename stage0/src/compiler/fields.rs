@@ -72,7 +72,7 @@ pub fn putfield<'vm>(
             }]))
         }
         Some((rc, _)) => {
-            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass{ field_name: name, class_name: target_class });
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass { field_name: name, class_name: target_class });
             let class_ref_register = Register(1);
             let to_put_value = Register(2);
             let offset = Register(3);
@@ -112,7 +112,7 @@ pub fn putfield<'vm>(
                     },
                     IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                     IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size.lengthen_runtime_type() }
+                    IRInstr::Store { to_address: class_ref_register, from: to_put_value, size: field_size }
                 ])))
         }
     }
@@ -145,7 +145,7 @@ pub fn getfield<'vm>(
             }]))
         }
         Some((rc, _)) => {
-            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass{ field_name: name, class_name: target_class });
+            let FieldNumberAndFieldType { number: field_number, cpdtype: field_type } = recursively_find_field_number_and_type(rc.unwrap_class_class(), FieldNameAndClass { field_name: name, class_name: target_class });
             let class_ref_register = Register(1);
             let to_get_value = Register(2);
             let offset = Register(3);
@@ -177,14 +177,23 @@ pub fn getfield<'vm>(
                 },
                 IRInstr::Const64bit { to: offset, const_: (field_number.0 as usize * size_of::<jlong>()) as u64 },
                 IRInstr::Add { res: class_ref_register, a: offset, size: Size::pointer() },
-                IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size.lengthen_runtime_type() },
-                // //todo doesn't need to size extend here, but will in future when packed repr, also needs to only do signed types
-                // IRInstr::SignExtend {
-                //     from: to_get_value,
-                //     to: to_get_value,
-                //     from_size: field_size,
-                //     to_size: field_size.lengthen_runtime_type()
-                // },
+                IRInstr::Load { from_address: class_ref_register, to: to_get_value, size: field_size },
+                if field_type.is_signed_integer() {
+                    IRInstr::SignExtend {
+                        from: to_get_value,
+                        to: to_get_value,
+                        from_size: field_size,
+                        to_size: field_size.lengthen_runtime_type(),
+                    }
+                } else {
+                    IRInstr::ZeroExtend {
+                        from: to_get_value,
+                        to: to_get_value,
+                        from_size: field_size,
+                        to_size: field_size.lengthen_runtime_type(),
+                    }
+                }
+                ,
                 IRInstr::StoreFPRelative { from: to_get_value, to: to_get_value_offset, size: runtime_type_to_size(&field_type.to_runtime_type().unwrap()) }
             ])).chain(if field_type.try_unwrap_class_type().is_some() && resolver.debug_checkcast_assertions() {
                 Either::Left(checkcast_impl(resolver, method_frame_data, recompile_conditions, restart_point_generator, &mut current_instr_data, field_type, to_get_value_offset))

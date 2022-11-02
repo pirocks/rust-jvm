@@ -40,7 +40,7 @@ pub trait Accessor {
     }
 
     fn read_double(&self) -> jdouble {
-        assert_eq!(CPDType::FloatType, self.expected_type());
+        assert_eq!(CPDType::DoubleType, self.expected_type());
         self.read_impl()
     }
 

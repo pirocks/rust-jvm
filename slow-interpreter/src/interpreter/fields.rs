@@ -1,8 +1,10 @@
 use std::mem::size_of;
 use std::ops::Deref;
+use better_nonnull::BetterNonNull;
 
-use jvmti_jni_bindings::jlong;
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
+use runtime_class_stuff::FieldNumberAndFieldType;
+use runtime_class_stuff::object_layout::{FieldAccessor};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -13,6 +15,7 @@ use rust_jvm_common::runtime_type::RuntimeType;
 use stage0::compiler::fields::recursively_find_field_number_and_type;
 
 use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle, WasException};
+use crate::accessor_ext::AccessorExt;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
@@ -31,7 +34,8 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
     let mut entry_mut = int_state.current_frame_mut();
     let CompressedFieldDescriptor(field_type) = field_descriptor;
     let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name }).number;
+    let FieldNumberAndFieldType { number, cpdtype } = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name });
+    //todo use regular object layout field accessors
     let val = entry_mut.pop(field_type.to_runtime_type().unwrap());
     let object_ref = entry_mut.pop(RuntimeType::object());
     match object_ref {
@@ -43,9 +47,11 @@ pub fn putfield<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
                         //     dbg!(x.as_ptr());
                         //     dbg!(val.to_raw());
                         // }
-                        let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
-                        assert_ne!(val.to_raw(), 0xDDDDDDDDDDDDDDDD);
-                        raw_field_ptr.write(val.to_raw());
+                        let field_pointer = BetterNonNull::from(x).offset((number.0 as usize * size_of::<u64>()) as isize).unwrap();
+                        FieldAccessor::new(field_pointer.0, cpdtype).write_interpreter_jv(val, field_descriptor.0)
+                        // let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
+                        // assert_ne!(val.to_raw(), 0xDDDDDDDDDDDDDDDD);
+                        // raw_field_ptr.write(val.to_raw());
                     }
                     None => {
                         todo!()/*return throw_npe(jvm, int_state);*/
@@ -77,15 +83,15 @@ fn get_static_impl<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Real
     Ok(temp.get(field_name, cpdtype))
 }
 
-pub fn get_field<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
+pub fn getfield<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, class_name: CClassName, field_name: FieldName, field_desc: &CompressedFieldDescriptor) -> PostInstructionAction<'gc> {
     let target_class = assert_inited_or_initing_class(jvm, class_name.clone().into());
-    let field_number = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name }).number;
+    let FieldNumberAndFieldType{ number, cpdtype } = recursively_find_field_number_and_type(target_class.unwrap_class_class(), FieldNameAndClass { field_name, class_name });
     let object_ref = current_frame.pop(RuntimeType::object());
     unsafe {
         match object_ref {
             InterpreterJavaValue::Object(Some(x)) => {
-                let raw_field_ptr = x.as_ptr().add(field_number.0 as usize * size_of::<jlong>()) as *mut u64;
-                let res = InterpreterJavaValue::from_raw(raw_field_ptr.read(), field_desc.0.to_runtime_type().unwrap());
+                let field_pointer = BetterNonNull::from(x).offset((number.0 as usize * size_of::<u64>()) as isize).unwrap();
+                let res = FieldAccessor::new(field_pointer.0, cpdtype).read_interpreter_jv(field_desc.0);
                 current_frame.push(res);
                 PostInstructionAction::Next {}
             }

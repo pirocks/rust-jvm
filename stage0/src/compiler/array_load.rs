@@ -18,7 +18,6 @@ pub fn baload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_
     array_load_impl(method_frame_data, current_instr_data, CPDType::ByteType)
 }
 
-
 pub fn iaload(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_load_impl(method_frame_data, current_instr_data, CPDType::IntType)
 }
@@ -65,7 +64,22 @@ fn array_load_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_i
         IRInstr::BoundsCheck { length, index, size: Size::int(), exit: IRVMExitType::ArrayOutOfBounds { java_pc: current_instr_data.current_offset, index: index_offset } },
         IRInstr::MulConst { res: index, a: array_layout.elem_size() as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
-        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size },//todo need sign extend now for reals
+        IRInstr::Load { to: res, from_address: array_ref, size: elem_register_size },
+        if arr_type.is_signed_integer() {
+            IRInstr::SignExtend {
+                from: res,
+                to: res,
+                from_size: elem_register_size,
+                to_size: elem_register_size.lengthen_runtime_type(),
+            }
+        } else {
+            IRInstr::ZeroExtend {
+                from: res,
+                to: res,
+                from_size: elem_register_size,
+                to_size: elem_register_size.lengthen_runtime_type(),
+            }
+        },
         IRInstr::StoreFPRelative { from: res, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: runtime_type_to_size(&arr_type.to_runtime_type().unwrap()) }
     ])
 }

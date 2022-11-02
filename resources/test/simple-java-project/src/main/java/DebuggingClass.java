@@ -157,7 +157,11 @@ import java.lang.reflect.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        System.out.println(Integer.toString(77));
+        //.(:7 )
+        for (int i = 0; i < 1000; i++) {
+            System.out.println(Integer.toString(77));
+//            System.out.println(new StackTraceElement("net.minecraft.server.MinecraftServer", "<clinit>", "SourceFile", 77).toString());
+        }
     }
 
 }

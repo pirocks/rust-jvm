@@ -46,7 +46,6 @@ impl<'gc> AllocatedArrayObjectHandle<'gc> {
     }
 
     fn array_layout(&self) -> ArrayMemoryLayout{
-        let allocated_type = self.allocated_type();
         ArrayMemoryLayout::from_cpdtype(self.elem_cpdtype())
     }
 

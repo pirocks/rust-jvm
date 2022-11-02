@@ -1,5 +1,6 @@
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
+use crate::better_java_stack::frames::HasFrame;
 
 use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::PostInstructionAction;
@@ -31,6 +32,8 @@ pub fn checkcast<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Re
     let res = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
     int_state.current_frame_mut().push(obj);
     if res == 0 {
+        dbg!(obj.to_new_java_handle(jvm).unwrap_object().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+        int_state.inner().debug_print_stack_trace(jvm);
         todo!()
     }
     PostInstructionAction::Next {}

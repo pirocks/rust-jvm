@@ -78,10 +78,10 @@ pub trait AccessorExt: Accessor {
                 NewJavaValueHandle::Long(self.read_long())
             }
             CPDType::FloatType => {
-                todo!()
+                NewJavaValueHandle::Float(self.read_float())
             }
             CPDType::DoubleType => {
-                todo!()
+                NewJavaValueHandle::Double(self.read_double())
             }
             CPDType::VoidType => {
                 todo!()
@@ -101,7 +101,7 @@ pub trait AccessorExt: Accessor {
     fn read_interpreter_jv(&self, expected_type: CPDType) -> InterpreterJavaValue {
         match expected_type {
             CPDType::BooleanType => {
-                todo!()
+                InterpreterJavaValue::Int(self.read_boolean() as i32)
             }
             CPDType::ByteType => {
                 InterpreterJavaValue::Int(self.read_byte() as i32)
@@ -119,10 +119,10 @@ pub trait AccessorExt: Accessor {
                 InterpreterJavaValue::Long(self.read_long())
             }
             CPDType::FloatType => {
-                todo!()
+                InterpreterJavaValue::Float(self.read_float())
             }
             CPDType::DoubleType => {
-                todo!()
+                InterpreterJavaValue::Double(self.read_double())
             }
             CPDType::VoidType => {
                 todo!()
@@ -137,7 +137,7 @@ pub trait AccessorExt: Accessor {
     fn write_interpreter_jv(&self, to_write: InterpreterJavaValue, expected_type: CPDType) {
         match expected_type {
             CPDType::BooleanType => {
-                todo!()
+                self.write_boolean(to_write.unwrap_int() as jboolean)
             }
             CPDType::ByteType => {
                 self.write_byte(to_write.unwrap_int() as jbyte)
@@ -155,10 +155,10 @@ pub trait AccessorExt: Accessor {
                 self.write_long(to_write.unwrap_long())
             }
             CPDType::FloatType => {
-                todo!()
+                self.write_float(to_write.unwrap_float())
             }
             CPDType::DoubleType => {
-                todo!()
+                self.write_double(to_write.unwrap_double())
             }
             CPDType::VoidType => {
                 todo!()

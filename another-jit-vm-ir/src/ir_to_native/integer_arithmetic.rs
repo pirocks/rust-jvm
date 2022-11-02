@@ -185,12 +185,20 @@ pub fn zero_extend(assembler: &mut CodeAssembler, from: Register, to: Register, 
                 todo!()
             }
             Size::X86DWord => {
-                todo!()
+                if to != from{
+                    assembler.mov(to.to_native_32(), from.to_native_32()).unwrap();
+                }else {
+                    assembler.nop().unwrap();
+                }
             }
             Size::X86QWord => assembler.mov(to.to_native_32(), from.to_native_32()).unwrap()//mov zeros the upper in register
         },
         Size::X86QWord => {
-            todo!()
+            if to != from{
+                assembler.mov(to.to_native_64(), from.to_native_64()).unwrap();
+            }else {
+                assembler.nop().unwrap();
+            }
         }
     };
 }

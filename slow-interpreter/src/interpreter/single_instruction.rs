@@ -23,7 +23,7 @@ use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
 use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
-use crate::interpreter::fields::{get_field, getstatic, putfield, putstatic};
+use crate::interpreter::fields::{getfield, getstatic, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
 use crate::interpreter::new::{anewarray, multi_a_new_array, new, newarray};
@@ -150,7 +150,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::fstore_2 => fstore(jvm, interpreter_state.current_frame_mut(), 2),
         CInstructionInfo::fstore_3 => fstore(jvm, interpreter_state.current_frame_mut(), 3),
         CInstructionInfo::fsub => fsub(jvm, interpreter_state.current_frame_mut()),
-        CInstructionInfo::getfield { desc, target_class, name } => get_field(jvm, interpreter_state.current_frame_mut(), *target_class, *name, desc),
+        CInstructionInfo::getfield { desc, target_class, name } => getfield(jvm, interpreter_state.current_frame_mut(), *target_class, *name, desc),
         CInstructionInfo::getstatic { name, target_class, desc } => getstatic(jvm, interpreter_state, *target_class, *name, desc),
         CInstructionInfo::goto_(target) => goto_(jvm, *target as i32),
         CInstructionInfo::goto_w(target) => goto_(jvm, *target),
