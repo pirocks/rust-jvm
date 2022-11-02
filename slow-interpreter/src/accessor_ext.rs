@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::{NonNull, null_mut};
 
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jobject};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jobject, jshort};
 use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::array_layout::ArrayAccessor;
 use runtime_class_stuff::object_layout::FieldAccessor;
@@ -23,7 +23,7 @@ pub trait AccessorExt: Accessor {
                 self.write_byte(njv.unwrap_int() as jbyte) //todo assert?
             }
             CPDType::ShortType => {
-                todo!()
+                self.write_short(njv.unwrap_int() as jshort)
             }
             CPDType::CharType => {
                 self.write_char(njv.unwrap_int() as jchar);//todo assert?
@@ -107,7 +107,7 @@ pub trait AccessorExt: Accessor {
                 InterpreterJavaValue::Int(self.read_byte() as i32)
             }
             CPDType::ShortType => {
-                todo!()
+                InterpreterJavaValue::Int(self.read_short() as i32)
             }
             CPDType::CharType => {
                 InterpreterJavaValue::Int(self.read_char() as i32)
@@ -143,7 +143,7 @@ pub trait AccessorExt: Accessor {
                 self.write_byte(to_write.unwrap_int() as jbyte)
             }
             CPDType::ShortType => {
-                todo!()
+                self.write_short(to_write.unwrap_int() as jshort)
             }
             CPDType::CharType => {
                 self.write_char(to_write.unwrap_int() as jchar) //todo assert zero

@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 
 use libc::{c_void, initgroups};
+use better_nonnull::BetterNonNull;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
@@ -79,7 +80,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_objectFieldOffset(env: *mut JNIEn
     };
     let field_numbers = &clazz.unwrap_class_class().object_layout.field_numbers;
     let class_name = class_view.name().unwrap_name();
-    let field_number = field_numbers[&FieldNameAndClass{ field_name, class_name }].number;
+    let field_number = field_numbers[&FieldNameAndClass { field_name, class_name }].number;
     let res = field_number.0 as jlong * size_of::<jlong>() as jlong;
     res
     /*class_view.fields().enumerate().for_each(|(i, f)| {
@@ -196,11 +197,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, 
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, field_id_and_array_idx: jlong) -> jobject {
+unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
     let jvm = get_state(env);
     match from_object_new(jvm, obj) {
         None => {
-            let field_id = field_id_and_array_idx as FieldId;
+            let field_id = offset as FieldId;
             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
             let runtime_class_view = runtime_class.view();
             let field_view = runtime_class_view.field(i as usize);
@@ -210,8 +211,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
             to_object_new(res.as_njv().unwrap_object_alloc())
         }
         Some(object_to_read) => {
-            let offseted = object_to_read.ptr().as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;
-            (offseted as *mut jobject).read_volatile()
+            let field_address = BetterNonNull::new(obj as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
+            FieldAccessor::new(field_address, CPDType::object()).read_object()
+            // let offseted = object_to_read.ptr().as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;
+            // (offseted as *mut jobject).read_volatile()
         }
     }
 }
@@ -220,7 +223,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj_to_write: jobject, offset: jlong, to_put: jobject) {
     let jvm = get_state(env);
-    FieldAccessor::new(NonNull::new(obj_to_write.offset(offset as isize) as *mut c_void).unwrap(), CPDType::object()).write_object(to_put)
+    let field_address = BetterNonNull::new(obj_to_write as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
+    FieldAccessor::new(field_address, CPDType::object()).write_object(to_put)
 
     // let obj_option = from_object_new(jvm, obj);
     // todo!("this should be a intrinsic anyway")

@@ -96,7 +96,13 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     ThreadState::debug_assertions(jvm, int_state, loader_obj);
 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
-    let main = check_initing_or_inited_class(jvm, int_state, main.cpdtype()).expect("failed to load main class");
+    let main = match check_initing_or_inited_class(jvm, int_state, main.cpdtype()) {
+        Ok(main) => main,
+        Err(WasException{exception_obj}) => {
+            exception_obj.print_stack_trace(jvm, int_state).expect("exception printing exception");
+            panic!("failed to load main class");
+        },
+    };
     check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
     let main_i = locate_main_method(&jvm.string_pool, &main_view);

@@ -52,5 +52,6 @@ members = [
     "interfaces",
     "jni-interface",
     "jvmti-interface",
-    "jmm-interface"
+    "jmm-interface",
+    "better-nonnull"
 ]

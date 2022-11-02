@@ -30,6 +30,7 @@ interface-vtable = { path = "../interface-vtable" }
 jmm-interface = { path = "../jmm-interface" }
 jni-interface = { path = "../jni-interface" }
 jvmti-interface = { path = "../jvmti-interface" }
+better-nonnull = { path = "../better-nonnull" }
 lazy_static = "1.4"
 libc = "0.2"
 num_cpus = "1"
