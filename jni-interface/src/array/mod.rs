@@ -107,7 +107,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, raw_
             todo!()
         }
         CPDType::IntType => {
-            todo!("use array layout")
+            array_fast_copy_set::<jint>(carray as *const jint, array_memory_layout, NonNull::new(raw_array as *mut c_void).unwrap(), array.len())
             /*array_fast_copy_set::<jint>(carray as *const jint, array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut jvalue,array.len())*/
             // array.set_i(i, NewJavaValue::Int((carray as *const jint).offset(i as isize).read()));
         }
@@ -184,7 +184,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array_ra
             return res.leak().as_mut_ptr() as *mut c_void;
         }
         CPDType::IntType => {
-            let res: Vec<()> = todo!("array fast copy should use array layout or maybe be part of array layout");/*array_fast_copy_get::<jint>(array.ptr.as_ptr().offset(size_of::<jlong>() as isize) as *const jvalue, array.len());*/
+            let res: Vec<jint> = array_fast_copy_get::<jint>(ArrayMemoryLayout::from_cpdtype(array.elem_cpdtype()), NonNull::new(array_raw as *mut c_void).unwrap(), array.len());
             // let res = array.array_iterator().map(|elem| elem.unwrap_int_strict()).collect::<Vec<_>>();
             return res.leak().as_mut_ptr() as *mut c_void;
         }

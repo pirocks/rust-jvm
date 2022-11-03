@@ -190,9 +190,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__Ljava_lang_Object_2JI(env
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
-    let jvm = get_state(env);
-    let obj_option = from_object_new(jvm, obj);
-    todo!("should be intrinsic")
+    // let jvm = get_state(env);
+    // let obj_option = from_object_new(jvm, obj);
+    // todo!("should be intrinsic")
+    obj.cast::<c_void>().offset(offset as isize).cast::<jint>().write(val)
     /*putVolatileImpl(offset, NativeJavaValue { int: val }, jvm, obj_option);*/
 }
 

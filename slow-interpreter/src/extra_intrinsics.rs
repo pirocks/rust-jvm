@@ -5,7 +5,7 @@ use another_jit_vm::intrinsic_helpers::ExtraIntrinsicHelpers;
 use gc_memory_layout_common::memory_regions::{ConstantRegionHeaderWrapper, RegionHeader};
 
 unsafe extern "C" fn constant_size_allocation(region_header: *const RegionHeader) -> Option<NonNull<c_void>> {
-    ConstantRegionHeaderWrapper::get_allocation(NonNullConst::new(region_header).unwrap())
+    ConstantRegionHeaderWrapper::get_allocation(NonNullConst::new(region_header)?)
 }
 
 pub fn extra_intrinsics() -> ExtraIntrinsicHelpers{
