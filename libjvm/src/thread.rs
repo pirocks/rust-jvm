@@ -7,6 +7,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Condvar, RwLock, RwLockWriteGuard};
 use std::thread::sleep;
 use std::time::Duration;
+use itertools::Itertools;
 
 use nix::sys::pthread::pthread_self;
 use nix::unistd::gettid;
@@ -71,7 +72,11 @@ unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -
         None => return 0 as jboolean,
         Some(jt) => jt,
     };
+    dbg!(jvm.thread_state.get_all_alive_threads().len());
+    dbg!(jvm.thread_state.get_all_alive_threads().into_iter().map(|thread| Some(thread.thread_object().try_name(jvm)?.to_rust_string(jvm))).collect_vec());
+    dbg!(java_thread.java_tid);
     let alive = java_thread.is_alive();
+    dbg!(java_thread.thread_object().name(jvm).to_rust_string(jvm));
     alive as jboolean
 }
 

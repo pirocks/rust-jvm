@@ -33,6 +33,7 @@ pub fn checkcast<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Re
     int_state.current_frame_mut().push(obj);
     if res == 0 {
         dbg!(obj.to_new_java_handle(jvm).unwrap_object().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
+        dbg!(cpdtype.jvm_representation(&jvm.string_pool));
         int_state.inner().debug_print_stack_trace(jvm);
         todo!()
     }

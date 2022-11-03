@@ -27,7 +27,7 @@ use rust_jvm_common::method_shape::MethodShape;
 use crate::field_numbers::{FieldNameAndClass, FieldNumber, get_field_numbers};
 use crate::method_numbers::{get_method_numbers, MethodNumber};
 use crate::object_layout::ObjectLayout;
-use crate::static_fields::{AllTheStaticFields, get_field_numbers_static};
+use crate::static_fields::{AllTheStaticFields, get_fields_static};
 
 pub mod object_layout;
 pub mod array_layout;
@@ -192,7 +192,7 @@ impl<'gc> RuntimeClassClass<'gc> {
     ) -> Self {
         let class_id_path = get_class_id_path(&(class_view.clone() as Arc<dyn ClassView>), &parent, class_ids);
         let (recursive_num_methods, method_numbers) = get_method_numbers(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice());
-        Self::new(inheritance_tree, all_the_static_fields,bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, class_id_path)
+        Self::new(inheritance_tree, all_the_static_fields, bit_vec_paths, class_view, parent, interfaces, status, method_numbers, recursive_num_methods, class_id_path,_string_pool)
     }
 
     pub fn new(
@@ -206,8 +206,8 @@ impl<'gc> RuntimeClassClass<'gc> {
         method_numbers: HashMap<MethodShape, MethodNumber>,
         recursive_num_methods: u32,
         class_id_path: Vec<ClassID>,
+        _string_pool: &CompressedClassfileStringPool,
     ) -> Self {
-
         let inheritance_tree_vec = if !class_view.is_interface() {
             match inheritance_tree.insert(&InheritanceClassIDPath::Borrowed { inner: class_id_path.as_slice() }).ok() {
                 None => None,
@@ -220,7 +220,7 @@ impl<'gc> RuntimeClassClass<'gc> {
             None
         };
 
-        all_the_static_fields.sink_class_load(get_field_numbers_static(&class_view, &parent));
+        all_the_static_fields.sink_class_load(get_fields_static(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice()));
 
         let method_numbers_reverse = method_numbers.iter()
             .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))

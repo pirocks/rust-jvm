@@ -592,6 +592,7 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
 pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, throwable: Throwable<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
     // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     // dbg!(exception_as_string.to_rust_string(jvm));
+    int_state.debug_print_stack_trace(jvm);
     let exception_obj_rc = throwable.normal_object.runtime_class(jvm);
     let mut this_frame = true;
     for current_frame in int_state.frame_iter() {

@@ -63,7 +63,7 @@ impl FieldNumbers {
 
 fn get_field_numbers_impl(class_view: Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass>>) -> FieldNumbers {
     let mut temp_vec = vec![];
-    get_fields(class_view.deref(), parent, FieldNumber::is_static(), &mut temp_vec);
+    get_fields_non_static(class_view.deref(), parent, &mut temp_vec);
     let mut field_number = 0;
     let mut numbers = HashMap::new();
     let mut canonical_numbers = HashMap::new();
@@ -87,19 +87,14 @@ pub fn get_field_numbers(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<
 }
 
 
-pub(crate) fn get_fields(class_view: &dyn ClassView, parent: &Option<Arc<RuntimeClass>>, static_: bool, res: &mut Vec<(CClassName, Vec<(FieldName, CPDType)>)>) {
+pub(crate) fn get_fields_non_static(class_view: &dyn ClassView, parent: &Option<Arc<RuntimeClass>>, res: &mut Vec<(CClassName, Vec<(FieldName, CPDType)>)>) {
     if let Some(parent) = parent.as_ref() {
-        get_fields(parent.unwrap_class_class().class_view.deref(), &parent.unwrap_class_class().parent, static_, res);
+        get_fields_non_static(parent.unwrap_class_class().class_view.deref(), &parent.unwrap_class_class().parent, res);
     };
 
     let class_name = class_view.name().unwrap_name();
     res.push((class_name, class_view.fields().filter(|field| {
-        let is_static = field.is_static();
-        if static_ {
-            is_static
-        } else {
-            !is_static
-        }
+        !field.is_static()
     })
         .map(|name| {
             let field_name = name.field_name();

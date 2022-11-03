@@ -90,3 +90,9 @@ pub fn test_region() {
         _ => panic!()
     }
 }
+
+
+#[test]
+pub fn test_static_field_sync(){
+
+}

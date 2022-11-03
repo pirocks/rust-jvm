@@ -2,17 +2,23 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_state, new_local_ref_public_new};
 use crate::call::{call_static_method_impl, VarargProvider};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state};
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 
 pub unsafe extern "C" fn call_static_boolean_method_v(env: *mut JNIEnv, _clazz: jclass, method_id: jmethodID, mut l: VaList) -> jboolean {
     match call_static_method_impl(env, method_id, VarargProvider::VaList(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
+            let jvm = get_state(env);
+            let interpreter_state = get_interpreter_state(env);
+            interpreter_state.debug_print_stack_trace(jvm);
+            dbg!(exception_obj.to_string(jvm,interpreter_state).unwrap().unwrap().to_rust_string(jvm));
             todo!();
             return jboolean::MAX;
         }

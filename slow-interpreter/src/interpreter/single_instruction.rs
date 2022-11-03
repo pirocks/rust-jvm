@@ -51,13 +51,14 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //hd#readByte
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
-    /*if method.name().0.to_str(&jvm.string_pool) == "acquireConstructorAccessor"/*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
-        (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
-        if let CInstructionInfo::ireturn = instruct{
-            interpreter_state.inner().debug_print_stack_trace(jvm);
-        }
-        dump_frame(interpreter_state, method, code, current_pc, instruct)
-    }*/
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("Thread") &&
+    //     method.name().0.to_str(&jvm.string_pool) == "nextThreadID"/*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
+    //     if let CInstructionInfo::ireturn = instruct{
+    //         interpreter_state.inner().debug_print_stack_trace(jvm);
+    //     }
+    //     dump_frame(interpreter_state, method, code, current_pc, instruct)
+    // }
     // jvm.thread_state.debug_assert(jvm);
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),
@@ -267,7 +268,13 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::lxor => lxor(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::monitorenter => {
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
-            let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
+            let monitor = jvm.monitor_for(match obj.unwrap_object() {
+                Some(x) => x,
+                None => {
+                    interpreter_state.inner().debug_print_stack_trace(jvm);
+                    panic!()
+                },
+            }.as_ptr() as *const c_void);
             monitor.lock(jvm, interpreter_state.inner()).unwrap();
             PostInstructionAction::Next {}
         }
@@ -316,7 +323,6 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
 
 pub fn dump_frame(interpreter_state: &mut RealInterpreterStateGuard, method: &MethodView, code: &CompressedCode, current_pc: ByteCodeOffset, instruct: &CInstructionInfo) {
     let local_var_slots = method.local_var_slots();
-    dbg!(instruct.better_debug_string(&interpreter_state.inner().jvm().string_pool));
     eprint!("Local Vars:");
     for i in 0..local_var_slots {
         let raw = interpreter_state.current_frame_mut().local_get(i, RuntimeType::LongType).to_raw();
@@ -329,4 +335,5 @@ pub fn dump_frame(interpreter_state: &mut RealInterpreterStateGuard, method: &Me
         eprint!(" {:X}", raw);
     }
     eprintln!();
+    dbg!(instruct.better_debug_string(&interpreter_state.inner().jvm().string_pool));
 }

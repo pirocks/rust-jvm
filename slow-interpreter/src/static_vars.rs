@@ -34,24 +34,19 @@ pub struct StaticVarGuard<'gc, 'l> {
 }
 
 impl<'gc, 'l> StaticVarGuard<'gc, 'l> {
-    pub fn try_get(&self, field_name: FieldName, expected_type: CPDType) -> NewJavaValueHandle<'gc> {
-        let class_name = self.runtime_class_class.class_view.name().unwrap_name();
-        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
-        static_field.read_njv(self.jvm, expected_type)
-    }
 
     pub fn get(&self, name: FieldName, expected_type: CPDType) -> NewJavaValueHandle<'gc> {
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
         //todo need to figure out aliasing
 
-        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name: name, class_name });
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass { field_name: name, class_name });
         static_field.read_njv(self.jvm, expected_type)
     }
 
     fn set_raw(&mut self, field_name: FieldName, native: u64) {
         //todo really need static objects layout for all objects
         let class_name = self.runtime_class_class.class_view.name().unwrap_name();
-        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
+        let static_field = self.jvm.all_the_static_fields.get(FieldNameAndClass { field_name, class_name });
         static_field.write_impl(native)
     }
 
