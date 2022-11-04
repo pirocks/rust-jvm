@@ -1,4 +1,2 @@
-export JNI_H=/home/francis/Desktop/jdk8u232-b09/include/
-export RUSTFLAGS="-C force-frame-pointers=y";
 export RUST_BACKTRACE=full
 export LD_LIBRARY_PATH=/home/francis/CLionProjects/rust-jvm/target/release/deps/:/home/francis/Clion/rust-jvm/target/release/deps/

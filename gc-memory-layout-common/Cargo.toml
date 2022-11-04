@@ -18,7 +18,6 @@ nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch 
 libc = "0.2"
 itertools = "0.10"
 static_assertions = "1"
-once_cell = "1.15.0"
 
 [dependencies.iced-x86]
 version = "1.15"
