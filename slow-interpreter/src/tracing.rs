@@ -11,7 +11,7 @@ use rust_jvm_common::JavaThreadId;
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
-use crate::threading::monitors::Monitor;
+use crate::threading::safepoints::Monitor2;
 
 pub struct TracingSettings {
     pub trace_function_end: RwLock<bool>,
@@ -102,33 +102,33 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_monitor_lock<'gc>(&self, m: &Monitor, jvm: &'gc JVMState<'gc>) {
+    pub fn trace_monitor_lock<'gc>(&self, m: &Monitor2, jvm: &'gc JVMState<'gc>) {
         if self.trace_monitor_lock {
-            println!("Monitor lock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
+            println!("Monitor lock:{}, thread:{}", m.id, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_unlock<'gc>(&self, m: &Monitor, jvm: &'gc JVMState<'gc>) {
+    pub fn trace_monitor_unlock<'gc>(&self, m: &Monitor2, jvm: &'gc JVMState<'gc>) {
         if self.trace_monitor_unlock {
-            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(jvm), Monitor::get_tid(jvm));
+            println!("Monitor unlock:{}, thread:{}", m.id, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_wait<'gc>(&self, m: &Monitor, jvm: &'gc JVMState<'gc>) {
+    pub fn trace_monitor_wait<'gc>(&self, m: &Monitor2, jvm: &'gc JVMState<'gc>) {
         if self.trace_monitor_wait {
-            println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
+            println!("Monitor wait:{}, thread:{}", m.id, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify<'gc>(&self, m: &Monitor, jvm: &'gc JVMState<'gc>) {
+    pub fn trace_monitor_notify<'gc>(&self, m: &Monitor2, jvm: &'gc JVMState<'gc>) {
         if self.trace_monitor_notify {
-            println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
+            println!("Monitor notify:{}, thread:{}", m.id, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 
-    pub fn trace_monitor_notify_all<'gc>(&self, m: &Monitor, jvm: &'gc JVMState<'gc>) {
+    pub fn trace_monitor_notify_all<'gc>(&self, m: &Monitor2, jvm: &'gc JVMState<'gc>) {
         if self.trace_monitor_notify_all {
-            println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
+            println!("Monitor notify all:{}, thread:{}", m.id, jvm.thread_state.get_current_thread_name(jvm));
         }
     }
 

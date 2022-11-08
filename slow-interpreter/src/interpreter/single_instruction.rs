@@ -51,8 +51,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //hd#readByte
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("Thread") &&
-    //     method.name().0.to_str(&jvm.string_pool) == "nextThreadID"/*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+    //java.lang.UNIXProcess#initStreams
+    // use classfile_view::view::ClassView;
+    // if /*method.classview().name().jvm_representation(&jvm.string_pool).contains("bfy") &&*/
+    //     method.name().0.to_str(&jvm.string_pool) == "remove" ||method.name().0.to_str(&jvm.string_pool) == "contains" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
     //     if let CInstructionInfo::ireturn = instruct{
     //         interpreter_state.inner().debug_print_stack_trace(jvm);
@@ -282,7 +284,6 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             let obj = interpreter_state.current_frame_mut().pop(RuntimeType::object());
             let monitor = jvm.monitor_for(obj.unwrap_object().unwrap().as_ptr() as *const c_void);
             monitor.unlock(jvm, interpreter_state.inner()).unwrap();
-            // interpreter_state.current_frame_mut().pop(Some(RuntimeType::object())).unwrap_object_nonnull().monitor_unlock(jvm, interpreter_state);
             PostInstructionAction::Next {}
         }
         CInstructionInfo::multianewarray { type_, dimensions } => multi_a_new_array(jvm, interpreter_state, dimensions.get(), *type_),

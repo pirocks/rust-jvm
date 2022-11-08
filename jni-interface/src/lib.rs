@@ -43,7 +43,7 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
@@ -54,6 +54,7 @@ use crate::call::VarargProvider;
 use itertools::Itertools;
 use classfile_parser::parse_class_file;
 use java5_verifier::type_infer;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::static_vars::static_vars;
 
 
@@ -337,26 +338,23 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             Err(_) => return -2,
         }
             .to_string();
-        let java_string = match JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_string(rust_string)) {
+        let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
             Ok(java_string) => java_string,
             Err(WasException { exception_obj }) => {
                 todo!();
                 return -4;
             }
         };
-        (constructor_method_id, to_object(todo!()/*java_string.object().to_gc_managed().into()*/))
+        (constructor_method_id, to_object_new(java_string.full_object_ref().into()))
     };
     let new_object = (**env).NewObjectA.as_ref().unwrap();
     let jvalue_ = jvalue { l: java_string_object };
     let obj = new_object(env, clazz, transmute(constructor_method_id), &jvalue_ as *const jvalue);
     let int_state = get_interpreter_state(env);
-    todo!();/*int_state.set_throw(
-        Some(match from_object_new(jvm, obj) {
-            None => return -3,
-            Some(res) => res,
-        }
-            .into()),
-    );*/
+    *get_throw(env) = Some(match from_object_new(jvm, obj) {
+        None => return -3,
+        Some(res) => WasException { exception_obj: res.cast_throwable() },
+    }.into());
     JNI_OK as i32
 }
 

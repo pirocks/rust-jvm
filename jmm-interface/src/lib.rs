@@ -1,8 +1,10 @@
 #![feature(once_cell)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
+
 use std::ptr::null_mut;
-use jvmti_jni_bindings::{jint, jlong, JMM_VERSION_1_2_2, jmmInterface_1_, jmmLongAttribute, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_COUNT, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_TIME_MS, jmmLongAttribute_JMM_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_CLASS_LOADED_COUNT, jmmLongAttribute_JMM_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT, jmmLongAttribute_JMM_CLASS_VERIFY_TOTAL_TIME_MS, jmmLongAttribute_JMM_COMPILE_TOTAL_TIME_MS, jmmLongAttribute_JMM_GC_COUNT, jmmLongAttribute_JMM_GC_EXT_ATTRIBUTE_INFO_SIZE, jmmLongAttribute_JMM_GC_TIME_MS, jmmLongAttribute_JMM_INTERNAL_ATTRIBUTE_INDEX, jmmLongAttribute_JMM_JVM_INIT_DONE_TIME_MS, jmmLongAttribute_JMM_JVM_UPTIME_MS, jmmLongAttribute_JMM_METHOD_DATA_SIZE_BYTES, jmmLongAttribute_JMM_OS_ATTRIBUTE_INDEX, jmmLongAttribute_JMM_OS_MEM_TOTAL_PHYSICAL_BYTES, jmmLongAttribute_JMM_OS_PROCESS_ID, jmmLongAttribute_JMM_SAFEPOINT_COUNT, jmmLongAttribute_JMM_SHARED_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_SHARED_CLASS_LOADED_COUNT, jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT, jmmLongAttribute_JMM_THREAD_DAEMON_COUNT, jmmLongAttribute_JMM_THREAD_LIVE_COUNT, jmmLongAttribute_JMM_THREAD_PEAK_COUNT, jmmLongAttribute_JMM_THREAD_TOTAL_COUNT, jmmLongAttribute_JMM_TOTAL_APP_TIME_MS, jmmLongAttribute_JMM_TOTAL_CLASSLOAD_TIME_MS, jmmLongAttribute_JMM_TOTAL_SAFEPOINTSYNC_TIME_MS, jmmLongAttribute_JMM_TOTAL_STOPPED_TIME_MS, jmmLongAttribute_JMM_VM_GLOBAL_COUNT, jmmLongAttribute_JMM_VM_THREAD_COUNT, jmmOptionalSupport, JNI_OK, JNIEnv, jobject, jobjectArray};
+use jvmti_jni_bindings::{jboolean, jint, jlong, JMM_VERSION_1_2_2, jmmBoolAttribute, jmmInterface_1_, jmmLongAttribute, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_COUNT, jmmLongAttribute_JMM_CLASS_INIT_TOTAL_TIME_MS, jmmLongAttribute_JMM_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_CLASS_LOADED_COUNT, jmmLongAttribute_JMM_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT, jmmLongAttribute_JMM_CLASS_VERIFY_TOTAL_TIME_MS, jmmLongAttribute_JMM_COMPILE_TOTAL_TIME_MS, jmmLongAttribute_JMM_GC_COUNT, jmmLongAttribute_JMM_GC_EXT_ATTRIBUTE_INFO_SIZE, jmmLongAttribute_JMM_GC_TIME_MS, jmmLongAttribute_JMM_INTERNAL_ATTRIBUTE_INDEX, jmmLongAttribute_JMM_JVM_INIT_DONE_TIME_MS, jmmLongAttribute_JMM_JVM_UPTIME_MS, jmmLongAttribute_JMM_METHOD_DATA_SIZE_BYTES, jmmLongAttribute_JMM_OS_ATTRIBUTE_INDEX, jmmLongAttribute_JMM_OS_MEM_TOTAL_PHYSICAL_BYTES, jmmLongAttribute_JMM_OS_PROCESS_ID, jmmLongAttribute_JMM_SAFEPOINT_COUNT, jmmLongAttribute_JMM_SHARED_CLASS_LOADED_BYTES, jmmLongAttribute_JMM_SHARED_CLASS_LOADED_COUNT, jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_BYTES, jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT, jmmLongAttribute_JMM_THREAD_DAEMON_COUNT, jmmLongAttribute_JMM_THREAD_LIVE_COUNT, jmmLongAttribute_JMM_THREAD_PEAK_COUNT, jmmLongAttribute_JMM_THREAD_TOTAL_COUNT, jmmLongAttribute_JMM_TOTAL_APP_TIME_MS, jmmLongAttribute_JMM_TOTAL_CLASSLOAD_TIME_MS, jmmLongAttribute_JMM_TOTAL_SAFEPOINTSYNC_TIME_MS, jmmLongAttribute_JMM_TOTAL_STOPPED_TIME_MS, jmmLongAttribute_JMM_VM_GLOBAL_COUNT, jmmLongAttribute_JMM_VM_THREAD_COUNT, jmmOptionalSupport, JNI_OK, JNIEnv, jobject, jobjectArray};
+use jvmti_jni_bindings::{jmmBoolAttribute_JMM_VERBOSE_GC, jmmBoolAttribute_JMM_VERBOSE_CLASS, jmmBoolAttribute_JMM_THREAD_CONTENTION_MONITORING, jmmBoolAttribute_JMM_THREAD_CPU_TIME, jmmBoolAttribute_JMM_THREAD_ALLOCATED_MEMORY};
 
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, new_local_ref_public_new};
 
@@ -57,6 +59,21 @@ pub unsafe extern "C" fn get_long_attribute(_env: *mut JNIEnv, _obj: jobject, at
     }
 }
 
+#[allow(non_upper_case_globals)]
+pub unsafe extern "C" fn get_bool_attribute(_env: *mut JNIEnv, att: jmmBoolAttribute) -> jboolean {
+    match att {
+        jmmBoolAttribute_JMM_VERBOSE_GC => todo!(),
+        jmmBoolAttribute_JMM_VERBOSE_CLASS => todo!(),
+        jmmBoolAttribute_JMM_THREAD_CONTENTION_MONITORING => false as jboolean,
+        jmmBoolAttribute_JMM_THREAD_CPU_TIME => false as jboolean,
+        jmmBoolAttribute_JMM_THREAD_ALLOCATED_MEMORY => false as jboolean,
+        _ => {
+            panic!()
+        }
+    }
+}
+
+
 pub unsafe extern "C" fn get_input_argument_array(env: *mut JNIEnv) -> jobjectArray {
     let jvm = get_state(env as *mut JNIEnv);
     let int_state = get_interpreter_state(env as *mut JNIEnv);
@@ -79,7 +96,7 @@ pub fn initial_jmm() -> jmmInterface_1_ {
         GetThreadAllocatedMemory: None,
         GetMemoryUsage: None,
         GetLongAttribute: Some(get_long_attribute),
-        GetBoolAttribute: None,
+        GetBoolAttribute: Some(get_bool_attribute),
         SetBoolAttribute: None,
         GetLongAttributes: None,
         FindCircularBlockedThreads: None,

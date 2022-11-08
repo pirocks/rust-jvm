@@ -195,7 +195,7 @@ impl<'gc> JThread<'gc> {
 impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {
     fn object(self) -> AllocatedNormalObjectHandle<'gc> {
         let jvm = self.jvm;
-        assert_eq!(self.normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
+        // assert_eq!(self.normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
         self.normal_object
     }
 

@@ -153,15 +153,27 @@
 //    }
 //}
 
+import java.io.*;
 import java.lang.reflect.*;
+import java.util.Arrays;
+import java.util.regex.Pattern;
+import java.util.zip.*;
 
 public class DebuggingClass {
-    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException {
-        //.(:7 )
-        for (int i = 0; i < 1000; i++) {
-            System.out.println(Integer.toString(77));
-//            System.out.println(new StackTraceElement("net.minecraft.server.MinecraftServer", "<clinit>", "SourceFile", 77).toString());
-        }
+    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
+
+
+        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        final GZIPOutputStream zipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
+        zipOutputStream.write(new byte[]{1,1,1,1});
+        zipOutputStream.finish();
+        zipOutputStream.close();
+        final byte[] byteArray = byteArrayOutputStream.toByteArray();
+        System.out.println(Arrays.toString(byteArray));
+        final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
+        final GZIPInputStream zipInputStream = new GZIPInputStream(byteArrayInputStream);
+        final byte[] bytes = new byte[4];
+        zipInputStream.read(bytes);
     }
 
 }

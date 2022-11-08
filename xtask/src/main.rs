@@ -160,11 +160,12 @@ fn main() -> anyhow::Result<()> {
                 "java/util/AbstractMap/SimpleEntries",
                 "java/util/AbstractMap/ToString",
                 "java/util/AbstractSequentialList/AddAll",
-                "java/util/ArrayList/AddAll",
+                // "java/util/ArrayList/AddAll",// todo buggy?
                 "java/util/ArrayList/Bug6533203",
                 "java/util/ArrayList/EnsureCapacity",
                 // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
                 // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
+                "java/util/Collections/ViewSynch"
             ];
             let class_files = classes.into_par_iter().map(|class| {
                 test_resources_base.join(format!("{}.java", class))

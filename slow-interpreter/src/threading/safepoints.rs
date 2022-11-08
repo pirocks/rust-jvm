@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::ops::Add;
 use std::sync::{Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant};
@@ -42,9 +43,9 @@ pub struct MonitorWait {
     prev_count: usize,
 }
 
-struct SafePointStopReasonState<'gc> {
+pub struct SafePointStopReasonState<'gc> {
     waiting_monitor_lock: Option<MonitorID>,
-    waiting_monitor_notify: Option<MonitorWait>,
+    pub(crate) waiting_monitor_notify: Option<MonitorWait>,
     suspended: bool,
     gc_suspended: bool,
     parks: isize,
@@ -69,7 +70,7 @@ impl<'gc> Default for SafePointStopReasonState<'gc> {
 }
 
 pub struct SafePoint<'gc> {
-    state: Mutex<SafePointStopReasonState<'gc>>,
+    pub(crate) state: Mutex<SafePointStopReasonState<'gc>>,
     waiton: Condvar,
 }
 
@@ -80,7 +81,7 @@ impl<'gc> SafePoint<'gc> {
 
     pub fn set_monitor_unlocked(&self) {
         let mut guard = self.state.lock().unwrap();
-        assert!(guard.waiting_monitor_lock.is_some());
+        // assert!(guard.waiting_monitor_lock.is_some());
         guard.waiting_monitor_lock = None;
         self.waiton.notify_one();
     }
@@ -167,6 +168,8 @@ impl<'gc> SafePoint<'gc> {
     pub fn set_park(&self, time: Option<Duration>) {
         let park_until = time.map(|time| Instant::now().add(time));
         let mut guard = self.state.lock().unwrap();
+        assert!(guard.waiting_monitor_notify.is_none());
+        assert!(guard.waiting_monitor_lock.is_none());
         guard.park_until = park_until;
         guard.parks += 1;
         self.waiton.notify_one()
@@ -231,6 +234,7 @@ impl<'gc> SafePoint<'gc> {
         let guard = self.state.lock().unwrap();
 
         if guard.gc_suspended {
+            // dbg!("gc suspended");
             let guard = self.waiton.wait(guard).unwrap();
             drop(guard);
             return self.check(jvm, int_state);
@@ -242,19 +246,37 @@ impl<'gc> SafePoint<'gc> {
             return Err(WasException { exception_obj: todo!() });
         }
         if guard.suspended {
+            // dbg!("regular suspended");
             let _unused = self.waiton.wait(guard).unwrap();
             let current_thread = jvm.thread_state.get_current_thread();
+            drop(_unused);
             return self.check(jvm, int_state);
         }
         if guard.parks > 0 {
+            // dbg!(guard.parks);
+            // dbg!("parked wait");
+            // assert!(guard.waiting_monitor_notify.is_none());
+            // assert!(guard.waiting_monitor_lock.is_none());
             let _unused = self.waiton.wait(guard).unwrap();
+            // dbg!(_unused.parks);
+            // assert!(_unused.waiting_monitor_notify.is_none());
+            // assert!(_unused.waiting_monitor_lock.is_none());
+            // dbg!("recheck");
+            drop(_unused);
+            let guard = self.state.lock().unwrap();
+            // assert!(guard.waiting_monitor_notify.is_none());
+            // assert!(guard.waiting_monitor_lock.is_none());
+            drop(guard);
             return self.check(jvm, int_state);
         }
         if let Some(_) = &guard.waiting_monitor_lock {
-            let _unused = self.waiton.wait(guard).unwrap();
+            let guard = self.waiton.wait(guard).unwrap();
+            drop(guard);
             return self.check(jvm, int_state);
         }
         if let Some(MonitorWait { wait_until, monitor, prev_count }) = &guard.waiting_monitor_notify {
+            // int_state.debug_print_stack_trace(jvm);
+            // dbg!("monitor wait");
             let wait_until = *wait_until;
             let monitor = *monitor;
             let prev_count = *prev_count;
@@ -286,7 +308,7 @@ impl<'gc> SafePoint<'gc> {
             } else {
                 drop(guard); //shouldn't need these but they are here for now b/c I'm paranoid
                 self.check(jvm, int_state)
-            }
+            };
         }
         Ok(())
     }
@@ -300,15 +322,15 @@ pub struct Monitor2 {
 pub struct Monitor2Priv {
     pub owner: Option<JavaThreadId>,
     pub count: usize,
-    pub waiting_notify: Vec<JavaThreadId>,
-    pub waiting_lock: Vec<JavaThreadId>,
+    pub waiting_notify: HashSet<JavaThreadId>,
+    pub waiting_lock: HashSet<JavaThreadId>,
 }
 
 impl Monitor2 {
     pub fn new(id: MonitorID) -> Self {
         Self {
             id,
-            monitor2_priv: RwLock::new(Monitor2Priv { owner: None, count: 0, waiting_notify: vec![], waiting_lock: vec![] }),
+            monitor2_priv: RwLock::new(Monitor2Priv { owner: None, count: 0, waiting_notify: HashSet::new(), waiting_lock: HashSet::new() }),
         }
     }
 
@@ -319,14 +341,27 @@ impl Monitor2 {
             if *owner == current_thread.java_tid {
                 guard.count += 1;
             } else {
-                guard.waiting_lock.push(current_thread.java_tid);
+                guard.waiting_lock.insert(current_thread.java_tid);
                 current_thread.safepoint_state.set_monitor_lock(self.id);
+                drop(guard);
+                safepoint_check(jvm, int_state).unwrap();
+                let mut guard = self.monitor2_priv.write().unwrap();
+                if guard.owner.is_none() {
+                    guard.waiting_lock.remove(&current_thread.java_tid);
+                    guard.owner = Some(current_thread.java_tid);
+                    guard.count = 1;
+                    current_thread.safepoint_state.set_monitor_unlocked();
+                    drop(guard);
+                } else {
+                    drop(guard);
+                    return self.lock(jvm, int_state);
+                }
             }
         } else {
             guard.owner = Some(current_thread.java_tid);
             guard.count = 1;
+            drop(guard);
         }
-        drop(guard);
         safepoint_check(jvm, int_state).unwrap();
         Ok(())
     }
@@ -334,19 +369,18 @@ impl Monitor2 {
     pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
-        // dbg!(current_thread.java_tid);
         if guard.owner == current_thread.java_tid.into() {
             guard.count -= 1;
             if guard.count == 0 {
                 guard.owner = None;
-                if let Some(tid) = guard.waiting_lock.pop() {
+                if let Some(tid) = guard.waiting_lock.drain().next() {
                     let to_unlock_thread = jvm.thread_state.get_thread_by_tid(tid);
                     to_unlock_thread.safepoint_state.set_monitor_unlocked();
                 }
             }
         } else {
-            todo!();
-            /*int_state.debug_print_stack_trace(jvm);*/
+            dbg!(guard.owner);
+            int_state.debug_print_stack_trace(jvm);
             dbg!(guard.owner);
             todo!("illegal monitor state")
         }
@@ -357,7 +391,7 @@ impl Monitor2 {
 
     pub fn notify<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
-        if let Some(to_notify) = guard.waiting_notify.pop() {
+        if let Some(to_notify) = guard.waiting_notify.drain().next() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
             to_notify_thread.safepoint_state.set_notified_once();
         }
@@ -366,7 +400,7 @@ impl Monitor2 {
 
     pub fn notify_all<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
-        for to_notify in guard.waiting_notify.drain(..) {
+        for to_notify in guard.waiting_notify.drain() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
             to_notify_thread.safepoint_state.set_notified_all();
         }
@@ -384,7 +418,7 @@ impl Monitor2 {
         let prev_count = guard.count;
         if guard.owner == current_thread.java_tid.into() {
             guard.owner = None;
-            guard.waiting_notify.push(current_thread.java_tid);
+            guard.waiting_notify.insert(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until, prev_count);
         } else {
             todo!();// int_state.debug_print_stack_trace(jvm);

@@ -1,6 +1,7 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::java_values::JavaValue;
 
 
@@ -27,6 +28,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
         let amount_to_wait = time as u128 - unix_time;
         current_thread.park(jvm, int_state, Some(amount_to_wait))
     } else {
+        // int_state.debug_print_stack_trace(jvm);
+        // dbg!(current_thread.thread_object().name(jvm).to_rust_string(jvm));
         current_thread.park(jvm, int_state, Some(time as u128))
     };
 }
@@ -44,5 +47,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe:
     let thread_obj = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let target_thread = thread_obj.get_java_thread(jvm);
     let interpreter_state = get_interpreter_state(env);
+    // interpreter_state.debug_print_stack_trace(jvm);
+    // dbg!(target_thread.thread_object().name(jvm).to_rust_string(jvm));
     target_thread.unpark(jvm, interpreter_state);
 }

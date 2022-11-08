@@ -120,7 +120,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
     let current_thread_allocated_object_handle = current_thread.thread_object().object();
-    assert_eq!(current_thread_allocated_object_handle.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), "Ljava/lang/Thread;");
+    // assert_eq!(current_thread_allocated_object_handle.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), "Ljava/lang/Thread;");
     let res = new_local_ref_public_new(current_thread_allocated_object_handle.as_allocated_obj().into(), int_state);
     assert_ne!(res, null_mut());
     res

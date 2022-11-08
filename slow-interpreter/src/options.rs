@@ -134,9 +134,9 @@ impl JVMOptions {
             MethodToTrace {
                 combined: "hd/readByte".to_string(),
             },
-            MethodToTrace {
-                combined: "hd/e".to_string(),
-            },
+            // MethodToTrace {
+            //     combined: "xx/cm".to_string(),
+            // },
             // MethodToTrace {
             //     combined: "uv/a".to_string(),
             // },
@@ -146,9 +146,9 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "java/lang/Short/<init>".to_string(),
             // },
-            MethodToTrace {
-                combined: "java/lang/Thread/currentThread".to_string(),
-            },
+            // MethodToTrace {
+            //     combined: "sun/nio/ch/EPollSelectorImpl/doSelect".to_string(),
+            // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         Self {

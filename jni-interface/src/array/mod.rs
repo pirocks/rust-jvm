@@ -67,7 +67,8 @@ pub mod new;
 pub fn array_fast_copy_set<T>(carray: *const T, array_layout: ArrayMemoryLayout, raw_array: NonNull<c_void>, len: i32) {
     for i in 0..len {
         let accessor = array_layout.calculate_index_address(raw_array,i);
-        accessor.write_impl(unsafe { carray.offset(i as isize).read(); });
+        let to_write = unsafe { carray.offset(i as isize).read() };
+        accessor.write_impl(to_write);
     }
 }
 

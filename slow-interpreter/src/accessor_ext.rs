@@ -66,7 +66,7 @@ pub trait AccessorExt: Accessor {
                 NewJavaValueHandle::Byte(self.read_byte())
             }
             CPDType::ShortType => {
-                todo!()
+                NewJavaValueHandle::Short(self.read_short())
             }
             CPDType::CharType => {
                 NewJavaValueHandle::Char(self.read_char())

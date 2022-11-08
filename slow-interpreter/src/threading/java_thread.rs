@@ -163,6 +163,7 @@ impl<'gc> JavaThread<'gc> {
     pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
+        assert!(self.safepoint_state.state.lock().unwrap().waiting_monitor_notify.as_ref().is_none());
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
             let (secs, nanos) = time_nanos.div_mod_floor(&NANOS_PER_SEC);
             Duration::new(secs as u64, nanos as u32)
