@@ -3,12 +3,12 @@ use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 use itertools::Itertools;
+use array_memory_layout::accessor::Accessor;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-use crate::accessor::Accessor;
 use crate::field_numbers::{FieldNameAndClass};
 use crate::RuntimeClass;
 

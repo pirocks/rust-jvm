@@ -3,10 +3,10 @@ use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ptr::NonNull;
 use std::sync::Arc;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::allocated_object_types::AllocatedObjectType;
 
 use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
-use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use runtime_class_stuff::field_numbers::{FieldNameAndClass, FieldNumber};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;

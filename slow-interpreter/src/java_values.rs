@@ -12,11 +12,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use itertools::Itertools;
 
 use add_only_static_vec::AddOnlyVec;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::early_startup::Regions;
 use gc_memory_layout_common::memory_regions::{MemoryRegions};
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
 use runtime_class_stuff::{RuntimeClass};
-use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::loading::LoaderName;

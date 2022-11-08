@@ -5,6 +5,7 @@ use std::num::NonZeroUsize;
 use std::ptr::NonNull;
 use std::sync::Arc;
 use itertools::Itertools;
+use array_memory_layout::accessor::Accessor;
 
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -13,7 +14,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRe
 
 
 use crate::{FieldNameAndClass, FieldNameAndFieldType, FieldNumber, FieldNumberAndFieldType, get_field_numbers, RuntimeClass};
-use crate::accessor::Accessor;
 use crate::hidden_fields::{HiddenJVMField, HiddenJVMFieldAndFieldType};
 
 #[derive(Clone)]

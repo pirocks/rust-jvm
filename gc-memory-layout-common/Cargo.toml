@@ -12,6 +12,7 @@ another-jit-vm = { path = "../another-jit-vm" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 inheritance-tree = { path = "../inheritance-tree" }
+array-memory-layout = { path = "../array-memory-layout" }
 
 nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }

@@ -32,6 +32,7 @@ method-table = { path = "../method-table" }
 inheritance-tree = { path = "../inheritance-tree" }
 thread-signal-handler = { path = "../thread-signal-handler" }
 better-nonnull = { path = "../better-nonnull" }
+array-memory-layout = { path = "../array-memory-layout" }
 rangemap = "1"
 num-traits = "0.2"
 num-derive = "0.3"

@@ -1,9 +1,9 @@
 use std::ffi::c_void;
 use std::ptr::{NonNull, null_mut};
+use array_memory_layout::accessor::Accessor;
+use array_memory_layout::layout::ArrayAccessor;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jobject, jshort};
-use runtime_class_stuff::accessor::Accessor;
-use runtime_class_stuff::array_layout::ArrayAccessor;
 use runtime_class_stuff::object_layout::FieldAccessor;
 use runtime_class_stuff::static_fields::StaticField;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -177,6 +177,7 @@ impl AccessorExt for FieldAccessor{
 
 
 impl AccessorExt for ArrayAccessor {
+
 }
 
 

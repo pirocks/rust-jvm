@@ -166,5 +166,18 @@ impl AllocatedObjectType {
             AllocatedObjectType::RawConstantSize { .. } => true,
         }
     }
+
+    pub fn array_subtype(&self) -> Option<CPDType> {
+        match self {
+            AllocatedObjectType::Class { .. } => None,
+            AllocatedObjectType::ObjectArray { sub_type,.. } => {
+                Some(sub_type.to_cpdtype())
+            },
+            AllocatedObjectType::PrimitiveArray { primitive_type,.. } => {
+                Some(*primitive_type)
+            },
+            AllocatedObjectType::RawConstantSize { .. } => None,
+        }
+    }
 }
 

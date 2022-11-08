@@ -8,6 +8,7 @@
 #![feature(once_cell)]
 #![feature(vec_into_raw_parts)]
 #![feature(entry_insert)]
+#![feature(const_fmt_arguments_new)]
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
@@ -30,7 +31,6 @@ use crate::object_layout::ObjectLayout;
 use crate::static_fields::{AllTheStaticFields, get_fields_static};
 
 pub mod object_layout;
-pub mod array_layout;
 #[cfg(test)]
 pub mod test;
 pub mod method_numbers;

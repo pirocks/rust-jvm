@@ -1,4 +1,4 @@
-use runtime_class_stuff::array_layout::ArrayMemoryLayout;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
 
 

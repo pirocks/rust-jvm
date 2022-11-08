@@ -53,5 +53,6 @@ members = [
     "jni-interface",
     "jvmti-interface",
     "jmm-interface",
-    "better-nonnull"
+    "better-nonnull",
+    "array-memory-layout"
 ]

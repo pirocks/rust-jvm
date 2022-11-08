@@ -4,12 +4,12 @@ use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 
 use libc::{c_void, initgroups};
+use array_memory_layout::accessor::Accessor;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
 
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
-use runtime_class_stuff::accessor::Accessor;
-use runtime_class_stuff::array_layout::ArrayMemoryLayout;
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
 use rust_jvm_common::{FieldId};
@@ -53,7 +53,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_arrayIndexScale(env: *mut JNIEnv,
     let runtime_class = from_jclass(jvm, cb).as_runtime_class(jvm);
     assert!(runtime_class.cpdtype().is_array());
     let memory_layout = ArrayMemoryLayout::from_cpdtype(runtime_class.cpdtype().unwrap_array_type());
-    memory_layout.elem_size() as jint
+    memory_layout.elem_size().get() as jint
 }
 
 #[no_mangle]

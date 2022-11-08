@@ -4,10 +4,12 @@ use std::mem::size_of;
 use std::num::NonZeroU8;
 use std::ops::Deref;
 use std::panic::panic_any;
-use std::ptr::null_mut;
+use std::ptr::{NonNull, null_mut};
 
 use itertools::Itertools;
-use libc::timer_delete;
+use libc::{size_t, timer_delete};
+use array_memory_layout::layout::ArrayMemoryLayout;
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
@@ -16,6 +18,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
 use rust_jvm_common::cpdtype_table::CPDTypeID;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
@@ -149,7 +152,26 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let src_o = from_object_new(jvm, src);
+    let array_elem_type = MemoryRegions::find_object_region_header(NonNull::new(src).unwrap().cast()).array_elem_type.unwrap();
+    let array_layout = ArrayMemoryLayout::from_cpdtype(array_elem_type);
+    let elem_size = array_layout.elem_size().get() as i32;
+    let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
+    let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
+    if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
+        unimplemented!()
+    }
+
+    let dst = NonNull::new(dst.cast()).unwrap();
+    let src = NonNull::new(src.cast()).unwrap();
+
+    let dst_raw = array_layout.calculate_index_address(dst,dst_pos).inner();
+    let src_raw = array_layout.calculate_index_address(src,src_pos).inner();
+
+    libc::memmove(dst_raw.as_ptr(),
+                  src_raw.as_ptr(), (length * elem_size) as size_t);
+
+    //slow:
+    /*let src_o = from_object_new(jvm, src);
     let src = match src_o {
         Some(x) => NewJavaValueHandle::Object(x),
         None => return throw_npe(jvm, int_state),
@@ -165,51 +187,15 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     };
     let nonnull = new_jv_handle.unwrap_object_nonnull();
     let dest = nonnull.unwrap_array();
-    // if let CPDType::CharType = dest.elem_cpdtype() {
-    //     dbg!(src.array_iterator().map(|elem| {
-    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
-    //     }).collect::<String>());
-    // }
-    // if let CPDType::CharType = dest.elem_cpdtype() {
-    //     dbg!(dest.array_iterator().map(|elem| {
-    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
-    //     }).collect::<String>());
-    // }
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
         unimplemented!()
     }
     let mut to_copy = vec![];
     for i in 0..length {
         let temp = src.get_i((src_pos + i));
-        // dbg!(temp.as_njv());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(0).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(1).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(2).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(3).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(4).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(5).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(6).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(7).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(8).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(9).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(10).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(11).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(12).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(13).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(14).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(15).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(16).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(17).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(18).read());
-        // dbg!((0x28000011cd04 as *mut c_void).cast::<u8>().offset(19).read());
         to_copy.push(temp);
     }
     for i in 0..length {
         dest.set_i((dst_pos + i), to_copy[i as usize].as_njv());
-    }
-    // if let CPDType::CharType = dest.elem_cpdtype() {
-    //     dbg!(dest.array_iterator().map(|elem| {
-    //         char::from_u32_unchecked(elem.unwrap_char_strict() as u32)
-    //     }).collect::<String>());
-    // }
+    }*/
 }

@@ -6,6 +6,7 @@ use std::sync::atomic::AtomicPtr;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::IRMethodID;
+use array_memory_layout::accessor::Accessor;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
@@ -14,7 +15,6 @@ use inheritance_tree::ClassID;
 use jvmti_jni_bindings::jint;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
-use runtime_class_stuff::accessor::Accessor;
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{FieldId, MethodId};

@@ -1,9 +1,9 @@
 use std::ptr::NonNull;
 use libc::c_void;
+use array_memory_layout::accessor::Accessor;
+use array_memory_layout::layout::{ArrayAccessor, ArrayMemoryLayout};
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
-use runtime_class_stuff::accessor::Accessor;
-use runtime_class_stuff::array_layout::{ArrayAccessor, ArrayMemoryLayout};
 use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};

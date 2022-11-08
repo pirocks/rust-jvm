@@ -11,10 +11,12 @@ use memoffset::offset_of;
 use nonnull_const::NonNullConst;
 
 use another_jit_vm::Register;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jclass;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use vtable::RawNativeVTable;
 
 use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
@@ -27,6 +29,10 @@ pub struct RegionHeader {
     pub current_ptr: AtomicPtr<c_void>,
     pub region_max_ptr: NonNull<c_void>,
     pub region_elem_size: Option<NonZeroUsize>,
+    pub array_elem_size: Option<NonZeroUsize>,
+    pub array_elem0_offset: usize,
+    pub array_len_offset: usize,
+    pub array_elem_type: Option<CPDType>,
     pub region_type: AllocatedTypeID,
     pub inheritance_bit_path_ptr: *const BitPath256,
     pub vtable_ptr: *mut RawNativeVTable,
@@ -220,7 +226,7 @@ impl MemoryRegions {
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
                 //todo need to use bigger region as needed.
-                self.new_region_for(to_allocate_type, None, None)
+                self.new_region_for(to_allocate_type, None, None, )
             }
             Err(FindRegionError::RegionFull { prev_region_size, prev_vtable_ptr }) => {
                 self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()), prev_vtable_ptr)
@@ -339,11 +345,16 @@ impl MemoryRegions {
             } else {
                 None
             };
+            let array_subtype: Option<CPDType> = to_allocate_type.allocated_object_type.array_subtype();
             let start_current_ptr = AtomicPtr::new(region_header_ptr.as_ptr().add(1) as *mut c_void);
             let region_max_ptr = NonNull::new(region_header_ptr.as_ptr().cast::<c_void>().add(current_region_to_use.region_size())).unwrap();
             region_header_ptr.as_ptr().write(RegionHeader {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
                 region_elem_size,
+                array_elem_size: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).elem_size()),
+                array_elem0_offset: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).elem_0_entry_offset()).unwrap_or(usize::MAX),
+                array_len_offset: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).len_entry_offset()).unwrap_or(usize::MAX),
+                array_elem_type: array_subtype,
                 region_type: type_id,
                 vtable_ptr: to_allocate_type.allocated_object_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
                 region_header_magic_1: RegionHeader::REGION_HEADER_MAGIC,

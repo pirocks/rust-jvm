@@ -1,7 +1,7 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use runtime_class_stuff::array_layout::ArrayMemoryLayout;
+use array_memory_layout::layout::ArrayMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
@@ -74,7 +74,7 @@ fn array_store_impl(method_frame_data: &JavaCompilerMethodAndFrameData, current_
             from_size: Size::int(),
             to_size: Size::pointer(),
         },
-        IRInstr::MulConst { res: index, a: array_layout.elem_size() as i32, size: Size::pointer(), signed: Signed::Signed },
+        IRInstr::MulConst { res: index, a: array_layout.elem_size().get() as i32, size: Size::pointer(), signed: Signed::Signed },
         IRInstr::Add { res: array_ref, a: index, size: Size::pointer() },
         IRInstr::Store { from: value, to_address: array_ref, size: elem_register_size }
     ])
