@@ -54,5 +54,6 @@ members = [
     "jvmti-interface",
     "jmm-interface",
     "better-nonnull",
-    "array-memory-layout"
+    "array-memory-layout",
+    "openjdk-test-parser"
 ]
