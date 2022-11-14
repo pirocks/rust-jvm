@@ -72,7 +72,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__J(env: *mut JNIEnv, the_
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_unsafe: jobject, src_obj: jobject, offset: jlong, dst_obj: jobject, address: jlong, len: jlong) {
     let jvm = get_state(env);
     get_interpreter_state(env).debug_print_stack_trace(jvm);
-    get_interpreter_state(env).set_should_be_tracing_interpreter_calls();
+    // get_interpreter_state(env).set_should_be_tracing_interpreter_calls();
     let src_address = if src_obj == null_mut() {
         offset as *const i8
     } else {
