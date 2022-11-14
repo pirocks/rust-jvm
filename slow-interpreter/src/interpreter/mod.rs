@@ -5,6 +5,7 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use common::special::instance_of_exit_impl_impl_impl;
 use rust_jvm_common::{ByteCodeOffset, StackNativeJavaValue};
+use rust_jvm_common::classfile::{LineNumber};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CompressedParsedRefType};
 
@@ -124,6 +125,8 @@ pub enum PostInstructionAction<'gc> {
     Next {},
 }
 
+static mut INDENT:usize = 10;
+
 pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     // eprintln!("{}",Backtrace::force_capture().to_string());
     let rc = interpreter_state.class_pointer(jvm);
@@ -131,6 +134,30 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc.clone(), method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
+    if interpreter_state.should_be_tracing_function_calls(){
+        unsafe {
+            for _ in 0..INDENT {
+                eprint!(" ");
+            }
+            INDENT = INDENT.saturating_add(1);
+        }
+        let thread_name_cached = interpreter_state.thread_name_cached();
+        let line_number = match method.line_number_table() {
+            None => None,
+            Some(line_number_table) => {
+                match interpreter_state.frame_iter().next().unwrap().try_pc() {
+                    None => None,
+                    Some(pc) => {
+                        line_number_table.lookup_pc(pc)
+                    }
+                }
+            }
+        };
+        eprintln!("Method entered: \"thread={thread_name_cached}\", {}.{}(), line={} bci=0",
+                  rc.cpdtype().java_source_representation(&jvm.string_pool).replace("/","."),
+                  method.name().0.to_str(&jvm.string_pool),
+                  line_number.unwrap_or(LineNumber(u16::MAX)).0);
+    }
     let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &resolver, method_id, true);
@@ -140,7 +167,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let should_sync = if method.is_synchronized() {
         if method.is_static() {
             //todo
-            let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc);
+            let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc.clone());
             let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
             monitor.lock(jvm, real_interpreter_state.inner()).unwrap();
             Some(monitor)
@@ -165,6 +192,30 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 current_offset.0 = next_offset as u16;
             }
             PostInstructionAction::Return { res } => {
+                if real_interpreter_state.inner().should_be_tracing_function_calls(){
+                    unsafe {
+                        INDENT = INDENT.saturating_sub(1);
+                        for _ in 0..INDENT {
+                            eprint!(" ");
+                        }
+                    }
+                    let thread_name_cached = real_interpreter_state.inner().thread_name_cached();
+                    let line_number = match method.line_number_table() {
+                        None => None,
+                        Some(line_number_table) => {
+                            match real_interpreter_state.inner().frame_iter().next().unwrap().try_pc() {
+                                None => None,
+                                Some(pc) => {
+                                    line_number_table.lookup_pc(pc)
+                                }
+                            }
+                        }
+                    };
+                    println!("Method exited: return value= , \"thread={thread_name_cached}\", {}.{}(), line={} bci=0",
+                             rc.cpdtype().java_source_representation(&jvm.string_pool).replace("/","."),
+                             method.name().0.to_str(&jvm.string_pool),
+                             line_number.unwrap_or(LineNumber(u16::MAX)).0);
+                }
                 if let Some(monitor) = should_sync {
                     monitor.unlock(jvm, real_interpreter_state.inner()).unwrap();
                 }

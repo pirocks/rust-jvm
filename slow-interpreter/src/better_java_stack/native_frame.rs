@@ -59,6 +59,14 @@ impl<'gc, 'k> NativeFrame<'gc, 'k> {
     pub fn stack_jni_interface(&mut self) -> &mut PerStackInterfaces {
         self.java_stack.stack_jni_interface()
     }
+
+    pub fn set_should_be_tracing_interpreter_calls(&mut self) {
+        self.java_stack.set_should_be_tracing_function_calls()
+    }
+
+    pub fn should_be_tracing_interpreter_calls(&self) -> bool{
+        self.java_stack.should_be_tracing_function_calls()
+    }
 }
 
 

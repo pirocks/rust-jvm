@@ -62,10 +62,14 @@ pub struct ExceptionTableElem {
     pub catch_type: u16,
 }
 
+//todo what if line number more thatn 64k?
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct LineNumber(pub u16);
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LineNumberTableEntry {
-    pub start_pc: u16,
-    pub line_number: u16,
+    pub start_pc: ByteCodeOffset,
+    pub line_number: LineNumber,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -123,6 +127,18 @@ pub struct RuntimeInvisibleAnnotations {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LineNumberTable {
     pub line_number_table: Vec<LineNumberTableEntry>,
+}
+
+impl LineNumberTable{
+    pub fn lookup_pc(&self, pc: ByteCodeOffset) -> Option<LineNumber> {
+        let mut current_line = None;
+        for entry in self.line_number_table.iter() {
+            if entry.start_pc <= pc{
+                current_line = Some(entry.line_number)
+            }
+        }
+        current_line
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

@@ -316,6 +316,18 @@ impl<'vm> JavaStackGuard<'vm> {
         self.reacquire();
         res
     }
+
+    pub fn set_should_be_tracing_function_calls(&mut self) {
+        self.guard.as_mut().unwrap().should_be_tracing_function_calls = true;
+    }
+
+    pub fn should_be_tracing_function_calls(&self) -> bool {
+        self.guard.as_ref().unwrap().should_be_tracing_function_calls
+    }
+
+    pub fn thread_name_cached(&self) -> String{
+        self.guard.as_ref().unwrap().thread_name_cached.clone()
+    }
 }
 
 impl<'vm> HasRBPAndRSP for JavaStackGuard<'vm> {

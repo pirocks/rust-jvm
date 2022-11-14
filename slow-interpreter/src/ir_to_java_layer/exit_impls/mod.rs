@@ -632,7 +632,7 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                 };
                 if *start_pc <= current_pc && current_pc < *end_pc && matches_class {
                     // int_state.debug_print_stack_trace(jvm);
-                    eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
+                    // eprintln!("Unwind to: {}/{}/{}", view.name().unwrap_name().0.to_str(&jvm.string_pool), method_view.name().0.to_str(&jvm.string_pool), method_view.desc().jvm_representation(&jvm.string_pool));
                     let ir_method_id = current_frame.frame_ref().ir_method_id().unwrap();
                     let method_id = current_frame.frame_ref().method_id().unwrap();
                     let handler_address = jvm.java_vm_state.lookup_byte_code_offset(ir_method_id, *handler_pc);

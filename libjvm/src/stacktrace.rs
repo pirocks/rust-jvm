@@ -11,7 +11,7 @@ use classfile_view::view::ClassView;
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, jvmtiError_JVMTI_ERROR_CLASS_LOADER_UNSUPPORTED};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::classfile::{LineNumberTable, LineNumberTableEntry};
+use rust_jvm_common::classfile::{LineNumber, LineNumberTable, LineNumberTableEntry};
 use slow_interpreter::better_java_stack::frame_iter::FrameIterFrameRef;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
@@ -23,38 +23,17 @@ use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
+use slow_interpreter::utils::{lookup_line_number, throw_array_out_of_bounds, throw_illegal_arg, throw_npe, throw_npe_res};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 struct OwnedStackEntry<'gc> {
     declaring_class: Arc<RuntimeClass<'gc>>,
-    line_number: jint,
+    line_number: LineNumber,
     class_name_wtf8: Wtf8Buf,
     method_name_wtf8: Wtf8Buf,
     source_file_name_wtf8: Wtf8Buf,
 }
 
-fn lookup_line_number(line_number_table: &LineNumberTable, stack_entry: &FrameIterFrameRef) -> Option<jint>{
-    let mut cur_line = None;
-    if let Some(pc) = stack_entry.try_pc() {
-        let string_pool = &stack_entry.jvm().string_pool;
-        // dbg!(stack_entry
-        //     .class_pointer()
-        //     .unwrap()
-        //     .view()
-        //     .method_view_i(stack_entry.method_i())
-        //     .name().0.to_str(string_pool));
-        // dbg!(stack_entry.is_interpreted());
-        for LineNumberTableEntry { start_pc, line_number } in &line_number_table.line_number_table {
-            // dbg!(start_pc);
-            // dbg!(pc);
-            if (*start_pc) <= pc.0 {
-                cur_line = Some(*line_number as jint);
-            }
-        }
-    }
-    cur_line
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable: jobject) {
@@ -77,9 +56,9 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
                 Some(sourcefile) => sourcefile.file(),
             };
             let line_number = match method_view.line_number_table() {
-                None => -1,
+                None => LineNumber(u16::MAX),
                 Some(line_number_table) => {
-                    lookup_line_number(line_number_table, stack_entry).unwrap_or(-1)
+                    lookup_line_number(line_number_table, stack_entry).unwrap_or(LineNumber(u16::MAX))
                 }
             };
             let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());

@@ -68,6 +68,14 @@ impl<'vm, 'k> JavaInterpreterFrame<'vm, 'k> {
             self.java_stack.reacquire();
         }
     }
+
+    pub fn should_be_tracing_function_calls(&self) -> bool {
+        self.java_stack.should_be_tracing_function_calls()
+    }
+
+    pub fn thread_name_cached(&self) -> String{
+        self.java_stack.thread_name_cached()
+    }
 }
 
 impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {

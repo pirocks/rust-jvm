@@ -19,6 +19,7 @@ use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_
 use rust_jvm_common::classnames::ClassName;
 
 use rust_jvm_common::ptype::PType;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::run_function;
 use slow_interpreter::interpreter_util::new_object;
@@ -130,6 +131,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    int_state.debug_print_stack_trace(jvm);
     todo!("This seems to need signals or some shit. Seems hard to implement")
 }
 

@@ -128,12 +128,12 @@ impl JVMOptions {
             // MethodToTrace {
             //     combined: "io/netty/buffer/UnpooledHeapByteBuf/_getByte".to_string(),
             // },
-            MethodToTrace {
-                combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),
-            },
-            MethodToTrace {
-                combined: "hd/readByte".to_string(),
-            },
+            // MethodToTrace {
+            //     combined: "io/netty/buffer/AbstractByteBuf/readByte".to_string(),
+            // },
+            // MethodToTrace {
+            //     combined: "hd/readByte".to_string(),
+            // },
             // MethodToTrace {
             //     combined: "xx/cm".to_string(),
             // },
@@ -144,10 +144,10 @@ impl JVMOptions {
             //     combined: "java/lang/Short/shortValue".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/lang/Short/<init>".to_string(),
+            //     combined: "sun/nio/ch/ServerSocketChannelImpl/translateReadyOps".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "sun/nio/ch/EPollSelectorImpl/doSelect".to_string(),
+            //     combined: "sun/nio/ch/EPollSelectorImpl/updateSelectedKeys".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

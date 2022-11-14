@@ -52,9 +52,11 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //io.netty.buffer.UnpooledHeapByteBuf#_getByte
     //io.netty.buffer.AbstractByteBuf#readByte
     //java.lang.UNIXProcess#initStreams
+    //io.netty.channel.nio.NioEventLoop#run
+    // sun.nio.ch.EPollSelectorImpl#doSelect
     // use classfile_view::view::ClassView;
-    // if /*method.classview().name().jvm_representation(&jvm.string_pool).contains("bfy") &&*/
-    //     method.name().0.to_str(&jvm.string_pool) == "remove" ||method.name().0.to_str(&jvm.string_pool) == "contains" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("ServerSocketChannelImpl") &&
+    //     method.name().0.to_str(&jvm.string_pool) == "translateReadyOps" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
     //     if let CInstructionInfo::ireturn = instruct{
     //         interpreter_state.inner().debug_print_stack_trace(jvm);

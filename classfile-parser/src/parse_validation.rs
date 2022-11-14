@@ -410,7 +410,7 @@ impl ValidatorSettings {
             AttributeType::LineNumberTable(lnt) => match attr {
                 AttributeEnclosingType::Code(c) => {
                     for lnte in &lnt.line_number_table {
-                        if lnte.start_pc as usize >= c.code_raw.len() {
+                        if lnte.start_pc.0 as usize >= c.code_raw.len() {
                             return Err(ClassfileError::BadPC);
                         }
                     }

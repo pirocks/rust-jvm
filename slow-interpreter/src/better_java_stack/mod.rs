@@ -77,6 +77,8 @@ pub struct JavaStack<'gc> {
     thread_stack_data: Arc<SignalAccessibleJavaStackData>,
     has_been_used: bool,
     per_stack_interface: PerStackInterfaces,
+    should_be_tracing_function_calls: bool,
+    thread_name_cached: String
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -86,14 +88,16 @@ pub struct InterpreterFrameState {
 }
 
 impl<'gc> JavaStack<'gc> {
-    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>) -> Self {
+    pub fn new(jvm: &'gc JVMState<'gc>, owned_ir_stack: OwnedIRStack, thread_stack_data: Arc<SignalAccessibleJavaStackData>, thread_name: String) -> Self {
         Self {
             phantom: Default::default(),
             owned_ir_stack,
             interpreter_frame_operand_stack_depths: vec![],
             thread_stack_data,
             has_been_used: false,
-            per_stack_interface: jvm.default_per_stack_initial_interfaces.clone()
+            per_stack_interface: jvm.default_per_stack_initial_interfaces.clone(),
+            should_be_tracing_function_calls: false,
+            thread_name_cached: thread_name
         }
     }
 
@@ -105,6 +109,8 @@ impl<'gc> JavaStack<'gc> {
     pub fn signal_safe_data(&self) -> &SignalAccessibleJavaStackData {
         self.thread_stack_data.deref()
     }
+
+
 }
 
 

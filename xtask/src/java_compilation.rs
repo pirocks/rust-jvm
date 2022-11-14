@@ -18,11 +18,13 @@ impl CompiledClass{
     }
 }
 
-pub fn compile(javac_location: &JavaCLocation, to_compile: &Path, compilation_target_dir: &Path) -> anyhow::Result<CompiledClass> {
+pub fn compile(javac_location: &JavaCLocation, to_compile: Vec<PathBuf>, compilation_target_dir: &Path) -> anyhow::Result<CompiledClass> {
     let mut command = Command::new(&javac_location.0);
-    let class_name = to_compile.file_prefix().unwrap();
+    let class_name = to_compile[0].file_prefix().unwrap();
     let mut compiler_args = vec![];
-    compiler_args.push(to_compile.as_os_str());
+    for to_compile in to_compile.iter(){
+        compiler_args.push(to_compile.as_os_str());
+    }
     compiler_args.push(OsStr::new("-target"));
     compiler_args.push(OsStr::new("1.8"));
     compiler_args.push(OsStr::new("-g"));

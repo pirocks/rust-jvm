@@ -352,7 +352,7 @@ pub unsafe extern "C" fn get_line_number_table(env: *mut jvmtiEnv, method: jmeth
     for (i, entry) in table.iter().enumerate() {
         let start = entry.start_pc;
         let line_number = entry.line_number;
-        res_table.add(i).write(_jvmtiLineNumberEntry { start_location: start as i64, line_number: line_number as i32 })
+        res_table.add(i).write(_jvmtiLineNumberEntry { start_location: start.0 as i64, line_number: line_number.0 as i32 })
     }
     table_ptr.write(res_table);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)

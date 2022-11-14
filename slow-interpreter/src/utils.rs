@@ -6,6 +6,7 @@ use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jfieldID, jint};
 use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::classfile::{LineNumber, LineNumberTable};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
@@ -13,7 +14,8 @@ use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
 
 use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frame_iter::FrameIterFrameRef;
+use crate::better_java_stack::frames::{PushableFrame};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
@@ -295,4 +297,11 @@ fn get_all_methods_impl<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
 pub fn new_field_id<'gc>(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>, field_i: usize) -> jfieldID {
     let id = jvm.field_table.write().unwrap().register_with_table(runtime_class, field_i as u16);
     unsafe { transmute(id) }
+}
+
+pub fn lookup_line_number(line_number_table: &LineNumberTable, stack_entry: &FrameIterFrameRef) -> Option<LineNumber> {
+    if let Some(pc) = stack_entry.try_pc() {
+        return line_number_table.lookup_pc(pc)
+    }
+    None
 }

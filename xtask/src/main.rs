@@ -8,6 +8,7 @@ use std::process::Command;
 
 use anyhow::anyhow;
 use clap::Parser;
+use itertools::Itertools;
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use xshell::{cmd, Shell};
@@ -116,7 +117,7 @@ fn main() -> anyhow::Result<()> {
                 Ok(globbed_path?)
             }).collect::<Result<Vec<PathBuf>, anyhow::Error>>()?;
             let class_files = source_files.into_iter().map(|source_file| {
-                Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
+                Ok(compile(&javac, vec![source_file.to_path_buf()], compilation_dir.as_path())?)
             }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
             let jdk_dir = config.dep_dir.join("jdk8u");
@@ -132,45 +133,53 @@ fn main() -> anyhow::Result<()> {
             let javac = javac_location(&config);
             // let to
             let classes = vec![
-                "java/lang/Boolean/Factory",
-                "java/lang/Boolean/GetBoolean",
-                "java/lang/Boolean/MakeBooleanComparable",
-                "java/lang/Boolean/ParseBoolean",
-                "java/lang/Byte/Decode",
+                vec!["java/lang/Boolean/Factory"],
+                vec!["java/lang/Boolean/GetBoolean"],
+                vec!["java/lang/Boolean/MakeBooleanComparable"],
+                vec!["java/lang/Boolean/ParseBoolean"],
+                vec!["java/lang/Byte/Decode"],
                 // "java/lang/Character/TestIsJavaIdentifierMethods", //needs perf, specifically big loop needs compilation
-                "java/lang/Long/BitTwiddle",
+                vec!["java/lang/Long/BitTwiddle"],
                 // "java/lang/Long/Decode", // needs working npe
-                "java/lang/Long/GetLong",
-                "java/lang/Long/ParsingTest",
+                vec!["java/lang/Long/GetLong"],
+                vec!["java/lang/Long/ParsingTest"],
                 // "java/lang/Long/Unsigned", //needs working division by zero
                 // "java/lang/Thread/GenerifyStackTraces", //needs impl dump threads
                 // "java/lang/Thread/HoldsLock",// needs impl holds lock
-                "java/lang/Thread/MainThreadTest",
+                vec!["java/lang/Thread/MainThreadTest"],
                 // "java/lang/Thread/ITLConstructor",// seems to deadlock needs fix
-                "java/lang/Compare",
-                "java/lang/HashCode",
-                "java/lang/ToString",
+                vec!["java/lang/Compare"],
+                vec!["java/lang/HashCode"],
+                vec!["java/lang/ToString"],
                 //"java/util/AbstractCollection/ToArrayTest", // needs array store exception checking on arrays to be implemented.
-                "java/util/AbstractCollection/ToString",
+                vec!["java/util/AbstractCollection/ToString"],
                 // "java/util/AbstractList/CheckForComodification", //ignored by openjdk b/c openjdk std is broken
-                "java/util/AbstractList/FailFastIterator",
-                "java/util/AbstractList/HasNextAfterException",
-                "java/util/AbstractMap/AbstractMapClone",
+                vec!["java/util/AbstractList/FailFastIterator"],
+                vec!["java/util/AbstractList/HasNextAfterException"],
+                vec!["java/util/AbstractMap/AbstractMapClone"],
                 // "java/util/AbstractMap/Equals", // causes an expected npe need to implement npe throwing
-                "java/util/AbstractMap/SimpleEntries",
-                "java/util/AbstractMap/ToString",
-                "java/util/AbstractSequentialList/AddAll",
+                vec!["java/util/AbstractMap/SimpleEntries"],
+                vec!["java/util/AbstractMap/ToString"],
+                vec!["java/util/AbstractSequentialList/AddAll"],
                 // "java/util/ArrayList/AddAll",// todo buggy?
-                "java/util/ArrayList/Bug6533203",
-                "java/util/ArrayList/EnsureCapacity",
+                vec!["java/util/ArrayList/Bug6533203"],
+                vec!["java/util/ArrayList/EnsureCapacity"],
                 // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
                 // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
-                "java/util/Collections/ViewSynch"
+                // "java/util/Collections/ViewSynch" //doesn't exit for some reason
+                // vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
+                vec!["java/nio/channels/Selector/SelectorTest", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                vec!["java/nio/channels/Selector/LotsOfUpdates", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                vec!["java/nio/channels/Selector/SelectWrite", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition
+                vec!["java/nio/channels/Selector/ReadAfterConnect", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                vec!["java/nio/channels/Pipe/SelectPipe"]
             ];
-            let class_files = classes.into_par_iter().map(|class| {
-                test_resources_base.join(format!("{}.java", class))
-            }).map(|source_file| {
-                Ok(compile(&javac, source_file.as_path(), compilation_dir.as_path())?)
+            let class_files = classes.into_par_iter().map(|classes| {
+                classes.iter().map(|class| test_resources_base.join(format!("{}.java", class))).collect_vec()
+            }).map(|source_files| {
+                Ok(compile(&javac, source_files, compilation_dir.as_path())?)
             }).collect::<anyhow::Result<Vec<CompiledClass>>>()?;
             let exclude: HashSet<String> = HashSet::from_iter([]);
             let jdk_dir = config.dep_dir.join("jdk8u");

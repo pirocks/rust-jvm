@@ -94,8 +94,8 @@ impl<'gc> JavaThread<'gc> {
                 (thread_obj.tid(jvm), thread_obj.name(jvm).to_rust_string(jvm))
             }
         };
-        let underlying = jvm.thread_state.threads.create_thread(name.into());
-        let java_stack = Mutex::new(JavaStack::new(jvm, owned_ir_stack, stack_signal_safe_data.clone()));
+        let underlying = jvm.thread_state.threads.create_thread(name.clone().into());
+        let java_stack = Mutex::new(JavaStack::new(jvm, owned_ir_stack, stack_signal_safe_data.clone(), name.clone()));
         let res = Arc::new(JavaThread {
             java_tid,
             java_stack,
