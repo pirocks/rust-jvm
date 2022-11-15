@@ -104,7 +104,7 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
                                 .arg(classpath_1.as_str())
                                 .arg(classpath_2.as_str())
                                 .spawn()?;
-                            match child.wait_timeout(Duration::from_secs(60))?{
+                            match child.wait_timeout(Duration::from_secs(10))?{
                                 None => {
                                     child.kill()?;
                                     let _ = child.wait()?;
