@@ -16,7 +16,10 @@ regex = "1"
 shell-words = "1"
 memory-limited-executor = { path = "../memory-limited-executor" }
 memory-amount = { path = "../memory-amount" }
+openjdk-test-parser = { path = "../openjdk-test-parser" }
+thiserror = { version = "1" }
 async-trait = "0.1"
 glob = "0.3"
 rayon = "1.5"
 itertools = "0.10"
+sha256 = "1.1.1"

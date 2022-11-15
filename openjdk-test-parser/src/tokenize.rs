@@ -11,6 +11,11 @@ pub enum TestCommentTagToken {
     Requires,
     EnablePreview,
     Run,
+    Build,
+    Compile,
+    Ignore,
+    Clean,
+    Empty,
 }
 
 #[derive(Debug)]
@@ -63,42 +68,83 @@ impl TestCommentTokenJoined {
     }
 }
 
-const TOKEN_TYPES: phf::Map<&'static str, TestCommentTagToken> = phf::phf_map! {
-    "@test" => TestCommentTagToken::Test,
-    "@bug" => TestCommentTagToken::Bug,
-    "@summary" => TestCommentTagToken::Summary,
-    "@author" => TestCommentTagToken::Author,
-    "@comment" => TestCommentTagToken::Comment,
-    "@library" => TestCommentTagToken::Library,
-    "@key" => TestCommentTagToken::Key,
-    "@modules" => TestCommentTagToken::Modules,
-    "@requires" => TestCommentTagToken::Requires,
-    "@enablepreview" => TestCommentTagToken::EnablePreview,
-    "@run" => TestCommentTagToken::Run,
-};
-
 fn tokenize_test_comment_content_impl(str: &str) -> Result<Vec<TestCommentToken>, TokenError> {
     let mut current_tokens = vec![];
     let mut current_str = str;
+    let mut in_tag = false;
     'outer_loop: loop {
         if let Some(current_char) = current_str.chars().next() {
             match current_char {
                 '@' => {
-                    if &current_str[1..] == "@#" {
+                    if in_tag{
+                        current_tokens.push(TestCommentToken::CommentContentChar(current_char));
+                        current_str = &current_str[1..];
+                        continue;
+                    }
+                    in_tag = true;
+                    if current_str.starts_with("@#") {
                         current_tokens.push(TestCommentToken::CommentContentChar('@'));
                         current_tokens.push(TestCommentToken::CommentContentChar('#'));
                         current_str = &current_str[2..];
                         continue 'outer_loop;
                     }
-                    for (string, token_type) in &TOKEN_TYPES {
-                        if current_str.starts_with(string) {
-                            current_tokens.push(TestCommentToken::Tag(*token_type));
-                            current_str = &current_str[string.len()..];
-                            continue 'outer_loop;
+
+                    //todo handle this by stripping start from comment and only looking at tags at beggining of line
+                    if current_str.starts_with("@code") {
+                        for char in "@code".chars(){
+                            current_tokens.push(TestCommentToken::CommentContentChar(char));
                         }
+                        current_str = &current_str["@code".len()..];
+                        continue 'outer_loop;
                     }
+                    if current_str.starts_with("@sun") {
+                        for char in "@sun".chars(){
+                            current_tokens.push(TestCommentToken::CommentContentChar(char));
+                        }
+                        current_str = &current_str["@sun".len()..];
+                        continue 'outer_loop;
+                    }
+                    let (token_type, string) = if current_str.starts_with("@test") {
+                        (TestCommentTagToken::Test, "@test")
+                    } else if current_str.starts_with("@bug") {
+                        (TestCommentTagToken::Bug, "@bug")
+                    } else if current_str.starts_with("@summary") {
+                        (TestCommentTagToken::Summary, "@summary")
+                    } else if current_str.starts_with("@author") {
+                        (TestCommentTagToken::Author, "@author")
+                    } else if current_str.starts_with("@comment") {
+                        (TestCommentTagToken::Comment, "@comment")
+                    } else if current_str.starts_with("@library") {
+                        (TestCommentTagToken::Library, "@library")
+                    } else if current_str.starts_with("@key") {
+                        (TestCommentTagToken::Key, "@key")
+                    } else if current_str.starts_with("@modules") {
+                        (TestCommentTagToken::Modules, "@modules")
+                    } else if current_str.starts_with("@requires") {
+                        (TestCommentTagToken::Requires, "@requires")
+                    } else if current_str.starts_with("@enablepreview") {
+                        (TestCommentTagToken::EnablePreview, "@enablepreview")
+                    } else if current_str.starts_with("@run") {
+                        (TestCommentTagToken::Run, "@run")
+                    } else if current_str.starts_with("@build") {
+                        (TestCommentTagToken::Build, "@build")
+                    } else if current_str.starts_with("@compile") {
+                        (TestCommentTagToken::Compile, "@compile")
+                    } else if current_str.starts_with("@ignore") {
+                        (TestCommentTagToken::Ignore, "@ignore")
+                    } else if current_str.starts_with("@clean") {
+                        (TestCommentTagToken::Clean, "@clean")
+                    } else if current_str.starts_with("@ ") {
+                        (TestCommentTagToken::Empty, "@ ")
+                    }else {
+                        dbg!(current_str);
+                        todo!()
+                    };
+                    current_tokens.push(TestCommentToken::Tag(token_type));
+                    current_str = &current_str[string.len()..];
                 }
                 '\n' => {
+                    in_tag = false;
                     current_tokens.push(TestCommentToken::NewLine);
                     current_str = &current_str[1..];
                 }
@@ -191,7 +237,7 @@ mod tests {
         match res {
             ParsedOpenJDKTest::Test { file_type, bug_num, summary, author, .. } => {
                 assert_eq!(file_type, FileType::Java);
-                assert_eq!(bug_num, Some(vec![4902952,4905407,4916149,8057793]));
+                assert_eq!(bug_num, Some(vec![4902952, 4905407, 4916149, 8057793]));
                 assert_eq!(summary, Some("Tests that the scale of zero is propagated properly and has the
  * proper effect and that setting the scale to zero does not mutate the
  * BigDecimal.

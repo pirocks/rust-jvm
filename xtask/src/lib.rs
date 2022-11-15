@@ -2,6 +2,7 @@
 #![feature(never_type)]
 #![feature(exit_status_error)]
 #![feature(path_file_prefix)]
+#![feature(once_cell)]
 
 use std::path::{Path, PathBuf};
 
@@ -12,6 +13,9 @@ use xshell::{cmd, Shell};
 
 pub mod java_compilation;
 pub mod build_steps;
+pub mod all;
+pub mod run_test;
+pub mod file_hash;
 
 fn default_deps_dir(workspace_dir: &Path) -> PathBuf {
     workspace_dir.join("deps")

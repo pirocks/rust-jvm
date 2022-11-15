@@ -1,9 +1,8 @@
 use std::{fs, io};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::vec::IntoIter;
-use itertools::{Itertools, peek_nth, PeekNth};
+use itertools::{peek_nth, PeekNth};
 use crate::ParsedOpenJDKTest;
 use crate::tokenize::{TestCommentTagToken, TestCommentTokenJoined, TokenError, tokenize_test_comment_content};
 
@@ -18,7 +17,7 @@ pub enum TestParseError {
     #[error(transparent)]
     TokenError(#[from] TokenError),
     #[error("io error reading file")]
-    IO(#[from] io::Error)
+    IO(#[from] io::Error),
 }
 
 
@@ -41,7 +40,7 @@ fn file_type_from_path(file_path: impl AsRef<Path>) -> Option<FileType> {
             FileType::Html
         }
         _ => {
-            return None
+            return None;
         }
     })
 }
@@ -66,7 +65,7 @@ fn extract_comments_java(contents: &str) -> Vec<&str> {
                 comment_end
             }
         };
-        res.push(&remaining[comment_start..comment_end]);
+        res.push(&remaining[comment_start..(comment_start + comment_end)]);
         remaining = &remaining[(comment_end + 2)..];
     }
 }
@@ -75,10 +74,20 @@ fn find_test_comment(comments: Vec<&str>) -> Result<&str, TestParseError> {
     comments.into_iter().find(|comment| comment.contains("@test")).ok_or(TestParseError::ContainsNoTest)
 }
 
-pub(crate) fn parse_java_test_file(file_path: PathBuf, tokens: Vec<TestCommentTokenJoined>) -> Result<ParsedOpenJDKTest, TestParseError>{
+pub(crate) fn parse_java_test_file(file_path: PathBuf, tokens: Vec<TestCommentTokenJoined>) -> Result<ParsedOpenJDKTest, TestParseError> {
     let mut bug_nums = None;
     let mut summary = None;
     let mut author = None;
+    let mut requires = None;
+    let mut run = None;
+    let mut comment = None;
+    let mut build = None;
+    let mut library = None;
+    let mut key = None;
+    let mut modules = None;
+    let mut compile = None;
+    let mut ignore = None;
+    let mut clean = None;
 
 
     let mut peekable_iter = peek_nth(tokens);
@@ -93,38 +102,51 @@ pub(crate) fn parse_java_test_file(file_path: PathBuf, tokens: Vec<TestCommentTo
             TestCommentTokenJoined::Tag(tag) => {
                 match tag {
                     TestCommentTagToken::Test => {
-                        continue
+                        continue;
                     }
                     TestCommentTagToken::Bug => {
-                        bug_nums = Some(parse_bug(&mut peekable_iter));
+                        bug_nums = Some(parse_multiline_string(&mut peekable_iter));
                     }
                     TestCommentTagToken::Summary => {
-                        summary = Some(parse_summary(&mut peekable_iter));
+                        summary = Some(parse_multiline_string(&mut peekable_iter));
                     }
                     TestCommentTagToken::Author => {
-                        author = Some(parse_author(&mut peekable_iter));
+                        author = Some(parse_multiline_string(&mut peekable_iter));
                     }
                     TestCommentTagToken::Comment => {
-                        todo!()
+                        comment = Some(parse_multiline_string(&mut peekable_iter));
                     }
                     TestCommentTagToken::Library => {
-                        todo!()
+                        library = Some(parse_multiline_string(&mut peekable_iter))
                     }
                     TestCommentTagToken::Key => {
-                        todo!()
+                        key = Some(parse_multiline_string(&mut peekable_iter))
                     }
                     TestCommentTagToken::Modules => {
-                        todo!()
+                        modules = Some(parse_multiline_string(&mut peekable_iter))
                     }
                     TestCommentTagToken::Requires => {
-                        todo!()
+                        requires = Some(parse_multiline_string(&mut peekable_iter));
                     }
                     TestCommentTagToken::EnablePreview => {
                         todo!()
                     }
                     TestCommentTagToken::Run => {
-                        todo!()
+                        run = Some(parse_multiline_string(&mut peekable_iter));
                     }
+                    TestCommentTagToken::Build => {
+                        build = Some(parse_multiline_string(&mut peekable_iter));
+                    }
+                    TestCommentTagToken::Compile => {
+                        compile = Some(parse_multiline_string(&mut peekable_iter));
+                    }
+                    TestCommentTagToken::Ignore => {
+                        ignore = Some(parse_multiline_string(&mut peekable_iter));
+                    }
+                    TestCommentTagToken::Clean => {
+                        clean = Some(parse_multiline_string(&mut peekable_iter));
+                    }
+                    TestCommentTagToken::Empty => {}
                 }
             }
             TestCommentTokenJoined::NewLine => {}
@@ -138,21 +160,31 @@ pub(crate) fn parse_java_test_file(file_path: PathBuf, tokens: Vec<TestCommentTo
         bug_num: bug_nums,
         summary,
         author,
+        requires,
+        run,
+        comment,
+        build,
+        library,
+        key,
+        modules,
+        compile,
+        ignore,
+        clean,
     })
 }
 
-fn parse_author(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> String {
+/*fn parse_author(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> String {
     peekable_iter.next().unwrap().unwrap_comment_content_string().trim().to_string()
-}
+}*/
 
-fn parse_bug(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> Vec<u64> {
+/*fn parse_bug(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> Vec<u64> {
     let numbers = peekable_iter.next().unwrap().unwrap_comment_content_string().trim().split(" ").map(|str| u64::from_str(str).unwrap()).collect_vec();
     let newline = peekable_iter.next().unwrap();
     newline.unwrap_newline();
     numbers
-}
+}*/
 
-fn parse_summary(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> String {
+fn parse_multiline_string(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJoined>>) -> String {
     let mut summary = String::new();
     loop {
         if let None | Some(TestCommentTokenJoined::Tag(_)) = peekable_iter.peek() {

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use crate::XTaskConfig;
 
+#[derive(Clone)]
 pub struct JavaCLocation(pub PathBuf);
 
 pub fn javac_location(config: &XTaskConfig) -> JavaCLocation{

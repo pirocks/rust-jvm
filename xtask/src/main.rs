@@ -14,6 +14,7 @@ use rayon::iter::ParallelIterator;
 use xshell::{cmd, Shell};
 
 use xtask::{clean, deps, load_or_create_xtask_config, write_xtask_config, XTaskConfig};
+use xtask::all::all_tests;
 use xtask::java_compilation::{compile, CompiledClass, javac_location};
 
 #[derive(Parser)]
@@ -45,6 +46,8 @@ pub enum OptsInner {
     Test {},
     #[clap(about = "run openjdk tests")]
     OpenJDKTest {},
+    #[clap(about = "run all openjdk tests")]
+    OpenJDKAll {},
 }
 
 fn change_config_option(workspace_dir: &Path, changer: impl FnOnce(&mut XTaskConfig)) -> anyhow::Result<()> {
@@ -185,9 +188,13 @@ fn main() -> anyhow::Result<()> {
             let jdk_dir = config.dep_dir.join("jdk8u");
             run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
+        OptsInner::OpenJDKAll {  } => {
+            all_tests(workspace_dir)?;
+        }
     }
     Ok(())
 }
+
 
 fn run_classes(jdk_dir: PathBuf, compilation_dir: PathBuf, class_files: Vec<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
     let classpath = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes {}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display(), jdk_dir.display());
