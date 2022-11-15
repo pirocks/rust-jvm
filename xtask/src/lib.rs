@@ -4,6 +4,8 @@
 #![feature(path_file_prefix)]
 #![feature(once_cell)]
 
+extern crate core;
+
 use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;

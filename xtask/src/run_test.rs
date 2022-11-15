@@ -18,14 +18,21 @@ pub enum TestRunError {
     ReBuildIf(#[from] RebuildIfError),
 }
 
-pub enum TestResult {
+pub enum TestResult{
     Success {},
+    Error {}
+}
+
+pub enum TestCompilationResult {
+    Success {
+        compiled_file: PathBuf
+    },
     Error {},
 }
 
 
 pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation) -> Result<TestResult, TestRunError> {
-    match parsed {
+    return match parsed {
         ParsedOpenJDKTest::Test {
             file_type,
             defining_file_path,
@@ -73,13 +80,20 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
             }
             match file_type {
                 FileType::Java => {
-                    run_javac_with_rebuild_if(javac,defining_file_path, test_base_dir, compilation_base_dir)
+                    match run_javac_with_rebuild_if(javac, defining_file_path, test_base_dir, compilation_base_dir)? {
+                        TestCompilationResult::Success { .. } => {
+                            Ok(TestResult::Success {})
+                        }
+                        TestCompilationResult::Error { .. } => {
+                            Ok(TestResult::Error {})
+                        }
+                    }
                 }
                 FileType::Bash => {
-                    return Err(TestRunError::ExecutionNotImplemented);
+                    Err(TestRunError::ExecutionNotImplemented)
                 }
                 FileType::Html => {
-                    return Err(TestRunError::ExecutionNotImplemented);
+                    Err(TestRunError::ExecutionNotImplemented)
                 }
             }
         }
@@ -87,7 +101,7 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
 }
 
 
-pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: impl AsRef<Path>, test_base_dir: PathBuf, compilation_base_dir: PathBuf) -> Result<TestResult,TestRunError>{
+pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: impl AsRef<Path>, test_base_dir: PathBuf, compilation_base_dir: PathBuf) -> Result<TestCompilationResult,TestRunError>{
     dbg!(to_compile_java_file.as_ref());
     assert!(to_compile_java_file.as_ref().starts_with(test_base_dir.clone()));
     let file_relative_path = to_compile_java_file.as_ref().strip_prefix(test_base_dir).unwrap();
@@ -101,7 +115,7 @@ pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: imp
     let rebuild_if_file = expected_output_file.with_extension("rebuildif");
     if should_rebuild(&rebuild_if_file)? {
         let mut javac_command = Command::new(javac.0);
-        let mut child = javac_command
+        let child = javac_command
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .arg("-target").arg("1.8")
@@ -111,12 +125,12 @@ pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: imp
             .arg(to_compile_java_file.as_ref())
             .spawn()?;
         let output = child.wait_with_output().unwrap();
-        if output.status.success() {
-            write_rebuild_if(rebuild_if_file.as_path(),&rebuild_if_file_changed(to_compile_java_file.as_ref())?)?;
-            return Ok(TestResult::Success {})
+        return if output.status.success() {
+            write_rebuild_if(rebuild_if_file.as_path(), &rebuild_if_file_changed(to_compile_java_file.as_ref())?)?;
+            Ok(TestCompilationResult::Success { compiled_file: expected_output_file })
         } else {
-            return Ok(TestResult::Error {})
+            Ok(TestCompilationResult::Error {})
         }
     }
-    Ok(TestResult::Success {})
+    Ok(TestCompilationResult::Success { compiled_file: expected_output_file })
 }
