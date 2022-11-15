@@ -1,8 +1,11 @@
 use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::time::Duration;
+use shell_words::ParseError;
 use openjdk_test_parser::ParsedOpenJDKTest;
 use thiserror::Error;
+use wait_timeout::ChildExt;
 use openjdk_test_parser::parse::FileType;
 use crate::file_hash::{rebuild_if_file_changed, RebuildIfError, should_rebuild, write_rebuild_if};
 use crate::java_compilation::JavaCLocation;
@@ -12,15 +15,21 @@ use crate::java_compilation::JavaCLocation;
 pub enum TestRunError {
     #[error("Execution of this kind of test not implemented yet")]
     ExecutionNotImplemented,
+    #[error("timeout")]
+    Timeout,
+    #[error("jvm exited unsuccessfully")]
+    ProcessFailure,
     #[error(transparent)]
     IO(#[from] io::Error),
     #[error(transparent)]
     ReBuildIf(#[from] RebuildIfError),
+    #[error(transparent)]
+    ShellWordsParseError(#[from] ParseError)
 }
 
-pub enum TestResult{
+pub enum TestResult {
     Success {},
-    Error {}
+    Error {},
 }
 
 pub enum TestCompilationResult {
@@ -31,7 +40,7 @@ pub enum TestCompilationResult {
 }
 
 
-pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation) -> Result<TestResult, TestRunError> {
+pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation, jdk_dir: PathBuf) -> Result<TestResult, TestRunError> {
     return match parsed {
         ParsedOpenJDKTest::Test {
             file_type,
@@ -81,7 +90,32 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
             match file_type {
                 FileType::Java => {
                     match run_javac_with_rebuild_if(javac, defining_file_path, test_base_dir, compilation_base_dir)? {
-                        TestCompilationResult::Success { .. } => {
+                        TestCompilationResult::Success { compiled_file } => {
+                            let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
+                            let main = compiled_file.file_stem().unwrap();
+                            let classpath_1 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes", jdk_dir.display());
+                            let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
+                            let mut child = Command::new("cargo")
+                                .arg("run").arg("--release").arg("--")
+                                .arg("--main").arg(main.to_str().unwrap())
+                                .arg("--libjava").arg(libjava)
+                                .arg("--classpath")
+                                .arg(compiled_file.parent().unwrap())
+                                .arg(classpath_1.as_str())
+                                .arg(classpath_2.as_str())
+                                .spawn()?;
+                            match child.wait_timeout(Duration::from_secs(60))?{
+                                None => {
+                                    child.kill()?;
+                                    let _ = child.wait()?;
+                                    return Err(TestRunError::Timeout)
+                                }
+                                Some(status) => {
+                                    if !status.success() {
+                                        return Err(TestRunError::ProcessFailure)
+                                    }
+                                }
+                            };
                             Ok(TestResult::Success {})
                         }
                         TestCompilationResult::Error { .. } => {
@@ -97,12 +131,11 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
                 }
             }
         }
-    }
+    };
 }
 
 
-pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: impl AsRef<Path>, test_base_dir: PathBuf, compilation_base_dir: PathBuf) -> Result<TestCompilationResult,TestRunError>{
-    dbg!(to_compile_java_file.as_ref());
+pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: impl AsRef<Path>, test_base_dir: PathBuf, compilation_base_dir: PathBuf) -> Result<TestCompilationResult, TestRunError> {
     assert!(to_compile_java_file.as_ref().starts_with(test_base_dir.clone()));
     let file_relative_path = to_compile_java_file.as_ref().strip_prefix(test_base_dir).unwrap();
     let java_file_name = file_relative_path.file_name().unwrap();
@@ -130,7 +163,7 @@ pub fn run_javac_with_rebuild_if(javac: JavaCLocation, to_compile_java_file: imp
             Ok(TestCompilationResult::Success { compiled_file: expected_output_file })
         } else {
             Ok(TestCompilationResult::Error {})
-        }
+        };
     }
     Ok(TestCompilationResult::Success { compiled_file: expected_output_file })
 }

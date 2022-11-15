@@ -14,6 +14,7 @@ use crate::run_test::{run_parsed, TestResult, TestRunError};
 
 pub fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let config = load_or_create_xtask_config(workspace_dir)?;
+    let jdk_dir = config.dep_dir.join("jdk8u");
     let compilation_dir = config.dep_dir.join("compiled_test_classes");
     if !compilation_dir.exists() {
         fs::create_dir(&compilation_dir)?;
@@ -24,7 +25,7 @@ pub fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let summary = Summary::new();
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary);
     let test_execution_results = parsed_tests.par_iter().map(|parsed| {
-        run_parsed(parsed,test_files_base.clone(), compilation_dir.clone(), javac.clone())
+        run_parsed(parsed,test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone())
     }).collect::<Vec<_>>();
     summary.sink_test_results(test_execution_results.as_slice());
     todo!();
@@ -71,9 +72,11 @@ pub struct Summary {
     parse_fail: AtomicU64,
     parse_time: Mutex<OnceCell<f64>>,
     num_parsed: AtomicU64,
-    num_compiled: AtomicU64,
-    num_compile_failure: AtomicU64,
-    num_not_implemented: AtomicU64
+    num_success: AtomicU64,
+    num_failure: AtomicU64,
+    num_not_implemented: AtomicU64,
+    timeout: AtomicU64,
+    process_failure: AtomicU64
 }
 
 impl Summary {
@@ -82,9 +85,11 @@ impl Summary {
             parse_fail: AtomicU64::new(0),
             parse_time: Mutex::new(OnceCell::new()),
             num_parsed: AtomicU64::new(0),
-            num_compiled: AtomicU64::new(0),
-            num_compile_failure: AtomicU64::new(0),
-            num_not_implemented: AtomicU64::new(0)
+            num_success: AtomicU64::new(0),
+            num_failure: AtomicU64::new(0),
+            num_not_implemented: AtomicU64::new(0),
+            timeout: AtomicU64::new(0),
+            process_failure: AtomicU64::new(0)
         }
     }
 
@@ -101,15 +106,16 @@ impl Summary {
     }
 
     pub fn sink_test_results(&self, test_results: &[Result<TestResult, TestRunError>]) {
+        //todo cleanup
         for test_result in test_results {
             match test_result {
                 Ok(test_result) => {
                     match test_result {
                         TestResult::Success { .. } => {
-                            self.num_compiled.fetch_add(1, Ordering::SeqCst);
+                            self.num_success.fetch_add(1, Ordering::SeqCst);
                         }
                         TestResult::Error { .. } => {
-                            self.num_compile_failure.fetch_add(1, Ordering::SeqCst);
+                            self.num_failure.fetch_add(1, Ordering::SeqCst);
                         }
                     }
                 }
@@ -124,6 +130,15 @@ impl Summary {
                         TestRunError::ReBuildIf(_) => {
                             todo!()
                         }
+                        TestRunError::ShellWordsParseError(_) => {
+                            todo!()
+                        }
+                        TestRunError::Timeout => {
+                            self.timeout.fetch_add(1, Ordering::SeqCst);
+                        }
+                        TestRunError::ProcessFailure => {
+                            self.process_failure.fetch_add(1, Ordering::SeqCst);
+                        }
                     }
                 }
             }
@@ -137,9 +152,11 @@ impl Drop for Summary {
         println!("Parsed Files: {}", self.num_parsed.load(Ordering::SeqCst));
         println!("Parse Time: {}", self.parse_time.lock().unwrap().get().unwrap());
         println!("Parse Failures: {}", self.parse_fail.load(Ordering::SeqCst));
-        println!("Num Compilations: {}", self.num_compiled.load(Ordering::SeqCst));
-        println!("Num Compilation Failures: {}", self.num_compile_failure.load(Ordering::SeqCst));
-        println!("Num Not Implemented: {}", self.num_compile_failure.load(Ordering::SeqCst));
+        println!("Num Compilations: {}", self.num_success.load(Ordering::SeqCst));
+        println!("Num Compilation Failures: {}", self.num_failure.load(Ordering::SeqCst));
+        println!("Num Not Implemented: {}", self.num_not_implemented.load(Ordering::SeqCst));
+        println!("Timeouts: {}", self.timeout.load(Ordering::SeqCst));
+        println!("Proccess Failures: {}", self.process_failure.load(Ordering::SeqCst));
     }
 }
 
