@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::ptr::null_mut;
 
 use itertools::Itertools;
@@ -34,7 +35,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let user_class_path = jvm.classpath.classpath_base.iter().map(|path| path.to_string_lossy()).join(":");
     let res = match (|| {
         //-Dio.netty.noUnsafe
-        add_prop(env, p0, "sun.boot.library.path".to_string(), "/home/francis/Clion/rust-jvm/target/debug/deps:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64".to_string())?;
+        add_prop(env, p0, "sun.boot.library.path".to_string(), format!("/home/francis/Clion/rust-jvm/target/debug/deps:{}", Path::new(&jvm.native_libaries.libjava_path).parent().unwrap().display()))?;
         add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes".to_string())?;
         add_prop(env, p0, "java.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes:/home/francis/Desktop/test/unzipped-jar".to_string())?;
         // add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
