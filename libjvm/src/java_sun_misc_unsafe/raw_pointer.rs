@@ -71,7 +71,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__J(env: *mut JNIEnv, the_
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_unsafe: jobject, src_obj: jobject, offset: jlong, dst_obj: jobject, address: jlong, len: jlong) {
     let jvm = get_state(env);
-    get_interpreter_state(env).debug_print_stack_trace(jvm);
+    // get_interpreter_state(env).debug_print_stack_trace(jvm);
     // get_interpreter_state(env).set_should_be_tracing_interpreter_calls();
     let src_address = if src_obj == null_mut() {
         offset as *const i8
@@ -84,9 +84,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
         //todo have an address calulation function
         (dst_obj as *mut i8).offset(address as isize)
     };
-    for i in 0..len {
-        dbg!(src_address.offset(i as isize).read());
-    }
+    // for i in 0..len {
+    //     dbg!(src_address.offset(i as isize).read());
+    // }
     if len % 8 == 0 {
         volatile_copy_memory(dst_obj as *mut u64, src_address as *const u64, (len / 8) as usize);
         return;
