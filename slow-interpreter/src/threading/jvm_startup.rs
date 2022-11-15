@@ -45,7 +45,10 @@ fn jvm_init_from_main_thread<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         match run_function(&jvm, java_frame) {
             Ok(_) => {}
-            Err(_) => todo!(),
+            Err(WasException{ exception_obj }) => {
+                exception_obj.print_stack_trace(jvm,java_frame).expect("exception printing exception");
+                todo!();
+            },
         }
         Ok(())
     });
