@@ -1,12 +1,13 @@
 use std::{fs, io};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use shell_words::ParseError;
 use openjdk_test_parser::ParsedOpenJDKTest;
 use thiserror::Error;
 use wait_timeout::ChildExt;
 use openjdk_test_parser::parse::FileType;
+use crate::all::Summary;
 use crate::file_hash::{rebuild_if_file_changed, RebuildIfError, should_rebuild, write_rebuild_if};
 use crate::java_compilation::JavaCLocation;
 
@@ -28,7 +29,10 @@ pub enum TestRunError {
 }
 
 pub enum TestResult {
-    Success {},
+    Success {
+        instant_before: Instant,
+        instant_after: Instant
+    },
     Error {},
 }
 
@@ -91,33 +95,7 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
                 FileType::Java => {
                     match run_javac_with_rebuild_if(javac, defining_file_path, test_base_dir, compilation_base_dir)? {
                         TestCompilationResult::Success { compiled_file } => {
-                            let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
-                            let main = compiled_file.file_stem().unwrap();
-                            let classpath_1 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes", jdk_dir.display());
-                            let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
-
-                            let mut child = Command::new(java_binary)
-                                .arg("--main").arg(main.to_str().unwrap())
-                                .arg("--libjava").arg(libjava)
-                                .arg("--classpath")
-                                .arg(compiled_file.parent().unwrap())
-                                .arg(classpath_1.as_str())
-                                .arg(classpath_2.as_str())
-                                .current_dir(compiled_file.parent().unwrap())
-                                .spawn()?;
-                            match child.wait_timeout(Duration::from_secs(10))?{
-                                None => {
-                                    child.kill()?;
-                                    let _ = child.wait()?;
-                                    return Err(TestRunError::Timeout)
-                                }
-                                Some(status) => {
-                                    if !status.success() {
-                                        return Err(TestRunError::ProcessFailure)
-                                    }
-                                }
-                            };
-                            Ok(TestResult::Success {})
+                            run_test(jdk_dir, java_binary, compiled_file)
                         }
                         TestCompilationResult::Error { .. } => {
                             Ok(TestResult::Error {})
@@ -133,6 +111,41 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
             }
         }
     };
+}
+
+fn run_test(jdk_dir: PathBuf, java_binary: PathBuf, compiled_file: PathBuf, summary: &Summary) -> Result<TestResult, TestRunError> {
+    let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
+    let main = compiled_file.file_stem().unwrap();
+    let classpath_1 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes", jdk_dir.display());
+    let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
+
+    let mut child = Command::new(java_binary)
+        .arg("--main").arg(main.to_str().unwrap())
+        .arg("--libjava").arg(libjava)
+        .arg("--classpath")
+        .arg(compiled_file.parent().unwrap())
+        .arg(classpath_1.as_str())
+        .arg(classpath_2.as_str())
+        .current_dir(compiled_file.parent().unwrap())
+        .spawn()?;
+    let instant_before = Instant::now();
+    match child.wait_timeout(Duration::from_secs(10))? {
+        None => {
+            child.kill()?;
+            let _ = child.wait()?;
+            Err(TestRunError::Timeout)
+        }
+        Some(status) => {
+            let instant_after = Instant::now();
+            if !status.success() {
+                return Err(TestRunError::ProcessFailure)
+            }
+            Ok(TestResult::Success {
+                instant_before,
+                instant_after
+            })
+        }
+    }
 }
 
 

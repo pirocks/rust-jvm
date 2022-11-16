@@ -4,12 +4,12 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::Instant;
 use rayon::prelude::IntoParallelRefIterator;
 use openjdk_test_parser::parse::{parse_test_file, TestParseError};
 use crate::java_compilation::javac_location;
 use crate::load_or_create_xtask_config;
 use rayon::iter::ParallelIterator;
-use tokio::time::Instant;
 use openjdk_test_parser::ParsedOpenJDKTest;
 use crate::run_test::{run_parsed, TestResult, TestRunError};
 
@@ -82,6 +82,8 @@ fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summar
 pub struct Summary {
     parse_fail: AtomicU64,
     parse_time: Mutex<OnceCell<f64>>,
+    build_time: Mutex<OnceCell<f64>>,
+    average_test_runtime: Mutex<OnceCell<f64>>,
     num_parsed: AtomicU64,
     num_success: AtomicU64,
     num_failure: AtomicU64,
@@ -95,6 +97,8 @@ impl Summary {
         Self {
             parse_fail: AtomicU64::new(0),
             parse_time: Mutex::new(OnceCell::new()),
+            build_time: Mutex::new(OnceCell::new()),
+            average_test_runtime: Mutex::new(OnceCell::new()),
             num_parsed: AtomicU64::new(0),
             num_success: AtomicU64::new(0),
             num_failure: AtomicU64::new(0),
@@ -112,17 +116,23 @@ impl Summary {
         self.parse_time.lock().unwrap().set(instant_after.saturating_duration_since(instant_before).as_secs_f64()).unwrap();
     }
 
+    pub fn sink_build_time(&self, instant_before: Instant, instant_after: Instant) {
+        self.build_time.lock().unwrap().set(instant_after.saturating_duration_since(instant_before).as_secs_f64()).unwrap();
+    }
+
     pub fn sink_num_parsed(&self, parsed: &[ParsedOpenJDKTest]) {
         self.num_parsed.store(parsed.len() as u64, Ordering::SeqCst);
     }
 
     pub fn sink_test_results(&self, test_results: &[Result<TestResult, TestRunError>]) {
         //todo cleanup
+        let mut test_runtimes = vec![];
         for test_result in test_results {
             match test_result {
                 Ok(test_result) => {
                     match test_result {
-                        TestResult::Success { .. } => {
+                        TestResult::Success { instant_before, instant_after } => {
+                            test_runtimes.push(instant_after.saturating_duration_since(*instant_before).as_secs_f64());
                             self.num_success.fetch_add(1, Ordering::SeqCst);
                         }
                         TestResult::Error { .. } => {
@@ -154,6 +164,9 @@ impl Summary {
                 }
             }
         }
+        let sum = test_runtimes.iter().sum::<f64>();
+        let avg = sum/test_runtimes.len();
+        self.average_test_runtime.lock().unwrap().set(avg).unwrap();
     }
 }
 
@@ -167,7 +180,9 @@ impl Drop for Summary {
         println!("Num Compilation Failures: {}", self.num_failure.load(Ordering::SeqCst));
         println!("Num Not Implemented: {}", self.num_not_implemented.load(Ordering::SeqCst));
         println!("Timeouts: {}", self.timeout.load(Ordering::SeqCst));
-        println!("Proccess Failures: {}", self.process_failure.load(Ordering::SeqCst));
+        println!("Process Failures: {}", self.process_failure.load(Ordering::SeqCst));
+        println!("Build Time: {}", self.build_time.lock().unwrap().get().unwrap());
+        println!("Average Test Time: {}", self.average_test_runtime.lock().unwrap().get().unwrap());
     }
 }
 

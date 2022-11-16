@@ -44,6 +44,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let res = match invoke_virtual(jvm, int_state, MethodName::method_run(), &expected_descriptor, args) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
+            exception_obj.print_stack_trace(jvm,int_state).unwrap();
             todo!();
             return null_mut();
         }
