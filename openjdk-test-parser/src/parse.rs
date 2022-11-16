@@ -1,4 +1,3 @@
-use std::{fs, io};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::vec::IntoIter;
@@ -17,7 +16,7 @@ pub enum TestParseError {
     #[error(transparent)]
     TokenError(#[from] TokenError),
     #[error("io error reading file")]
-    IO(#[from] io::Error),
+    IO(#[from] std::io::Error),
 }
 
 
@@ -205,11 +204,11 @@ fn parse_multiline_string(peekable_iter: &mut PeekNth<IntoIter<TestCommentTokenJ
     summary.trim().to_string()
 }
 
-pub fn parse_test_file(file_path: PathBuf) -> Result<ParsedOpenJDKTest, TestParseError> {
+pub async fn parse_test_file(file_path: PathBuf) -> Result<ParsedOpenJDKTest, TestParseError> {
     let file_type = file_type_from_path(file_path.as_path()).ok_or(TestParseError::IncompatibleFileType)?;
     match file_type {
         FileType::Java => {
-            let contents = fs::read_to_string(file_path.as_path())?;
+            let contents = tokio::fs::read_to_string(file_path.as_path()).await?;
             let comments = extract_comments_java(contents.as_str());
             let test_comment = find_test_comment(comments)?;
             let tokens = tokenize_test_comment_content(test_comment)?;

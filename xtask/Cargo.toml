@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["fs", "sync"] }
+futures = "0.3"
 anyhow = "1"
 xshell = "0.2"
 serde = "1"

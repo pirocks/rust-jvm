@@ -1,19 +1,17 @@
 use std::cell::OnceCell;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::Instant;
-use rayon::prelude::IntoParallelRefIterator;
+use futures::StreamExt;
 use openjdk_test_parser::parse::{parse_test_file, TestParseError};
 use crate::java_compilation::javac_location;
 use crate::load_or_create_xtask_config;
-use rayon::iter::ParallelIterator;
 use openjdk_test_parser::ParsedOpenJDKTest;
-use crate::run_test::{run_parsed, TestResult, TestRunError};
+use crate::execution::{run_parsed, TestResult, TestRunError};
 
-pub fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
+pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let config = load_or_create_xtask_config(workspace_dir)?;
     let jdk_dir = config.dep_dir.join("jdk8u");
     let compilation_dir = config.dep_dir.join("compiled_test_classes");
@@ -24,21 +22,21 @@ pub fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let javac = javac_location(&config);
     let java_file_paths = get_java_files(test_files_base.clone())?;
     let summary = Summary::new();
-    let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary);
-    let java_binary = build_jvm(workspace_dir)?;
-    let test_execution_results = parsed_tests.par_iter().map(|parsed| {
-        run_parsed(parsed,test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
-    }).collect::<Vec<_>>();
+    let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary).await;
+    let java_binary = build_jvm(workspace_dir).await?;
+    let test_execution_results = futures::stream::iter(parsed_tests.into_iter().map(|parsed| {
+        run_parsed(parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
+    })).buffer_unordered(256).collect::<Vec<_>>().await;
     summary.sink_test_results(test_execution_results.as_slice());
     todo!();
 }
 
-fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
-    Command::new("cargo")
+async fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
+    tokio::process::Command::new("cargo")
         .arg("build")
         .arg("--manifest-path").arg(workspace_dir.join("Cargo.toml"))
         .arg("--release")
-        .spawn()?.wait()?.exit_ok()?;
+        .spawn()?.wait().await?.exit_ok()?;
     Ok(workspace_dir.join("target/release/java"))
 }
 
@@ -51,10 +49,10 @@ fn get_java_files(test_resources_base: PathBuf) -> anyhow::Result<Vec<PathBuf>> 
     Ok(java_file_paths)
 }
 
-fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summary) -> Vec<ParsedOpenJDKTest> {
+async fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summary) -> Vec<ParsedOpenJDKTest> {
     let parse_before = Instant::now();
-    let parsed_tests = java_file_paths.par_iter().flat_map(|path| {
-        match parse_test_file(path.clone()) {
+    let parsed_tests: Vec<ParsedOpenJDKTest> = futures::future::join_all(java_file_paths.into_iter().map(async move |path| {
+        match parse_test_file(path.clone()).await {
             Ok(parsed) => {
                 Some(parsed)
             }
@@ -72,7 +70,7 @@ fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summar
                 }
             }
         }
-    }).collect::<Vec<_>>();
+    })).await.into_iter().flatten().collect();
     let parse_after = Instant::now();
     summary.sink_parse_time(parse_before, parse_after);
     summary.sink_num_parsed(parsed_tests.as_slice());
@@ -165,7 +163,7 @@ impl Summary {
             }
         }
         let sum = test_runtimes.iter().sum::<f64>();
-        let avg = sum/test_runtimes.len();
+        let avg = sum/(test_runtimes.len() as f64);
         self.average_test_runtime.lock().unwrap().set(avg).unwrap();
     }
 }

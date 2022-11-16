@@ -3,6 +3,7 @@
 #![feature(exit_status_error)]
 #![feature(path_file_prefix)]
 #![feature(once_cell)]
+#![feature(async_closure)]
 
 extern crate core;
 
@@ -16,7 +17,7 @@ use xshell::{cmd, Shell};
 pub mod java_compilation;
 pub mod build_steps;
 pub mod all;
-pub mod run_test;
+pub mod execution;
 pub mod file_hash;
 
 fn default_deps_dir(workspace_dir: &Path) -> PathBuf {
