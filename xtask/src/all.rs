@@ -1,6 +1,7 @@
 use std::cell::OnceCell;
 use std::fs;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use rayon::prelude::IntoParallelRefIterator;
@@ -24,11 +25,21 @@ pub fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let java_file_paths = get_java_files(test_files_base.clone())?;
     let summary = Summary::new();
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary);
+    let java_binary = build_jvm(workspace_dir)?;
     let test_execution_results = parsed_tests.par_iter().map(|parsed| {
-        run_parsed(parsed,test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone())
+        run_parsed(parsed,test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
     }).collect::<Vec<_>>();
     summary.sink_test_results(test_execution_results.as_slice());
     todo!();
+}
+
+fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
+    Command::new("cargo")
+        .arg("build")
+        .arg("--manifest-path").arg(workspace_dir.join("Cargo.toml"))
+        .arg("--release")
+        .spawn()?.wait()?.exit_ok()?;
+    Ok(workspace_dir.join("target/release/java"))
 }
 
 fn get_java_files(test_resources_base: PathBuf) -> anyhow::Result<Vec<PathBuf>> {

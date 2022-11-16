@@ -40,7 +40,7 @@ pub enum TestCompilationResult {
 }
 
 
-pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation, jdk_dir: PathBuf) -> Result<TestResult, TestRunError> {
+pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation, jdk_dir: PathBuf, java_binary: PathBuf) -> Result<TestResult, TestRunError> {
     return match parsed {
         ParsedOpenJDKTest::Test {
             file_type,
@@ -95,14 +95,15 @@ pub fn run_parsed(parsed: &ParsedOpenJDKTest, test_base_dir: PathBuf, compilatio
                             let main = compiled_file.file_stem().unwrap();
                             let classpath_1 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes", jdk_dir.display());
                             let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
-                            let mut child = Command::new("cargo")
-                                .arg("run").arg("--release").arg("--")
+
+                            let mut child = Command::new(java_binary)
                                 .arg("--main").arg(main.to_str().unwrap())
                                 .arg("--libjava").arg(libjava)
                                 .arg("--classpath")
                                 .arg(compiled_file.parent().unwrap())
                                 .arg(classpath_1.as_str())
                                 .arg(classpath_2.as_str())
+                                .current_dir(compiled_file.parent().unwrap())
                                 .spawn()?;
                             match child.wait_timeout(Duration::from_secs(10))?{
                                 None => {
