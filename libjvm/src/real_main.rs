@@ -264,7 +264,8 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         program_args_array: Default::default(),
         mangling_regex: ManglingRegex::new(),
         default_per_stack_initial_interfaces: initial_per_stack_interfaces(),
-        all_the_static_fields: all_the_static_fields,
+        all_the_static_fields,
+        java_home: None
     };
     (args, jvm)
 }

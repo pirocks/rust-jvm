@@ -17,6 +17,9 @@ use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
 use crate::ir_to_java_layer::exit_impls::throw_impl;
+use crate::new_java_values::owned_casts::OwnedCastAble;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub mod java_stack;
 
@@ -111,8 +114,10 @@ impl JavaVMStateWrapperInner {
                 exit_impls::trace_instruction_after(&jvm, int_state.unwrap(), *method_id, *return_to_ptr, *bytecode_offset)
             }
             RuntimeVMExitInput::NPE { .. } => {
-                int_state.unwrap().debug_print_stack_trace(jvm);
-                todo!()
+                let int_state = int_state.unwrap();
+                int_state.debug_print_stack_trace(jvm);
+                let npe = NullPointerException::new(jvm, int_state).expect("exception while creating exception?");
+                return throw_impl(jvm, int_state, npe.new_java_value_handle().cast_throwable(), false);
             }
             RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address, pc: _ } => {
                 exit_impls::allocate_object(jvm, int_state.unwrap().current_loader(jvm), type_, *return_to_ptr, res_address)

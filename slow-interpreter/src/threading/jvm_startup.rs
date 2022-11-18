@@ -54,9 +54,9 @@ fn jvm_init_from_main_thread<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
     });
     set_properties(jvm, int_state).expect("todo");
     //todo read and copy props here
-    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("java.home".to_string())).expect("todo");
-    let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())).expect("todo");
-    System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
+    // let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("java.home".to_string())).expect("todo");
+    // let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())).expect("todo");
+    // System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
 
     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
     let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");

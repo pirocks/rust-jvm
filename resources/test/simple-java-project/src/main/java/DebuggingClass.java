@@ -161,19 +161,9 @@ import java.util.zip.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-
-
-        final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        final GZIPOutputStream zipOutputStream = new GZIPOutputStream(byteArrayOutputStream);
-        zipOutputStream.write(new byte[]{1,1,1,1});
-        zipOutputStream.finish();
-        zipOutputStream.close();
-        final byte[] byteArray = byteArrayOutputStream.toByteArray();
-        System.out.println(Arrays.toString(byteArray));
-        final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(byteArray);
-        final GZIPInputStream zipInputStream = new GZIPInputStream(byteArrayInputStream);
-        final byte[] bytes = new byte[4];
-        zipInputStream.read(bytes);
+        int[] source = new int[5];
+        int[] dest = new int[6];
+        System.arraycopy(source, 0, dest, 0, 6);
     }
 
 }

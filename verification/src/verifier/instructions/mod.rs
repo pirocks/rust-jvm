@@ -241,7 +241,7 @@ pub fn handler_is_legal(env: &Environment, h: &Handler) -> Result<(), TypeSafety
             };
             if instructions_include_end(env.merged_code.unwrap(), h.end) {
                 let exception_class = handler_exception_class(&env.vf, &h, env.class_loader.clone());
-                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }), &VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }))?;
+                is_assignable(&env.vf, &VType::Class(ClassWithLoader { class_name: exception_class.class_name, loader: env.class_loader.clone() }), &VType::Class(ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader }), true)?;
                 init_handler_is_legal(env, h)
             } else {
                 Result::Err(todo!()/*TypeSafetyError::NotSafe("Instructions do not include handler end".to_string())*/)

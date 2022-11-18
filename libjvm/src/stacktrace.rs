@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
         AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
             Some(x) => x,
             None => {
-                return throw_npe(jvm, int_state);
+                return throw_npe(jvm, int_state,get_throw(env));
             }
         }),
         stack_entry_objs,
@@ -98,7 +98,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
     match jvm.stacktraces_by_throwable.read().unwrap().get(&AllocatedObjectHandleByAddress(match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     })) {
         Some(x) => x,
@@ -116,7 +116,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     let throwable_not_null = match from_object_new(jvm, throwable) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let stack_traces: &Vec<StackTraceElement> = match guard.get(&AllocatedObjectHandleByAddress(throwable_not_null)) {

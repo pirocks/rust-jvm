@@ -22,8 +22,7 @@ use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
+use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_parameter_descriptor};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use sketch_jvm_version_of_utf8::JVMString;
@@ -39,11 +38,8 @@ use slow_interpreter::java_values::Object::Array;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
-
-
-
-
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::stdlib::java::lang::class::JClass;
@@ -52,7 +48,6 @@ use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::reflect::reflection::Reflection;
 use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -265,7 +260,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let jstring = match JavaValue::Object(todo!() /*from_jclass(jvm,JVM_GetClassName(env, cb))*/).cast_string() {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state, get_throw(env)),
         Some(jstring) => jstring,
     };
     let rust_string = jstring.to_rust_string(jvm);
@@ -331,11 +326,13 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, caller: jclass) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name: *const c_char, init: jboolean, loader: jobject, caller: jclass) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let p_type = CompressedClassName(jvm.string_pool.add_name(name, true)).into();
+    let p_type = if name.starts_with("[") {
+        CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type,jvm.string_pool)
+    } else { CompressedClassName(jvm.string_pool.add_name(name, true)).into() };
 
     let loader_name = from_object_new(jvm, loader)
         .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
@@ -346,8 +343,8 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
         Ok(class_object) => {
             if init != 0 {
                 if let Err(WasException { exception_obj }) = check_initing_or_inited_class(jvm, int_state, p_type) {
-                    todo!();
-                    return null_mut();
+                    *get_throw(env) = Some(WasException { exception_obj });
+                    return ExceptionReturn::invalid_default();
                 };
             }
             new_local_ref_public_new(Some(class_object.as_allocated_obj()), int_state)

@@ -52,7 +52,14 @@ impl Classpath {
                     let mut cache_write_guard = self.jar_cache.write().unwrap();
                     let boxed_path = dir_member.path().into_boxed_path();
                     if cache_write_guard.get(&boxed_path).is_none() {
-                        cache_write_guard.insert(boxed_path.clone(), box JarHandle::new(boxed_path).unwrap());
+                        cache_write_guard.insert(boxed_path.clone(), box match JarHandle::new(boxed_path.clone()) {
+                            Ok(x) => x,
+                            Err(err) => {
+                                dbg!(err);
+                                dbg!(boxed_path);
+                                todo!()
+                            },
+                        });
                     }
                 }
             }

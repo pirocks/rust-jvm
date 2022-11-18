@@ -76,7 +76,7 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -
 
 pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let return_type = &env.return_type;
-    is_assignable(&env.vf, return_type, &VType::Reference)?;
+    is_assignable(&env.vf, return_type, &VType::Reference, true)?;
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![return_type.clone()])?;

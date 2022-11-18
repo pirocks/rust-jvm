@@ -30,7 +30,7 @@ use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;
@@ -61,18 +61,18 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let args_not_null = match from_object_new(jvm, args0) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let args = args_not_null.unwrap_array();
     let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
         Some(method_name) => method_name.cast_string().to_rust_string(jvm),
     };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
@@ -180,14 +180,14 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let constructor_obj = match from_object_new(jvm, c) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     if let Err(WasException { exception_obj }) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
@@ -201,7 +201,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         let temp_1 = match from_object_new(jvm, args0) {
             Some(x) => x,
             None => {
-                return throw_npe(jvm, int_state);
+                return throw_npe(jvm, int_state,get_throw(env));
             }
         };
         let elems_refcell = temp_1.unwrap_array();

@@ -84,30 +84,30 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
 }
 
 //todo why is this in this file?
-pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(), TypeSafetyError> {
+pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifier: bool) -> Result<(), TypeSafetyError> {
     match from {
         VType::DoubleType => match to {
             VType::DoubleType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::TwoWord, to),
+            _ => is_assignable(vf, &VType::TwoWord, to, true),
         },
         VType::LongType => match to {
             VType::LongType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::TwoWord, to),
+            _ => is_assignable(vf, &VType::TwoWord, to, true),
         },
         VType::FloatType => match to {
             VType::FloatType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::IntType => match to {
             VType::IntType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::Reference => match to {
             VType::Reference => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::Class(c) => match to {
-            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader)), //todo bootstrap loader
+            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader), true), //todo bootstrap loader
             VType::Class(c2) => {
                 if c == c2 {
                     Result::Ok(())
@@ -115,7 +115,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                     is_java_assignable_class(vf, c, c2)
                 }
             }
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::ArrayReferenceType(a) => match to {
             VType::ArrayReferenceType(a2) => {
@@ -130,14 +130,14 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 if is_java_assignable(vf, from, to).is_ok() {
                     return Result::Ok(());
                 }
-                if is_assignable(vf, &VType::Reference, to).is_err() {
+                if is_assignable(vf, &VType::Reference, to, true).is_err() {
                     if c.class_name == CClassName::object() && c.loader == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
                 }
-                is_assignable(vf, &VType::Reference, to)
+                is_assignable(vf, &VType::Reference, to, true)
             }
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::TopType => match to {
             VType::TopType => Result::Ok(()),
@@ -148,27 +148,27 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         },
         VType::UninitializedEmpty => match to {
             VType::UninitializedEmpty => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::Uninitialized(u1) => match to {
             VType::Uninitialized(u2) => {
                 if u1.offset == u2.offset {
                     return Result::Ok(());
                 }
-                is_assignable(vf, &VType::UninitializedEmpty, to)
+                is_assignable(vf, &VType::UninitializedEmpty, to, true)
             }
-            _ => is_assignable(vf, &VType::UninitializedEmpty, to),
+            _ => is_assignable(vf, &VType::UninitializedEmpty, to, true),
         },
         VType::UninitializedThis => match to {
             VType::UninitializedThis => Result::Ok(()),
             VType::UninitializedThisOrClass(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::UninitializedEmpty, to),
+            _ => is_assignable(vf, &VType::UninitializedEmpty, to, true),
         },
         VType::NullType => match to {
             VType::NullType => Result::Ok(()),
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to),
+            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to, true),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
@@ -187,12 +187,15 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         VType::UninitializedThisOrClass(c) => {
             match to {
                 VType::UninitializedThis => Result::Ok(()),
-                _ => is_assignable(vf, &c.to_verification_type(BootstrapLoader), to), //todo bootstrap loader
+                _ => is_assignable(vf, &c.to_verification_type(BootstrapLoader), to, true), //todo bootstrap loader
             }
         }
         _ => {
-            dbg!(from);
-            panic!("This is a bug")
+            if from_verifier{
+                dbg!(from);
+                panic!("This is a bug")
+            }
+            return Err(unknown_error_verifying!())
         }
     }
 }

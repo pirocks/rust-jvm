@@ -30,7 +30,7 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new};
 use slow_interpreter::utils::throw_npe;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
@@ -77,11 +77,11 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
     let int_state = get_interpreter_state(env);
     let sub_not_null = match from_object_new(jvm, sub) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
     };
     let sup_not_null = match from_object_new(jvm, sup) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
     };
 
     let sub_class = NewJavaValueHandle::Object(sub_not_null.into()).cast_class().unwrap();
@@ -114,7 +114,7 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
         perf_metrics: &jvm.perf_metrics,
         permissive_types_workaround: false,
     };
-    let res = is_assignable(&vf, &sub_vtype, &sup_vtype).map(|_| true).unwrap_or(false);
+    let res = is_assignable(&vf, &sub_vtype, &sup_vtype, false).map(|_| true).unwrap_or(false);
     res as jboolean
 }
 

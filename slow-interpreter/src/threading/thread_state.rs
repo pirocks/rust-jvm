@@ -227,12 +227,9 @@ impl<'gc> ThreadState<'gc> {
 
         //todo fix loader
         if let Err(WasException { exception_obj }) = java_thread.thread_object().run(jvm, opaque_frame) {
-            /*            JavaValue::Object(todo!() /*interpreter_state_guard.throw()*/)
-                        .cast_throwable()
-                        .print_stack_trace(jvm, &mut interpreter_state_guard)
-                        .expect("Exception occured while printing exception. Something is pretty messed up");*/
-            todo!();
-            todo!();// interpreter_state_guard.set_throw(None);
+            exception_obj.print_stack_trace(jvm, opaque_frame)
+                .expect("Exception occurred while printing exception. Something is pretty messed up");
+            todo!()
         };
         if let Err(WasException { exception_obj }) = java_thread.thread_object().exit(jvm, opaque_frame) {
             eprintln!("Exception occurred exiting thread, something is pretty messed up");

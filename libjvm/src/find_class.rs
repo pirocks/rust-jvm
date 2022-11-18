@@ -82,7 +82,7 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, loader: jobject,
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = match from_object_new(jvm, name) {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
         Some(name_str) => name_str.cast_string(),
     }
         .to_rust_string(jvm);

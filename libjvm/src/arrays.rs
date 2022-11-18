@@ -158,7 +158,18 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
     let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
-        unimplemented!()
+        dbg!(src_pos);
+        dbg!(dst_pos);
+        dbg!(length);
+        dbg!(src_len);
+        dbg!(dest_len);
+        dbg!(src_pos < 0);
+        dbg!(dst_pos < 0);
+        dbg!(length < 0);
+        dbg!(src_pos + length > src_len as i32);
+        dbg!(dst_pos + length > dest_len as i32);
+        int_state.debug_print_stack_trace(jvm);
+        todo!()
     }
 
     let dst = NonNull::new(dst.cast()).unwrap();

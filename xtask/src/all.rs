@@ -1,15 +1,18 @@
 use std::cell::OnceCell;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
 use std::time::Instant;
+
 use futures::StreamExt;
+
 use openjdk_test_parser::parse::{parse_test_file, TestParseError};
+use openjdk_test_parser::ParsedOpenJDKTest;
+
+use crate::execution::{run_parsed, TestResult, TestRunError};
 use crate::java_compilation::javac_location;
 use crate::load_or_create_xtask_config;
-use openjdk_test_parser::ParsedOpenJDKTest;
-use crate::execution::{run_parsed, TestResult, TestRunError};
 
 pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let config = load_or_create_xtask_config(workspace_dir)?;
@@ -24,11 +27,12 @@ pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let summary = Summary::new();
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary).await;
     let java_binary = build_jvm(workspace_dir).await?;
+    let output_lock = Arc::new(tokio::sync::Mutex::new(()));
     let test_execution_results = futures::stream::iter(parsed_tests.into_iter().map(|parsed| {
-        run_parsed(parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
+        run_parsed(output_lock.clone(), parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
     })).buffer_unordered(256).collect::<Vec<_>>().await;
     summary.sink_test_results(test_execution_results.as_slice());
-    todo!();
+    Ok(())
 }
 
 async fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
@@ -80,14 +84,13 @@ async fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &
 pub struct Summary {
     parse_fail: AtomicU64,
     parse_time: Mutex<OnceCell<f64>>,
-    build_time: Mutex<OnceCell<f64>>,
     average_test_runtime: Mutex<OnceCell<f64>>,
     num_parsed: AtomicU64,
     num_success: AtomicU64,
     num_failure: AtomicU64,
     num_not_implemented: AtomicU64,
     timeout: AtomicU64,
-    process_failure: AtomicU64
+    process_failure: AtomicU64,
 }
 
 impl Summary {
@@ -95,14 +98,13 @@ impl Summary {
         Self {
             parse_fail: AtomicU64::new(0),
             parse_time: Mutex::new(OnceCell::new()),
-            build_time: Mutex::new(OnceCell::new()),
             average_test_runtime: Mutex::new(OnceCell::new()),
             num_parsed: AtomicU64::new(0),
             num_success: AtomicU64::new(0),
             num_failure: AtomicU64::new(0),
             num_not_implemented: AtomicU64::new(0),
             timeout: AtomicU64::new(0),
-            process_failure: AtomicU64::new(0)
+            process_failure: AtomicU64::new(0),
         }
     }
 
@@ -112,10 +114,6 @@ impl Summary {
 
     pub fn sink_parse_time(&self, instant_before: Instant, instant_after: Instant) {
         self.parse_time.lock().unwrap().set(instant_after.saturating_duration_since(instant_before).as_secs_f64()).unwrap();
-    }
-
-    pub fn sink_build_time(&self, instant_before: Instant, instant_after: Instant) {
-        self.build_time.lock().unwrap().set(instant_after.saturating_duration_since(instant_before).as_secs_f64()).unwrap();
     }
 
     pub fn sink_num_parsed(&self, parsed: &[ParsedOpenJDKTest]) {
@@ -163,7 +161,7 @@ impl Summary {
             }
         }
         let sum = test_runtimes.iter().sum::<f64>();
-        let avg = sum/(test_runtimes.len() as f64);
+        let avg = sum / (test_runtimes.len() as f64);
         self.average_test_runtime.lock().unwrap().set(avg).unwrap();
     }
 }
@@ -179,7 +177,6 @@ impl Drop for Summary {
         println!("Num Not Implemented: {}", self.num_not_implemented.load(Ordering::SeqCst));
         println!("Timeouts: {}", self.timeout.load(Ordering::SeqCst));
         println!("Process Failures: {}", self.process_failure.load(Ordering::SeqCst));
-        println!("Build Time: {}", self.build_time.lock().unwrap().get().unwrap());
         println!("Average Test Time: {}", self.average_test_runtime.lock().unwrap().get().unwrap());
     }
 }

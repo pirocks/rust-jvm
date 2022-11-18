@@ -154,6 +154,16 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         Some(NewJavaValueHandle::Int(4096)) //todo actually get page size
     } else if &mangled == "Java_sun_misc_Unsafe_putLong__Ljava_lang_Object_2JJ" {
         todo!()
+    } else if &mangled == "Java_sun_misc_Unsafe_putOrderedInt" {
+        todo!()
+    }else if &mangled == "Java_sun_misc_Unsafe_loadFence"{
+        None
+    } else if &mangled == "Java_sun_misc_Unsafe_storeFence"{
+        None
+    } else if &mangled == "Java_sun_misc_Unsafe_fullFence"{
+        None
+    } else if &mangled == "Java_sun_misc_Unsafe_getObject" {
+        todo!()
     } else {
         dbg!(mangled);
         int_state.debug_print_stack_trace(jvm);

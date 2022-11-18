@@ -4,8 +4,8 @@ use std::ops::Rem;
 use num_traits::Zero;
 
 use rust_jvm_common::runtime_type::RuntimeType;
-use crate::better_java_stack::frames::HasFrame;
 
+use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 use crate::jvm_state::JVMState;
@@ -217,7 +217,14 @@ pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
         todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
         todo!()
     }
-    current_frame.push(InterpreterJavaValue::Long(value1 / value2));
+    current_frame.push(InterpreterJavaValue::Long(match value1.checked_div(value2) {
+        None => {
+            dbg!(value1);
+            dbg!(value2);
+            todo!()
+        }
+        Some(res) => res
+    }));
     PostInstructionAction::Next {}
 }
 

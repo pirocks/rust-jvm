@@ -43,10 +43,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
-            todo!()
-            /*let throw_obj = int_state.throw().as_ref().unwrap().duplicate_discouraged().new_java_handle();
-            int_state.set_throw(None);//todo should move this into throw impl
-            return throw_impl(jvm, int_state, throw_obj, true);*/
+            return throw_impl(jvm, int_state, exception_obj, true);
         }
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
@@ -81,18 +78,6 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
     let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
-            // match jvm.java_vm_state.lookup_ip(prev_rip) {
-            //     Some((_method_id, current_pc)) => {
-            //         int_state.set_current_pc(Some(current_pc));
-            //     },
-            //     None => {
-            //         int_state.debug_print_stack_trace(jvm);
-            //         dbg!(method_view.name().0.to_str(&jvm.string_pool));
-            //         eprintln!("{}", Backtrace::force_capture());
-            //         return IRVMExitAction::Exception { throwable: int_state.throw().unwrap().ptr };
-            //     },
-            // };
-            // exception_obj.print_stack_trace(jvm, int_state).unwrap();
             return throw_impl(jvm, int_state, exception_obj, true);
         }
     };

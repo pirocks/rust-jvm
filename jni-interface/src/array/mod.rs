@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObject;
 use slow_interpreter::new_java_values::{NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::utils::throw_npe;
 
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> js
     let temp = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     return temp.unwrap_array().len() as jsize;
@@ -40,7 +40,7 @@ pub unsafe extern "C" fn get_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     let int_state = get_interpreter_state(env);
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn set_object_array_element(env: *mut JNIEnv, array: jobje
     let notnull = match from_object_new(jvm, array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     let array = notnull.unwrap_array();
@@ -83,7 +83,7 @@ pub unsafe extern "C" fn release_primitive_array_critical(env: *mut JNIEnv, raw_
     let not_null = match from_object_new(jvm, raw_array) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let array = not_null.unwrap_array();
@@ -155,7 +155,7 @@ pub unsafe extern "C" fn get_primitive_array_critical(env: *mut JNIEnv, array_ra
     let not_null = match from_object_new(jvm, array_raw) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let array = not_null.unwrap_array();

@@ -1,3 +1,5 @@
+#![feature(box_syntax)]
+
 use std::path::PathBuf;
 
 use libloading::Library;

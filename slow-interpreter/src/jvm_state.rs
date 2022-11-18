@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::{c_void, OsString};
 use std::iter;
 use std::ops::Deref;
+use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
@@ -21,7 +22,7 @@ use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{JavaVM, jint, jlong, JNI_VERSION_1_1, JNIInvokeInterface_, jobject};
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
@@ -140,7 +141,8 @@ pub struct JVMState<'gc> {
     pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
     pub mangling_regex : ManglingRegex,
     pub default_per_stack_initial_interfaces: PerStackInterfaces,
-    pub all_the_static_fields: AllTheStaticFields<'gc>
+    pub all_the_static_fields: AllTheStaticFields<'gc>,
+    pub java_home: Option<PathBuf>//todo make this always available
 }
 
 
@@ -467,6 +469,10 @@ pub struct NativeLibraries<'gc> {
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
 }
 
+fn default_on_load(_: *mut *const JNIInvokeInterface_, _ :*mut c_void) -> i32{
+    JNI_VERSION_1_1 as i32
+}
+
 impl<'gc> NativeLibraries<'gc> {
     pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc, '_>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
@@ -484,8 +490,17 @@ impl<'gc> NativeLibraries<'gc> {
 
     pub unsafe fn get_onload_ptr_and_add(&self, path: &OsString, name: String) -> fn(*mut *const JNIInvokeInterface_, *mut c_void) -> i32 {
         let lib = Library::new(path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
-        let on_load = lib.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()).unwrap();
-        let onload_fn_ptr = *on_load.deref();
+        let on_load = match lib.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()) {
+            Ok(x) => Some(x),
+            Err(err) => {
+                if err.to_string().contains(" undefined symbol: JNI_OnLoad"){
+                    None
+                }else {
+                    todo!()
+                }
+            },
+        };
+        let onload_fn_ptr = on_load.map(|on_load|*on_load.deref()).unwrap_or(default_on_load);
         self.native_libs.write().unwrap().insert(name, NativeLib { library: lib });
         onload_fn_ptr
     }

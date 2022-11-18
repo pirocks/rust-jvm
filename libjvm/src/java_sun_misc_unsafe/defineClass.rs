@@ -20,7 +20,7 @@ use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::utils::throw_npe;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
@@ -33,7 +33,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let int_state = get_interpreter_state(env);
     let mut byte_array = from_object_new(jvm, bytes).unwrap().unwrap_array().array_iterator().map(|byte| byte.unwrap_byte_strict() as u8).collect::<Vec<_>>(); //todo handle npe
     let jname = match NewJavaValueHandle::Object(from_object_new(jvm, name).unwrap()).cast_string() {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
         Some(jname) => jname,
     };
     let class_name = ClassName::Str(jname.to_rust_string(jvm)); //todo need to parse arrays here

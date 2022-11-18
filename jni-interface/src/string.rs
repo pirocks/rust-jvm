@@ -14,7 +14,7 @@ use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -90,7 +90,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap();
@@ -118,7 +118,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
     let str_obj = match from_object_new(jvm, str) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let rust_str = NewJavaValueHandle::Object(str_obj).cast_string().unwrap().to_rust_string(jvm);

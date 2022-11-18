@@ -51,14 +51,14 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, 
 pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
-        is_assignable(vf, &actual_type, type_)?;
+        is_assignable(vf, &actual_type, type_, true)?;
         operand_stack.operand_pop();
         Result::Ok(actual_type)
     } else if size_of(vf, type_) == 2 {
         assert!(matches!(&operand_stack.peek(), VType::TopType));
         let top = operand_stack.operand_pop();
         let actual_type = &operand_stack.peek();
-        if let Err(err) = is_assignable(vf, actual_type, type_) {
+        if let Err(err) = is_assignable(vf, actual_type, type_, true) {
             operand_stack.operand_push(top);
             return Err(err);
         };
@@ -73,9 +73,9 @@ pub fn size_of(vf: &VerifierContext, unified_type: &VType) -> u64 {
     match unified_type {
         VType::TopType => 1,
         _ => {
-            if is_assignable(vf, unified_type, &VType::TwoWord).is_ok() {
+            if is_assignable(vf, unified_type, &VType::TwoWord, true).is_ok() {
                 2
-            } else if is_assignable(vf, unified_type, &VType::OneWord).is_ok() {
+            } else if is_assignable(vf, unified_type, &VType::OneWord, true).is_ok() {
                 1
             } else {
                 panic!("This is a bug")
@@ -112,9 +112,9 @@ pub fn can_pop(vf: &VerifierContext, input_frame: Frame, types: Vec<VType>) -> R
 }
 
 pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
-    let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_)).collect();
+    let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_, true)).collect();
     let locals_assignable = locals_assignable_res.is_ok();
-    let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_)).collect();
+    let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_, true)).collect();
     let stack_assignable = stack_assignable_res.is_ok();
     if left.stack_map.len() == right.stack_map.len()
         && locals_assignable

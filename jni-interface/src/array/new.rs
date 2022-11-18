@@ -8,7 +8,7 @@ use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::UnAllocatedObject;
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::utils::throw_npe;
@@ -20,7 +20,7 @@ pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: j
     let res = new_array(env, len, type_);
     let res_safe = match from_object_new(jvm, res) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
     };
     let array = res_safe.unwrap_array();
     for i in 0..array.len() {

@@ -20,7 +20,7 @@ use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual, in
 use slow_interpreter::java_values::{JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::java::security::access_control_context::AccessControlContext;
@@ -35,7 +35,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
     let unwrapped_action = match action {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
     };
     let expected_descriptor = CMethodDescriptor { arg_types: vec![], return_type: CClassName::object().into() };
@@ -45,7 +45,7 @@ unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, cls: jclass, action: job
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
             exception_obj.print_stack_trace(jvm,int_state).unwrap();
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return null_mut();
         }
     }.unwrap().unwrap_object();

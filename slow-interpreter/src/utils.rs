@@ -34,6 +34,7 @@ use crate::stdlib::java::lang::float::Float;
 use crate::stdlib::java::lang::illegal_argument_exception::IllegalArgumentException;
 use crate::stdlib::java::lang::int::Int;
 use crate::stdlib::java::lang::long::Long;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::short::Short;
 
@@ -79,23 +80,22 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
 }
 
 pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
-    let _ = throw_npe::<T>(jvm, int_state);
+    todo!();
+    /*let _ = throw_npe::<T>(jvm, int_state);*/
     Err(WasException { exception_obj: todo!() })
 }
 
-pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> T {
-    todo!()
-    /*let npe_object = match NullPointerException::new(jvm, int_state) {
+pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
+    let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
-        Err(WasException {}) => {
-            eprintln!("Warning error encountered creating NPE");
-            return T::invalid_default();
+        Err(WasException { exception_obj }) => {
+            panic!("Exception occurred creating exception")
         }
     }
         .object()
-        .into();
-    int_state.set_throw(Some(npe_object));
-    T::invalid_default()*/
+        .cast_throwable();
+    *throw = Some(WasException{ exception_obj: npe_object });
+    T::invalid_default()
 }
 
 pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<T, WasException<'gc>> {

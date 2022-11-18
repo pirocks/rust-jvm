@@ -5,7 +5,7 @@ use array_memory_layout::layout::{ArrayAccessor, ArrayMemoryLayout};
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::utils::throw_npe;
 
@@ -35,7 +35,7 @@ unsafe fn array_region_integer_types<T>(env: *mut JNIEnv, raw_array: jarray, sta
 
     let non_null_array_obj = match from_object_new(jvm, raw_array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
         Some(x) => x,
     };
@@ -54,7 +54,7 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
         Some(x) => x,
     };
@@ -71,7 +71,7 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
         Some(x) => x,
     };
@@ -88,7 +88,7 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
     let int_state = get_interpreter_state(env);
     let non_null_array_obj = match from_object(jvm, array) {
         None => {
-            return throw_npe(jvm, int_state);
+            return throw_npe(jvm, int_state,get_throw(env));
         }
         Some(x) => x,
     };
@@ -136,7 +136,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, array_sub_type:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if let None = from_object_new(jvm, array) {
-        return throw_npe(jvm, int_state);
+        return throw_npe(jvm, int_state,get_throw(env));
     }
     let memory_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     let array_pointer = NonNull::new(array as *mut c_void).unwrap();

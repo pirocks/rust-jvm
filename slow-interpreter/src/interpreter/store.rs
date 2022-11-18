@@ -4,10 +4,15 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDe
 
 use rust_jvm_common::runtime_type::RuntimeType;
 use crate::accessor_ext::AccessorExt;
+use crate::better_java_stack::frames::HasFrame;
+use crate::exceptions::WasException;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame};
 use crate::JVMState;
+use crate::new_java_values::owned_casts::OwnedCastAble;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 fn generic_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16, runtime_type: RuntimeType) -> PostInstructionAction<'gc> {
     let object_ref = current_frame.pop(runtime_type);
@@ -116,8 +121,9 @@ fn generic_array_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc,
     let arrar_ref_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {
         Some(x) => x,
         None => {
-            todo!()
-            /*return throw_npe(jvm, int_state);*/
+            let jvm = current_frame.inner().inner().jvm();
+            let npe = NullPointerException::new(jvm, current_frame.inner().inner()).expect("Exception creating exception").object().cast_throwable();
+            return PostInstructionAction::Exception { exception: WasException { exception_obj: npe } }
         }
     };
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);

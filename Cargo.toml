@@ -12,6 +12,9 @@ path = "src/main.rs"
 jvm = { path = "./libjvm" }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 anyhow = "1"
+controlgroup = "0.3.0"
+libc = "0.2"
+nix = "0.25"
 
 [profile.release]
 debug = true

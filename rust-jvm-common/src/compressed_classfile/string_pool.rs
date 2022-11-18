@@ -24,7 +24,10 @@ impl CompressedClassfileStringPool {
     pub fn add_name(&self, str: impl Into<String>, is_class_name: bool) -> CompressedClassfileString {
         let string = str.into();
         if is_class_name {
-            assert!(!string.starts_with('['));
+            if string.starts_with('[') {
+                dbg!(&string);
+                todo!();
+            }
         }
         let id = self.pool.push(string);
         CompressedClassfileString { id }

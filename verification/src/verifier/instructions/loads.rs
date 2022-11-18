@@ -25,7 +25,7 @@ fn load_is_type_safe(env: &Environment, index: u16, type_: &VType, frame: Frame)
     let locals = &frame.locals;
     let actual_type = nth0(index, locals)?;
     let next_frame = valid_type_transition(env, vec![], actual_type.clone(), frame)?;
-    is_assignable(&env.vf, &actual_type, type_)?;
+    is_assignable(&env.vf, &actual_type, type_, true)?;
     Result::Ok(next_frame)
 }
 

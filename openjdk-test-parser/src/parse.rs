@@ -1,11 +1,12 @@
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::vec::IntoIter;
+
 use itertools::{peek_nth, PeekNth};
+use thiserror::Error;
+
 use crate::ParsedOpenJDKTest;
 use crate::tokenize::{TestCommentTagToken, TestCommentTokenJoined, TokenError, tokenize_test_comment_content};
-
-use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum TestParseError {

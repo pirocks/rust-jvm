@@ -13,7 +13,7 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::utils::{get_all_fields, new_field_id, throw_npe, throw_npe_res};
 use crate::util::class_object_to_runtime_class;
@@ -163,12 +163,12 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     let method_name = rust_jvm_common::compressed_classfile::method_names::MethodName(jvm.string_pool.add_name(method_name_string, false));
     let method_descriptor_str = CStr::from_ptr(sig).to_str().unwrap().to_string();
     let class_obj_o = match from_object_new(jvm, clazz) {
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
         Some(class_obj_o) => Some(class_obj_o),
     };
     let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state),
+        None => return throw_npe(jvm, int_state,get_throw(env)),
     };
     let view = &runtime_class.view();
     let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);

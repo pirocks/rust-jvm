@@ -36,14 +36,14 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let res = match (|| {
         //-Dio.netty.noUnsafe
         add_prop(env, p0, "sun.boot.library.path".to_string(), format!("/home/francis/Clion/rust-jvm/target/debug/deps:{}", Path::new(&jvm.native_libaries.libjava_path).parent().unwrap().display()))?;
-        add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes".to_string())?;
-        add_prop(env, p0, "java.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes:/home/francis/Desktop/test/unzipped-jar".to_string())?;
+        // add_prop(env, p0, "sun.boot.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes".to_string())?;
+        // add_prop(env, p0, "java.class.path".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/lib/jce.jar:/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/classes:/home/francis/Desktop/test/unzipped-jar".to_string())?;
         // add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
         // add_prop(env, p0, "org.slf4j.simpleLogger.defaultLogLevel ".to_string(), "off".to_string())?;
         add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string())?;
         // add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
         // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
-        Ok(add_prop(env, p0, "java.home".to_string(), "/home/francis/builds/jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())?)
+        Ok(add_prop(env, p0, "java.home".to_string(), "/tmptank/scratchy/builds/rust-jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())?)
     })() {
         Err(WasException { exception_obj }) => {
             todo!();

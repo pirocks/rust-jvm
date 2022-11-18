@@ -13,7 +13,7 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::run_native_method;
@@ -58,7 +58,13 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     }
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
-    let base_object_class = args[0].as_njv().unwrap_object_alloc().unwrap().runtime_class(jvm);
+    let base_object_class = match args[0].as_njv().unwrap_object_alloc() {
+        Some(x) => x,
+        None => {
+            int_state.inner().debug_print_stack_trace(jvm);
+            todo!()
+        },
+    }.runtime_class(jvm);
     let current_loader = int_state.inner().current_loader(jvm);
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
     let view = resolved_rc.view();
