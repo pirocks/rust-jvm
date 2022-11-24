@@ -4,6 +4,7 @@ use std::vec::IntoIter;
 
 use itertools::{peek_nth, PeekNth};
 use thiserror::Error;
+use tokio::task::{spawn_blocking};
 
 use crate::ParsedOpenJDKTest;
 use crate::tokenize::{TestCommentTagToken, TestCommentTokenJoined, TokenError, tokenize_test_comment_content};
@@ -210,10 +211,13 @@ pub async fn parse_test_file(file_path: PathBuf) -> Result<ParsedOpenJDKTest, Te
     match file_type {
         FileType::Java => {
             let contents = tokio::fs::read_to_string(file_path.as_path()).await?;
-            let comments = extract_comments_java(contents.as_str());
-            let test_comment = find_test_comment(comments)?;
-            let tokens = tokenize_test_comment_content(test_comment)?;
-            parse_java_test_file(file_path, tokens)
+            spawn_blocking(move ||{
+                let comments = extract_comments_java(contents.as_str());
+                let test_comment = find_test_comment(comments)?;
+                let tokens = tokenize_test_comment_content(test_comment)?;
+                let res = parse_java_test_file(file_path, tokens);
+                res
+            }).await.unwrap()
         }
         FileType::Bash => {
             todo!()

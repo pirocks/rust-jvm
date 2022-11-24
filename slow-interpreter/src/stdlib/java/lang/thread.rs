@@ -1,3 +1,4 @@
+use std::ffi::c_void;
 use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
@@ -183,6 +184,10 @@ impl<'gc> JThread<'gc> {
 
     pub fn get_inherited_access_control_context(&self, jvm: &'gc JVMState<'gc>) -> JThread<'gc> {
         todo!()/*self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()*/
+    }
+
+    pub fn notify_object_change(&self, jvm: &'gc JVMState<'gc>) {
+        jvm.monitor_for(self.normal_object.ptr.as_ptr() as *const c_void).notify_all(jvm).unwrap();
     }
 
     // pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc, 'gc> {

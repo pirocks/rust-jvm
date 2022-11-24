@@ -152,7 +152,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()?;
     let instant_before = Instant::now();
-    match timeout(Duration::from_secs(25), child.wait_with_output()).await {
+    match timeout(Duration::from_secs(40), child.wait_with_output()).await {
         Err(_) => {
             Err(TestRunError::Timeout)
         }

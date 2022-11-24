@@ -57,7 +57,7 @@ pub mod new_run_native;
 
 #[inline(never)]
 pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, index: i32) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("ArrayOutOfBounds");
     }
     let array_out_of_bounds = ArrayOutOfBoundsException::new(jvm, int_state, index).unwrap();
@@ -68,7 +68,7 @@ pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut Jav
 #[inline(never)]
 pub fn throw_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, exception_obj_ptr: *const c_void) -> IRVMExitAction {
     let throw = jvm.perf_metrics.vm_exit_throw();
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("Throw");
     }
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<StackNativeJavaValue<'gc>>().read() };
@@ -89,7 +89,7 @@ pub fn invoke_interface_resolve<'gc>(
     interface_id: InterfaceID,
     method_number: MethodNumber,
 ) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InvokeInterfaceResolve");
     }
     let caller_method_id = int_state.frame_ref().method_id().unwrap();
@@ -149,7 +149,7 @@ fn resolved_entry_from_method_id(jvm: &JVMState, resolver: MethodResolverImpl, r
 #[inline(never)]
 pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
     let checkcast = jvm.perf_metrics.vm_exit_checkcast();
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("CheckCast");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
@@ -174,7 +174,7 @@ pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
 
 #[inline(never)]
 pub fn instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InstanceOf");
     }
     let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
@@ -190,7 +190,7 @@ pub fn instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExi
 
 #[inline(never)]
 pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, res: &*mut c_void, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void, expected: bool) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InstanceOf");
     }
     let cpdtype = *jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id);
@@ -210,7 +210,7 @@ pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
 #[inline(never)]
 pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value_ptr: *mut c_void, field_name: FieldName, cpdtype_id: CPDTypeID, return_to_ptr: *const c_void) -> IRVMExitAction {
     let get_static = jvm.perf_metrics.vm_exit_get_static();
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("GetStatic");
     }
     let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(cpdtype_id).clone();
@@ -233,7 +233,7 @@ pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
 
 #[inline(never)]
 pub fn monitor_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("MonitorExit");
     }
     let monitor = jvm.monitor_for(obj_ptr);
@@ -245,7 +245,7 @@ pub fn monitor_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFr
 
 #[inline(never)]
 pub fn monitor_enter<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, obj_ptr: *const c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("MonitorEnter");
     }
     let monitor = jvm.monitor_for(obj_ptr);
@@ -266,7 +266,7 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
     native_method_restart_point: RestartPointID,
     native_method_res: *mut c_void,
 ) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InvokeVirtualResolve");
     }
     //todo this is probably wrong what if there's a class with a same name private method?
@@ -380,7 +380,7 @@ fn new_class_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
 
 #[inline(never)]
 pub fn new_class<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, res: *mut c_void, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("NewClass");
     }
     let jv_new_handle = new_class_impl(jvm, int_state, type_);
@@ -393,7 +393,7 @@ pub fn new_class<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame
 
 #[inline(never)]
 pub fn new_class_register<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("NewClassRegister");
     }
     let jv_new_handle = new_class_impl(jvm, int_state, type_);
@@ -408,7 +408,7 @@ pub fn new_class_register<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut Java
 
 #[inline(never)]
 pub fn new_string<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, return_to_ptr: *const c_void, res: *mut c_void, compressed_wtf8: CompressedWtf8String) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("NewString");
     }
     let read_guard = jvm.string_exit_cache.read().unwrap();
@@ -437,7 +437,7 @@ pub fn new_string<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
 #[inline(never)]
 pub fn allocate_object<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName, type_: &CPDTypeID, return_to_ptr: *const c_void, res_address: &*mut NonNull<c_void>) -> IRVMExitAction {
     let guard = jvm.perf_metrics.vm_exit_allocate_obj();
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("AllocateObject");
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(*type_).unwrap_ref_type().clone();
@@ -460,7 +460,7 @@ pub fn trace_instruction_after<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut
     let code = method_view.code_attribute().unwrap();
     let instr = code.instructions.get(&bytecode_offset).unwrap();
     eprintln!("After:{}/{:?}", jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool), instr.info.better_debug_string(&jvm.string_pool));
-    if !jvm.instruction_trace_options.partial_tracing() {
+    if !jvm.instruction_tracing_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_after(jvm, instr, int_state);
     }
     dump_frame_contents(jvm, int_state);
@@ -475,14 +475,14 @@ pub fn trace_instruction_before(jvm: &JVMState, method_id: MethodId, return_to_p
     let code = method_view.code_attribute().unwrap();
     let instr = code.instructions.get(&bytecode_offset).unwrap();
     eprintln!("Before:{:?} {}", instr.info.better_debug_string(&jvm.string_pool), bytecode_offset.0);
-    if !jvm.instruction_trace_options.partial_tracing() {
+    if !jvm.instruction_tracing_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().handle_trace_before(jvm, instr, int_state);
     }
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("LogWholeFrame");
     }
     todo!();/*let current_frame = int_state.current_frame();
@@ -500,7 +500,7 @@ pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExi
 }
 
 pub fn log_frame_pointer_offset_value(jvm: &JVMState, value: u64, return_to_ptr: *const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("value:{}", value);
     }
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
@@ -508,7 +508,7 @@ pub fn log_frame_pointer_offset_value(jvm: &JVMState, value: u64, return_to_ptr:
 
 #[inline(never)]
 pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'l>, class_type: CPDTypeID, current_method_id: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
@@ -520,7 +520,7 @@ pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mu
         current_method_id,
         restart_point,
     );
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InitClassAndRecompile done");
     }
     IRVMExitAction::RestartAtPtr { ptr: restart_point }
@@ -528,7 +528,7 @@ pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mu
 
 #[inline(never)]
 pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &*mut c_void, return_to_ptr: &*const c_void) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("PutStatic");
     }
     let (rc, field_i) = jvm.field_table.read().unwrap().lookup(*field_id);
@@ -544,7 +544,7 @@ pub fn put_static<'gc>(jvm: &'gc JVMState<'gc>, field_id: &FieldId, value_ptr: &
 
 #[inline(never)]
 pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, current_loader: LoaderName, current_method_id: MethodId, to_recompile: MethodId, restart_point: RestartPointID) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("CompileFunctionAndRecompileCurrent");
     }
     let method_resolver = MethodResolverImpl { jvm, loader: current_loader };
@@ -556,7 +556,7 @@ pub fn compile_function_and_recompile_current<'gc>(jvm: &'gc JVMState<'gc>, curr
 
 #[inline(never)]
 pub fn top_level_return(jvm: &JVMState, return_value: u64) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("TopLevelReturn");
     }
     IRVMExitAction::ExitVMCompletely { return_data: return_value }
@@ -564,7 +564,7 @@ pub fn top_level_return(jvm: &JVMState, return_value: u64) -> IRVMExitAction {
 
 #[inline(never)]
 pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, len: jint, return_to_ptr: *const c_void, res_address: *mut NonNull<c_void>) -> IRVMExitAction {
-    if jvm.exit_trace_options.tracing_enabled() {
+    if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("AllocateObjectArray");
     }
     let type_ = jvm.cpdtype_table.read().unwrap().get_cpdtype(type_).unwrap_ref_type().clone();

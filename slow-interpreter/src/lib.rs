@@ -129,6 +129,8 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
             }
             Err(WasException { exception_obj }) => {
                 //todo should be allowing catching in main
+                let exception_string = exception_obj.to_string(jvm,java_native).unwrap().unwrap().to_rust_string(jvm);
+                dbg!(exception_string);
                 exception_obj.print_stack_trace(jvm, java_native).unwrap();
                 dbg!("main exited with exception");
                 // dbg!(throwable.to_string(jvm, int_state).unwrap().unwrap().to_rust_string(jvm));

@@ -1,11 +1,11 @@
 use std::cell::OnceCell;
-use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use futures::StreamExt;
+use tokio::task::spawn_blocking;
 
 use openjdk_test_parser::parse::{parse_test_file, TestParseError};
 use openjdk_test_parser::ParsedOpenJDKTest;
@@ -19,18 +19,18 @@ pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let jdk_dir = config.dep_dir.join("jdk8u");
     let compilation_dir = config.dep_dir.join("compiled_test_classes");
     if !compilation_dir.exists() {
-        fs::create_dir(&compilation_dir)?;
+        tokio::fs::create_dir(&compilation_dir).await?;
     }
     let test_files_base = config.dep_dir.join("jdk8u/jdk/test");
     let javac = javac_location(&config);
-    let java_file_paths = get_java_files(test_files_base.clone())?;
+    let java_file_paths = get_java_files(test_files_base.clone()).await?;
     let summary = Summary::new();
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary).await;
     let java_binary = build_jvm(workspace_dir).await?;
     let output_lock = Arc::new(tokio::sync::Mutex::new(()));
     let test_execution_results = futures::stream::iter(parsed_tests.into_iter().map(|parsed| {
         run_parsed(output_lock.clone(), parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
-    })).buffer_unordered(256).collect::<Vec<_>>().await;
+    })).buffer_unordered(200).collect::<Vec<_>>().await;
     summary.sink_test_results(test_execution_results.as_slice());
     Ok(())
 }
@@ -44,13 +44,15 @@ async fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
     Ok(workspace_dir.join("target/release/java"))
 }
 
-fn get_java_files(test_resources_base: PathBuf) -> anyhow::Result<Vec<PathBuf>> {
-    let mut java_file_paths = vec![];
-    for glob_result in glob::glob(format!("{}/**/*.java", test_resources_base.to_string_lossy()).as_str())? {
-        let path = glob_result?.canonicalize()?;
-        java_file_paths.push(path);
-    }
-    Ok(java_file_paths)
+async fn get_java_files(test_resources_base: PathBuf) -> anyhow::Result<Vec<PathBuf>> {
+    spawn_blocking(move ||{
+        let mut java_file_paths = vec![];
+        for glob_result in glob::glob(format!("{}/**/*.java", test_resources_base.to_string_lossy()).as_str())? {
+            let path = glob_result?.canonicalize()?;
+            java_file_paths.push(path);
+        }
+        Ok(java_file_paths)
+    }).await.unwrap()
 }
 
 async fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summary) -> Vec<ParsedOpenJDKTest> {
@@ -172,8 +174,8 @@ impl Drop for Summary {
         println!("Parsed Files: {}", self.num_parsed.load(Ordering::SeqCst));
         println!("Parse Time: {}", self.parse_time.lock().unwrap().get().unwrap());
         println!("Parse Failures: {}", self.parse_fail.load(Ordering::SeqCst));
-        println!("Num Compilations: {}", self.num_success.load(Ordering::SeqCst));
-        println!("Num Compilation Failures: {}", self.num_failure.load(Ordering::SeqCst));
+        println!("Num Successes: {}", self.num_success.load(Ordering::SeqCst));
+        println!("Num Failures: {}", self.num_failure.load(Ordering::SeqCst));
         println!("Num Not Implemented: {}", self.num_not_implemented.load(Ordering::SeqCst));
         println!("Timeouts: {}", self.timeout.load(Ordering::SeqCst));
         println!("Process Failures: {}", self.process_failure.load(Ordering::SeqCst));

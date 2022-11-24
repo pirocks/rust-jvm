@@ -84,14 +84,14 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     interpreter_state.frame_mut().assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_pointer().as_ptr());
     assert!((interpreter_state.frame_ref().method_id() == Ok(method_id)));
 
-    if !jvm.instruction_trace_options.partial_tracing() {
+    if !jvm.instruction_tracing_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
     }
     let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id)?;
     // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
     // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
     //todo bug what if gc happens here
-    if !jvm.instruction_trace_options.partial_tracing() {
+    if !jvm.instruction_tracing_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
     }
     //todo

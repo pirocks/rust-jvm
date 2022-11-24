@@ -203,7 +203,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                         let function_frame_data = jvm.function_frame_type_data.read().unwrap();
                         let method_table = jvm.method_table.read().unwrap();
                         JavaCompilerMethodAndFrameData::new(
-                            jvm.instruction_trace_options.should_trace(method_id, jvm),
+                            jvm.instruction_tracing_options.should_trace(method_id, jvm),
                             &method_table,
                             &function_frame_data.no_tops.get(&method_id).unwrap(),
                             method_id

@@ -43,7 +43,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string())?;
         // add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
         // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
-        Ok(add_prop(env, p0, "java.home".to_string(), "/tmptank/scratchy/builds/rust-jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())?)
+        Ok(add_prop(env, p0, "java.home".to_string(), "/tank/scratchy/builds/rust-jvm-dep-dir/jdk8u/build/linux-x86_64-normal-server-fastdebug/jdk/".to_string())?)
     })() {
         Err(WasException { exception_obj }) => {
             todo!();

@@ -64,7 +64,7 @@ use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjectObject};
-use crate::options::{ExitTracingOptions, InstructionTraceOptions};
+use crate::options::{ExitTracingOptions, InstructionTraceOptions, ThreadTracingOptions};
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;
 use crate::rust_jni::jvmti::SharedLibJVMTI;
 use crate::rust_jni::mangling::ManglingRegex;
@@ -122,8 +122,9 @@ pub struct JVMState<'gc> {
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
     pub method_shapes: MethodShapeIDs,
-    pub instruction_trace_options: InstructionTraceOptions,
-    pub exit_trace_options: ExitTracingOptions,
+    pub instruction_tracing_options: InstructionTraceOptions,
+    pub exit_tracing_options: ExitTracingOptions,
+    pub thread_tracing_options: ThreadTracingOptions,
     pub checkcast_debug_assertions: bool,
     pub perf_metrics: PerfMetrics,
     pub recompilation_conditions: RwLock<RecompileConditions>,

@@ -27,6 +27,14 @@ pub struct JVMOptions {
     pub assertions_enabled: bool,
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
+    pub thread_tracing_options: ThreadTracingOptions,
+}
+
+pub struct ThreadTracingOptions {
+    pub trace_monitor_wait_enter: bool,
+    pub trace_monitor_wait_exit: bool,
+    pub trace_monitor_notify: bool,
+    pub trace_monitor_notify_all: bool,
 }
 
 pub enum ExitTracingOptions {
@@ -151,6 +159,12 @@ impl JVMOptions {
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
+        let thread_tracing_options = ThreadTracingOptions {
+            trace_monitor_wait_enter: true,
+            trace_monitor_wait_exit: true,
+            trace_monitor_notify: true,
+            trace_monitor_notify_all: true
+        };
         Self {
             main_class_name,
             classpath,
@@ -165,6 +179,7 @@ impl JVMOptions {
             assertions_enabled,
             instruction_trace_options: trace_options,
             exit_trace_options: ExitTracingOptions::TraceNone,
+            thread_tracing_options,
         }
     }
 

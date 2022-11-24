@@ -2,4 +2,4 @@
 linker = "clang"
 #rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/mold"]
 [alias]
-xtask = "run --package xtask --"
+xtask = "run --release --package xtask --"

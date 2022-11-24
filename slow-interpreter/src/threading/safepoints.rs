@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::ops::Add;
 use std::sync::{Condvar, Mutex, RwLock};
+use std::thread::current;
 use std::time::{Duration, Instant};
 
 use jvmti_jni_bindings::{jint, JVMTI_THREAD_STATE_ALIVE, JVMTI_THREAD_STATE_BLOCKED_ON_MONITOR_ENTER, JVMTI_THREAD_STATE_IN_OBJECT_WAIT, JVMTI_THREAD_STATE_INTERRUPTED, JVMTI_THREAD_STATE_PARKED, JVMTI_THREAD_STATE_RUNNABLE, JVMTI_THREAD_STATE_SLEEPING, JVMTI_THREAD_STATE_SUSPENDED, JVMTI_THREAD_STATE_TERMINATED, JVMTI_THREAD_STATE_WAITING, JVMTI_THREAD_STATE_WAITING_INDEFINITELY, JVMTI_THREAD_STATE_WAITING_WITH_TIMEOUT};
@@ -390,6 +391,9 @@ impl Monitor2 {
     }
 
     pub fn notify<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
+        if jvm.thread_tracing_options.trace_monitor_notify {
+            eprintln!("[{}] Notify: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         let mut guard = self.monitor2_priv.write().unwrap();
         if let Some(to_notify) = guard.waiting_notify.drain().next() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
@@ -399,6 +403,9 @@ impl Monitor2 {
     }
 
     pub fn notify_all<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
+        if jvm.thread_tracing_options.trace_monitor_notify_all {
+            eprintln!("[{}] Notify All: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         let mut guard = self.monitor2_priv.write().unwrap();
         for to_notify in guard.waiting_notify.drain() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
@@ -408,6 +415,10 @@ impl Monitor2 {
     }
 
     pub fn wait<'gc, 'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, wait_duration: Option<Duration>) -> Result<(), WasException<'gc>> {
+        if jvm.thread_tracing_options.trace_monitor_wait_enter {
+            int_state.debug_print_stack_trace(jvm);
+            eprintln!("[{}] Monitor Wait: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         let mut guard = self.monitor2_priv.write().unwrap();
         let now = Instant::now();
         let wait_until = wait_duration.map(|wait_duration| match now.checked_add(wait_duration) {
@@ -428,6 +439,9 @@ impl Monitor2 {
         safepoint_check(jvm, int_state).unwrap();
         assert_eq!(self.monitor2_priv.read().unwrap().owner, current_thread.java_tid.into());
         assert_eq!(self.monitor2_priv.read().unwrap().count, prev_count);
+        if jvm.thread_tracing_options.trace_monitor_wait_exit {
+            eprintln!("[{}] Monitor Wait Exit: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         Ok(())
     }
 

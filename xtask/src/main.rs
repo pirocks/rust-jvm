@@ -141,16 +141,16 @@ fn main() -> anyhow::Result<()> {
                 vec!["java/lang/Boolean/MakeBooleanComparable"],
                 vec!["java/lang/Boolean/ParseBoolean"],
                 vec!["java/lang/Byte/Decode"],
-                // "java/lang/Character/TestIsJavaIdentifierMethods", //needs perf, specifically big loop needs compilation
+                vec!["java/lang/Character/TestIsJavaIdentifierMethods"], //needs perf, specifically big loop needs compilation
                 vec!["java/lang/Long/BitTwiddle"],
-                // "java/lang/Long/Decode", // needs working npe
+                vec!["java/lang/Long/Decode"],
                 vec!["java/lang/Long/GetLong"],
                 vec!["java/lang/Long/ParsingTest"],
                 // "java/lang/Long/Unsigned", //needs working division by zero
                 // "java/lang/Thread/GenerifyStackTraces", //needs impl dump threads
                 // "java/lang/Thread/HoldsLock",// needs impl holds lock
                 vec!["java/lang/Thread/MainThreadTest"],
-                // "java/lang/Thread/ITLConstructor",// seems to deadlock needs fix
+                vec!["java/lang/Thread/ITLConstructor"],// seems to deadlock needs fix
                 vec!["java/lang/Compare"],
                 vec!["java/lang/HashCode"],
                 vec!["java/lang/ToString"],
@@ -160,19 +160,19 @@ fn main() -> anyhow::Result<()> {
                 vec!["java/util/AbstractList/FailFastIterator"],
                 vec!["java/util/AbstractList/HasNextAfterException"],
                 vec!["java/util/AbstractMap/AbstractMapClone"],
-                // "java/util/AbstractMap/Equals", // causes an expected npe need to implement npe throwing
+                vec!["java/util/AbstractMap/Equals"], // causes an expected npe need to implement npe throwing
                 vec!["java/util/AbstractMap/SimpleEntries"],
                 vec!["java/util/AbstractMap/ToString"],
                 vec!["java/util/AbstractSequentialList/AddAll"],
-                // "java/util/ArrayList/AddAll",// todo buggy?
+                // vec!["java/util/ArrayList/AddAll"],// todo buggy?
                 vec!["java/util/ArrayList/Bug6533203"],
                 vec!["java/util/ArrayList/EnsureCapacity"],
                 // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
                 // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
                 // "java/util/Collections/ViewSynch" //doesn't exit for some reason
-                // vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
+                vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
                 vec!["java/nio/channels/Selector/SelectorTest", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                // vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 vec!["java/nio/channels/Selector/LotsOfUpdates", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 vec!["java/nio/channels/Selector/SelectWrite", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition
@@ -189,7 +189,7 @@ fn main() -> anyhow::Result<()> {
             run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
         OptsInner::OpenJDKAll {  } => {
-            tokio::runtime::Builder::new_multi_thread().enable_all().build()?.block_on(async move {
+            tokio::runtime::Builder::new_multi_thread().max_blocking_threads(256).enable_all().build()?.block_on(async move {
                 all_tests(workspace_dir).await
             })?
         }

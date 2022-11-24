@@ -179,6 +179,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         assertions_enabled,
         instruction_trace_options,
         exit_trace_options,
+        thread_tracing_options,
     } = jvm_options;
     let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
     let classpath_arc = Arc::new(classpath);
@@ -241,8 +242,9 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         java_function_frame_data: Default::default(),
         object_monitors: Default::default(),
         method_shapes: MethodShapeIDs::new(),
-        instruction_trace_options,
-        exit_trace_options,
+        instruction_tracing_options: instruction_trace_options,
+        exit_tracing_options: exit_trace_options,
+        thread_tracing_options,
         checkcast_debug_assertions: false,
         perf_metrics: PerfMetrics::new(),
         recompilation_conditions: RwLock::new(RecompileConditions::new()),

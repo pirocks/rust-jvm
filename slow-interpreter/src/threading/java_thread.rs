@@ -143,7 +143,8 @@ impl<'gc> JavaThread<'gc> {
         self.thread_status_change_condvar.notify_one();
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
-            obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()))
+            obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()));
+            obj.notify_object_change(jvm);
         }
     }
 
