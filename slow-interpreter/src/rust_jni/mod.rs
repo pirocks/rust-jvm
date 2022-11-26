@@ -101,7 +101,6 @@ impl<'gc> NativeLibraries<'gc> {
 
 pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException<'gc>> {
     let mangled = mangling::mangle(&jvm.mangling_regex,&jvm.string_pool, &method_view);
-    // dbg!(&mangled);
     let raw: unsafe extern "C" fn() = unsafe {
         let libraries_guard = jvm.native_libaries.native_libs.read().unwrap();
         let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());

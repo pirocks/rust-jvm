@@ -115,7 +115,6 @@ impl JavaVMStateWrapperInner {
             }
             RuntimeVMExitInput::NPE { .. } => {
                 let int_state = int_state.unwrap();
-                int_state.debug_print_stack_trace(jvm);
                 let npe = NullPointerException::new(jvm, int_state).expect("exception while creating exception?");
                 return throw_impl(jvm, int_state, npe.new_java_value_handle().cast_throwable(), false);
             }

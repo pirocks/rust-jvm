@@ -230,9 +230,6 @@ impl<'vm> JavaStackGuard<'vm> {
             }
         }
         let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
-        if method_name == "waitForProcessExit"{
-            frame.debug_print_stack_trace(jvm);
-        }
         self.notify_frame_pop(next_frame_pointer, "".to_string());
         res
     }
