@@ -104,5 +104,5 @@ pub unsafe fn get_interpreter_state<'gc, 'k, 'any>(env: *mut JNIEnv) -> &'any mu
 
 pub unsafe fn get_throw<'any, 'gc>(env: *mut JNIEnv) -> &'any mut Option<WasException<'gc>> {
     let env = env as *mut JNIEnvNamedReservedPointers;
-    &mut *((**env).native_frame as *mut Option<WasException<'gc>>)
+    &mut *((**env).was_exception as *mut Option<WasException<'gc>>)
 }

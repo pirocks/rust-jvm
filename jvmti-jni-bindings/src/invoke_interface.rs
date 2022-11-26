@@ -10,6 +10,8 @@ use crate::jvmti_interface::JVMTIInterfaceNamedReservedPointers;
 // jvmti interface pointer?
 //jmm interface
 
+pub type JavaVMNamedReservedPointers = *const JNIInvokeInterfaceNamedReservedPointers;
+
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct JNIInvokeInterfaceNamedReservedPointers {

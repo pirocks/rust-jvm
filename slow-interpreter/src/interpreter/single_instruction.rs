@@ -55,12 +55,14 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //io.netty.channel.nio.NioEventLoop#run
     // sun.nio.ch.EPollSelectorImpl#doSelect
     // use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("ServerSocketChannelImpl") &&
-    //     method.name().0.to_str(&jvm.string_pool) == "translateReadyOps" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+    //#(java.lang.String)
+    //use classfile_view::view::ClassView;
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/System") &&
+    //     method.name().0.to_str(&jvm.string_pool) == "getProperty" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
-    //     if let CInstructionInfo::ireturn = instruct{
-    //         interpreter_state.inner().debug_print_stack_trace(jvm);
-    //     }
+    //     // if let CInstructionInfo::ireturn = instruct{
+    //     //     interpreter_state.inner().debug_print_stack_trace(jvm);
+    //     // }
     //     dump_frame(interpreter_state, method, code, current_pc, instruct)
     // }
     // jvm.thread_state.debug_assert(jvm);
@@ -275,7 +277,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             let monitor = jvm.monitor_for(match obj.unwrap_object() {
                 Some(x) => x,
                 None => {
-                    interpreter_state.inner().debug_print_stack_trace(jvm);
+                    // interpreter_state.inner().debug_print_stack_trace(jvm);
                     panic!()
                 },
             }.as_ptr() as *const c_void);
