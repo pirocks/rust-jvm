@@ -4,7 +4,8 @@
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::*;
-use jvmti_jni_bindings::{jvmtiEnv, jvmtiInterface_1_};
+use jvmti_jni_bindings::{jvmtiEnv};
+use jvmti_jni_bindings::jvmti_interface::JVMTIInterfaceNamedReservedPointers;
 use rust_jvm_common::FieldId;
 
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
@@ -38,11 +39,11 @@ use crate::threads::thread_groups::{get_thread_group_info, get_top_thread_groups
 use crate::version::get_version_number;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
-pub fn initial_jvmti() -> jvmtiInterface_1_ {
-    jvmtiInterface_1_ {
-        reserved1: null_mut(),
+pub fn initial_jvmti() -> JVMTIInterfaceNamedReservedPointers {
+    JVMTIInterfaceNamedReservedPointers {
+        jvm_state: null_mut(),
         SetEventNotificationMode: Some(set_event_notification_mode),
-        reserved3: null_mut(),
+        current_native_frame: null_mut(),
         GetAllThreads: Some(get_all_threads),
         SuspendThread: Some(suspend_thread),
         ResumeThread: Some(resume_thread),

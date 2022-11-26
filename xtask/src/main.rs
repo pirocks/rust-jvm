@@ -169,10 +169,10 @@ fn main() -> anyhow::Result<()> {
                 vec!["java/util/ArrayList/EnsureCapacity"],
                 // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
                 // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
-                // "java/util/Collections/ViewSynch" //doesn't exit for some reason
-                vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
+                vec!["java/util/Collections/ViewSynch"], //doesn't exit for some reason
+                // vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
                 vec!["java/nio/channels/Selector/SelectorTest", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 vec!["java/nio/channels/Selector/LotsOfUpdates", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 vec!["java/nio/channels/Selector/SelectWrite", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition

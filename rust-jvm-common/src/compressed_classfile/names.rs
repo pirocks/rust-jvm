@@ -79,6 +79,7 @@ pub(crate) enum PredefinedStrings {
     SUN_UTIL_PRE_HASHED_MAP,
     JAVA_LANG_REFLECT_ARRAY,
     JAVA_LANG_COMPARABLE,
+    JAVA_LANG_CLASS_CAST_EXCEPTION,
     field_annotationData,
     method_and_field_annotationType,
     field_argCounts,
@@ -410,6 +411,7 @@ impl PredefinedStrings {
             method_putLong => "putLong".to_string(),
             method_getByte => "getByte".to_string(),
             method_freeMemory => "freeMemory".to_string(),
+            JAVA_LANG_CLASS_CAST_EXCEPTION => "java/lang/ClassCastException".to_string()
         }
     }
 }

@@ -160,10 +160,10 @@ impl JVMOptions {
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
         let thread_tracing_options = ThreadTracingOptions {
-            trace_monitor_wait_enter: true,
-            trace_monitor_wait_exit: true,
-            trace_monitor_notify: true,
-            trace_monitor_notify_all: true
+            trace_monitor_wait_enter: false,
+            trace_monitor_wait_exit: false,
+            trace_monitor_notify: false,
+            trace_monitor_notify_all: false
         };
         Self {
             main_class_name,

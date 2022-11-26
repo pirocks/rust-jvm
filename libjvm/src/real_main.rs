@@ -43,7 +43,7 @@ use slow_interpreter::field_table::FieldTable;
 use slow_interpreter::function_instruction_count::FunctionInstructionExecutionCount;
 use slow_interpreter::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use slow_interpreter::java_values::GC;
-use slow_interpreter::jvm_state::{Classes, JVM, JVMConfig, JVMState, JVMTIState, Native, NativeLibraries, StringInternment};
+use slow_interpreter::jvm_state::{Classes, CURRENT_THREAD_INVOKE_INTERFACE, JVM, JVMConfig, JVMState, JVMTIState, Native, NativeLibraries, StringInternment};
 use slow_interpreter::leaked_interface_arrays::InterfaceArrays;
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::native_allocation::NativeAllocator;
@@ -231,7 +231,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         opaque_ids: RwLock::new(OpaqueIDs::new()),
         native: Native {
             jvmti_state,
-            invoke_interface: RwLock::new(None),
+            invoke_interface: &CURRENT_THREAD_INVOKE_INTERFACE,
             native_interface_allocations: NativeAllocator::new(),
         },
         live: AtomicBool::new(false),

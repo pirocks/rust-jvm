@@ -11,7 +11,9 @@ use wtf8::Wtf8Buf;
 use jmm_interface::initial_jmm;
 
 use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
+use jvmti_jni_bindings::jmm_interface::JMMInterfaceNamedReservedPointers;
 use jvmti_jni_bindings::jmmInterface_1_;
+use slow_interpreter::better_java_stack::java_stack_guard::JMM;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
@@ -62,17 +64,11 @@ unsafe extern "system" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
     true as jboolean
 }
 
-thread_local! {
-    static JMM: RefCell<Option<*const jmmInterface_1_>> = RefCell::new(None)
-}
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void {
     eprintln!("Attempt to get jmm which is unsupported");
-    JMM.with(|refcell: &RefCell<Option<*const jmmInterface_1_>>| {
-        if refcell.borrow().is_none() {
-            *refcell.borrow_mut() = Some(Box::into_raw(box initial_jmm()));
-        }
+    JMM.with(|refcell: &RefCell<Option<*mut JMMInterfaceNamedReservedPointers>>| {
         *refcell.borrow().as_ref().unwrap()
     }) as *mut c_void
 }

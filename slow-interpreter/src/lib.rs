@@ -19,6 +19,7 @@
 #![feature(fmt_internals)]
 
 extern crate alloc;
+extern crate core;
 
 use std::error::Error;
 use std::sync::Arc;

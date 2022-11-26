@@ -23,3 +23,4 @@ pub mod float;
 pub mod double;
 pub mod reflect;
 pub mod system;
+pub mod class_cast_exception;

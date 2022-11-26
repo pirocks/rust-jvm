@@ -282,6 +282,10 @@ impl CompressedClassName {
     pub const fn comparable() -> Self {
         Self::from_raw_id(JAVA_LANG_COMPARABLE as AddOnlyVecIDType)
     }
+
+    pub const fn class_cast_exception() -> Self {
+        Self::from_raw_id(JAVA_LANG_CLASS_CAST_EXCEPTION as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {

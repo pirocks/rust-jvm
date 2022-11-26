@@ -1,12 +1,13 @@
 use std::{fs, io};
+use std::os::unix::prelude::ExitStatusExt;
 use std::path::{Path, PathBuf};
-use std::process::{Output, Stdio};
+use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use shell_words::ParseError;
 use thiserror::Error;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::time::timeout;
 
@@ -124,7 +125,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
     let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
 
 
-    let child = Command::new("systemd-run")
+    let mut child = Command::new("systemd-run")
         .arg("--no-ask-password")
         .arg("--scope")
         .arg("--no-block")
@@ -141,9 +142,9 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg("-p")
         .arg("ManagedOOMMemoryPressure=kill")
         .arg("--user")
-        .arg(java_binary)
+        .arg(&java_binary)
         .arg("--main").arg(main.to_str().unwrap())
-        .arg("--libjava").arg(libjava)
+        .arg("--libjava").arg(&libjava)
         .arg("--classpath")
         .arg(compiled_file.parent().unwrap())
         .arg(classpath_1.as_str())
@@ -151,17 +152,34 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .current_dir(compiled_file.parent().unwrap())
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()?;
+
+    let run_string = format!("{} --main {} --libjava {} --classpath {} {} {}",
+                             java_binary.display(), main.to_str().unwrap(), libjava.display(),
+                             compiled_file.parent().unwrap().display(), classpath_1.as_str(), classpath_2.as_str());
+
     let instant_before = Instant::now();
-    match timeout(Duration::from_secs(40), child.wait_with_output()).await {
+    let mut stdout = child.stdout.take().unwrap();
+    let mut stderr = child.stderr.take().unwrap();
+    match timeout(Duration::from_secs(40), child.wait()).await {
         Err(_) => {
+            child.start_kill().unwrap();
+            let mut stdout_buf = vec![];
+            stdout.read_to_end(&mut stdout_buf).await.unwrap();
+            let mut stderr_buf = vec![];
+            stderr.read_to_end(&mut stderr_buf).await.unwrap();
+            output_run_output(run_string, ExitKind::Timeout, test_output_lock, stdout_buf, stderr_buf, compiled_file).await;
             Err(TestRunError::Timeout)
         }
-        Ok(output) => {
+        Ok(status) => {
             let instant_after = Instant::now();
-            let output = output?;
-            let success = output.status.success();
+            let status = status?;
+            let success = status.success();
+            let mut stdout_buf = vec![];
+            stdout.read_to_end(&mut stdout_buf).await.unwrap();
+            let mut stderr_buf = vec![];
+            stderr.read_to_end(&mut stderr_buf).await.unwrap();
             if !success {
-                output_run_output(test_output_lock, output, compiled_file).await;
+                output_run_output(run_string, ExitKind::ExitCode(status.into_raw()), test_output_lock, stdout_buf, stderr_buf, compiled_file).await;
                 return Err(TestRunError::ProcessFailure);
             }
             Ok(TestResult::Success {
@@ -172,13 +190,22 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
     }
 }
 
-async fn output_run_output(output_lock: Arc<tokio::sync::Mutex<()>>, output: Output, file: PathBuf) {
+#[derive(Debug)]
+pub enum ExitKind {
+    Success,
+    ExitCode(i32),
+    Timeout,
+}
+
+async fn output_run_output(run_string: String, exit_kind: ExitKind, output_lock: Arc<tokio::sync::Mutex<()>>, stdout_buf: Vec<u8>, stderr_buf: Vec<u8>, file: PathBuf) {
     let guard = output_lock.lock().await;
     println!("Output from:{}", file.display());
+    println!("{}", run_string);
+    println!("{:?}", exit_kind);
     println!("Stdout:");
-    tokio::io::stdout().write_all(output.stdout.as_ref()).await.unwrap();
+    tokio::io::stdout().write_all(stdout_buf.as_ref()).await.unwrap();
     println!("Stderr:");
-    tokio::io::stderr().write_all(output.stderr.as_ref()).await.unwrap();
+    tokio::io::stderr().write_all(stderr_buf.as_ref()).await.unwrap();
     drop(guard);
 }
 

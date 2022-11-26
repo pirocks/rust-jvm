@@ -416,7 +416,6 @@ impl Monitor2 {
 
     pub fn wait<'gc, 'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, wait_duration: Option<Duration>) -> Result<(), WasException<'gc>> {
         if jvm.thread_tracing_options.trace_monitor_wait_enter {
-            int_state.debug_print_stack_trace(jvm);
             eprintln!("[{}] Monitor Wait: {}", current().name().unwrap_or("Unknown Thread"), self.id);
         }
         let mut guard = self.monitor2_priv.write().unwrap();

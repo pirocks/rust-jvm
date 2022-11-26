@@ -4,7 +4,8 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
 use libloading::Symbol;
 use wtf8::Wtf8Buf;
-use jvmti_jni_bindings::{JNIInvokeInterface_, JVMTI_THREAD_NORM_PRIORITY};
+use jvmti_jni_bindings::{JVMTI_THREAD_NORM_PRIORITY};
+use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
@@ -72,7 +73,7 @@ pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads
             {
                 let native_libs_guard = jvm.native_libaries.native_libs.read().unwrap();
                 let libjava_native_lib = native_libs_guard.get("java").unwrap();
-                let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterface_)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
+                let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterfaceNamedReservedPointers)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
                 (*setup_hack_symbol.deref())(get_invoke_interface_new(jvm, opaque_frame))
             }
         }

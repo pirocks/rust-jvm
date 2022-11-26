@@ -707,7 +707,7 @@ impl SharedLibJVMTI {
 
 
 pub unsafe fn get_state<'gc, 'l>(env: *mut jvmtiEnv) -> &'l JVMState<'gc> {
-    &*((**env).reserved1 as *const JVMState)
+    todo!()/*&*((**env).reserved1 as *const JVMState)*/
 }
 
 pub unsafe fn get_interpreter_state<'gc, 'l, 'k>(env: *mut jvmtiEnv) -> &'k mut NativeFrame<'gc, 'k> {

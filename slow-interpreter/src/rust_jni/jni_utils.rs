@@ -2,7 +2,8 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{JNIEnv, JNINativeInterface_, jobject};
+use jvmti_jni_bindings::{JNIEnv, jobject};
+use jvmti_jni_bindings::jni_interface::{JNIEnvNamedReservedPointers, JNINativeInterfaceNamedReservedPointers};
 
 use crate::{JVMState, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
@@ -71,34 +72,37 @@ unsafe fn new_local_ref_internal<'gc, 'l>(rust_obj: GcManagedObject<'gc>, interp
 }
 
 
-pub fn with_jni_interface<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, was_exception: &mut Option<WasException<'gc>>, with_interface: impl FnOnce(*mut *const JNINativeInterface_) -> T) -> T {
+pub fn with_jni_interface<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, was_exception: &mut Option<WasException<'gc>>, with_interface: impl FnOnce(*mut *const JNINativeInterfaceNamedReservedPointers) -> T) -> T {
     let jvm_ptr = jvm as *const JVMState<'gc> as *const c_void as *mut c_void; //todo this is mut/const thing is annoying
     let int_state_ptr = int_state as *mut NativeFrame<'gc, 'l> as *mut c_void;
     let exception_pointer = was_exception as *mut Option<WasException<'gc>> as *mut c_void;
     let interface = int_state.stack_jni_interface().jni_inner_mut();
-    let reserved0_save = interface.reserved0;
-    let reserved1_save = interface.reserved1;
-    let reserved2_save = interface.reserved2;
-    interface.reserved0 = jvm_ptr;
-    interface.reserved1 = int_state_ptr;
-    interface.reserved2 = exception_pointer;
-    let mut as_ptr = interface as *const JNINativeInterface_;
-    let as_ptr2 = (&mut as_ptr) as *mut *const JNINativeInterface_;
+    let jvm_state_save = interface.jvm_state;
+    let native_frame_save = interface.native_frame;
+    let was_exception_save = interface.was_exception;
+    interface.jvm_state = jvm_ptr;
+    interface.native_frame = int_state_ptr;
+    interface.was_exception = exception_pointer;
+    let mut as_ptr = interface as *const JNINativeInterfaceNamedReservedPointers;
+    let as_ptr2 = (&mut as_ptr) as *mut *const JNINativeInterfaceNamedReservedPointers;
     let res = with_interface(as_ptr2);
-    interface.reserved0 = reserved0_save;
-    interface.reserved1 = reserved1_save;
-    interface.reserved2 = reserved2_save;
+    interface.jvm_state = jvm_state_save;
+    interface.native_frame = native_frame_save;
+    interface.was_exception = was_exception_save;
     res
 }
 
 pub unsafe fn get_state<'gc>(env: *mut JNIEnv) -> &'gc JVMState<'gc> {
-    &(*((**env).reserved0 as *const JVMState))
+    let env = env as *mut JNIEnvNamedReservedPointers;
+    &*((**env).jvm_state as *const JVMState)
 }
 
 pub unsafe fn get_interpreter_state<'gc, 'k, 'any>(env: *mut JNIEnv) -> &'any mut NativeFrame<'gc, 'k> {
-    (**env).reserved1.cast::<NativeFrame<'gc, 'k>>().as_mut().unwrap()
+    let env = env as *mut JNIEnvNamedReservedPointers;
+    &mut *((**env).native_frame as *mut NativeFrame<'gc, 'k>)
 }
 
 pub unsafe fn get_throw<'any, 'gc>(env: *mut JNIEnv) -> &'any mut Option<WasException<'gc>> {
-    (**env).reserved2.cast::<Option<WasException<'gc>>>().as_mut().unwrap()
+    let env = env as *mut JNIEnvNamedReservedPointers;
+    &mut *((**env).native_frame as *mut Option<WasException<'gc>>)
 }

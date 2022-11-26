@@ -25,6 +25,7 @@ use crate::rust_jni::jvmti::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::threading::safepoints::SafePoint;
 
+
 pub struct JavaThread<'vm> {
     pub java_tid: JavaThreadId,
     pub java_stack: Mutex<JavaStack<'vm>>,
@@ -140,7 +141,7 @@ impl<'gc> JavaThread<'gc> {
     }
 
     fn update_thread_object(&self, jvm: &'gc JVMState<'gc>, status: MutexGuard<ThreadStatus>) {
-        self.thread_status_change_condvar.notify_one();
+        self.thread_status_change_condvar.notify_all();
         if self.thread_object.read().unwrap().is_some() {
             let obj = self.thread_object();
             obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()));
@@ -239,16 +240,17 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn wait_thread_exit(&self) {
-        let mut thread_status_guard = self.thread_status.lock().unwrap();
-        let is_alive = thread_status_guard.alive;
         loop {
-            if !is_alive{
+            let mut thread_status_guard = self.thread_status.lock().unwrap();
+            if !thread_status_guard.alive {
                 break
             }
             //todo threads need fixing again
-            if is_alive {
+            if thread_status_guard.alive {
+                //todo this is jank
                 thread_status_guard = self.thread_status_change_condvar.wait_timeout(thread_status_guard, Duration::new(1,0)).unwrap().0;
             }
+            drop(thread_status_guard);
         }
     }
 

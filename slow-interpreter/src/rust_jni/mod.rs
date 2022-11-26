@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::mem::transmute;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
@@ -14,7 +14,11 @@ use libloading::Symbol;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::{jchar, JmmInterface, jmmInterface_1_, JNIInvokeInterface_, JNINativeInterface_, jobject, jshort, jvmtiInterface_1_};
+use jvmti_jni_bindings::{jchar, jobject, jshort};
+use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
+use jvmti_jni_bindings::jmm_interface::JMMInterfaceNamedReservedPointers;
+use jvmti_jni_bindings::jni_interface::JNINativeInterfaceNamedReservedPointers;
+use jvmti_jni_bindings::jvmti_interface::JVMTIInterfaceNamedReservedPointers;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
@@ -42,28 +46,44 @@ pub mod invoke_interface;
 
 #[derive(Clone)]
 pub struct PerStackInterfaces {
-    pub jni: JNINativeInterface_,
-    pub jmm: jmmInterface_1_,
-    pub jvmti: jvmtiInterface_1_,
-    pub invoke_interface: JNIInvokeInterface_,
+    pub jni: Box<JNINativeInterfaceNamedReservedPointers>,
+    pub jmm: Box<JMMInterfaceNamedReservedPointers>,
+    pub jvmti: Box<JVMTIInterfaceNamedReservedPointers>,
+    pub invoke_interface: Box<JNIInvokeInterfaceNamedReservedPointers>,
 }
 
 impl PerStackInterfaces {
 
-    pub fn jni_inner_mut(&mut self) -> &mut JNINativeInterface_ {
-        &mut self.jni
+    pub fn jni_inner_mut(&mut self) -> &mut JNINativeInterfaceNamedReservedPointers {
+        self.jni.deref_mut()
     }
 
-    pub fn jmm_inner_mut(&mut self) -> &mut JmmInterface {
-        &mut self.jmm
+    pub fn jmm_inner_mut(&mut self) -> &mut JMMInterfaceNamedReservedPointers {
+        self.jmm.deref_mut()
     }
 
-    pub fn jvmti_inner_mut(&mut self) -> &mut jvmtiInterface_1_ {
-        &mut self.jvmti
+    pub fn jvmti_inner_mut(&mut self) -> &mut JVMTIInterfaceNamedReservedPointers {
+        self.jvmti.deref_mut()
     }
 
-    pub fn invoke_interface_mut(&mut self) -> &mut JNIInvokeInterface_ {
-        &mut self.invoke_interface
+    pub fn invoke_interface_mut(&mut self) -> &mut JNIInvokeInterfaceNamedReservedPointers {
+        self.invoke_interface.deref_mut()
+    }
+
+    pub fn jni_inner_mut_raw(&mut self) -> *mut JNINativeInterfaceNamedReservedPointers {
+        (self.jni.deref_mut()) as *mut _
+    }
+
+    pub fn jmm_inner_mut_raw(&mut self) -> *mut JMMInterfaceNamedReservedPointers {
+        (self.jmm.deref_mut()) as *mut _
+    }
+
+    pub fn jvmti_inner_mut_raw(&mut self) -> *mut JVMTIInterfaceNamedReservedPointers {
+        (self.jvmti.deref_mut()) as *mut _
+    }
+
+    pub fn invoke_interface_mut_raw(&mut self) -> *mut JNIInvokeInterfaceNamedReservedPointers {
+        (self.invoke_interface.deref_mut()) as *mut _
     }
 }
 

@@ -269,7 +269,7 @@ impl<'gc> ThreadState<'gc> {
             let all_threads = self.all_java_threads.read().unwrap().values().cloned().collect_vec();
             drop(self.all_java_threads.read().unwrap());
             for thread in all_threads.iter(){
-                if !thread.invisible_to_java && !thread.is_daemon(jvm){
+                if !thread.invisible_to_java && !thread.is_daemon(jvm) && thread.is_alive(){
                     thread.wait_thread_exit();
                 }
             }

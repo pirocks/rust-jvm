@@ -92,7 +92,7 @@ impl<'gc, 'k> HasFrame<'gc> for OpaqueFrame<'gc, 'k> {
     }
 
     fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
+        &mut self.java_stack
     }
 }
 

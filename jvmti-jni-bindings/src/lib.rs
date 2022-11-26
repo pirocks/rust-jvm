@@ -5,6 +5,11 @@
 #![allow(clippy::useless_transmute)]
 #![allow(clippy::too_many_arguments)]
 
+pub mod invoke_interface;
+pub mod jvmti_interface;
+pub mod jmm_interface;
+pub mod jni_interface;
+
 include!(concat!("../gen", "/bindings.rs"));
 
 unsafe impl Send for JNIInvokeInterface_ {}

@@ -1,4 +1,4 @@
-use std::cell::OnceCell;
+use std::cell::{OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::{c_void, OsString};
 use std::iter;
@@ -22,7 +22,8 @@ use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
-use jvmti_jni_bindings::{JavaVM, jint, jlong, JNI_VERSION_1_1, JNIInvokeInterface_, jobject};
+use jvmti_jni_bindings::{jint, jlong, JNI_VERSION_1_1, jobject};
+use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
@@ -88,9 +89,11 @@ pub struct JVMConfig {
     pub compile_threshold: u64,
 }
 
+thread_local!(pub static CURRENT_THREAD_INVOKE_INTERFACE: RefCell<Option<*const JNIInvokeInterfaceNamedReservedPointers>> = RefCell::new(None));
+
 pub struct Native {
     pub jvmti_state: Option<JVMTIState>,
-    pub invoke_interface: RwLock<Option<*const JNIInvokeInterface_>>,
+    pub invoke_interface: &'static std::thread::LocalKey<RefCell<Option<*const JNIInvokeInterfaceNamedReservedPointers>>>,
     pub native_interface_allocations: NativeAllocator,
 }
 
@@ -470,28 +473,28 @@ pub struct NativeLibraries<'gc> {
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
 }
 
-fn default_on_load(_: *mut *const JNIInvokeInterface_, _ :*mut c_void) -> i32{
+fn default_on_load(_: *mut *const JNIInvokeInterfaceNamedReservedPointers, _ :*mut c_void) -> i32{
     JNI_VERSION_1_1 as i32
 }
 
 impl<'gc> NativeLibraries<'gc> {
     pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc, '_>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterface_ = get_invoke_interface_new(jvm, opaque_frame);
-        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
+        let interface: *const JNIInvokeInterfaceNamedReservedPointers = get_invoke_interface_new(jvm, opaque_frame);
+        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterfaceNamedReservedPointers, null_mut());
         //todo check return res
     }
 
     pub unsafe fn load_old<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, path: &OsString, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterface_ = todo!()/*get_invoke_interface(jvm, todo!()/*int_state*/)*/;
-        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterface_, null_mut());
+        let interface: *const JNIInvokeInterfaceNamedReservedPointers = todo!()/*get_invoke_interface(jvm, todo!()/*int_state*/)*/;
+        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterfaceNamedReservedPointers, null_mut());
         //todo check return res
     }
 
-    pub unsafe fn get_onload_ptr_and_add(&self, path: &OsString, name: String) -> fn(*mut *const JNIInvokeInterface_, *mut c_void) -> i32 {
+    pub unsafe fn get_onload_ptr_and_add(&self, path: &OsString, name: String) -> fn(*mut *const JNIInvokeInterfaceNamedReservedPointers, *mut c_void) -> i32 {
         let lib = Library::new(path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
-        let on_load = match lib.get::<fn(vm: *mut JavaVM, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()) {
+        let on_load = match lib.get::<fn(vm: *mut *const JNIInvokeInterfaceNamedReservedPointers, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()) {
             Ok(x) => Some(x),
             Err(err) => {
                 if err.to_string().contains(" undefined symbol: JNI_OnLoad"){

@@ -1,4 +1,5 @@
 use std::ffi::c_void;
+use std::mem::transmute;
 use std::ptr::NonNull;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -22,6 +23,12 @@ use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::rust_jni::PerStackInterfaces;
 use crate::stack_entry::{JavaFramePush, NativeFramePush, OpaqueFramePush};
 use crate::threading::java_thread::JavaThread;
+use std::cell::RefCell;
+use jvmti_jni_bindings::jmm_interface::JMMInterfaceNamedReservedPointers;
+
+thread_local! {
+    pub static JMM: RefCell<Option<*mut JMMInterfaceNamedReservedPointers>> = RefCell::new(None)
+}
 
 pub struct JavaStackGuard<'vm> {
     stack: &'vm Mutex<JavaStack<'vm>>,
@@ -56,8 +63,24 @@ impl<'vm> JavaStackGuard<'vm> {
         &self.guard.as_ref().unwrap().owned_ir_stack
     }
 
+
+    fn configure_jmm(jvm: &'vm JVMState<'vm>, per_stack_interface: &mut PerStackInterfaces){
+        JMM.with(|jmm|{
+            let mut jmm_base = jvm.default_per_stack_initial_interfaces.jmm.clone();
+            unsafe { jmm_base.jvm_state = transmute(jvm); }
+            per_stack_interface.jmm = jmm_base;
+            assert!(jmm.borrow().is_none());
+            jmm.replace(Some(per_stack_interface.jmm_inner_mut_raw()));
+        })
+    }
+
     //todo I really need an init function which just creates the mutex and everything in one place
-    pub fn new_from_empty_stack<T>(jvm: &'vm JVMState<'vm>, java_thread: Arc<JavaThread<'vm>>, stack: &'vm Mutex<JavaStack<'vm>>, with_initial_opaque_frame: impl for<'l, 'k> FnOnce(&'l mut OpaqueFrame<'vm, 'k>) -> Result<T, WasException<'vm>> + 'vm) -> Result<T, WasException<'vm>> {
+    pub fn new_from_empty_stack<T>(
+        jvm: &'vm JVMState<'vm>,
+        java_thread: Arc<JavaThread<'vm>>,
+        stack: &'vm Mutex<JavaStack<'vm>>,
+        with_initial_opaque_frame: impl for<'l, 'k> FnOnce(&'l mut OpaqueFrame<'vm, 'k>) -> Result<T, WasException<'vm>> + 'vm
+    ) -> Result<T, WasException<'vm>> {
         let guard = stack.lock().unwrap();
         if guard.has_been_used {
             panic!()
@@ -71,6 +94,7 @@ impl<'vm> JavaStackGuard<'vm> {
             current_frame_pointer: FramePointer(mmapped_top),
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);
+        Self::configure_jmm(jvm, opaque_frame.java_stack_mut().stack_jni_interface());
         with_initial_opaque_frame(&mut opaque_frame)
     }
 

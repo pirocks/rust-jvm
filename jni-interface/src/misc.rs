@@ -7,6 +7,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use by_address::ByAddress;
 
 use jvmti_jni_bindings::{JavaVM, jboolean, jclass, jint, JNI_ERR, JNI_FALSE, JNI_OK, JNI_TRUE, JNIEnv, JNIInvokeInterface_, JNINativeMethod, jobject};
+use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
+use jvmti_jni_bindings::jni_interface::JNIEnvNamedReservedPointers;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classnames::ClassName;
@@ -118,14 +120,40 @@ pub unsafe extern "C" fn is_assignable_from<'gc, 'l>(env: *mut JNIEnv, sub: jcla
     res as jboolean
 }
 
+
+//Java VM Interface
+// GetJavaVM
+//
+// jint GetJavaVM(JNIEnv *env, JavaVM **vm);
+//
+// Returns the Java VM interface (used in the Invocation API) associated with the current thread. The result is placed at the location pointed to by the second argument, vm.
+//
+// LINKAGE:
+//
+// Index 219 in the JNIEnv interface function table.
+// PARAMETERS:
+//
+// env: the JNI interface pointer.
+//
+// vm: a pointer to where the result should be placed.
+// RETURNS:
+//
+// Returns “0” on success; returns a negative value on failure.
 pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> jint {
+    //important thing to note is that this pointer can be local to current thread, so we don't
+    // need thread local fugglyness
+    // other important thing to note is that returned pointer can outlast this native call
+    // so some fugglyness needed.
     let state = get_state(env);
     let int_state = get_interpreter_state(env); //todo maybe this should have an optionable version
+    let env = env as *mut JNIEnvNamedReservedPointers;
+    let jni_inner_mut_raw = int_state.stack_jni_interface().jni_inner_mut_raw();
+    let jvmti_inner_mut_raw = int_state.stack_jni_interface().jvmti_inner_mut_raw();
+    let jmm_inner_mut_raw = int_state.stack_jni_interface().jmm_inner_mut_raw();
     let interface = int_state.stack_jni_interface().invoke_interface_mut();
-    interface.reserved0 = (**env).reserved0;
-    interface.reserved1 = (**env).reserved1;
-    interface.reserved2 = (**env).reserved2;
-    *vm = Box::into_raw(box (interface as *const JNIInvokeInterface_)); //todo do something about this leak
+    interface.jvm_state = (**env).jvm_state;// jvm pointer
+    interface.other_native_interfaces_this_thread.write((jni_inner_mut_raw, jvmti_inner_mut_raw, jmm_inner_mut_raw));// native frame pointer
+    *vm = Box::into_raw(box (interface as *const JNIInvokeInterfaceNamedReservedPointers as *const JNIInvokeInterface_)); //todo do something about this leak
     0 as jint
 }
 

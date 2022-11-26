@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{JNINativeInterface_};
+use jvmti_jni_bindings::jni_interface::JNINativeInterfaceNamedReservedPointers;
 
 use slow_interpreter::rust_jni::native_util::get_object_class;
 use crate::array::{get_array_length, get_boolean_array_elements, get_byte_array_elements, get_char_array_elements, get_double_array_elements, get_float_array_elements, get_int_array_elements, get_long_array_elements, get_object_array_element, get_primitive_array_critical, get_short_array_elements, release_boolean_array_elements, release_byte_array_elements, release_char_array_elements, release_double_array_elements, release_float_array_elements, release_int_array_elements, release_long_array_elements, release_primitive_array_critical, release_short_array_elements, set_object_array_element};
@@ -23,11 +23,11 @@ use crate::new_object::{jni_new_object, new_object_a, new_object_v};
 use crate::set_field::{set_boolean_field, set_byte_field, set_char_field, set_double_field, set_float_field, set_int_field, set_long_field, set_object_field, set_short_field, set_static_boolean_field, set_static_byte_field, set_static_char_field, set_static_double_field, set_static_float_field, set_static_int_field, set_static_long_field, set_static_object_field, set_static_short_field};
 use crate::string::{get_string_region, get_string_utfchars, get_string_utflength, get_string_utfregion, new_string, new_string_utf, release_string_chars, release_string_utfchars};
 
-pub fn initial_jni_interface() -> JNINativeInterface_ {
-    JNINativeInterface_ {
-        reserved0: null_mut(),
-        reserved1: null_mut(),
-        reserved2: null_mut(),
+pub fn initial_jni_interface() -> JNINativeInterfaceNamedReservedPointers {
+    JNINativeInterfaceNamedReservedPointers {
+        jvm_state: null_mut(),
+        native_frame: null_mut(),
+        was_exception: null_mut(),
         reserved3: null_mut(),
         GetVersion: Some(get_version),
         DefineClass: Some(define_class),

@@ -1,37 +1,14 @@
-use std::mem::transmute;
 use std::ptr::null_mut;
 
-use jvmti_jni_bindings::{JavaVM, jint, JNIInvokeInterface_, JVMTI_VERSION_1_0, JVMTI_VERSION_1_2, jvmtiEnv};
-use jvmti_jni_bindings::{JNI_OK, JNINativeInterface_};
+use jvmti_jni_bindings::{JavaVM, jint, JNINativeInterface_, JVMTI_VERSION_1_0, JVMTI_VERSION_1_2, jvmtiEnv};
+use jvmti_jni_bindings::{JNI_OK};
+use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
+use jvmti_jni_bindings::jni_interface::JNINativeInterfaceNamedReservedPointers;
 
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::rust_jni::jvmti::get_jvmti_interface;
-
-pub fn get_invoke_interface<'gc, 'l>(jvm: &JVMState, int_state: &mut NativeFrame<'gc, 'l>) -> *const JNIInvokeInterface_ {
-    let mut guard = jvm.native.invoke_interface.write().unwrap();
-    match guard.as_ref() {
-        None => {
-            guard.replace(unsafe {
-                Box::leak(box JNIInvokeInterface_ {
-                    reserved0: transmute(jvm),
-                    reserved1: transmute(int_state),
-                    reserved2: null_mut(),
-                    DestroyJavaVM: None,
-                    AttachCurrentThread: None,
-                    DetachCurrentThread: None,
-                    GetEnv: Some(get_env),
-                    AttachCurrentThreadAsDaemon: None,
-                }) as *const JNIInvokeInterface_
-            });
-        }
-        Some(_) => {}
-    }
-    drop(guard);
-    *jvm.native.invoke_interface.read().unwrap().as_ref().unwrap()
-}
-
 
 //    jni_interface.reserved0 = jvm_ptr;
 //     jni_interface.reserved1 = int_state_ptr;
@@ -59,17 +36,17 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut ::std::os::raw
     } else {
         //todo fix this.
         let jni_native_interface = int_state.stack_jni_interface().jni_inner_mut();
-        (penv as *mut *mut *const JNINativeInterface_).write(Box::into_raw(box (jni_native_interface as *const JNINativeInterface_)));
+        (penv as *mut *mut *const JNINativeInterface_).write(Box::into_raw(box (jni_native_interface as *mut JNINativeInterfaceNamedReservedPointers as *const JNINativeInterface_)));
     }
 
     JNI_OK as i32
 }
 
-pub fn initial_invoke_interface() -> JNIInvokeInterface_ {
-    JNIInvokeInterface_ {
-        reserved0: null_mut(),
-        reserved1: null_mut(),
-        reserved2: null_mut(),
+pub fn initial_invoke_interface() -> JNIInvokeInterfaceNamedReservedPointers {
+    JNIInvokeInterfaceNamedReservedPointers {
+        jvm_state: null_mut(),
+        other_native_interfaces_this_thread: null_mut(),
+        _unused: null_mut(),
         DestroyJavaVM: None,
         AttachCurrentThread: None,
         DetachCurrentThread: None,

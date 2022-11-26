@@ -14,9 +14,9 @@ pub mod invoke_interface;
 
 pub fn initial_per_stack_interfaces() -> PerStackInterfaces {
     PerStackInterfaces {
-        jni: initial_jni_interface(),
-        jmm: initial_jmm(),
-        jvmti: initial_jvmti(),
-        invoke_interface: initial_invoke_interface(),
+        jni: box initial_jni_interface(),
+        jmm: box initial_jmm(),
+        jvmti: box initial_jvmti(),
+        invoke_interface: box initial_invoke_interface(),
     }
 }
