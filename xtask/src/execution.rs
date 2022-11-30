@@ -209,7 +209,8 @@ async fn output_run_output(run_string: String, exit_kind: ExitKind, output_lock:
     println!("Stdout:");
     tokio::io::stdout().write_all(stdout_buf.as_ref()).await.unwrap();
     println!("Stderr:");
-    tokio::io::stderr().write_all(stderr_buf.as_ref()).await.unwrap();
+    tokio::io::stdout().write_all(stderr_buf.as_ref()).await.unwrap();
+    tokio::io::stdout().flush().await.unwrap();
     drop(guard);
 }
 
