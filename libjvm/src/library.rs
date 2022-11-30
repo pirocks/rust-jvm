@@ -2,7 +2,7 @@ use std::convert::Infallible;
 use std::ffi::{CStr, CString, OsStr, OsString};
 use std::mem::transmute;
 use std::os::raw::{c_char, c_int, c_void};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::ptr::{null, null_mut};
 use std::str::FromStr;
 
@@ -36,7 +36,7 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
             Some(file_name_str) => file_name_str.replace("lib", ""),
         },
     };
-    let res = jvm.native_libaries.get_onload_ptr_and_add(&path, name);
+    let res = jvm.native_libaries.get_onload_ptr_and_add(&PathBuf::from(path), name);
     res as *mut c_void
 }
 

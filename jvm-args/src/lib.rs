@@ -17,14 +17,23 @@ fn parse_key_val(s: &str) -> Result<(String, String), Box<dyn Error + Send + Syn
 #[derive(Parser, Debug, Clone)]
 #[clap(version)]
 pub struct JVMArgs {
-    #[clap(short, long, help = "the classpath")]
-    classpath: Vec<PathBuf>,
-    #[clap(short, long, help = "the jar to find a manifest in and run", conflicts_with = "main", required_unless = "main")]
-    jar: Option<PathBuf>,
-    #[clap(short, long, help = "the main class", conflicts_with = "jar", required_unless = "jar")]
-    main: Option<String>,
-    #[clap(short, long, help = "properties", parse(try_from_str = parse_key_val), number_of_values = 1)]
-    properties: Vec<(String, String)>,
-    #[clap(short, long, help = "args")]
-    args: Vec<String>,
+    #[clap(long, help = "the java home for this jvm")]
+    pub java_home: PathBuf,
+    #[clap(long, multiple = true, help = "the classpath")]
+    pub classpath: Vec<PathBuf>,
+    /*#[clap(long, help = "the jar to find a manifest in and run", conflicts_with = "main", required_unless = "main")]
+    jar: Option<PathBuf>,*/
+    //, conflicts_with = "jar", required_unless = "jar"
+    #[clap(long, help = "the main class")]
+    pub main: String,
+    #[clap(long, help = "properties", parse(try_from_str = parse_key_val), number_of_values = 1)]
+    pub properties: Vec<(String, String)>,
+    #[clap(long, help = "args for java program")]
+    pub args: Vec<String>,
+    #[clap(long, help = "enable assertions")]
+    pub enable_assertions: bool,
+    #[clap(long, help = "Enable exception debug logging")]
+    pub debug_exceptions: bool,
+    #[clap(long, help = "Store anonymous classes")]
+    pub store_anon_class: bool
 }

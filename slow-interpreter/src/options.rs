@@ -1,7 +1,10 @@
 use std::collections::HashSet;
-use std::ffi::OsString;
 use std::iter::FromIterator;
+use std::path::PathBuf;
 
+use itertools::Itertools;
+
+use jvm_args::JVMArgs;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::MethodId;
 
@@ -9,8 +12,8 @@ use crate::JVMState;
 use crate::loading::Classpath;
 
 pub struct SharedLibraryPaths {
-    pub libjava: OsString,
-    pub libjdwp: OsString,
+    pub libjava: PathBuf,
+    pub libjdwp: PathBuf,
 }
 
 pub struct JVMOptions {
@@ -20,7 +23,7 @@ pub struct JVMOptions {
     pub shared_libs: SharedLibraryPaths,
     pub enable_tracing: bool,
     pub enable_jvmti: bool,
-    pub properties: Vec<String>,
+    pub properties: Vec<(String, String)>,
     pub unittest_mode: bool,
     pub store_generated_classes: bool,
     pub debug_print_exceptions: bool,
@@ -28,6 +31,65 @@ pub struct JVMOptions {
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
     pub thread_tracing_options: ThreadTracingOptions,
+    pub java_home: PathBuf
+}
+
+pub struct JVMOptionsStart {
+    main: String,
+    java_home: PathBuf,
+    classpath: Vec<PathBuf>,
+    ext_classpath: Vec<PathBuf>,
+    properties: Vec<(String, String)>,
+    args: Vec<String>,
+    enable_assertions: bool,
+    store_anon_class: bool,
+    debug_print_exceptions: bool,
+}
+
+impl JVMOptionsStart {
+    pub fn classpath_format() -> impl Iterator<Item=&'static str> {
+        // basically from hotspot/src/share/vm/runtime/os.cpp
+        vec!["lib/resources.jar", "lib/rt.jar", "lib/sunrsasign.jar", "lib/jsse.jar", "lib/jce.jar", "lib/charsets.jar", "lib/jfr.jar", "classes"].into_iter()
+    }
+
+    pub fn ext_classpath_format() -> impl Iterator<Item=&'static str> {
+        // basically from hotspot/src/share/vm/runtime/os.cpp
+        vec!["/lib/ext"].into_iter()
+    }
+
+    pub fn from_java_home(java_home: PathBuf, parsed: JVMArgs) -> JVMOptionsStart {
+        let JVMArgs {
+            java_home,
+            classpath,
+            main,
+            properties,
+            args,
+            enable_assertions,
+            debug_exceptions,
+            store_anon_class
+        } = parsed.clone();
+        let classpath = Self::classpath_format()
+            .map(|classpath_elem| java_home.join(classpath_elem))
+            .filter(|elem|elem.exists())
+            .chain(classpath.into_iter().map(PathBuf::from))
+            .collect_vec();
+
+        let ext_classpath = Self::ext_classpath_format()
+            .map(|classpath_elem| java_home.join(classpath_elem))
+            .collect_vec();
+
+        JVMOptionsStart {
+            main,
+            java_home,
+            classpath,
+            ext_classpath,
+            properties,
+            args,
+            enable_assertions,
+            store_anon_class,
+            debug_print_exceptions: debug_exceptions,
+        }
+    }
 }
 
 pub struct ThreadTracingOptions {
@@ -94,15 +156,36 @@ impl InstructionTraceOptions {
 }
 
 impl JVMOptions {
+    pub fn from_options_start(options_start: JVMOptionsStart) -> JVMOptions {
+        let JVMOptionsStart { main, java_home, classpath, ext_classpath, properties, args, enable_assertions, store_anon_class, debug_print_exceptions } = options_start;
+        let classpath = Classpath::from_dirs(classpath.into_iter().map(|path|path.into_boxed_path()).collect_vec());
+        Self::new(
+            ClassName::Str(main.replace('.', "/")),
+            java_home.clone(),
+            classpath,
+            args,
+            java_home.join("lib/amd64/libjava.so"),
+            java_home.join("lib/amd64/libjdwp.so"),
+            false,
+            false,
+            properties,
+            false,
+            store_anon_class,
+            debug_print_exceptions,
+            enable_assertions
+        )
+    }
+
     pub fn new(
         main_class_name: ClassName,
+        java_home: PathBuf,
         classpath: Classpath,
         args: Vec<String>,
-        libjava: OsString,
-        libjdwp: OsString,
+        libjava: PathBuf,
+        libjdwp: PathBuf,
         enable_tracing: bool,
         enable_jvmti: bool,
-        properties: Vec<String>,
+        properties: Vec<(String, String)>,
         unittest_mode: bool,
         store_generated_classes: bool,
         debug_print_exceptions: bool,
@@ -149,13 +232,13 @@ impl JVMOptions {
             //     combined: "uv/a".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/lang/Short/shortValue".to_string(),
+            //     combined: "PowTests/testCrossProduct".to_string(),
             // },
             // MethodToTrace {
             //     combined: "sun/nio/ch/ServerSocketChannelImpl/translateReadyOps".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "sun/nio/ch/EPollSelectorImpl/updateSelectedKeys".to_string(),
+            //     combined: "java/util/TimeZone/getDisplayName".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
@@ -163,7 +246,7 @@ impl JVMOptions {
             trace_monitor_wait_enter: false,
             trace_monitor_wait_exit: false,
             trace_monitor_notify: false,
-            trace_monitor_notify_all: false
+            trace_monitor_notify_all: false,
         };
         Self {
             main_class_name,
@@ -180,6 +263,7 @@ impl JVMOptions {
             instruction_trace_options: trace_options,
             exit_trace_options: ExitTracingOptions::TraceNone,
             thread_tracing_options,
+            java_home,
         }
     }
 
@@ -199,6 +283,7 @@ impl JVMOptions {
             assertions_enabled: false,
             instruction_trace_options: InstructionTraceOptions::TraceNone,
             exit_trace_options: ExitTracingOptions::TraceNone,
+            thread_tracing_options: todo!(),
         }
     }
 }

@@ -1,7 +1,8 @@
-use std::ffi::{c_int, c_void, CString, OsString};
+use std::ffi::{c_int, c_void, CString};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::os::raw::c_char;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use libloading::Library;
 use jvmti_jni_bindings::{_jmethodID, _jobject, JavaVM, jboolean, jclass, jint, jmethodID, JNIEnv, JNIInvokeInterface_, JNINativeInterface_, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_NONE, jvmtiEventBreakpoint, jvmtiEventCallbacks, jvmtiEventClassLoad, jvmtiEventClassPrepare, jvmtiEventException, jvmtiEventExceptionCatch, jvmtiEventFieldAccess, jvmtiEventFieldModification, jvmtiEventFramePop, jvmtiEventGarbageCollectionFinish, jvmtiEventMethodEntry, jvmtiEventMethodExit, jvmtiEventMonitorContendedEnter, jvmtiEventMonitorContendedEntered, jvmtiEventMonitorWait, jvmtiEventMonitorWaited, jvmtiEventSingleStep, jvmtiEventThreadEnd, jvmtiEventThreadStart, jvmtiEventVMDeath, jvmtiEventVMInit, jvmtiInterface_1_};
@@ -462,7 +463,7 @@ impl SharedLibJVMTI {
 }
 
 impl SharedLibJVMTI {
-    pub fn load_libjdwp(jdwp_path: &OsString) -> SharedLibJVMTI {
+    pub fn load_libjdwp(jdwp_path: &PathBuf) -> SharedLibJVMTI {
         SharedLibJVMTI {
             lib: Arc::new(Library::new(jdwp_path, RTLD_NOW as c_int).unwrap()),
             vm_init_callback: RwLock::new(None),

@@ -153,17 +153,72 @@
 //    }
 //}
 
+import sun.util.locale.provider.TimeZoneNameUtility;
+import sun.util.resources.LocaleData;
+import sun.util.resources.ja.TimeZoneNames_ja;
+
 import java.io.*;
 import java.lang.reflect.*;
 import java.util.Arrays;
+import java.util.Locale;
+import java.util.ResourceBundle;
+import java.util.TimeZone;
 import java.util.regex.Pattern;
 import java.util.zip.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-        int[] source = new int[5];
-        int[] dest = new int[6];
-        System.arraycopy(source, 0, dest, 0, 6);
+//        double y = (double) -((1L<<53)+2L);
+//        for (int i = 0; i < 10000; i++) {
+//            System.out.println(intClassify(y));
+//        }
+//        System.out.println(intClassify(-9.007199254740992E15));
+//        System.out.println(intClassify(7.3075081866545146E47));
+//        System.out.println(intClassify(3.0));
+        for (int i = 0; i < 10000; i++) {
+            System.out.println(DebuggingClass.test());
+        }
+//        TimeZone tz = TimeZone.getTimeZone("Asia/Taipei");
+//        Locale tzLocale = new Locale("ja");
+//        System.out.println(new Test().getCandidateLocales("sun.util.resources.TimeZoneNames",tzLocale).size());
+//        System.out.println(ResourceBundle.Control.FORMAT_DEFAULT);
+//        System.out.println(Arrays.toString(TimeZoneNameUtility.retrieveDisplayNames(tz.getID(), tzLocale)));
+//        System.out.println(tz.getDisplayName(false, TimeZone.LONG, tzLocale));
+//        System.out.println(Arrays.toString((Object[]) new TimeZoneNames_ja().getObject("Asia/Taipei")));
+//        System.getProperties().forEach((key, val) -> {
+//            System.out.println("key:" + key);
+//            System.out.println("val:" + val);
+//        });
+    }
+
+    static boolean test() {
+        return Double.NaN < 1.0;
+    }
+
+    static boolean isFinite(double a) {
+        return (0.0*a  == 0);
+    }
+    static int intClassify(double a) {
+        if(!isFinite(a) || // NaNs and infinities
+                (a != Math.floor(a) )) { // only integers are fixed-points of floor
+            return -1;
+        }
+        else {
+            // Determine if argument is an odd or even integer.
+
+            a = StrictMath.abs(a); // absolute value doesn't affect odd/even
+
+            if(a+1.0 == a) { // a > maximum odd floating-point integer
+                return 0; // Large integers are all even
+            }
+            else { // Convert double -> long and look at low-order bit
+                long ell = (long)  a;
+                return ((ell & 0x1L) == (long)1)?1:0;
+            }
+        }
+    }
+    public static class Test extends ResourceBundle.Control{
+
     }
 
 }

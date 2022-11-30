@@ -2,7 +2,7 @@ use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::mem::transmute;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::AtomicBool;
@@ -10,10 +10,11 @@ use std::thread::Scope;
 use std::time::{Duration, Instant};
 
 use argparse::{ArgumentParser, List, Store, StoreTrue};
+use clap::Parser;
 use itertools::all;
 use raw_cpuid::CpuId;
-use classfile_view::view::ClassBackedView;
 
+use classfile_view::view::ClassBackedView;
 use gc_memory_layout_common::early_startup::get_regions;
 use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
@@ -21,6 +22,7 @@ use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
 use interfaces::initial_per_stack_interfaces;
+use jvm_args::JVMArgs;
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
@@ -35,9 +37,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShapeIDs;
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
-
-
-use slow_interpreter::better_java_stack::frames::{HasFrame};
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::better_java_stack::remote_frame::RemoteFrame;
 use slow_interpreter::field_table::FieldTable;
 use slow_interpreter::function_instruction_count::FunctionInstructionExecutionCount;
@@ -47,8 +47,7 @@ use slow_interpreter::jvm_state::{Classes, CURRENT_THREAD_INVOKE_INTERFACE, JVM,
 use slow_interpreter::leaked_interface_arrays::InterfaceArrays;
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::native_allocation::NativeAllocator;
-use slow_interpreter::options::{JVMOptions, SharedLibraryPaths};
-
+use slow_interpreter::options::{JVMOptions, JVMOptionsStart, SharedLibraryPaths};
 use slow_interpreter::rust_jni::jvmti::SharedLibJVMTI;
 use slow_interpreter::rust_jni::mangling::ManglingRegex;
 use slow_interpreter::string_exit_cache::StringExitCache;
@@ -77,43 +76,9 @@ fn avx_check() {
 }
 
 pub fn main_<'l, 'env>() {
-    let mut verbose = false;
-    let mut debug = false;
-    let mut main_class_name = "".to_string();
-    let mut class_entries: Vec<String> = vec![];
-    let mut args: Vec<String> = vec![];
-    let mut properties: Vec<String> = vec!["java.security.egd".to_string(), "file:/dev/urandom".to_string()];
-    let mut libjava: OsString = OsString::new();
-    let mut enable_tracing = false;
-    let mut enable_jvmti = false;
-    let mut unittest_mode = false;
-    let mut store_generated_options = false;
-    let mut debug_print_exceptions = false;
-    let mut assertions_enabled: bool = false;
-    let mut libjdwp: OsString = OsString::from_str("/home/francis/build/openjdk-debug/jdk8u/build/linux-x86_64-normal-server-slowdebug/jdk/lib/amd64/libjdwp.so").unwrap();
-    {
-        let mut ap = ArgumentParser::new();
-        ap.set_description("A jvm written partially in rust");
-        ap.refer(&mut verbose).add_option(&["-v", "--verbose"], StoreTrue, "Be verbose");
-        ap.refer(&mut debug).add_option(&["-v", "--verbose"], StoreTrue, "Log debug info");
-        ap.refer(&mut main_class_name).add_option(&["--main"], Store, "Main class");
-        ap.refer(&mut class_entries).add_option(&["--classpath"], List, "A list of directories from which to load classes");
-        ap.refer(&mut args).add_option(&["--args"], List, "A list of args to pass to main");
-        ap.refer(&mut libjava).add_option(&["--libjava"], Store, "");
-        ap.refer(&mut libjdwp).add_option(&["--libjdwp"], Store, "");
-        ap.refer(&mut enable_tracing).add_option(&["--tracing"], StoreTrue, "Enable debug tracing");
-        ap.refer(&mut enable_jvmti).add_option(&["--jvmti_interface"], StoreTrue, "Enable JVMTI");
-        ap.refer(&mut properties).add_option(&["--properties"], List, "Set JVM Properties");
-        ap.refer(&mut unittest_mode).add_option(&["--unittest-mode"], StoreTrue, "Enable Unittest mode. This causes the main class to be ignored");
-        ap.refer(&mut store_generated_options).add_option(&["--store-anon-class"], StoreTrue, "Enables writing out of classes defined with Unsafe.defineClass");
-        ap.refer(&mut debug_print_exceptions).add_option(&["--debug-exceptions"], StoreTrue, "print exceptions even if caught");
-        ap.refer(&mut assertions_enabled).add_option(&["--ea"], StoreTrue, "enable assertions");
-        ap.parse_args_or_exit();
-    }
-
-    let classpath = Classpath::from_dirs(class_entries.iter().map(|x| Path::new(x).into()).collect());
-    let main_class_name = ClassName::Str(main_class_name.replace('.', "/"));
-    let jvm_options = JVMOptions::new(main_class_name, classpath, args, libjava, libjdwp, enable_tracing, enable_jvmti, properties, unittest_mode, store_generated_options, debug_print_exceptions, assertions_enabled);
+    let jvm_args: JVMArgs = JVMArgs::parse();
+    let jvm_options_start = JVMOptionsStart::from_java_home(jvm_args.java_home.clone(), jvm_args);
+    let jvm_options = JVMOptions::from_options_start(jvm_options_start);
     let gc: GC<'l> = GC::new(get_regions());
     std::thread::scope::<'env>(|scope: &Scope<'_, 'env>| {
         let gc_ref: &'l GC = unsafe { transmute(&gc) };//todo why do I need this?
@@ -180,6 +145,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         instruction_trace_options,
         exit_trace_options,
         thread_tracing_options,
+        java_home,
     } = jvm_options;
     let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
     let classpath_arc = Arc::new(classpath);
@@ -267,7 +233,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         mangling_regex: ManglingRegex::new(),
         default_per_stack_initial_interfaces: initial_per_stack_interfaces(),
         all_the_static_fields,
-        java_home: None
+        java_home,
     };
     (args, jvm)
 }

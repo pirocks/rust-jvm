@@ -98,9 +98,9 @@ pub async fn run_parsed(test_output_lock: Arc<tokio::sync::Mutex<()>>, parsed: P
             }
             match file_type {
                 FileType::Java => {
-                    match run_javac_with_rebuild_if(javac, defining_file_path, test_base_dir, compilation_base_dir).await? {
+                    match run_javac_with_rebuild_if(javac, defining_file_path.clone(), test_base_dir, compilation_base_dir).await? {
                         TestCompilationResult::Success { compiled_file } => {
-                            run_test(test_output_lock, jdk_dir, java_binary, compiled_file).await
+                            run_test(test_output_lock, jdk_dir, java_binary, compiled_file, defining_file_path).await
                         }
                         TestCompilationResult::Error { .. } => {
                             Ok(TestResult::Error {})
@@ -118,8 +118,8 @@ pub async fn run_parsed(test_output_lock: Arc<tokio::sync::Mutex<()>>, parsed: P
     };
 }
 
-async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBuf, java_binary: PathBuf, compiled_file: PathBuf) -> Result<TestResult, TestRunError> {
-    let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
+async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBuf, java_binary: PathBuf, compiled_file: PathBuf, source_file: PathBuf) -> Result<TestResult, TestRunError> {
+    let java_home = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/");
     let main = compiled_file.file_stem().unwrap();
     let classpath_1 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes", jdk_dir.display());
     let classpath_2 = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display());
@@ -144,18 +144,22 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg("--user")
         .arg(&java_binary)
         .arg("--main").arg(main.to_str().unwrap())
-        .arg("--libjava").arg(&libjava)
+        .arg("--java-home").arg(&java_home)
         .arg("--classpath")
         .arg(compiled_file.parent().unwrap())
         .arg(classpath_1.as_str())
         .arg(classpath_2.as_str())
+        .arg("--properties")
+        .arg(format!("test.src={}", source_file.parent().unwrap().display()))
         .current_dir(compiled_file.parent().unwrap())
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()?;
 
-    let run_string = format!("{} --main {} --libjava {} --classpath {} {} {}",
-                             java_binary.display(), main.to_str().unwrap(), libjava.display(),
-                             compiled_file.parent().unwrap().display(), classpath_1.as_str(), classpath_2.as_str());
+    let run_string = format!("{} --main {} --java-home {} --classpath {} {} {} --properties {}",
+                             java_binary.display(), main.to_str().unwrap(), java_home.display(),
+                             compiled_file.parent().unwrap().display(), classpath_1.as_str(), classpath_2.as_str(),
+                             format!("test.src={}", source_file.parent().unwrap().display())
+    );
 
     let instant_before = Instant::now();
     let mut stdout = child.stdout.take().unwrap();

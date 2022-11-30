@@ -56,13 +56,25 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     // sun.nio.ch.EPollSelectorImpl#doSelect
     // use classfile_view::view::ClassView;
     //#(java.lang.String)
-    //use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/System") &&
-    //     method.name().0.to_str(&jvm.string_pool) == "getProperty" /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+    //java/util/TimeZone/getDisplayName
+    //sun.util.locale.provider.LocaleServiceProviderPool#getLocalizedObjectImpl
+    //sun.util.resources.OpenListResourceBundle#loadLookup
+    //sun.util.resources.ja.TimeZoneNames_ja#getContents
+    //java.util.ResourceBundle.Control#newBundle
+    //java.util.ResourceBundle#findBundle
+    //java.util.ResourceBundle#getBundleImpl
+    //java.util.ResourceBundle.Control#getCandidateLocales
+    //PowTests#testCrossProduct
+    // use classfile_view::view::ClassView;
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("PowTests") && method.name().0.to_str(&jvm.string_pool) == "testCrossProduct"/* ||
+    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle") && method.name().0.to_str(&jvm.string_pool) == "getBundleImpl") ||
+    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
+    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/
+    //     /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
-    //     // if let CInstructionInfo::ireturn = instruct{
-    //     //     interpreter_state.inner().debug_print_stack_trace(jvm);
-    //     // }
+    //     if let CInstructionInfo::ireturn | CInstructionInfo::return_ = instruct{
+    //         interpreter_state.inner().debug_print_stack_trace(jvm);
+    //     }
     //     dump_frame(interpreter_state, method, code, current_pc, instruct)
     // }
     // jvm.thread_state.debug_assert(jvm);
@@ -319,7 +331,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             invoke_dynamic(jvm, interpreter_state, *cp, current_pc)
         }
         instruct => {
-            todo!();/*interpreter_state.inner().debug_print_stack_trace(jvm);*/
+            interpreter_state.inner().debug_print_stack_trace(jvm);
             dbg!(instruct);
             todo!()
         }

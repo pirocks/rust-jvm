@@ -159,14 +159,10 @@ fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFra
     let loader = int_state.current_loader(jvm);
     let frame_to_push = StackEntryPush::new_completely_opaque_frame(jvm, loader, vec![], "properties setting frame");
     int_state.push_frame_opaque(frame_to_push, |opaque_frame| {
-        let properties = &jvm.properties;
         let prop_obj = System::props(jvm, opaque_frame);
-        assert_eq!(properties.len() % 2, 0);
-        for i in 0..properties.len() / 2 {
-            let key_i = 2 * i;
-            let value_i = 2 * i + 1;
-            let key = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(properties[key_i].clone())).expect("todo");
-            let value = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(properties[value_i].clone())).expect("todo");
+        for (key, value) in &jvm.properties {
+            let key = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(key.to_string())).expect("todo");
+            let value = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(value.to_string())).expect("todo");
             prop_obj.set_property(jvm, opaque_frame, key, value)?;
         }
         Ok(())

@@ -57,7 +57,7 @@ pub fn dcmpg<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
     let val2 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
     let val1 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
     if val2.is_nan() || val1.is_nan() {
-        current_frame.push(InterpreterJavaValue::Int(-1));
+        current_frame.push(InterpreterJavaValue::Int(1));
         return PostInstructionAction::Next {};
     }
     dcmp_common(jvm, current_frame, val2, val1);

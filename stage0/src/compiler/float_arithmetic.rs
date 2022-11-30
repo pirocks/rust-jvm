@@ -161,9 +161,9 @@ pub fn fneg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let zero = FloatRegister(1);
     array_into_iter([
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::ConstFloat { to: zero, temp: Register(1), const_: 0.0 },
-        IRInstr::SubFloat { res: zero, a: value2 },
-        IRInstr::StoreFPRelativeFloat { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::ConstFloat { to: zero, temp: Register(1), const_: -1.0 },
+        IRInstr::MulFloat { res: zero, a: value2 },
+        IRInstr::StoreFPRelativeFloat { from: zero, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 
@@ -172,9 +172,9 @@ pub fn dneg(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_da
     let zero = DoubleRegister(1);
     array_into_iter([
         IRInstr::LoadFPRelativeDouble { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value2 },
-        IRInstr::ConstDouble { to: zero, temp: Register(1), const_: 0.0 },
-        IRInstr::SubDouble { res: zero, a: value2 },
-        IRInstr::StoreFPRelativeDouble { from: value2, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
+        IRInstr::ConstDouble { to: zero, temp: Register(1), const_: -1.0 },
+        IRInstr::MulDouble { res: zero, a: value2 },
+        IRInstr::StoreFPRelativeDouble { from: zero, to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0) }
     ])
 }
 

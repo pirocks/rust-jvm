@@ -15,7 +15,14 @@ use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
 
-pub fn invoke_interface<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cpreftype: CPRefType, expected_method_name: MethodName, expected_descriptor: &CMethodDescriptor, count: NonZeroU8) -> PostInstructionAction<'gc> {
+pub fn invoke_interface<'gc, 'l, 'k>(
+    jvm: &'gc JVMState<'gc>,
+    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
+    cpreftype: CPRefType,
+    expected_method_name: MethodName,
+    expected_descriptor: &CMethodDescriptor,
+    count: NonZeroU8
+) -> PostInstructionAction<'gc> {
     // invoke_interface.count;//todo use this?
     let _target_class = check_initing_or_inited_class(jvm, int_state.inner(), cpreftype.to_cpdtype());
     let desc_len = expected_descriptor.arg_types.len();

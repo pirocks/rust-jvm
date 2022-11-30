@@ -109,7 +109,9 @@ pub enum IRInstr {
     Mod { res: Register, divisor: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     Mul { res: Register, a: Register, must_be_rax: Register, must_be_rbx: Register, must_be_rcx: Register, must_be_rdx: Register, size: Size, signed: Signed },
     MulFloat { res: FloatRegister, a: FloatRegister },
+    NegFloat { res: FloatRegister, temp: FloatRegister, temp_normal: Register },
     MulDouble { res: DoubleRegister, a: DoubleRegister },
+    NegDouble { res: DoubleRegister, temp: DoubleRegister, temp_normal: Register },
     MulConst { res: Register, a: i32, size: Size, signed: Signed },
     ShiftLeft { res: Register, a: Register, cl_aka_register_2: Register, size: Size, signed: BitwiseLogicType },
     ShiftRight { res: Register, a: Register, cl_aka_register_2: Register, size: Size, signed: BitwiseLogicType },
@@ -505,6 +507,12 @@ impl IRInstr {
             }
             IRInstr::CallIntrinsicHelper { .. } => {
                 "CallIntrinsicHelper".to_string()
+            }
+            IRInstr::NegFloat { .. } => {
+                "NegFloat".to_string()
+            }
+            IRInstr::NegDouble { .. } => {
+                "NegDouble".to_string()
             }
         }
     }

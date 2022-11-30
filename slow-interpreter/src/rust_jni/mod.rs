@@ -1,8 +1,8 @@
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::mem::transmute;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::c_void;
+use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 
@@ -90,7 +90,7 @@ impl PerStackInterfaces {
 
 
 impl<'gc> NativeLibraries<'gc> {
-    pub fn new(libjava: OsString) -> NativeLibraries<'gc> {
+    pub fn new(libjava: PathBuf) -> NativeLibraries<'gc> {
         NativeLibraries {
             libjava_path: libjava,
             native_libs: Default::default(),

@@ -440,13 +440,13 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             // assembler.jmp( skip_to_exit_label.clone()).unwrap();
             assembler.mov(region_header.to_native_64(), *region_header_ptr as u64).unwrap();
             assembler.mov(region_header.to_native_64(), qword_ptr(region_header.to_native_64())).unwrap();
-            assembler.mov(rdi,region_header.to_native_64()).unwrap();
+            assembler.mov(rdi, region_header.to_native_64()).unwrap();
             assembler.and(rsp, -32).unwrap();//align stack pointer
             assembler.call(qword_ptr(r15 + IntrinsicHelperType::GetConstantAllocation.r15_offset())).unwrap();
             assembler.mov(res.to_native_64(), rax).unwrap();
             assembler.sub(zero.to_native_64(), zero.to_native_64()).unwrap();
             assembler.cmp(res.to_native_64(), zero.to_native_64()).unwrap();
-            assembler.mov(rbp - res_offset.0,res.to_native_64()).unwrap();
+            assembler.mov(rbp - res_offset.0, res.to_native_64()).unwrap();
             assembler.je(skip_to_exit_label).unwrap();
             assembler.jmp(after_exit_label).unwrap();
             match allocate_exit {
@@ -604,7 +604,6 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                     assembler.call(qword_ptr(r15 + intrinsic_helper_type.r15_offset())).unwrap();
                     let float_res = float_res.unwrap();
                     assembler.movdqa(float_res.to_xmm(), xmm0).unwrap();
-
                 }
                 IntrinsicHelperType::InstanceOf => todo!(),
                 IntrinsicHelperType::DRemD => {
@@ -626,6 +625,16 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 }
                 IntrinsicHelperType::GetConstantAllocation => todo!()
             }
+        }
+        IRInstr::NegFloat { temp_normal, temp, res } => {
+            assembler.mov(temp_normal.to_native_32(), 0x80000000u32 as i32).unwrap();
+            assembler.vmovd(temp_normal.to_native_32(), temp.to_xmm()).unwrap();
+            assembler.vpxor(res.to_xmm(), res.to_xmm(),temp.to_xmm()).unwrap();
+        }
+        IRInstr::NegDouble { temp_normal, temp, res } => {
+            assembler.mov(temp_normal.to_native_64(), 0x8000000000000000u64 as i64).unwrap();
+            assembler.vmovq(temp_normal.to_native_64(), temp.to_xmm()).unwrap();
+            assembler.vpxor(res.to_xmm(), res.to_xmm(),temp.to_xmm()).unwrap();
         }
     }
     None
