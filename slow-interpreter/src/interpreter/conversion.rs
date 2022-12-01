@@ -64,6 +64,12 @@ pub fn f2i<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpre
     PostInstructionAction::Next {}
 }
 
+pub fn f2l<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    let f = current_frame.pop(RuntimeType::FloatType).unwrap_float();
+    current_frame.push(InterpreterJavaValue::Long(f as i64));
+    PostInstructionAction::Next {}
+}
+
 pub fn f2d<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let f = current_frame.pop(RuntimeType::FloatType).unwrap_float();
     current_frame.push(InterpreterJavaValue::Double(f as f64));

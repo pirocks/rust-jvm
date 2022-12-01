@@ -21,7 +21,7 @@ use crate::interpreter::common::invoke::static_::run_invoke_static;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual_instruction;
 use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
-use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
+use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, f2l, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
 use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
 use crate::interpreter::fields::{getfield, getstatic, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
@@ -142,7 +142,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
-        // CInstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::fadd => fadd(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::faload => faload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::fastore => fastore(jvm, interpreter_state.current_frame_mut()),
