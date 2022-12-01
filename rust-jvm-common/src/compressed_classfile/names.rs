@@ -160,6 +160,7 @@ pub(crate) enum PredefinedStrings {
     method_clone,
     method_equals,
     method_findSpecial,
+    method_findConstructor,
     method_findStatic,
     method_findVirtual,
     method_fromMethodDescriptorString,
@@ -413,7 +414,8 @@ impl PredefinedStrings {
             method_getByte => "getByte".to_string(),
             method_freeMemory => "freeMemory".to_string(),
             JAVA_LANG_CLASS_CAST_EXCEPTION => "java/lang/ClassCastException".to_string(),
-            JAVA_LANG_NO_SUCH_METHOD_ERROR => "java/lang/NoSuchMethodError".to_string()
+            JAVA_LANG_NO_SUCH_METHOD_ERROR => "java/lang/NoSuchMethodError".to_string(),
+            method_findConstructor => "findConstructor".to_string()
         }
     }
 }

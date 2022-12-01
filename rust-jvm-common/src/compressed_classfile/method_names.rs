@@ -36,6 +36,9 @@ impl MethodName {
     pub fn method_findSpecial() -> Self {
         Self::from_raw_id(method_findSpecial)
     }
+    pub fn method_findConstructor() -> Self {
+        Self::from_raw_id(method_findConstructor)
+    }
     pub fn method_findStatic() -> Self {
         Self::from_raw_id(method_findStatic)
     }

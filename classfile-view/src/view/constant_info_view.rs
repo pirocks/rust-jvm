@@ -215,7 +215,17 @@ impl MethodHandleView<'_> {
                 };
                 ReferenceInvokeKind::InvokeSpecial(invoke_special)
             }
-            ReferenceKind::NewInvokeSpecial => unimplemented!(),
+            ReferenceKind::NewInvokeSpecial => {
+                let reference_idx = self.get_raw().reference_index as usize;
+                let invoke_special = match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
+                    ConstantKind::Methodref(_) => MethodrefView { class_view: self.class_view, i: reference_idx },
+                    ck => {
+                        dbg!(ck);
+                        panic!()
+                    }
+                };
+                ReferenceInvokeKind::NewInvokeSpecial(invoke_special)
+            },
             ReferenceKind::InvokeInterface => unimplemented!(),
         }
     }
@@ -224,6 +234,7 @@ impl MethodHandleView<'_> {
 pub enum ReferenceInvokeKind<'cl> {
     InvokeStatic(InvokeStatic<'cl>),
     InvokeSpecial(InvokeSpecial<'cl>),
+    NewInvokeSpecial(MethodrefView<'cl>),
 }
 
 pub enum InvokeStatic<'cl> {

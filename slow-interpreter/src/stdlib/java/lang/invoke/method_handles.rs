@@ -74,6 +74,17 @@ pub mod lookup {
             Ok(res.unwrap().cast_method_handle())
         }
 
+        pub fn find_constructor<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, obj: JClass<'gc>, mt: MethodType<'gc>) -> Result<MethodHandle<'gc>, WasException<'gc>> {
+            let lookup_class = assert_inited_or_initing_class(jvm, CClassName::lookup().into());
+            let desc = CMethodDescriptor {
+                arg_types: vec![CClassName::class().into(), CClassName::method_type().into()],
+                return_type: CClassName::method_handle().into(),
+            };
+            let args = vec![self.new_java_value(), obj.new_java_value(), mt.new_java_value()];
+            let res = run_static_or_virtual(jvm, int_state, &lookup_class, MethodName::method_findConstructor(), &desc, args)?;
+            Ok(res.unwrap().cast_method_handle())
+        }
+
         // as_object_or_java_value!();
     }
 

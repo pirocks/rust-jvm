@@ -21,6 +21,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::reflect::{exception_types_table, get_modifiers, get_signature, parameters_type_objects};
+use crate::stdlib::java::lang::reflect::constructor::Constructor;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
@@ -45,8 +46,7 @@ impl<'gc> Method<'gc> {
         let name = {
             let name = method_view.name();
             if name == MethodName::constructor_init() {
-                todo!()
-                // return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.java_value().cast_method());
+                return Ok(Constructor::constructor_object_from_method_view(jvm, int_state, method_view)?.new_java_value_handle().cast_method());
             }
             JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.0.to_str(&jvm.string_pool)))?.intern(jvm, int_state)?
         };

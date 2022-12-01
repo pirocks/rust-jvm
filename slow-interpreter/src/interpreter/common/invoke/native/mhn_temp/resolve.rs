@@ -1,10 +1,9 @@
 use itertools::Either;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual};
+use jvmti_jni_bindings::{JVM_REF_invokeInterface, JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_invokeVirtual, JVM_REF_newInvokeSpecial};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-
 
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, NewJavaValueHandle, PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;
@@ -193,6 +192,26 @@ fn resolve_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableF
                 init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
             } else {
                 panic!()
+            }
+        }
+        IS_CONSTRUCTOR => {
+            if ref_kind == JVM_REF_invokeSpecial {
+                todo!()
+            } else if ref_kind == JVM_REF_newInvokeSpecial {
+                //todo dup
+                //todo shouldn't this be resolve_invoke_constructor
+                let (resolve_result, method_i, class) = match resolve_invoke_special(jvm, int_state, member_name.clone())? {
+                    Ok(ok) => ok,
+                    Err(err) => match err {
+                        ResolutionError::Linkage => {
+                            throw_linkage_error(jvm, int_state)?;
+                            unreachable!()
+                        }
+                    },
+                };
+                init(jvm, int_state, member_name.clone(), resolve_result.new_java_value(), Either::Left(Some(&class.view().method_view_i(method_i))), false)?;
+            } else {
+                todo!()
             }
         }
         _ => panic!(),

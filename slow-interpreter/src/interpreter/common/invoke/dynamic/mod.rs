@@ -3,13 +3,11 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, ReferenceInvokeKind};
+use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, MethodrefView, ReferenceInvokeKind};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 
@@ -37,6 +35,8 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
             PostInstructionAction::Next {}
         }
         Err(WasException { exception_obj }) => {
+            exception_obj.print_stack_trace(jvm,int_state.inner()).unwrap();
+            dbg!(exception_obj.to_string(jvm, int_state.inner()).unwrap().unwrap().to_rust_string(jvm));
             panic!();
             PostInstructionAction::Exception { exception: WasException { exception_obj } }
         }
@@ -87,6 +87,11 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
             InvokeSpecial::Interface(_) => todo!(),
             InvokeSpecial::Method(_) => todo!(),
         },
+        ReferenceInvokeKind::NewInvokeSpecial(nis) => match nis {
+            MethodrefView { .. } => {
+                todo!()
+            }
+        }
     };
 
     //todo this trusted lookup is wrong. should use whatever the current class is for determining caller class
@@ -190,6 +195,15 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
                     lookup.find_special(jvm, int_state, target_class, name, method_type, special_caller)?
                 }
             }
+        }
+        ReferenceInvokeKind::NewInvokeSpecial(mr) => {
+            //todo dupe
+            let lookup = Lookup::trusted_lookup(jvm,int_state);
+            let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+            let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+            let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
+            let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
+            lookup.find_constructor(jvm, int_state, target_class, method_type)?
         }
     })
 }
