@@ -12,6 +12,7 @@ extern crate regex;
 
 use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::cmp::min;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
@@ -20,6 +21,8 @@ use std::ops::Deref;
 use std::os::raw::{c_char, c_int};
 use std::str::from_utf8;
 use std::thread::Thread;
+use libc::{size_t, strcpy};
+use nix::NixPath;
 
 use jvmti_jni_bindings::{__va_list_tag, FILE, getc, JavaVM, jboolean, jbyte, jbyteArray, jclass, jdouble, jfloat, jint, jintArray, jlong, jmethodID, JNI_VERSION_1_8, JNIEnv, jobject, jobjectArray, jsize, jstring, jvalue, JVM_CALLER_DEPTH, JVM_ExceptionTableEntryType, jvm_version_info, sockaddr, vsnprintf};
 use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
@@ -81,8 +84,12 @@ unsafe extern "system" fn JVM_ReleaseUTF(utf: *const ::std::os::raw::c_char) {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut ::std::os::raw::c_char, len: ::std::os::raw::c_int) -> jint {
-    unimplemented!()
+unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut c_char, len: c_int) -> jint {
+    let error_string= CStr::from_ptr(libc::strerror(nix::errno::errno()));
+    let output_len = min(error_string.len(), (len - 1) as usize);
+    libc::strncpy(buf, error_string.as_ptr(), output_len as size_t);
+    buf.offset(output_len as isize).write(0);
+    output_len as jint
 }
 
 #[no_mangle]
