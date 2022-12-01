@@ -168,15 +168,8 @@ import java.util.zip.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-//        double y = (double) -((1L<<53)+2L);
-//        for (int i = 0; i < 10000; i++) {
-//            System.out.println(intClassify(y));
-//        }
-//        System.out.println(intClassify(-9.007199254740992E15));
-//        System.out.println(intClassify(7.3075081866545146E47));
-//        System.out.println(intClassify(3.0));
-        for (int i = 0; i < 10000; i++) {
-            System.out.println(DebuggingClass.test());
+        for (Method method : DebuggingClass.class.getMethods()) {
+            System.out.println(method);
         }
 //        TimeZone tz = TimeZone.getTimeZone("Asia/Taipei");
 //        Locale tzLocale = new Locale("ja");

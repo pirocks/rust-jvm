@@ -22,7 +22,7 @@ use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loade
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -129,43 +129,58 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     //todo clean this up, and handle invoke special
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let res = if is_virtual {
-        invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args).unwrap().unwrap()
+        match invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args) {
+            Ok(x) => x,
+            Err(WasException{ exception_obj }) => {
+                *get_throw(env) = Some(WasException { exception_obj });
+                return jobject::invalid_default()
+            },
+        }
     } else {
-        run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args).unwrap().unwrap()
+        match run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args) {
+            Ok(x) => x,
+            Err(WasException{ exception_obj }) => {
+                *get_throw(env) = Some(WasException { exception_obj });
+                return jobject::invalid_default()
+            },
+        }
     };
 
     let res = match res {
-        NewJavaValueHandle::Long(long) => {
-            Some(Long::new(jvm, int_state, long).unwrap().full_object())
-        }
-        NewJavaValueHandle::Int(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Short(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Byte(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Boolean(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Char(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Float(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Double(_) => {
-            todo!()
-        }
-        NewJavaValueHandle::Null => {
+        None => {
             None
         }
-        NewJavaValueHandle::Object(obj) => {
+        Some(NewJavaValueHandle::Long(long)) => {
+            Some(Long::new(jvm, int_state, long).unwrap().full_object())
+        }
+        Some(NewJavaValueHandle::Int(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Short(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Byte(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Boolean(boolean)) => {
+            Some(Boolean::new(jvm, int_state, boolean).unwrap().full_object())
+        }
+        Some(NewJavaValueHandle::Char(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Float(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Double(_)) => {
+            todo!()
+        }
+        Some(NewJavaValueHandle::Null) => {
+            None
+        }
+        Some(NewJavaValueHandle::Object(obj)) => {
             Some(obj)
         }
-        NewJavaValueHandle::Top => {
+        Some(NewJavaValueHandle::Top) => {
             panic!()
         }
     };

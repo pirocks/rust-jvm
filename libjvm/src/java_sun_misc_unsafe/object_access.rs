@@ -172,7 +172,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
             let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
             let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::LongType).to_jv().unwrap_long()
+            static_vars.get(field_name, CPDType::LongType).unwrap_long_strict()
         }
     }
     /*Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env, the_unsafe, obj, offset)*/

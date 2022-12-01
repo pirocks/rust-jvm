@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::ffi::CStr;
+use std::ffi::{c_char, CStr};
 use std::ops::Deref;
 
 use classfile_view::view::HasAccessFlags;
@@ -13,12 +13,15 @@ use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::utils::{get_all_fields, new_field_id, throw_npe, throw_npe_res};
 use crate::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::static_vars::static_vars;
+use slow_interpreter::stdlib::java::lang::no_such_method_exception::NoSuchMethodError;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {
@@ -137,7 +140,7 @@ unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_
     Ok(notnull.unwrap_normal_object().get_var(jvm, &rc, name))
 }
 
-pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const ::std::os::raw::c_char, _sig: *const ::std::os::raw::c_char) -> jfieldID {
+pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *const c_char, _sig: *const c_char) -> jfieldID {
     let jvm = get_state(env);
     let name = jvm.string_pool.add_name(CStr::from_ptr(&*c_name).to_str().unwrap().to_string(), false); //todo handle utf8
     let runtime_class = from_jclass(jvm, clazz).as_runtime_class(jvm);
@@ -156,7 +159,7 @@ pub unsafe extern "C" fn get_field_id(env: *mut JNIEnv, clazz: jclass, c_name: *
     new_field_id(jvm, field_rc, field_i)
 }
 
-pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jmethodID {
+pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, name: *const c_char, sig: *const c_char) -> jmethodID {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let method_name_string = CStr::from_ptr(name).to_str().unwrap().to_string();
@@ -172,13 +175,22 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     };
     let view = &runtime_class.view();
     let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);
-    let method = view.lookup_method(method_name, &c_method_desc).unwrap();
+    let method = match view.lookup_method(method_name, &c_method_desc) {
+        Some(x) => x,
+        None => {
+            //throw no such method
+            let throw = get_throw(env);
+            let no_such_method_exception = NoSuchMethodError::new(jvm, int_state);
+            *throw = Some(WasException{ exception_obj: no_such_method_exception.unwrap().new_java_value_handle().cast_throwable() });
+            return jmethodID::invalid_default()
+        },
+    };
     assert!(method.is_static());
     let res = Box::into_raw(box jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16));
     res as jmethodID
 }
 
-pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const ::std::os::raw::c_char, sig: *const ::std::os::raw::c_char) -> jfieldID {
+pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const c_char, sig: *const c_char) -> jfieldID {
     get_field_id(env, clazz, name, sig)
 }
 

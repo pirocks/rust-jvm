@@ -286,6 +286,10 @@ impl CompressedClassName {
     pub const fn class_cast_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_CLASS_CAST_EXCEPTION as AddOnlyVecIDType)
     }
+
+    pub const fn no_such_method_error() -> Self {
+        Self::from_raw_id(JAVA_LANG_NO_SUCH_METHOD_ERROR as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {
