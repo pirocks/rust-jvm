@@ -8,12 +8,10 @@ use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_in
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{PushableFrame};
 use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::run_native_method;
@@ -24,6 +22,7 @@ use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
 use crate::stdlib::java::lang::member_name::MemberName;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::utils::{get_all_methods, run_static_or_virtual};
 
 /**
@@ -61,9 +60,9 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     let base_object_class = match args[0].as_njv().unwrap_object_alloc() {
         Some(x) => x,
         None => {
-            int_state.inner().debug_print_stack_trace(jvm);
-            todo!()
-        },
+            let npe = NullPointerException::new(jvm, int_state.inner()).unwrap();
+            return PostInstructionAction::Exception { exception: WasException { exception_obj: npe.new_java_value_handle().cast_throwable() } };
+        }
     }.runtime_class(jvm);
     let current_loader = int_state.inner().current_loader(jvm);
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
@@ -144,7 +143,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
             Err(WasException { exception_obj }) => {
                 Err(WasException { exception_obj })
             }
-        }
+        };
     } else if !target_method.is_abstract() {
         // let mut args = vec![];
         let max_locals = target_method.code_attribute().unwrap().max_locals;
