@@ -163,14 +163,18 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.ResourceBundle;
 import java.util.TimeZone;
+import java.util.prefs.BackingStoreException;
+import java.util.prefs.InvalidPreferencesFormatException;
 import java.util.regex.Pattern;
 import java.util.zip.*;
 
 public class DebuggingClass {
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-        for (Method method : DebuggingClass.class.getMethods()) {
-            System.out.println(method);
+        for (Method declaredMethod : void.class.getDeclaredMethods()) {
+            System.out.println(declaredMethod);
         }
+        System.identityHashCode(null);
+        test(new BackingStoreException("Hi"));
 //        TimeZone tz = TimeZone.getTimeZone("Asia/Taipei");
 //        Locale tzLocale = new Locale("ja");
 //        System.out.println(new Test().getCandidateLocales("sun.util.resources.TimeZoneNames",tzLocale).size());
@@ -184,34 +188,12 @@ public class DebuggingClass {
 //        });
     }
 
-    static boolean test() {
-        return Double.NaN < 1.0;
-    }
-
-    static boolean isFinite(double a) {
-        return (0.0*a  == 0);
-    }
-    static int intClassify(double a) {
-        if(!isFinite(a) || // NaNs and infinities
-                (a != Math.floor(a) )) { // only integers are fixed-points of floor
-            return -1;
-        }
-        else {
-            // Determine if argument is an odd or even integer.
-
-            a = StrictMath.abs(a); // absolute value doesn't affect odd/even
-
-            if(a+1.0 == a) { // a > maximum odd floating-point integer
-                return 0; // Large integers are all even
-            }
-            else { // Convert double -> long and look at low-order bit
-                long ell = (long)  a;
-                return ((ell & 0x1L) == (long)1)?1:0;
-            }
-        }
-    }
-    public static class Test extends ResourceBundle.Control{
-
+    static void test(Object o) throws IOException {
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(bos);
+        out.writeObject(o);
+        out.flush();
+        out.close();
     }
 
 }

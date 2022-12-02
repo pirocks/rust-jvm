@@ -55,11 +55,13 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                             if inherits_from_cpdtype(jvm, &assert_loaded_class(jvm, actual_base_type.to_cpdtype()), expected_class_type.to_cpdtype()) {
                                 return 1;
                             }
+                            return 0;
                         }
                         dbg!(actual_num_nested_arrs);
                         dbg!(expected_num_nested_arrs);
                         dbg!(actual_base_type.to_cpdtype().jvm_representation(&jvm.string_pool));
                         dbg!(expected_class_type.to_cpdtype().jvm_representation(&jvm.string_pool));
+
                         todo!()
                     }
                 }

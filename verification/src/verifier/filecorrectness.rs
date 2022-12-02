@@ -221,7 +221,11 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
                 if c.class_name == CClassName::object() && vf.current_loader == c.loader {
                     return Result::Ok(());
                 }
-                unimplemented!()
+                //todo is this correct
+                if c.class_name == CClassName::serializable() || c.class_name == CClassName::cloneable() {
+                    return Result::Ok(());
+                }
+                return Err(unknown_error_verifying!())
             }
             VType::ArrayReferenceType(a2) => is_java_assignable_array_types(vf, a1.clone(), a2.clone()),
             _ => unimplemented!(),

@@ -23,11 +23,12 @@ impl<'gc> NewJavaValueHandle<'gc> {
 
 impl<'gc> NullPointerException<'gc> {
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NullPointerException<'gc>, WasException<'gc>> {
-        let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::null_pointer_exception().into())?;
-        let this = new_object(jvm, int_state, &class_not_found_class, false);
+        // todo!();
+        let npe_class = check_initing_or_inited_class(jvm, int_state, CClassName::null_pointer_exception().into())?;
+        let this = new_object(jvm, int_state, &npe_class, false);
         let message = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("This jvm doesn't believe in helpful null pointer messages so you get this instead".to_string()))?;
         let desc = CMethodDescriptor::void_return(vec![CClassName::string().into()]);
-        run_constructor(jvm, int_state, class_not_found_class, vec![this.new_java_value(), message.new_java_value()], &desc)?;
+        run_constructor(jvm, int_state, npe_class, vec![this.new_java_value(), message.new_java_value()], &desc)?;
         Ok(this.new_java_handle().cast_null_pointer_exception())
     }
 }

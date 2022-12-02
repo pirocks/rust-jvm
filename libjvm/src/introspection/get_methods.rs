@@ -56,9 +56,11 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
 }
 
 fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
-    let class_ptype = &of_class_obj.gc_lifeify().as_type(jvm);
+    let class_ptype = of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
-        unimplemented!()
+        unsafe {
+            let allocated_empty_array = JavaValue::new_vec_from_vec(jvm, vec![], CPDType::object());
+            return Ok(new_local_ref_public_new(Some(allocated_empty_array.as_allocated_obj()), int_state)) }
     }
     let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
