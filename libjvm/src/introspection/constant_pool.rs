@@ -74,7 +74,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
         return throw_array_out_of_bounds(jvm, int_state, throw, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, c.class_ref_type().to_cpdtype(), pushable_frame_todo()) {
+        ConstantInfoView::Class(c) => match get_or_create_class_object(jvm, c.class_ref_type(&jvm.string_pool).to_cpdtype(), pushable_frame_todo()) {
             Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
             Err(_) => null_mut(),
         },
@@ -534,7 +534,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, in
         return throw_array_out_of_bounds(jvm, int_state, throw, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(class_.class_ref_type().to_cpdtype(), &jvm.string_pool).class_name_representation()),
+        ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(class_.class_ref_type(&jvm.string_pool).to_cpdtype(), &jvm.string_pool).class_name_representation()),
         _ => {
             return throw_illegal_arg(jvm, int_state);
         }

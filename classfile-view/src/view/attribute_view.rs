@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
 
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod, InnerClass, InnerClasses, SourceFile};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
-use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-
-
+use rust_jvm_common::compressed_classfile::compressed_types::CPRefType;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::{CCString, CompressedClassfileStringPool};
 use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};
@@ -124,6 +124,33 @@ pub enum BootstrapArgView<'cl> {
 pub struct EnclosingMethodView<'l> {
     pub(crate) backing_class: &'l ClassBackedView,
     pub(crate) i: usize,
+}
+
+impl<'l> EnclosingMethodView<'l> {
+    fn raw(&self) -> &EnclosingMethod {
+        match &self.backing_class.underlying_class.attributes[self.i].attribute_type {
+            AttributeType::EnclosingMethod(im) => im,
+            _ => panic!(),
+        }
+    }
+
+    pub fn class_name(&self, pool: &CompressedClassfileStringPool) -> CPRefType {
+        self.backing_class.constant_pool_view(self.raw().class_index as usize).unwrap_class().class_ref_type(pool)
+    }
+
+    pub fn method_name(&self, pool: &CompressedClassfileStringPool) -> Option<MethodName> {
+        if self.raw().method_index == 0 {
+            return None;
+        }
+        Some(MethodName(pool.add_name(self.backing_class.underlying_class.name_and_type_extractor(self.raw().method_index).0, false)))
+    }
+
+    pub fn method_desc(&self, pool: &CompressedClassfileStringPool) -> Option<CCString> {
+        if self.raw().method_index == 0 {
+            return None;
+        }
+        Some(pool.add_name(self.backing_class.underlying_class.name_and_type_extractor(self.raw().method_index).1, false))
+    }
 }
 
 pub struct InnerClassesView<'l> {

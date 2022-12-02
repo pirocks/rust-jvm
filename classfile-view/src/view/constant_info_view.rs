@@ -6,11 +6,12 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::string_pool::{CCString, CompressedClassfileStringPool};
 
 
-use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::descriptor_parser::{parse_class_name, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
+use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -44,11 +45,10 @@ pub struct ClassPoolElemView<'l> {
 }
 
 impl ClassPoolElemView<'_> {
-    pub fn class_ref_type(&self) -> CPRefType {
-        /*let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
-        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
-        type_.unwrap_ref_type().clone()*/
-        todo!()
+    pub fn class_ref_type(&self, string_pool: &CompressedClassfileStringPool) -> CPRefType {
+        let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
+        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str.as_str().unwrap()));
+        CPDType::from_ptype(&type_.to_ptype(), string_pool).unwrap_ref_type()
     }
 }
 

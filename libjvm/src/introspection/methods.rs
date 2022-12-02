@@ -3,30 +3,30 @@ use std::os::raw::{c_char, c_int, c_uchar, c_ushort};
 use std::ptr::null_mut;
 
 use itertools::Itertools;
+use wtf8::Wtf8Buf;
 
 use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
+use rust_jvm_common::compressed_classfile::string_pool::CCString;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::new_java_values::NewJavaValue;
-
-
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
 use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
+use slow_interpreter::stdlib::java::lang::string::JString;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
@@ -57,6 +57,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     unimplemented!()
 }
 
+// returns 3 object array, class, name, descriptor string
 #[no_mangle]
 unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: jclass) -> jobjectArray {
     let jvm = get_state(env);
@@ -68,7 +69,32 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
     let em = view.enclosing_method_view();
     match em {
         None => std::ptr::null_mut(),
-        Some(_) => unimplemented!(),
+        Some(em) => {
+            match (|| {
+                let ptype_name = em.class_name(&jvm.string_pool);
+                let jclass = JClass::from_type(jvm, int_state, ptype_name.to_cpdtype())?;
+                let method_desc = match em.method_desc(&jvm.string_pool) {
+                    None => {
+                        return Ok(null_mut());
+                    }
+                    Some(method_desc) => method_desc
+                };
+                let method_desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_desc.to_str(&jvm.string_pool)))?;
+                let method_name = match em.method_name(&jvm.string_pool) {
+                    None => { return Ok(null_mut()); }
+                    Some(method_name) => method_name,
+                };
+                let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_name.0.to_str(&jvm.string_pool)))?;
+                let array_obj = JavaValue::new_vec_from_vec(jvm, vec![jclass.new_java_value(), method_desc.new_java_value(), method_name.new_java_value()], CPDType::object());
+                Ok(new_local_ref_public_new(Some(array_obj.as_allocated_obj()), int_state))
+            })() {
+                Err(WasException { exception_obj }) => {
+                    *get_throw(env) = Some(WasException { exception_obj });
+                    jobjectArray::invalid_default()
+                }
+                Ok(res) => res
+            }
+        }
     }
 }
 
