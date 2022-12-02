@@ -554,6 +554,7 @@ impl<'gc> JVMState<'gc> {
         Arc::new(BootstrapLoaderClassGetter { jvm: self })
     }
 
+    //todo change this to nonnull
     pub fn monitor_for(&self, obj_ptr: *const c_void) -> Arc<Monitor2> {
         assert!(obj_ptr != null_mut());
         let mut monitors_guard = self.object_monitors.write().unwrap();

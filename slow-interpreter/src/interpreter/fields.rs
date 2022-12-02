@@ -1,9 +1,10 @@
 use std::mem::size_of;
 use std::ops::Deref;
+use std::sync::Arc;
 use better_nonnull::BetterNonNull;
 
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
-use runtime_class_stuff::FieldNumberAndFieldType;
+use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
 use runtime_class_stuff::object_layout::{FieldAccessor};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};
@@ -23,8 +24,13 @@ use crate::static_vars::static_vars;
 
 //
 pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
+    let target_classfile = match check_initing_or_inited_class(jvm, int_state.inner(), field_class_name.clone().into()){
+        Ok(target_classfile) => target_classfile,
+        Err(WasException { exception_obj }) => {
+            return PostInstructionAction::Exception { exception: WasException { exception_obj } };
+        }
+    };
     let mut entry_mut = int_state.current_frame_mut();
-    let target_classfile = assert_inited_or_initing_class(jvm, field_class_name.clone().into());
     let field_value = entry_mut.pop(field_descriptor.0.to_runtime_type().unwrap());
     static_vars(target_classfile.deref(), jvm).set(field_name, field_value.to_new_java_handle(jvm));
     PostInstructionAction::Next {}

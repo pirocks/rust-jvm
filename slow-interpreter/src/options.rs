@@ -88,7 +88,7 @@ impl JVMOptionsStart {
             main,
             java_home,
             classpath,
-            boot_classpath: boot_classpath,
+            boot_classpath,
             ext_classpath,
             properties,
             args,

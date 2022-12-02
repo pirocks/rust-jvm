@@ -43,6 +43,7 @@ use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{run_static_or_virtual, throw_npe};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::stdlib::java::lang::int::Int;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -151,10 +152,11 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             None
         }
         Some(NewJavaValueHandle::Long(long)) => {
+            //todo converto to generic function which does all of these
             Some(Long::new(jvm, int_state, long).unwrap().full_object())
         }
-        Some(NewJavaValueHandle::Int(_)) => {
-            todo!()
+        Some(NewJavaValueHandle::Int(int)) => {
+            Some(Int::new(jvm, int_state, int).unwrap().full_object())
         }
         Some(NewJavaValueHandle::Short(_)) => {
             todo!()

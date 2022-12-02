@@ -39,7 +39,7 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
 /// Note that local references already created in previous local frames are still valid in the current local frame.
 pub unsafe extern "C" fn push_local_frame(env: *mut JNIEnv, _capacity: jint) -> jint {
     let interpreter_state = get_interpreter_state(env);
-    push_current_native_local_refs(todo!()/*interpreter_state*/, HashSet::new());
+    push_current_native_local_refs(interpreter_state, HashSet::new());
     JNI_OK as jint
 }
 
