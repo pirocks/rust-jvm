@@ -146,6 +146,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         exit_trace_options,
         thread_tracing_options,
         java_home,
+        boot_classpath,
     } = jvm_options;
     let SharedLibraryPaths { libjava, libjdwp } = shared_libs;
     let classpath_arc = Arc::new(classpath);
@@ -234,6 +235,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         default_per_stack_initial_interfaces: initial_per_stack_interfaces(),
         all_the_static_fields,
         java_home,
+        boot_classpath,
     };
     (args, jvm)
 }

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::iter::FromIterator;
-use std::path::PathBuf;
+use std::path::{PathBuf};
 
 use itertools::Itertools;
 
@@ -31,13 +31,15 @@ pub struct JVMOptions {
     pub instruction_trace_options: InstructionTraceOptions,
     pub exit_trace_options: ExitTracingOptions,
     pub thread_tracing_options: ThreadTracingOptions,
-    pub java_home: PathBuf
+    pub java_home: PathBuf,
+    pub boot_classpath: Vec<PathBuf>,
 }
 
 pub struct JVMOptionsStart {
     main: String,
     java_home: PathBuf,
     classpath: Vec<PathBuf>,
+    boot_classpath: Vec<PathBuf>,
     ext_classpath: Vec<PathBuf>,
     properties: Vec<(String, String)>,
     args: Vec<String>,
@@ -73,6 +75,10 @@ impl JVMOptionsStart {
             .filter(|elem|elem.exists())
             .chain(classpath.into_iter().map(PathBuf::from))
             .collect_vec();
+        let boot_classpath = Self::classpath_format()
+            .map(|classpath_elem| java_home.join(classpath_elem))
+            .filter(|elem|elem.exists())
+            .collect_vec();
 
         let ext_classpath = Self::ext_classpath_format()
             .map(|classpath_elem| java_home.join(classpath_elem))
@@ -82,6 +88,7 @@ impl JVMOptionsStart {
             main,
             java_home,
             classpath,
+            boot_classpath: boot_classpath,
             ext_classpath,
             properties,
             args,
@@ -157,12 +164,13 @@ impl InstructionTraceOptions {
 
 impl JVMOptions {
     pub fn from_options_start(options_start: JVMOptionsStart) -> JVMOptions {
-        let JVMOptionsStart { main, java_home, classpath, ext_classpath, properties, args, enable_assertions, store_anon_class, debug_print_exceptions } = options_start;
+        let JVMOptionsStart { main, java_home, classpath, boot_classpath, ext_classpath, properties, args, enable_assertions, store_anon_class, debug_print_exceptions } = options_start;
         let classpath = Classpath::from_dirs(classpath.into_iter().map(|path|path.into_boxed_path()).collect_vec());
         Self::new(
             ClassName::Str(main.replace('.', "/")),
             java_home.clone(),
             classpath,
+            boot_classpath,
             args,
             java_home.join("lib/amd64/libjava.so"),
             java_home.join("lib/amd64/libjdwp.so"),
@@ -172,7 +180,7 @@ impl JVMOptions {
             false,
             store_anon_class,
             debug_print_exceptions,
-            enable_assertions
+            enable_assertions,
         )
     }
 
@@ -180,6 +188,7 @@ impl JVMOptions {
         main_class_name: ClassName,
         java_home: PathBuf,
         classpath: Classpath,
+        boot_classpath: Vec<PathBuf>,
         args: Vec<String>,
         libjava: PathBuf,
         libjdwp: PathBuf,
@@ -264,6 +273,7 @@ impl JVMOptions {
             exit_trace_options: ExitTracingOptions::TraceNone,
             thread_tracing_options,
             java_home,
+            boot_classpath,
         }
     }
 
@@ -284,6 +294,8 @@ impl JVMOptions {
             instruction_trace_options: InstructionTraceOptions::TraceNone,
             exit_trace_options: ExitTracingOptions::TraceNone,
             thread_tracing_options: todo!(),
+            java_home: todo!(),
+            boot_classpath: todo!(),
         }
     }
 }

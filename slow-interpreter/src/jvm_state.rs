@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::iter;
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::{PathBuf};
 use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
@@ -27,17 +27,15 @@ use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointer
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
-use runtime_class_stuff::{ClassStatus};
+use runtime_class_stuff::ClassStatus;
 use runtime_class_stuff::method_numbers::{MethodNumber, MethodNumberMappings};
 use runtime_class_stuff::RuntimeClass;
 use runtime_class_stuff::static_fields::AllTheStaticFields;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::class_names::{CClassName};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
 use rust_jvm_common::compressed_classfile::compressed_types::{CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-
-
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderIndex, LoaderName};
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapperOwned};
@@ -143,10 +141,11 @@ pub struct JVMState<'gc> {
     pub bit_vec_paths: RwLock<BitVecPaths>,
     pub interface_arrays: RwLock<InterfaceArrays>,
     pub program_args_array: OnceCell<AllocatedHandle<'gc>>,
-    pub mangling_regex : ManglingRegex,
+    pub mangling_regex: ManglingRegex,
     pub default_per_stack_initial_interfaces: PerStackInterfaces,
     pub all_the_static_fields: AllTheStaticFields<'gc>,
-    pub java_home: PathBuf
+    pub java_home: PathBuf,
+    pub boot_classpath: Vec<PathBuf>,
 }
 
 
@@ -276,6 +275,9 @@ impl<'gc> Classes<'gc> {
 
 
 impl<'gc> JVMState<'gc> {
+    pub fn boot_classpath_string(&self) -> String {
+        self.boot_classpath.iter().map(|path|path.to_str().unwrap()).join(":")
+    }
 
     pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc>>) {
         let mut method_table = self.method_table.write().unwrap();
@@ -473,7 +475,7 @@ pub struct NativeLibraries<'gc> {
     pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
 }
 
-fn default_on_load(_: *mut *const JNIInvokeInterfaceNamedReservedPointers, _ :*mut c_void) -> i32{
+fn default_on_load(_: *mut *const JNIInvokeInterfaceNamedReservedPointers, _: *mut c_void) -> i32 {
     JNI_VERSION_1_1 as i32
 }
 
@@ -497,14 +499,14 @@ impl<'gc> NativeLibraries<'gc> {
         let on_load = match lib.get::<fn(vm: *mut *const JNIInvokeInterfaceNamedReservedPointers, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()) {
             Ok(x) => Some(x),
             Err(err) => {
-                if err.to_string().contains(" undefined symbol: JNI_OnLoad"){
+                if err.to_string().contains(" undefined symbol: JNI_OnLoad") {
                     None
-                }else {
+                } else {
                     todo!()
                 }
-            },
+            }
         };
-        let onload_fn_ptr = on_load.map(|on_load|*on_load.deref()).unwrap_or(default_on_load);
+        let onload_fn_ptr = on_load.map(|on_load| *on_load.deref()).unwrap_or(default_on_load);
         self.native_libs.write().unwrap().insert(name, NativeLib { library: lib });
         onload_fn_ptr
     }
