@@ -4,15 +4,15 @@ use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
 
 use libc::{c_void, initgroups};
+
 use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
-
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jclass, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
-use rust_jvm_common::{FieldId};
+use rust_jvm_common::FieldId;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
@@ -190,11 +190,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__Ljava_lang_Object_2JI(env
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
-    // let jvm = get_state(env);
-    // let obj_option = from_object_new(jvm, obj);
-    // todo!("should be intrinsic")
     obj.cast::<c_void>().offset(offset as isize).cast::<jint>().write(val)
-    /*putVolatileImpl(offset, NativeJavaValue { int: val }, jvm, obj_option);*/
 }
 
 #[no_mangle]
@@ -251,3 +247,15 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
 //         }
 //     }
 // }
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
+    Java_sun_misc_Unsafe_getObjectVolatile(env, the_unsafe, obj, offset)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putOrderedInt(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
+    Java_sun_misc_Unsafe_putIntVolatile(env, the_unsafe, obj, offset, val)
+}

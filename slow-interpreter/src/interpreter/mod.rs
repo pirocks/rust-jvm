@@ -12,7 +12,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDe
 
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{NewAsObjectOrJavaValue, pushable_frame_todo, WasException};
+use crate::{NewAsObjectOrJavaValue, WasException};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::interpreter_frame::JavaInterpreterFrame;
 use crate::better_java_stack::StackDepth;
@@ -289,12 +289,12 @@ pub fn monitor_for_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut im
     if synchronized {
         let monitor: Arc<Monitor2> = if method.is_static() {
             let class_object = get_or_create_class_object(jvm, method.classview().type_(), int_state).unwrap();
-            todo!() /*class_object.unwrap_normal_object().monitor.clone()*/
+            jvm.monitor_for(class_object.ptr.as_ptr())
         } else {
-            /*int_state.current_frame_mut().local_vars().get(0, RuntimeType::object()).unwrap_normal_object().monitor.clone()*/
-            todo!()
+            let ptr = int_state.local_get_handle(0, RuntimeType::object()).unwrap_object_nonnull().ptr().as_ptr();
+            jvm.monitor_for(ptr)
         };
-        monitor.lock(jvm, pushable_frame_todo()/*int_state*/).unwrap();
+        monitor.lock(jvm, int_state).unwrap();
         monitor.into()
     } else {
         None
