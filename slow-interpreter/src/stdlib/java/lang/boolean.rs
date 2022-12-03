@@ -7,7 +7,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::{new_object, run_constructor};
-use crate::java_values::{JavaValue};
+
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};

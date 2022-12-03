@@ -59,7 +59,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let class_ptype = of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unsafe {
-            let allocated_empty_array = JavaValue::new_vec_from_vec(jvm, vec![], CPDType::object());
+            let allocated_empty_array = JavaValue::new_vec_from_vec(jvm, vec![], CClassName::method().into());
             return Ok(new_local_ref_public_new(Some(allocated_empty_array.as_allocated_obj()), int_state)) }
     }
     let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);

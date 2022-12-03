@@ -43,17 +43,21 @@ unsafe extern "system" fn JVM_GetClassDeclaredFields<'gc>(env: *mut JNIEnv, ofCl
     let jvm = get_state(env);
     let class_obj = from_jclass(jvm, ofClass).as_runtime_class(jvm);
     let int_state = get_interpreter_state(env);
+    let publicOnly: bool = publicOnly != 0;
     let mut object_array = vec![];
     for f in class_obj.clone().view().fields() {
-        let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
-            Ok(field_object) => field_object,
-            Err(WasException { exception_obj }) => {
-                todo!();
-                return null_mut();
-            }
-        };
+        if !publicOnly || f.is_public() {
+            let field_object = match field_object_from_view(jvm, int_state, class_obj.clone(), f) {
+                Ok(field_object) => field_object,
+                Err(WasException { exception_obj }) => {
+                    todo!();
+                    return null_mut();
+                }
+            };
 
-        object_array.push(field_object)
+            object_array.push(field_object)
+        }
+
     }
     let array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(rust_jvm_common::compressed_classfile::class_names::CClassName::field().into())).unwrap();
     let res = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {

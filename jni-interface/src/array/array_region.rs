@@ -52,7 +52,7 @@ unsafe fn array_region_integer_types<T>(env: *mut JNIEnv, raw_array: jarray, sta
 pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatArray, start: jsize, len: jsize, buf: *mut jfloat) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(jvm, array) {
+    let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
             return throw_npe(jvm, int_state,get_throw(env));
         }

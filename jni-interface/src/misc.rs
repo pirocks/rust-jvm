@@ -26,10 +26,9 @@ use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::common::special::inherits_from_cpdtype;
-use slow_interpreter::java_values::GcManagedObject;
 use slow_interpreter::jvm_state::{JVMState, NativeLibraries};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::utils::throw_npe;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
@@ -159,8 +158,8 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
 
 pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: jobject) -> jboolean {
     let jvm = get_state(env);
-    let _1 = from_object(jvm, obj1);
-    let _2 = from_object(jvm, obj2);
+    let _1 = from_object_new(jvm, obj1);
+    let _2 = from_object_new(jvm, obj2);
     (match _1 {
         None => match _2 {
             None => JNI_TRUE,
@@ -168,7 +167,7 @@ pub unsafe extern "C" fn is_same_object(env: *mut JNIEnv, obj1: jobject, obj2: j
         },
         Some(_1_) => match _2 {
             None => JNI_FALSE,
-            Some(_2_) => GcManagedObject::ptr_eq(&_1_, &_2_) as u32,
+            Some(_2_) => (_1_.ptr() == _2_.ptr()) as u32,
         },
     }) as u8
 }

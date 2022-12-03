@@ -35,7 +35,6 @@ use slow_interpreter::stdlib::java::lang::char::Char;
 use slow_interpreter::stdlib::java::lang::double::Double;
 use slow_interpreter::stdlib::java::lang::float::Float;
 use slow_interpreter::stdlib::java::lang::int::Int;
-use slow_interpreter::stdlib::java::lang::integer::Integer;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;

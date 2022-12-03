@@ -42,7 +42,6 @@ impl<'gc> Field<'gc> {
         let modifiers = NewJavaValue::Int(modifiers);
         let slot = NewJavaValue::Int(slot);
 
-        //todo impl annotations.
         let allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
             whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?,
             elems: annotations,
@@ -69,6 +68,7 @@ impl<'gc> Field<'gc> {
                                                  CClassName::string().into(),
                                                  CPDType::array(CPDType::ByteType)]),
         )?;
+
         Ok(field_object.cast_field())
     }
 

@@ -8,7 +8,6 @@ use crate::{JavaValueCommon, NewAsObjectOrJavaValue, NewJavaValue, WasException}
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::{new_object, run_constructor};
-use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
@@ -18,15 +17,15 @@ pub struct Long<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_long(&self) -> Long<'gc> {
-        Long { normal_object: todo!() }
+impl<'gc> NewJavaValueHandle<'gc> {
+    pub fn cast_long(self) -> Long<'gc> {
+        Long { normal_object: self.normal_object() }
     }
 }
 
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_long(&self) -> Long<'gc> {
-        Long { normal_object: todo!() }
+impl<'gc> AllocatedNormalObjectHandle<'gc> {
+    pub fn cast_long(self) -> Long<'gc> {
+        Long { normal_object: self.normal_object() }
     }
 }
 

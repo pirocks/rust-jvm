@@ -169,12 +169,17 @@ import java.util.regex.Pattern;
 import java.util.zip.*;
 
 public class DebuggingClass {
+    public enum Test_Test{
+        A, B
+    }
+
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-        for (Method declaredMethod : void.class.getDeclaredMethods()) {
-            System.out.println(declaredMethod);
-        }
-        System.identityHashCode(null);
-        test(new BackingStoreException("Hi"));
+            java.lang.Enum.valueOf(java_lang_Enum.Alpha.class, "A");
+//        for (Method declaredMethod : void.class.getDeclaredMethods()) {
+//            System.out.println(declaredMethod);
+//        }
+//        System.identityHashCode(null);
+//        test(new BackingStoreException("Hi"));
 //        TimeZone tz = TimeZone.getTimeZone("Asia/Taipei");
 //        Locale tzLocale = new Locale("ja");
 //        System.out.println(new Test().getCandidateLocales("sun.util.resources.TimeZoneNames",tzLocale).size());

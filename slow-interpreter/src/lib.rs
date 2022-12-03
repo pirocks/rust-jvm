@@ -52,7 +52,7 @@ use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
-use crate::stack_entry::{StackEntry, StackEntryPush};
+use crate::stack_entry::StackEntryPush;
 use crate::threading::thread_state::ThreadState;
 use crate::utils::pushable_frame_todo;
 

@@ -5,7 +5,6 @@ pub mod member_name;
 pub mod class;
 pub mod class_loader;
 pub mod string;
-pub mod integer;
 pub mod object;
 pub mod thread;
 pub mod thread_group;
