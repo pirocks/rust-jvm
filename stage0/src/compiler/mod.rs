@@ -948,12 +948,18 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                     }
                 }
             }
+            CompressedInstructionInfo::f2l => {
+                todo!()
+            }
+            CompressedInstructionInfo::invokedynamic(_) => {
+                todo!()
+            }
             other => {
                 dbg!(other);
                 todo!()
             }
         }
-        final_ir_without_labels.extend(std::iter::repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
+        final_ir_without_labels.extend(repeat(compressed_instruction.offset).zip(this_function_ir.into_iter()));
         prev_offset = Some(current_offset);
     }
 

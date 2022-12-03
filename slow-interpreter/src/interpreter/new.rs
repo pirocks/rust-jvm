@@ -6,6 +6,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class, JavaValueCommon, JVMState, NewJavaValueHandle, WasException};
+use crate::better_java_stack::frames::HasFrame;
 use crate::class_loading::check_resolved_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
@@ -60,7 +61,8 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
         Atype::TFloat => CPDType::FloatType,
     };
     if count < 0 {
-        todo!("check array length");
+        int_state.inner().debug_print_stack_trace(jvm);
+        todo!("check array length, this one seems like it would be easy to debug");
     }
     match a_new_array_from_name(jvm, int_state, count, type_) {
         Ok(arr) => PostInstructionAction::Next {},

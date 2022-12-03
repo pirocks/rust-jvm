@@ -27,6 +27,7 @@ use slow_interpreter::ir_to_java_layer::exit_impls::multi_allocate_array::multi_
 use slow_interpreter::java_values::{default_value, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
@@ -88,14 +89,15 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
                 return throw_array_out_of_bounds(jvm, int_state, throw, index);
             }
             let java_value = nonnull.unwrap_array().get_i(index);
-            new_local_ref_public(
-                match java_value_to_boxed_object(jvm, int_state, todo!()/*java_value*/) {
-                    Ok(boxed) => todo!()/*boxed*/,
-                    Err(WasException { exception_obj }) => {
-                        todo!();
-                        None
-                    }
-                },
+            let owned = match java_value_to_boxed_object(jvm, int_state, java_value.as_njv()) {
+                Ok(boxed) => boxed.map(|boxed|AllocatedHandle::NormalObject(boxed)),
+                Err(WasException { exception_obj }) => {
+                    todo!();
+                    None
+                }
+            };
+            new_local_ref_public_new(
+                owned.as_ref().map(|boxed|boxed.as_allocated_obj()),
                 int_state,
             )
         }
@@ -169,7 +171,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
         dbg!(src_pos + length > src_len as i32);
         dbg!(dst_pos + length > dest_len as i32);
         int_state.debug_print_stack_trace(jvm);
-        todo!()
+        todo!("maybe easy to debug?")
     }
 
     let dst = NonNull::new(dst.cast()).unwrap();

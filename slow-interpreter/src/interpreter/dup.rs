@@ -101,3 +101,8 @@ pub fn dup2_x1<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mu
     };
     PostInstructionAction::Next {}
 }
+
+
+pub fn swap<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+    todo!()
+}

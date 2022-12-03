@@ -18,12 +18,6 @@ pub struct Boolean<'gc> {
     normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_boolean(&self) -> Boolean<'gc> {
-        Boolean { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
-}
-
 impl<'gc> AllocatedNormalObjectHandle<'gc> {
     pub fn cast_boolean(self) -> Boolean<'gc> {
         Boolean { normal_object: self.normal_object() }
@@ -31,8 +25,8 @@ impl<'gc> AllocatedNormalObjectHandle<'gc> {
 }
 
 impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_boolean(&self) -> Boolean<'gc> {
-        Boolean { normal_object: todo!() }
+    pub fn cast_boolean(self) -> Boolean<'gc> {
+        Boolean { normal_object: self.normal_object() }
     }
 }
 

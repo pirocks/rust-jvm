@@ -2,14 +2,14 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
-use slow_interpreter::better_java_stack::frames::PushableFrame;
+use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::java_values::Object;
 use slow_interpreter::jvm_state::JVMState;
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public;
+use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -101,18 +101,17 @@ unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currCla
 unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    todo!();/*for stack_entry in int_state.cloned_stack_snapshot(jvm) {
-        if !stack_entry.privileged_frame() {
-            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object().to_gc_managed()), int_state);
+    for stack_entry in int_state.frame_iter() {
+        if todo!()/* !stack_entry.privileged_frame() || stack_entry.reflection_frame()*/ {
+            return new_local_ref_public(todo!()/*jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object())*/, int_state);
         }
-    }*/
-    return new_local_ref_public(
-        todo!()/*        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+    }
+    return new_local_ref_public_new(
+        Some(match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
             Ok(res) => res,
             Err(_) => todo!(),
         }
-            .object().to_gc_managed()
-            .into()*/,
+            .full_object_ref()),
         int_state,
     );
 }

@@ -20,17 +20,11 @@ pub fn set_local_refs_top_frame<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc
 }
 
 pub fn pop_current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> HashSet<jobject> {
-    todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
-        /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
-        InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).pop_local_refs(),
-    }*/
+    interpreter_state.frame_info_mut().native_local_refs.pop().unwrap()
 }
 
-pub fn push_current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>, to_push: HashSet<jobject>) {
-    todo!()/*match interpreter_state.int_state.as_mut().unwrap().deref_mut() {
-        /*InterpreterState::LegacyInterpreter { .. } => todo!(),*/
-        InterpreterState::Jit { call_stack, .. } => FrameView::new(call_stack.current_frame_ptr(), call_stack, null_mut()).push_local_refs(to_push),
-    }*/
+pub fn push_current_native_local_refs(interpreter_state: &mut NativeFrame, to_push: HashSet<jobject>) {
+    interpreter_state.frame_info_mut().native_local_refs.push(to_push);
 }
 
 pub fn current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> Vec<HashSet<jobject>> {

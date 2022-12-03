@@ -22,10 +22,11 @@ pub unsafe extern "C" fn pop_local_frame(env: *mut JNIEnv, result: jobject) -> j
         null_mut()
     } else {
         //no freeing need occur here
+        //todo is anywhere close to correct?
         popped.get(&result).unwrap();
-        let mut get_top_frame = get_top_local_ref_frame(todo!()/*interpreter_state*/).clone();
+        let mut get_top_frame = get_top_local_ref_frame(interpreter_state).clone();
         get_top_frame.insert(result);
-        set_local_refs_top_frame(todo!()/*interpreter_state*/, get_top_frame);
+        set_local_refs_top_frame(interpreter_state, get_top_frame);
         result
     }
 }

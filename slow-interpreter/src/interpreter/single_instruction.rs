@@ -22,7 +22,7 @@ use crate::interpreter::common::invoke::virtual_::invoke_virtual_instruction;
 use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, f2l, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
-use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
+use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2, swap};
 use crate::interpreter::fields::{getfield, getstatic, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
@@ -320,7 +320,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::saload => saload(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::sastore => sastore(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::sipush(val) => sipush(jvm, interpreter_state.current_frame_mut(), *val),
-        // CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
+        CInstructionInfo::swap => swap(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::tableswitch(switch) => tableswitch(switch.deref(), jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::wide(w) => wide(jvm, interpreter_state.current_frame_mut(), w),
         // CInstructionInfo::EndOfCode => panic!(),
