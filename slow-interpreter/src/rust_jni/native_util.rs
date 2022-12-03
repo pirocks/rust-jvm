@@ -41,7 +41,7 @@ pub unsafe fn to_object<'gc>(obj: Option<GcManagedObject<'gc>>) -> jobject {
 
 pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc, '_>>) -> jobject {
     match obj {
-        None => std::ptr::null_mut(),
+        None => null_mut(),
         Some(o) => {
             let res = o.raw_ptr_usize() as *mut _jobject;
             res

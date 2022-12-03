@@ -20,6 +20,7 @@ use crate::local_frame::{delete_local_ref, new_local_ref, pop_local_frame, push_
 use crate::method::get_method_id;
 use crate::misc::{ensure_local_capacity, find_class, get_java_vm, get_superclass, is_assignable_from, is_same_object, register_natives, unregister_natives};
 use crate::new_object::{jni_new_object, new_object_a, new_object_v};
+use crate::nio::new_direct_byte_buffer;
 use crate::set_field::{set_boolean_field, set_byte_field, set_char_field, set_double_field, set_float_field, set_int_field, set_long_field, set_object_field, set_short_field, set_static_boolean_field, set_static_byte_field, set_static_char_field, set_static_double_field, set_static_float_field, set_static_int_field, set_static_long_field, set_static_object_field, set_static_short_field};
 use crate::string::{get_string_region, get_string_utfchars, get_string_utflength, get_string_utfregion, new_string, new_string_utf, release_string_chars, release_string_utfchars};
 
@@ -254,7 +255,7 @@ pub fn initial_jni_interface() -> JNINativeInterfaceNamedReservedPointers {
         NewWeakGlobalRef: Some(new_weak_global_ref),
         DeleteWeakGlobalRef: Some(delete_weak_global_ref),
         ExceptionCheck: Some(exception_check),
-        NewDirectByteBuffer: None,     //todo
+        NewDirectByteBuffer: Some(new_direct_byte_buffer),     //todo
         GetDirectBufferAddress: None,  //todo
         GetDirectBufferCapacity: None, //todo
         GetObjectRefType: None,        //todo

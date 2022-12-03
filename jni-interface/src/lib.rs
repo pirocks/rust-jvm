@@ -72,6 +72,7 @@ pub mod new_object;
 pub mod set_field;
 pub mod string;
 pub mod util;
+pub mod nio;
 
 ///MonitorEnter
 //

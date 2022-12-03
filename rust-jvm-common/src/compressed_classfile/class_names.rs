@@ -290,6 +290,10 @@ impl CompressedClassName {
     pub const fn no_such_method_error() -> Self {
         Self::from_raw_id(JAVA_LANG_NO_SUCH_METHOD_ERROR as AddOnlyVecIDType)
     }
+
+    pub const fn direct_byte_buffer() -> Self{
+        Self::from_raw_id(JAVA_NIO_DIRECT_BYTE_BUFFER as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {

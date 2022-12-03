@@ -1,18 +1,8 @@
-use jvmti_jni_bindings::jstring;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-use crate::{AllocatedHandle, JavaValue, JavaValueCommon, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, PushableFrame, WasException};
-use crate::class_loading::assert_loaded_class;
-use crate::rust_jni::native_util::{from_object_new, to_object_new};
-use crate::utils::throw_npe_res;
 
-pub unsafe fn intern_impl_unsafe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, str_unsafe: jstring) -> Result<jstring, WasException<'gc>> {
-    let str_obj = match from_object_new(jvm, str_unsafe) {
-        Some(x) => x,
-        None => return throw_npe_res(jvm, int_state),
-    };
-    Ok(to_object_new(intern_safe(jvm, str_obj).object().as_allocated_obj().into()))//todo should this be local ref?
-}
+use crate::{AllocatedHandle, JavaValue, JavaValueCommon, JString, JVMState, NewJavaValueHandle};
+use crate::class_loading::assert_loaded_class;
 
 pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) -> JString<'gc> {
     let string_class = assert_loaded_class(jvm, CClassName::string().into());

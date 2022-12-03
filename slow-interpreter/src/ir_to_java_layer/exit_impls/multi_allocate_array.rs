@@ -38,7 +38,7 @@ pub fn multi_allocate_array<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
 
 pub fn multi_new_array_impl<'gc>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, dimensions: &[i32], default: NewJavaValue<'gc, '_>) -> NewJavaValueHandle<'gc> {
     if dimensions.is_empty() {
-        assert!(!cpdtype.is_array());
+        // assert!(!cpdtype.is_array());
         return default.to_handle_discouraged();
     } else {
         assert!(cpdtype.is_array());

@@ -5,7 +5,6 @@ use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
-
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
@@ -52,7 +51,15 @@ fn default_init_fields<'gc, 'k>(jvm: &'gc JVMState<'gc>, current_class_pointer: 
 
 pub fn run_constructor<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, target_classfile: Arc<RuntimeClass<'gc>>, full_args: Vec<NewJavaValue<'gc, 'k>>, descriptor: &CMethodDescriptor) -> Result<(), WasException<'gc>> {
     let target_classfile_view = target_classfile.view();
-    let method_view = target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor).unwrap();
+    let method_view = match target_classfile_view.lookup_method(MethodName::constructor_init(), descriptor) {
+        Some(x) => x,
+        None => {
+            for x in target_classfile_view.lookup_method_name(MethodName::constructor_init()) {
+                dbg!(x.desc().jvm_representation(&jvm.string_pool));
+            }
+            panic!()
+        }
+    };
     let md = method_view.desc();
     let res = invoke_special_impl(jvm, int_state, md, method_view.method_i(), target_classfile.clone(), full_args)?;
     assert!(res.is_none());

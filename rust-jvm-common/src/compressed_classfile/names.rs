@@ -81,6 +81,7 @@ pub(crate) enum PredefinedStrings {
     JAVA_LANG_COMPARABLE,
     JAVA_LANG_CLASS_CAST_EXCEPTION,
     JAVA_LANG_NO_SUCH_METHOD_ERROR,
+    JAVA_NIO_DIRECT_BYTE_BUFFER,
     field_annotationData,
     method_and_field_annotationType,
     field_argCounts,
@@ -415,7 +416,8 @@ impl PredefinedStrings {
             method_freeMemory => "freeMemory".to_string(),
             JAVA_LANG_CLASS_CAST_EXCEPTION => "java/lang/ClassCastException".to_string(),
             JAVA_LANG_NO_SUCH_METHOD_ERROR => "java/lang/NoSuchMethodError".to_string(),
-            method_findConstructor => "findConstructor".to_string()
+            method_findConstructor => "findConstructor".to_string(),
+            JAVA_NIO_DIRECT_BYTE_BUFFER => "java/nio/DirectByteBuffer".to_string()
         }
     }
 }

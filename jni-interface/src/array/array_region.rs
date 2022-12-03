@@ -5,8 +5,9 @@ use array_memory_layout::layout::{ArrayAccessor, ArrayMemoryLayout};
 
 use jvmti_jni_bindings::{jarray, jboolean, jbooleanArray, jbyte, jbyteArray, jchar, jcharArray, jdouble, jdoubleArray, jfloat, jfloatArray, jint, jintArray, jlong, jlongArray, JNIEnv, jshort, jshortArray, jsize};
 use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
+use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::utils::throw_npe;
 
 pub unsafe extern "C" fn get_boolean_array_region(env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *mut jboolean) {
@@ -60,16 +61,15 @@ pub unsafe extern "C" fn get_float_array_region(env: *mut JNIEnv, array: jfloatA
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        todo!("use array layout")
-        /*let float = array.get_i(jvm, start + i).unwrap_float() as jfloat;
-        buf.offset(i as isize).write(float)*/
+        let float = array.get_i(start + i).unwrap_float_strict() as jfloat;
+        buf.offset(i as isize).write(float)
     }
 }
 
 pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubleArray, start: jsize, len: jsize, buf: *mut jdouble) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(jvm, array) {
+    let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
             return throw_npe(jvm, int_state,get_throw(env));
         }
@@ -77,16 +77,15 @@ pub unsafe extern "C" fn get_double_array_region(env: *mut JNIEnv, array: jdoubl
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        todo!("use array layout")
-        /*let double = array.get_i(jvm, start + i).unwrap_double() as jdouble;
-        buf.offset(i as isize).write(double)*/
+        let double = array.get_i(start + i).unwrap_double_strict() as jdouble;
+        buf.offset(i as isize).write(double)
     }
 }
 
 pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArray, start: jsize, len: jsize, buf: *mut jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let non_null_array_obj = match from_object(jvm, array) {
+    let non_null_array_obj = match from_object_new(jvm, array) {
         None => {
             return throw_npe(jvm, int_state,get_throw(env));
         }
@@ -94,9 +93,8 @@ pub unsafe extern "C" fn get_long_array_region(env: *mut JNIEnv, array: jlongArr
     };
     let array = non_null_array_obj.unwrap_array();
     for i in 0..len {
-        todo!("use array layout")
-        /*let long = array.get_i(jvm, start + i).unwrap_long() as jlong;
-        buf.offset(i as isize).write(long)*/
+        let long = array.get_i(start + i).unwrap_long_strict() as jlong;
+        buf.offset(i as isize).write(long)
     }
 }
 

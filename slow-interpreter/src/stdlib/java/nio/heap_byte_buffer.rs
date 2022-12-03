@@ -6,7 +6,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use crate::{check_initing_or_inited_class, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::{new_object_full, run_constructor};
-use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -16,12 +15,6 @@ use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 
 pub struct HeapByteBuffer<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_heap_byte_buffer(&self) -> HeapByteBuffer<'gc> {
-        HeapByteBuffer { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
 }
 
 impl<'gc> HeapByteBuffer<'gc> {
