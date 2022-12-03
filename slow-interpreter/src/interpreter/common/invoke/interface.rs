@@ -14,6 +14,9 @@ use crate::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub fn invoke_interface<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
@@ -44,7 +47,13 @@ pub fn invoke_interface<'gc, 'l, 'k>(
     }
     args[1..i].reverse();
     args[0] = int_state.current_frame_mut().pop(RuntimeType::object()).to_new_java_handle(jvm);
-    let base_object_class = args[0].as_njv().unwrap_normal_object().unwrap().runtime_class(jvm);
+    let base_object_class = match args[0].as_njv().unwrap_normal_object() {
+        Some(x) => x,
+        None => {
+            let npe = NullPointerException::new(jvm, int_state.inner()).expect("exception creating exception");
+            return PostInstructionAction::Exception { exception: WasException { exception_obj: npe.object().cast_throwable() } }
+        },
+    }.runtime_class(jvm);
 
     let (target_method_i, final_target_class) = find_target_method(jvm, int_state.inner(), expected_method_name, &expected_descriptor, base_object_class);
 

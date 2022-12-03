@@ -4,7 +4,7 @@
 #![allow(unreachable_code)]
 
 use std::collections::HashMap;
-use std::ffi::CStr;
+use std::ffi::{c_char, CStr};
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
@@ -320,7 +320,7 @@ unsafe extern "C" fn fatal_error(_env: *mut JNIEnv, msg: *const ::std::os::raw::
 // THROWS:
 //
 // the newly constructed java.lang.Throwable object.
-unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::std::os::raw::c_char) -> jint {
+unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const c_char) -> jint {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let (constructor_method_id, java_string_object) = {
@@ -334,11 +334,15 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const ::st
             None => return -1,
             Some(constructor) => jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), constructor.method_i() as u16),
         };
-        let rust_string = match CStr::from_ptr(msg).to_str() {
-            Ok(string) => string,
-            Err(_) => return -2,
-        }
-            .to_string();
+        let rust_string = if msg != null_mut() {
+            match CStr::from_ptr(msg).to_str() {
+                Ok(string) => string,
+                Err(_) => return -2,
+            }
+                .to_string()
+        }else {
+            "".to_string()
+        };
         let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {
             Ok(java_string) => java_string,
             Err(WasException { exception_obj }) => {

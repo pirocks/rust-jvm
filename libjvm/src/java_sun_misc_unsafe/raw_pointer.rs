@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 use itertools::repeat_n;
 use libc::{c_void, time};
 
-use jvmti_jni_bindings::{jbyte, jint, jlong, JNIEnv, jobject};
+use jvmti_jni_bindings::{jbyte, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -50,6 +50,17 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLong__J(env: *mut JNIEnv, the_
     ptr.read()
 }
 
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getShort__J(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong) -> jshort {
+    let ptr: *mut jshort = transmute(ptr);
+    ptr.read()
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getFloat__J(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong) -> jfloat {
+    let ptr: *mut jfloat = transmute(ptr);
+    ptr.read()
+}
 
 /**
 * Sets all bytes in a given block of memory to a copy of another
