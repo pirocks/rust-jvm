@@ -90,7 +90,7 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
 unsafe extern "system" fn JVM_ResumeThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let java_thread = JavaValue::Object(from_object(jvm, thread)).cast_thread().get_java_thread(jvm);
+    let java_thread = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread(jvm).get_java_thread(jvm);
     let _ = java_thread.resume_thread();
     //javadoc doesn't say anything about error handling so we just don't anything
 }

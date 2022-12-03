@@ -19,7 +19,8 @@ pub unsafe extern "C" fn get_optional_support(_env: *mut JNIEnv, support_ptr: *m
 }
 
 #[allow(non_upper_case_globals)]
-pub unsafe extern "C" fn get_long_attribute(_env: *mut JNIEnv, _obj: jobject, att: jmmLongAttribute) -> jlong {
+pub unsafe extern "C" fn get_long_attribute(env: *mut JNIEnv, _obj: jobject, att: jmmLongAttribute) -> jlong {
+    let jvm = get_state(env);
     match att {
         jmmLongAttribute_JMM_CLASS_LOADED_COUNT => todo!(),
         jmmLongAttribute_JMM_CLASS_UNLOADED_COUNT => todo!(),
@@ -39,7 +40,9 @@ pub unsafe extern "C" fn get_long_attribute(_env: *mut JNIEnv, _obj: jobject, at
         jmmLongAttribute_JMM_CLASS_UNLOADED_BYTES => todo!(),
         jmmLongAttribute_JMM_TOTAL_CLASSLOAD_TIME_MS => todo!(),
         jmmLongAttribute_JMM_VM_GLOBAL_COUNT => todo!(),
-        jmmLongAttribute_JMM_SAFEPOINT_COUNT => todo!(),
+        jmmLongAttribute_JMM_SAFEPOINT_COUNT => {
+            0
+        },
         jmmLongAttribute_JMM_TOTAL_SAFEPOINTSYNC_TIME_MS => todo!(),
         jmmLongAttribute_JMM_TOTAL_STOPPED_TIME_MS => todo!(),
         jmmLongAttribute_JMM_TOTAL_APP_TIME_MS => todo!(),

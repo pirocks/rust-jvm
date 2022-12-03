@@ -12,8 +12,6 @@ use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use rust_jvm_common::ptype::PType;
@@ -25,25 +23,23 @@ use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::allocated_objects::{AllocatedHandle, AllocatedNormalObjectHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
-
-
-
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;
 use slow_interpreter::stdlib::java::lang::char::Char;
 use slow_interpreter::stdlib::java::lang::double::Double;
 use slow_interpreter::stdlib::java::lang::float::Float;
+use slow_interpreter::stdlib::java::lang::int::Int;
 use slow_interpreter::stdlib::java::lang::integer::Integer;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{run_static_or_virtual, throw_npe};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::stdlib::java::lang::int::Int;
+use slow_interpreter::utils::{java_value_to_boxed_object, run_static_or_virtual, throw_npe};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
@@ -62,18 +58,18 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let method_obj = match from_object_new(jvm, method) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state,get_throw(env));
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     let args_not_null = match from_object_new(jvm, args0) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state,get_throw(env));
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     let args = args_not_null.unwrap_array();
     let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
-        None => return throw_npe(jvm, int_state,get_throw(env)),
+        None => return throw_npe(jvm, int_state, get_throw(env)),
         Some(method_name) => method_name.cast_string().to_rust_string(jvm),
     };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
@@ -132,18 +128,18 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let res = if is_virtual {
         match invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args) {
             Ok(x) => x,
-            Err(WasException{ exception_obj }) => {
+            Err(WasException { exception_obj }) => {
                 *get_throw(env) = Some(WasException { exception_obj });
-                return jobject::invalid_default()
-            },
+                return jobject::invalid_default();
+            }
         }
     } else {
         match run_static_or_virtual(jvm, int_state, &target_runtime_class, method_name, &parsed_md, res_args) {
             Ok(x) => x,
-            Err(WasException{ exception_obj }) => {
+            Err(WasException { exception_obj }) => {
                 *get_throw(env) = Some(WasException { exception_obj });
-                return jobject::invalid_default()
-            },
+                return jobject::invalid_default();
+            }
         }
     };
 
@@ -151,39 +147,20 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         None => {
             None
         }
-        Some(NewJavaValueHandle::Long(long)) => {
-            //todo converto to generic function which does all of these
-            Some(Long::new(jvm, int_state, long).unwrap().full_object())
-        }
-        Some(NewJavaValueHandle::Int(int)) => {
-            Some(Int::new(jvm, int_state, int).unwrap().full_object())
-        }
-        Some(NewJavaValueHandle::Short(_)) => {
-            todo!()
-        }
-        Some(NewJavaValueHandle::Byte(_)) => {
-            todo!()
-        }
-        Some(NewJavaValueHandle::Boolean(boolean)) => {
-            Some(Boolean::new(jvm, int_state, boolean).unwrap().full_object())
-        }
-        Some(NewJavaValueHandle::Char(_)) => {
-            todo!()
-        }
-        Some(NewJavaValueHandle::Float(_)) => {
-            todo!()
-        }
-        Some(NewJavaValueHandle::Double(_)) => {
-            todo!()
-        }
-        Some(NewJavaValueHandle::Null) => {
-            None
-        }
-        Some(NewJavaValueHandle::Object(obj)) => {
-            Some(obj)
-        }
-        Some(NewJavaValueHandle::Top) => {
-            panic!()
+        Some(njv) => {
+            if let NewJavaValue::AllocObject(obj) = njv.as_njv() {
+                njv.unwrap_object()
+            } else {
+                match java_value_to_boxed_object(jvm, int_state, njv.as_njv()) {
+                    Ok(obj) => {
+                        obj.map(|obj|AllocatedHandle::NormalObject(obj))
+                    }
+                    Err(WasException { exception_obj }) => {
+                        *get_throw(env) = Some(WasException { exception_obj });
+                        return jobject::invalid_default();
+                    }
+                }
+            }
         }
     };
 
@@ -197,14 +174,14 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let constructor_obj = match from_object_new(jvm, c) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state,get_throw(env));
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     let temp_4 = constructor_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let clazz = match class_object_to_runtime_class(&temp_4.cast_class().expect("todo"), jvm) {
         Some(x) => x,
         None => {
-            return throw_npe(jvm, int_state,get_throw(env));
+            return throw_npe(jvm, int_state, get_throw(env));
         }
     };
     if let Err(WasException { exception_obj }) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
@@ -218,7 +195,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         let temp_1 = match from_object_new(jvm, args0) {
             Some(x) => x,
             None => {
-                return throw_npe(jvm, int_state,get_throw(env));
+                return throw_npe(jvm, int_state, get_throw(env));
             }
         };
         let elems_refcell = temp_1.unwrap_array();

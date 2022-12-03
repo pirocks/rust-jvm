@@ -1,10 +1,9 @@
 use std::mem::size_of;
 use std::ops::Deref;
-use std::sync::Arc;
 use better_nonnull::BetterNonNull;
 
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
-use runtime_class_stuff::{FieldNumberAndFieldType, RuntimeClass};
+use runtime_class_stuff::{FieldNumberAndFieldType};
 use runtime_class_stuff::object_layout::{FieldAccessor};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};

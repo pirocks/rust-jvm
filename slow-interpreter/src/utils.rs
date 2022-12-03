@@ -1,8 +1,9 @@
 use std::intrinsics::transmute;
 use std::sync::Arc;
-use wtf8::Wtf8Buf;
-use classfile_view::view::field_view::FieldView;
 
+use wtf8::Wtf8Buf;
+
+use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jfieldID, jint};
 use runtime_class_stuff::RuntimeClass;
@@ -12,15 +13,14 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
-
 use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frame_iter::FrameIterFrameRef;
-use crate::better_java_stack::frames::{PushableFrame};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
-use crate::java_values::{ExceptionReturn, JavaValue};
+use crate::java_values::ExceptionReturn;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
@@ -94,7 +94,7 @@ pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state
     }
         .object()
         .cast_throwable();
-    *throw = Some(WasException{ exception_obj: npe_object });
+    *throw = Some(WasException { exception_obj: npe_object });
     T::invalid_default()
 }
 
@@ -115,7 +115,7 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
     }
         .object()
         .new_java_handle().unwrap_object_nonnull();
-    *throw = Some(WasException{ exception_obj: bounds_object.cast_throwable() });
+    *throw = Some(WasException { exception_obj: bounds_object.cast_throwable() });
     T::invalid_default()
 }
 
@@ -136,19 +136,20 @@ pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, i
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: JavaValue<'gc>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException<'gc>> {
+pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: NewJavaValue<'gc, '_>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException<'gc>> {
     Ok(match java_value {
         //todo what about that same object optimization
-        JavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Int(param) => Int::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Short(param) => Short::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Boolean(param) => Boolean::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
-        JavaValue::Object(obj) => todo!(), /*obj*/
-        JavaValue::Top => panic!(),
+        NewJavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Int(param) => Int::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Short(param) => Short::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Boolean(param) => Boolean::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
+        NewJavaValue::Null => None,
+        NewJavaValue::AllocObject(_) | NewJavaValue::UnAllocObject(_)  => todo!(),
+        NewJavaValue::Top => panic!(),
     })
 }
 
@@ -301,7 +302,7 @@ pub fn new_field_id<'gc>(jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClas
 
 pub fn lookup_line_number(line_number_table: &LineNumberTable, stack_entry: &FrameIterFrameRef) -> Option<LineNumber> {
     if let Some(pc) = stack_entry.try_pc() {
-        return line_number_table.lookup_pc(pc)
+        return line_number_table.lookup_pc(pc);
     }
     None
 }

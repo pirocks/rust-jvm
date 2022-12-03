@@ -1,4 +1,5 @@
 use std::ffi::{VaList, VaListImpl};
+use std::ptr::null_mut;
 use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
@@ -49,6 +50,9 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
 }
 
 pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
+    if jmethod_id == null_mut(){
+        panic!()
+    }
     let method_id = *(jmethod_id as *mut MethodId);
     let int_state = get_interpreter_state(env);
     let jvm: &'gc JVMState<'gc> = get_state(env);

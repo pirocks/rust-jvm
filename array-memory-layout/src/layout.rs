@@ -94,9 +94,11 @@ impl ArrayMemoryLayout {
             }
         }
     }
+
     pub fn len_entry_offset(&self) -> usize {
         0
     }
+
     pub fn elem_size(&self) -> NonZeroUsize {
         NonZeroUsize::new(match self.array_align {
             ArrayAlign::Byte => {
@@ -113,6 +115,7 @@ impl ArrayMemoryLayout {
             }
         }).unwrap()
     }
+
     pub fn array_size(&self, len: jint) -> NonZeroUsize {
         NonZeroUsize::new(self.elem_0_entry_offset() + len as usize * self.elem_size().get()).unwrap()
     }

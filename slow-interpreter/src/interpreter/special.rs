@@ -8,14 +8,15 @@ use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJa
 use crate::JVMState;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class_cast_exception::ClassCastException;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub fn arraylength<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_o = match current_frame.pop(RuntimeType::object()).unwrap_object() {
         Some(x) => x,
         None => {
-            todo!()
-            /*return throw_npe(jvm, int_state);*/
+            let npe = NullPointerException::new(jvm, current_frame.inner().inner()).unwrap();
+            return PostInstructionAction::Exception{ exception: WasException { exception_obj: npe.new_java_value_handle().cast_throwable() } };
         }
     };
     //todo use ArrayMemoryLayout

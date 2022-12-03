@@ -45,7 +45,13 @@ impl<'gc> Constructor<'gc> {
         //todo what does slot do?
         let slot = -1;
         let signature = get_signature(jvm, int_state, &method_view)?;
-        Constructor::new_constructor(jvm, int_state, clazz, parameter_types.as_njv(), exception_types.as_njv(), modifiers, slot, signature)
+        let annotations = NewJavaValueHandle::from_optional_object(method_view.get_annotation_bytes().map(|annotations| {
+            JavaValue::byte_array(jvm, int_state, annotations).unwrap()
+        }));
+        let parameter_annotations = NewJavaValueHandle::from_optional_object(method_view.get_parameter_annotation_bytes().map(|param_annotations| {
+            JavaValue::byte_array(jvm, int_state, param_annotations).unwrap()
+        }));
+        Constructor::new_constructor(jvm, int_state, clazz, parameter_types.as_njv(), exception_types.as_njv(), modifiers, slot, signature, annotations, parameter_annotations)
     }
 
     pub fn new_constructor<'l>(
@@ -57,6 +63,8 @@ impl<'gc> Constructor<'gc> {
         modifiers: jint,
         slot: jint,
         signature: Option<JString<'gc>>,
+        annotations: NewJavaValueHandle<'gc>,
+        parameter_annotations: NewJavaValueHandle<'gc>,
     ) -> Result<Constructor<'gc>, WasException<'gc>> {
         let constructor_class = check_initing_or_inited_class(jvm, int_state, CClassName::constructor().into())?;
         let constructor_object = new_object_full(jvm, int_state, &constructor_class);
@@ -71,8 +79,8 @@ impl<'gc> Constructor<'gc> {
                              NewJavaValue::Int(modifiers),
                              NewJavaValue::Int(slot),
                              signature.as_ref().map(|jstring| jstring.new_java_value()).unwrap_or(NewJavaValue::Null),
-                             empty_byte_array.as_njv(),
-                             empty_byte_array.as_njv()];
+                             annotations.as_njv(),
+                             parameter_annotations.as_njv()];
         let c_method_descriptor = CMethodDescriptor::void_return(vec![CClassName::class().into(), CPDType::array(CClassName::class().into()), CPDType::array(CClassName::class().into()), CPDType::IntType, CPDType::IntType, CClassName::string().into(), CPDType::array(CPDType::ByteType), CPDType::array(CPDType::ByteType)]);
         run_constructor(jvm, int_state, constructor_class, full_args, &c_method_descriptor)?;
         Ok(constructor_object.cast_constructor())

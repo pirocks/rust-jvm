@@ -25,7 +25,7 @@ use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 
 
@@ -48,8 +48,8 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
     let constant_pool = match ConstantPool::new(jvm, int_state, from_jclass(jvm, cls)) {
         Ok(constant_pool) => constant_pool,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jobject::invalid_default();
         }
     };
     to_object_new(constant_pool.full_object_ref().into())
