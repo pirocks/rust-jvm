@@ -182,7 +182,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
 
 pub fn instruction_is_type_safe_multianewarray(cpdtype: &CPDType, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let expected_type = cpdtype.clone(); //parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
-    if class_dimension(env, &expected_type.to_verification_type(env.class_loader)) != dim {
+    if class_dimension(env, &expected_type.to_verification_type(env.class_loader)) < dim {
         return Result::Err(unknown_error_verifying!());
     }
     let dim_list = dim_list(dim);

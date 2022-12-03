@@ -5,11 +5,12 @@ use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::java_values::Object;
+use slow_interpreter::exceptions::WasException;
+use slow_interpreter::java_values::{ExceptionReturn, Object};
 use slow_interpreter::jvm_state::JVMState;
 
 
-use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
 use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -102,14 +103,18 @@ unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobje
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     for stack_entry in int_state.frame_iter() {
-        if todo!()/* !stack_entry.privileged_frame() || stack_entry.reflection_frame()*/ {
-            return new_local_ref_public(todo!()/*jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object())*/, int_state);
+        if !stack_entry.privileged_frame() || stack_entry.reflection_frame() {
+            let owned = jvm.get_loader_obj(stack_entry.loader());
+            return new_local_ref_public_new(owned.as_ref().map(|class_loader| class_loader.full_object_ref()), int_state);
         }
     }
     return new_local_ref_public_new(
         Some(match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
             Ok(res) => res,
-            Err(_) => todo!(),
+            Err(WasException{ exception_obj }) => {
+                *get_throw(env) = Some(WasException{ exception_obj });
+                return jobject::invalid_default()
+            },
         }
             .full_object_ref()),
         int_state,

@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 
 use rust_jvm_common::MethodId;
 
-use slow_interpreter::better_java_stack::frames::PushableFrame;
+use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use slow_interpreter::interpreter::common::invoke::static_::invoke_static_impl;
@@ -50,12 +50,13 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
 }
 
 pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterface_, jmethod_id: jmethodID, mut l: VarargProvider) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
+    let int_state = get_interpreter_state(env);
+    let jvm: &'gc JVMState<'gc> = get_state(env);
     if jmethod_id == null_mut(){
+        int_state.debug_print_stack_trace(jvm);
         panic!()
     }
     let method_id = *(jmethod_id as *mut MethodId);
-    let int_state = get_interpreter_state(env);
-    let jvm: &'gc JVMState<'gc> = get_state(env);
     let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap(); //todo should really return error instead of lookup
     check_initing_or_inited_class(jvm, int_state, class.cpdtype())?;
     let classfile = &class.view();

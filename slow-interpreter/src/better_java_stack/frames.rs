@@ -126,6 +126,24 @@ pub trait HasFrame<'gc> {
         }
     }
 
+    fn privileged_frame(&self) -> bool{
+        //todo check if this is correct
+        self.is_opaque_method()
+    }
+
+    fn reflection_frame(&self) -> bool{
+        match self.class_pointer() {
+            Ok(class_pointer) => {
+                //todo should reall use instance of MethodAccessorImpl or ConstructorAccessorImpl
+                let string_repr = class_pointer.cpdtype().jvm_representation(self.jvm().string_pool);
+                string_repr.contains("MethodAccessorImpl") || string_repr.contains("ConstructorAccessorImpl")
+            }
+            Err(IsOpaque{}) => {
+                false
+            }
+        }
+    }
+
 }
 
 pub trait PushableFrame<'gc>: HasFrame<'gc> {

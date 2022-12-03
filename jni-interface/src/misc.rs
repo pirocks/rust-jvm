@@ -45,7 +45,12 @@ pub unsafe extern "C" fn find_class(env: *mut JNIEnv, c_name: *const ::std::os::
     let jvm = get_state(env);
     let (remaining, type_) = parse_field_type(name.as_str()).unwrap();
     assert!(remaining.is_empty());
-    let obj = match load_class_constant_by_type(jvm, int_state, CPDType::from_ptype(&type_, &jvm.string_pool)) {
+    let cpdtype = CPDType::from_ptype(&type_, &jvm.string_pool);
+    match check_initing_or_inited_class(jvm, int_state, cpdtype) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
+    let obj = match load_class_constant_by_type(jvm, int_state, cpdtype) {
         Err(WasException { exception_obj }) => {
             todo!();
             return null_mut();
