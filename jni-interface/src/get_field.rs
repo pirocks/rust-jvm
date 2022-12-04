@@ -6,6 +6,7 @@ use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{_jfieldID, _jobject, jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort};
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::java_values::ExceptionReturn;
@@ -171,23 +172,28 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
     };
     let runtime_class = match class_object_to_runtime_class(&NewJavaValueHandle::from_optional_object(class_obj_o).cast_class().unwrap(), jvm) {
         Some(x) => x,
-        None => return throw_npe(jvm, int_state,get_throw(env)),
+        None => {
+            return no_such_method(env, jvm, int_state);
+        },
     };
     let view = &runtime_class.view();
     let c_method_desc = CMethodDescriptor::from_legacy(parse_method_descriptor(method_descriptor_str.as_str()).unwrap(), &jvm.string_pool);
     let method = match view.lookup_method(method_name, &c_method_desc) {
         Some(x) => x,
         None => {
-            //throw no such method
-            let throw = get_throw(env);
-            let no_such_method_exception = NoSuchMethodError::new(jvm, int_state);
-            *throw = Some(WasException{ exception_obj: no_such_method_exception.unwrap().new_java_value_handle().cast_throwable() });
-            return jmethodID::invalid_default()
+            return no_such_method(env, jvm, int_state);
         },
     };
     assert!(method.is_static());
     let res = Box::into_raw(box jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16));
     res as jmethodID
+}
+
+unsafe fn no_such_method<'gc>(env: *mut JNIEnv, jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, '_>) -> jmethodID {
+    let throw = get_throw(env);
+    let no_such_method_exception = NoSuchMethodError::new(jvm, int_state);
+    *throw = Some(WasException { exception_obj: no_such_method_exception.unwrap().new_java_value_handle().cast_throwable() });
+    return jmethodID::invalid_default();
 }
 
 pub unsafe extern "C" fn get_static_field_id(env: *mut JNIEnv, clazz: jclass, name: *const c_char, sig: *const c_char) -> jfieldID {

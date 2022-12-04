@@ -170,6 +170,8 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         todo!()
     } else if &mangled == "Java_sun_misc_Unsafe_putOrderedLong" {
         todo!()
+    } else if &mangled == "Java_sun_misc_Unsafe_putFloat__Ljava_lang_Object_2JF"{
+        todo!()
     } else {
         dbg!(mangled);
         int_state.debug_print_stack_trace(jvm);

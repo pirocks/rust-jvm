@@ -7,14 +7,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 public class Swing {
-    public static String another_test_var = "agagar";
-
     public static void main(String[] args) {
-        int i = 100000;
-        while (i > 0) i--;
-        int test_var  = -1;
-        System.out.println("test");
-        System.out.println(test_var);
         JFrame test = new JFrame("test");
         test.setSize(100,100);
         test.setVisible(true);

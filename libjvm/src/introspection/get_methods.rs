@@ -107,8 +107,9 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
 
 fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'k>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
     if class_type.is_array() || class_type.is_primitive() {
-        dbg!(class_type.is_primitive());
-        unimplemented!()
+        unsafe {
+            let allocated_empty_array = JavaValue::new_vec_from_vec(jvm, vec![], CClassName::constructor().into());
+            return Ok(new_local_ref_public_new(Some(allocated_empty_array.as_allocated_obj()), int_state)) }
     }
     let target_classview = &class_obj.view();
     let constructors = target_classview.lookup_method_name(MethodName::constructor_init());

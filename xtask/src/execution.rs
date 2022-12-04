@@ -164,7 +164,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
     let instant_before = Instant::now();
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
-    match timeout(Duration::from_secs(40), child.wait()).await {
+    match timeout(Duration::from_secs(49), child.wait()).await {
         Err(_) => {
             child.start_kill().unwrap();
             let mut stdout_buf = vec![];

@@ -15,6 +15,7 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::{MethodDescriptor, parse_method_descriptor};
 use rust_jvm_common::descriptor_parser::Descriptor::Method;
 use rust_jvm_common::ptype::PType;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
 use slow_interpreter::exceptions::WasException;
@@ -60,22 +61,12 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             return throw_npe(jvm, int_state, get_throw(env));
         }
     };
-    let args_not_null = match from_object_new(jvm, args0) {
-        Some(x) => x,
-        None => {
-            return throw_npe(jvm, int_state, get_throw(env));
-        }
-    };
-    let args = args_not_null.unwrap_array();
+
     let method_name_str = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_name()).unwrap_object() {
         None => return throw_npe(jvm, int_state, get_throw(env)),
         Some(method_name) => method_name.cast_string().to_rust_string(jvm),
     };
     let method_name = MethodName(jvm.string_pool.add_name(method_name_str, false));
-    // let signature = match method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_signature()).unwrap_object() {
-    //     None => return throw_npe(jvm, int_state),
-    //     Some(method_sig) => method_sig.cast_string().to_rust_string(jvm),
-    // };
     let clazz_java_val = method_obj.unwrap_normal_object_ref().get_var_top_level(jvm, FieldName::field_clazz());
     let target_class_refcell_borrow = clazz_java_val.cast_class().expect("todo").as_type(jvm);
     let target_class = target_class_refcell_borrow;
@@ -94,8 +85,6 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let method = method_obj.cast_method();
     let parameter_types = method.parameter_types(jvm).iter().map(|paramater_type| paramater_type.as_type(jvm)).collect_vec();
     let return_types = method.get_return_type(jvm).as_type(jvm);
-    //todo this arg array setup is almost certainly wrong.
-    // let MethodDescriptor { parameter_types, return_type } = parse_method_descriptor(&signature).unwrap();
     let parsed_md = CMethodDescriptor {
         arg_types: parameter_types,
         return_type: return_types,
@@ -104,25 +93,37 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let mut res_args = if obj == null_mut() {
         vec![]
     } else {
-        vec![invoke_virtual_obj.as_njv()]
+        vec![invoke_virtual_obj]
     };
-    let collected_args_array = args.array_iterator().collect_vec();
-    for (arg, type_) in collected_args_array.iter().zip(parsed_md.arg_types.iter()) {
-        let arg = match type_ {
-            CompressedParsedDescriptorType::BooleanType => NewJavaValue::Boolean(arg.as_njv().to_handle_discouraged().cast_boolean().inner_value(jvm)),
-            CompressedParsedDescriptorType::ByteType => NewJavaValue::Byte(arg.as_njv().to_handle_discouraged().cast_byte().inner_value(jvm)),
-            CompressedParsedDescriptorType::ShortType => NewJavaValue::Short(arg.as_njv().to_handle_discouraged().cast_short().inner_value(jvm)),
-            CompressedParsedDescriptorType::CharType => NewJavaValue::Char(arg.as_njv().to_handle_discouraged().cast_char().inner_value(jvm)),
-            CompressedParsedDescriptorType::IntType => NewJavaValue::Int(arg.as_njv().to_handle_discouraged().cast_int().inner_value(jvm)),
-            CompressedParsedDescriptorType::LongType => NewJavaValue::Long(arg.as_njv().to_handle_discouraged().cast_long().inner_value(jvm)),
-            CompressedParsedDescriptorType::FloatType => NewJavaValue::Float(arg.as_njv().to_handle_discouraged().cast_float().inner_value(jvm)),
-            CompressedParsedDescriptorType::DoubleType => NewJavaValue::Double(arg.as_njv().to_handle_discouraged().cast_double().inner_value(jvm)),
-            _ => arg.as_njv(),
-        };
-        res_args.push(arg.clone());
-    }
 
-    //todo clean this up, and handle invoke special
+    let res_args = match from_object_new(jvm, args0) {
+        Some(args_not_null) => {
+            //todo this arg array setup is almost certainly wrong.
+            //todo clean this up, and handle invoke special
+            let args = args_not_null.unwrap_array();
+            let collected_args_array = args.array_iterator().collect_vec();
+            for (arg, type_) in collected_args_array.into_iter().zip(parsed_md.arg_types.iter()) {
+                let arg = match type_ {
+                    CompressedParsedDescriptorType::BooleanType => NewJavaValueHandle::Boolean(arg.as_njv().to_handle_discouraged().cast_boolean().inner_value(jvm)),
+                    CompressedParsedDescriptorType::ByteType => NewJavaValueHandle::Byte(arg.as_njv().to_handle_discouraged().cast_byte().inner_value(jvm)),
+                    CompressedParsedDescriptorType::ShortType => NewJavaValueHandle::Short(arg.as_njv().to_handle_discouraged().cast_short().inner_value(jvm)),
+                    CompressedParsedDescriptorType::CharType => NewJavaValueHandle::Char(arg.as_njv().to_handle_discouraged().cast_char().inner_value(jvm)),
+                    CompressedParsedDescriptorType::IntType => NewJavaValueHandle::Int(arg.as_njv().to_handle_discouraged().cast_int().inner_value(jvm)),
+                    CompressedParsedDescriptorType::LongType => NewJavaValueHandle::Long(arg.as_njv().to_handle_discouraged().cast_long().inner_value(jvm)),
+                    CompressedParsedDescriptorType::FloatType => NewJavaValueHandle::Float(arg.as_njv().to_handle_discouraged().cast_float().inner_value(jvm)),
+                    CompressedParsedDescriptorType::DoubleType => NewJavaValueHandle::Double(arg.as_njv().to_handle_discouraged().cast_double().inner_value(jvm)),
+                    _ => arg,
+                };
+                res_args.push(arg);
+            }
+
+            res_args
+        }
+        None => {
+            res_args
+        }
+    };
+    let res_args = res_args.iter().map(|handle|handle.as_njv()).collect_vec();
     let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let res = if is_virtual {
         match invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args) {
@@ -152,7 +153,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             } else {
                 match java_value_to_boxed_object(jvm, int_state, njv.as_njv()) {
                     Ok(obj) => {
-                        obj.map(|obj|AllocatedHandle::NormalObject(obj))
+                        obj.map(|obj| AllocatedHandle::NormalObject(obj))
                     }
                     Err(WasException { exception_obj }) => {
                         *get_throw(env) = Some(WasException { exception_obj });

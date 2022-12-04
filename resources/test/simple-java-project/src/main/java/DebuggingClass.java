@@ -159,6 +159,8 @@ import sun.util.resources.ja.TimeZoneNames_ja;
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.security.CodeSource;
+import java.security.ProtectionDomain;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -174,7 +176,11 @@ public class DebuggingClass {
     }
 
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-            java.lang.Enum.valueOf(java_lang_Enum.Alpha.class, "A");
+        final ProtectionDomain protectionDomain = DebuggingClass.class.getProtectionDomain();
+        System.out.println(protectionDomain);
+        final CodeSource codeSource = protectionDomain.getCodeSource();
+        System.out.println(codeSource);
+        codeSource.getLocation();
 //        for (Method declaredMethod : void.class.getDeclaredMethods()) {
 //            System.out.println(declaredMethod);
 //        }
