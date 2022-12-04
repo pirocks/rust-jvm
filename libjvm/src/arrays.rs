@@ -8,15 +8,13 @@ use std::ptr::{NonNull, null_mut};
 
 use itertools::Itertools;
 use libc::{size_t, timer_delete};
+
 use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
-
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-
-
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
@@ -29,16 +27,20 @@ use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
+use slow_interpreter::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use slow_interpreter::stdlib::java::lang::boolean::Boolean;
 use slow_interpreter::stdlib::java::lang::byte::Byte;
 use slow_interpreter::stdlib::java::lang::char::Char;
 use slow_interpreter::stdlib::java::lang::double::Double;
 use slow_interpreter::stdlib::java::lang::float::Float;
+use slow_interpreter::stdlib::java::lang::index_out_of_bounds_exception::IndexOutOfBoundsException;
 use slow_interpreter::stdlib::java::lang::int::Int;
 use slow_interpreter::stdlib::java::lang::long::Long;
 use slow_interpreter::stdlib::java::lang::short::Short;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
 
 #[no_mangle]
@@ -89,15 +91,19 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
                 return throw_array_out_of_bounds(jvm, int_state, throw, index);
             }
             let java_value = nonnull.unwrap_array().get_i(index);
-            let owned = match java_value_to_boxed_object(jvm, int_state, java_value.as_njv()) {
-                Ok(boxed) => boxed.map(|boxed|AllocatedHandle::NormalObject(boxed)),
-                Err(WasException { exception_obj }) => {
-                    todo!();
-                    None
+            let owned = if let NewJavaValue::AllocObject(obj) = java_value.as_njv() {
+                java_value.unwrap_object()
+            } else {
+                match java_value_to_boxed_object(jvm, int_state, java_value.as_njv()) {
+                    Ok(boxed) => boxed.map(|boxed| AllocatedHandle::NormalObject(boxed)),
+                    Err(WasException { exception_obj }) => {
+                        todo!();
+                        None
+                    }
                 }
             };
             new_local_ref_public_new(
-                owned.as_ref().map(|boxed|boxed.as_allocated_obj()),
+                owned.as_ref().map(|boxed| boxed.as_allocated_obj()),
                 int_state,
             )
         }
@@ -160,55 +166,16 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, ignored: jclass, src: 
     let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
     let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
-        dbg!(src_pos);
-        dbg!(dst_pos);
-        dbg!(length);
-        dbg!(src_len);
-        dbg!(dest_len);
-        dbg!(src_pos < 0);
-        dbg!(dst_pos < 0);
-        dbg!(length < 0);
-        dbg!(src_pos + length > src_len as i32);
-        dbg!(dst_pos + length > dest_len as i32);
-        int_state.debug_print_stack_trace(jvm);
-        todo!("maybe easy to debug?")
+        *get_throw(env) = Some(WasException{ exception_obj: IndexOutOfBoundsException::new(jvm, int_state).unwrap().object().cast_throwable() });
+        return;
     }
 
     let dst = NonNull::new(dst.cast()).unwrap();
     let src = NonNull::new(src.cast()).unwrap();
 
-    let dst_raw = array_layout.calculate_index_address(dst,dst_pos).inner();
-    let src_raw = array_layout.calculate_index_address(src,src_pos).inner();
+    let dst_raw = array_layout.calculate_index_address(dst, dst_pos).inner();
+    let src_raw = array_layout.calculate_index_address(src, src_pos).inner();
 
     libc::memmove(dst_raw.as_ptr(),
                   src_raw.as_ptr(), (length * elem_size) as size_t);
-
-    //slow:
-    /*let src_o = from_object_new(jvm, src);
-    let src = match src_o {
-        Some(x) => NewJavaValueHandle::Object(x),
-        None => return throw_npe(jvm, int_state),
-    };
-    let nonnull = src.unwrap_object_nonnull();
-    let src = nonnull.unwrap_array();
-    let mut dest_o = from_object_new(jvm, dst);
-    let new_jv_handle = match dest_o {
-        Some(x) => NewJavaValueHandle::Object(x),
-        None => {
-            return throw_npe(jvm, int_state);
-        }
-    };
-    let nonnull = new_jv_handle.unwrap_object_nonnull();
-    let dest = nonnull.unwrap_array();
-    if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src.len() as i32 || dst_pos + length > dest.len() as i32 {
-        unimplemented!()
-    }
-    let mut to_copy = vec![];
-    for i in 0..length {
-        let temp = src.get_i((src_pos + i));
-        to_copy.push(temp);
-    }
-    for i in 0..length {
-        dest.set_i((dst_pos + i), to_copy[i as usize].as_njv());
-    }*/
 }

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -134,6 +134,13 @@ pub fn invoke_static_impl<'l, 'gc>(
         assert!(target_method.is_static());
         assert!(!target_method.is_abstract());
         let max_locals = target_method.code_attribute().unwrap().max_locals;
+        if args.len() > max_locals as usize && max_locals == 0 {
+            dbg!(args.len());
+            dbg!(target_method.classview().name().jvm_representation(&jvm.string_pool));
+            dbg!(target_method.name().0.to_str(&jvm.string_pool));
+            dbg!(target_method.desc().jvm_representation(&jvm.string_pool));
+            panic!()
+        }
         let args = fixup_args(args, max_locals);
         let next_entry = StackEntryPush::new_java_frame(jvm, target_class, target_method_i as u16, args);
         return interpreter_state.push_frame_java(next_entry, |next_frame| {

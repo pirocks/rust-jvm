@@ -177,7 +177,9 @@ unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_SetNativeThreadName(env: *mut JNIEnv, jthread: jobject, name: jstring) {
-    unimplemented!()
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    todo!()
 }
 
 #[no_mangle]

@@ -89,8 +89,9 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         arg_types: parameter_types,
         return_type: return_types,
     };
+    let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let invoke_virtual_obj = NewJavaValueHandle::from_optional_object(from_object_new(jvm, obj));
-    let mut res_args = if obj == null_mut() {
+    let mut res_args = if !is_virtual{
         vec![]
     } else {
         vec![invoke_virtual_obj]
@@ -124,7 +125,6 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
         }
     };
     let res_args = res_args.iter().map(|handle|handle.as_njv()).collect_vec();
-    let is_virtual = !target_runtime_class.view().lookup_method(method_name, &parsed_md).unwrap().is_static();
     let res = if is_virtual {
         match invoke_virtual(jvm, int_state, method_name, &parsed_md, res_args) {
             Ok(x) => x,

@@ -9,7 +9,7 @@ use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jclass, jfloat, jint, jlong, JNIEnv, jobject};
+use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -211,6 +211,16 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__Ljava_lang_Object_2JI(env
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putFloat__Ljava_lang_Object_2JF(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jfloat) {
+    Java_sun_misc_Unsafe_putFloatVolatile(env,the_unsafe,obj,offset,val)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getDouble__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jdouble) {
+    Java_sun_misc_Unsafe_putDoubleVolatile(env,the_unsafe,obj,offset,val)
+}
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
     obj.cast::<c_void>().offset(offset as isize).cast::<jint>().write(val)
 }
@@ -219,6 +229,18 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(env: *mut JNIEnv, 
 unsafe extern "system" fn Java_sun_misc_Unsafe_putLongVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jlong) {
     obj.cast::<c_void>().offset(offset as isize).cast::<jlong>().write(val)
 }
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putFloatVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jfloat) {
+    obj.cast::<c_void>().offset(offset as isize).cast::<jfloat>().write(val)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putDoubleVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jdouble) {
+    obj.cast::<c_void>().offset(offset as isize).cast::<jdouble>().write(val)
+}
+
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
@@ -237,8 +259,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
         Some(object_to_read) => {
             let field_address = BetterNonNull::new(obj as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
             FieldAccessor::new(field_address, CPDType::object()).read_object()
-            // let offseted = object_to_read.ptr().as_ptr().offset(field_id_and_array_idx as isize) as *mut c_void;
-            // (offseted as *mut jobject).read_volatile()
         }
     }
 }
@@ -249,32 +269,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
     let jvm = get_state(env);
     let field_address = BetterNonNull::new(obj_to_write as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
     FieldAccessor::new(field_address, CPDType::object()).write_object(to_put)
-
-    // let obj_option = from_object_new(jvm, obj);
-    // todo!("this should be a intrinsic anyway")
-    // putVolatileImpl(offset, /*NativeJavaValue { object: to_put as *mut c_void }*/, jvm, obj_option);
 }
-//
-// unsafe fn putVolatileImpl<'gc>(offset: jlong, to_put: NativeJavaValue<'gc>, jvm: &'gc JVMState<'gc>, obj_option: Option<AllocatedHandle<'gc>>) {
-//     match obj_option {
-//         None => {
-//             let field_id = offset as FieldId;
-//             let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-//             let runtime_class_view = runtime_class.view();
-//             let field_view = runtime_class_view.field(i as usize);
-//             assert!(field_view.is_static());
-//             let name = field_view.field_name();
-//             let mut static_vars_guard = static_vars(runtime_class.deref(), jvm);
-//             // static_vars_guard.set_raw(name, to_put).unwrap();
-//             todo!("this should be an intrinsic anyway")
-//         }
-//         Some(object_to_read) => {
-//             let offseted = object_to_read.ptr().as_ptr().offset(offset as isize) as *mut c_void;
-//             (offseted as *mut NativeJavaValue<'gc>).write_volatile(to_put);
-//         }
-//     }
-// }
-
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {

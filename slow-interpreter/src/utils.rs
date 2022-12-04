@@ -21,7 +21,7 @@ use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::java_values::ExceptionReturn;
-use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;

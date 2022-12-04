@@ -294,6 +294,10 @@ impl CompressedClassName {
     pub const fn direct_byte_buffer() -> Self{
         Self::from_raw_id(JAVA_NIO_DIRECT_BYTE_BUFFER as AddOnlyVecIDType)
     }
+
+    pub const fn index_out_bounds_exception() -> Self{
+        Self::from_raw_id(JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {

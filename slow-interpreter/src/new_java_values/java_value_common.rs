@@ -1,4 +1,5 @@
 use std::ptr::null_mut;
+
 use libc::c_void;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
@@ -72,7 +73,10 @@ pub trait JavaValueCommon<'gc> {
             NewJavaValue::Char(char) => {
                 char as jint
             }
-            _ => panic!()
+            other => {
+                dbg!(other);
+                panic!()
+            }
         }
     }
 
@@ -107,7 +111,7 @@ pub trait JavaValueCommon<'gc> {
         }
     }
 
-    fn set_array_native(&self, array_native: *mut c_void){
+    fn set_array_native(&self, array_native: *mut c_void) {
         unsafe {
             match self.as_njv() {
                 NewJavaValue::Long(long) => {
@@ -192,7 +196,6 @@ pub trait JavaValueCommon<'gc> {
         }
         all_zero
     }
-
 
 
     // fn to_native(&self) -> NativeJavaValue<'gc> {
