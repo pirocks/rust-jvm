@@ -44,7 +44,7 @@ unsafe fn array_region_integer_types<T>(env: *mut JNIEnv, raw_array: jarray, sta
     let array_subtype = array.elem_cpdtype();
     let layout = ArrayMemoryLayout::from_cpdtype(array_subtype);
     for i in 0..len {
-        let elem = layout.calculate_index_address(NonNull::new(raw_array as *mut c_void).unwrap(),i);
+        let elem = layout.calculate_index_address(NonNull::new(raw_array as *mut c_void).unwrap(),start + i);
         buf.offset(i as isize).write(elem.read_impl())
     }
 }
@@ -139,7 +139,7 @@ unsafe fn set_array_region<'gc>(env: *mut JNIEnv, array: jarray, array_sub_type:
     let memory_layout = ArrayMemoryLayout::from_cpdtype(array_sub_type);
     let array_pointer = NonNull::new(array as *mut c_void).unwrap();
     for i in 0..len {
-        let write_to = memory_layout.calculate_index_address(array_pointer, i);
+        let write_to = memory_layout.calculate_index_address(array_pointer, start + i);
         java_value_setter(i as isize, write_to);
     }
 }

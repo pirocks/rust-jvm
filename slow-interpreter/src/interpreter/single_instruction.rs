@@ -65,8 +65,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //java.util.ResourceBundle#getBundleImpl
     //java.util.ResourceBundle.Control#getCandidateLocales
     //PowTests#testCrossProduct
+    //sun.misc.Resource#getBytes
     // use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("PowTests") && method.name().0.to_str(&jvm.string_pool) == "testCrossProduct"/* ||
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/misc/Resource") && method.name().0.to_str(&jvm.string_pool) == "getBytes"/* ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle") && method.name().0.to_str(&jvm.string_pool) == "getBundleImpl") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/

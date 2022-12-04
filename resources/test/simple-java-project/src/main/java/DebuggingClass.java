@@ -153,12 +153,16 @@
 //    }
 //}
 
+import sun.misc.Resource;
+import sun.misc.URLClassPath;
 import sun.util.locale.provider.TimeZoneNameUtility;
 import sun.util.resources.LocaleData;
 import sun.util.resources.ja.TimeZoneNames_ja;
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.Arrays;
@@ -171,16 +175,17 @@ import java.util.regex.Pattern;
 import java.util.zip.*;
 
 public class DebuggingClass {
-    public enum Test_Test{
-        A, B
-    }
 
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-        final ProtectionDomain protectionDomain = DebuggingClass.class.getProtectionDomain();
-        System.out.println(protectionDomain);
-        final CodeSource codeSource = protectionDomain.getCodeSource();
-        System.out.println(codeSource);
-        codeSource.getLocation();
+        final URLClassPath urlClassPath = new URLClassPath(new URL[]{new URL("file:/home/francis/CLionProjects/rust-jvm/resources/test/simple-java-project/target/classes/")});
+        Resource var2 = urlClassPath.getResource("ToLowerCase.class", false);
+        System.out.println(Arrays.toString(var2.getBytes()));
+//        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
+//        byte[] bytes = new byte[(int) file.length()];
+//        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
+//        inputStream.readFully(bytes);
+//        System.out.println(Arrays.toString(bytes));
+
 //        for (Method declaredMethod : void.class.getDeclaredMethods()) {
 //            System.out.println(declaredMethod);
 //        }
