@@ -36,6 +36,7 @@ pub fn checkcast<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut Re
     let res = int_state.current_frame_mut().pop(RuntimeType::IntType).unwrap_int();
     int_state.current_frame_mut().push(obj);
     if res == 0 {
+        dbg!(obj.to_new_java_handle(jvm).unwrap_object().unwrap().as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
         let class_cast_exception = ClassCastException::new(jvm, int_state.inner()).unwrap();
         return PostInstructionAction::Exception { exception: WasException { exception_obj: class_cast_exception.object().cast_throwable() } };
     }

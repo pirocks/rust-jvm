@@ -151,6 +151,8 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg(classpath_2.as_str())
         .arg("--properties")
         .arg(format!("test.src={}", source_file.parent().unwrap().display()))
+        .arg("--properties")
+        .arg(format!("test.classes={}", compiled_file.parent().unwrap().display()))
         .current_dir(compiled_file.parent().unwrap())
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()?;

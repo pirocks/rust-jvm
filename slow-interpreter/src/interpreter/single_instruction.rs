@@ -22,7 +22,7 @@ use crate::interpreter::common::invoke::virtual_::invoke_virtual_instruction;
 use crate::interpreter::common::special::invoke_instanceof;
 use crate::interpreter::consts::{aconst_null, bipush, dconst_0, dconst_1, fconst_0, fconst_1, fconst_2, iconst_0, iconst_1, iconst_2, iconst_3, iconst_4, iconst_5, iconst_m1, lconst, sipush};
 use crate::interpreter::conversion::{d2f, d2i, d2l, f2d, f2i, f2l, i2b, i2c, i2d, i2f, i2l, i2s, l2d, l2f, l2i};
-use crate::interpreter::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2, swap};
+use crate::interpreter::dup::{dup, dup2, dup2_x1, dup2_x2, dup_x1, dup_x2, swap};
 use crate::interpreter::fields::{getfield, getstatic, putfield, putstatic};
 use crate::interpreter::ldc::{ldc2_w, ldc_w};
 use crate::interpreter::load::{aaload, aload, baload, caload, daload, dload, faload, fload, iaload, iload, laload, lload, saload};
@@ -66,8 +66,10 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //java.util.ResourceBundle.Control#getCandidateLocales
     //PowTests#testCrossProduct
     //sun.misc.Resource#getBytes
+    //sun.security.provider.SHA5#implCompress0
+    //sun.security.provider.ByteArrayAccess#b2lBig128
     // use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/misc/Resource") && method.name().0.to_str(&jvm.string_pool) == "getBytes"/* ||
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/security/provider/ByteArrayAccess") && method.name().0.to_str(&jvm.string_pool) == "b2lBig128"/* ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle") && method.name().0.to_str(&jvm.string_pool) == "getBundleImpl") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/
@@ -140,7 +142,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         CInstructionInfo::dup_x2 => dup_x2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::dup2 => dup2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
         CInstructionInfo::dup2_x1 => dup2_x1(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(), interpreter_state.current_frame_mut(), current_pc),
-        // CInstructionInfo::dup2_x2 => dup2_x2(jvm, method_id, interpreter_state.current_frame_mut()),
+        CInstructionInfo::dup2_x2 => dup2_x2(jvm, interpreter_state.inner().frame_ref().method_id().unwrap(),interpreter_state.current_frame_mut(),current_pc),
         CInstructionInfo::f2d => f2d(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2i => f2i(jvm, interpreter_state.current_frame_mut()),
         CInstructionInfo::f2l => f2l(jvm, interpreter_state.current_frame_mut()),

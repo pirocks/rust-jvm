@@ -151,9 +151,10 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             if let NewJavaValue::AllocObject(obj) = njv.as_njv() {
                 njv.unwrap_object()
             } else {
-                match java_value_to_boxed_object(jvm, int_state, njv.as_njv()) {
+
+                match java_value_to_boxed_object(jvm, int_state, njv.as_njv(), parsed_md.return_type) {
                     Ok(obj) => {
-                        obj.map(|obj| AllocatedHandle::NormalObject(obj))
+                        obj
                     }
                     Err(WasException { exception_obj }) => {
                         *get_throw(env) = Some(WasException { exception_obj });

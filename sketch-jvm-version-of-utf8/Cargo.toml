@@ -8,3 +8,4 @@ edition = "2018"
 
 [dependencies]
 wtf8 = "0.1.0"
+itertools = "0.10"

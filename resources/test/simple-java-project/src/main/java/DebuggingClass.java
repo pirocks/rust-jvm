@@ -155,16 +155,17 @@
 
 import sun.misc.Resource;
 import sun.misc.URLClassPath;
+import sun.net.www.http.HttpClient;
 import sun.util.locale.provider.TimeZoneNameUtility;
 import sun.util.resources.LocaleData;
 import sun.util.resources.ja.TimeZoneNames_ja;
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.net.ServerSocket;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.CodeSource;
-import java.security.ProtectionDomain;
+import java.security.*;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.ResourceBundle;
@@ -176,10 +177,20 @@ import java.util.zip.*;
 
 public class DebuggingClass {
 
-    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException {
-        final URLClassPath urlClassPath = new URLClassPath(new URL[]{new URL("file:/home/francis/CLionProjects/rust-jvm/resources/test/simple-java-project/target/classes/")});
-        Resource var2 = urlClassPath.getResource("ToLowerCase.class", false);
-        System.out.println(Arrays.toString(var2.getBytes()));
+    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException, NoSuchAlgorithmException, NoSuchProviderException {
+        int readTimeout = 20;
+        ServerSocket ss = new ServerSocket(0);
+
+        URL url1 = new URL("http://localhost:" + ss.getLocalPort());
+        HttpClient c1 = HttpClient.New(url1);
+
+        Method available = HttpClient.class.
+                getDeclaredMethod("available", null);
+        available.setAccessible(true);
+
+        c1.setReadTimeout(readTimeout);
+        System.out.println(available);
+        boolean a = (boolean) available.invoke(c1);
 //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));

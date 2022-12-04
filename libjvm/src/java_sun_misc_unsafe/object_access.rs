@@ -184,7 +184,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv,
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, obj) {
         Some(notnull) => {
-            return volatile_load(obj.offset(offset as isize) as *const jlong);
+            let res = volatile_load(obj.cast::<c_void>().offset(offset as isize) as *const jlong);
+            return res;
             /*let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
             let field_name = rc.view().field(field_i as usize).field_name();
             notnull.as_allocated_obj().get_var_top_level(jvm, field_name).as_njv().unwrap_int()*/

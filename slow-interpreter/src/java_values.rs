@@ -14,9 +14,9 @@ use itertools::Itertools;
 use add_only_static_vec::AddOnlyVec;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::early_startup::Regions;
-use gc_memory_layout_common::memory_regions::{MemoryRegions};
-use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject};
-use runtime_class_stuff::{RuntimeClass};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
+use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject, jvalue};
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::loading::LoaderName;
@@ -24,6 +24,7 @@ use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::StackNativeJavaValue;
 
 use crate::{AllocatedHandle, check_initing_or_inited_class};
+use crate::accessor_ext::AccessorExt;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
 use crate::exceptions::WasException;
@@ -33,7 +34,6 @@ use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::{AllocatedArrayObjectHandle, AllocatedNormalObjectHandle};
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObject, UnAllocatedObjectArray, UnAllocatedObjectObject};
 use crate::threading::safepoints::Monitor2;
-use crate::accessor_ext::AccessorExt;
 
 pub struct GC<'gc> {
     pub memory_region: Mutex<MemoryRegions>,
@@ -335,7 +335,6 @@ pub enum JavaValue<'gc> {
 }
 
 impl<'gc> JavaValue<'gc> {
-
     pub fn to_new<'anything>(&self) -> NewJavaValue<'gc, 'anything> {
         todo!()
     }
@@ -1059,7 +1058,6 @@ pub struct NormalObject<'gc, 'l> {
 }
 
 
-
 pub fn default_value<'gc>(type_: CPDType) -> NewJavaValueHandle<'gc> {
     match type_ {
         CPDType::ByteType => NewJavaValueHandle::Byte(0),
@@ -1225,5 +1223,11 @@ impl ExceptionReturn for jfieldID {
 impl ExceptionReturn for jmethodID {
     fn invalid_default() -> Self {
         null_mut()
+    }
+}
+
+impl ExceptionReturn for jvalue {
+    fn invalid_default() -> Self {
+        unsafe { jvalue { j: 0 } }
     }
 }

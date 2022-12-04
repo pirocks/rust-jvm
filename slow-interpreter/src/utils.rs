@@ -5,11 +5,11 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jfieldID, jint};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jint, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber, LineNumberTable};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
@@ -21,7 +21,8 @@ use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::java_values::ExceptionReturn;
-use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
+use crate::new_java_values::allocated_objects::{AllocatedHandle};
+use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
@@ -136,20 +137,39 @@ pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, i
     T::invalid_default()
 }
 
-pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: NewJavaValue<'gc, '_>) -> Result<Option<AllocatedNormalObjectHandle<'gc>>, WasException<'gc>> {
-    Ok(match java_value {
+pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: NewJavaValue<'gc, '_>, expected_type: CompressedParsedDescriptorType) -> Result<Option<AllocatedHandle<'gc>>, WasException<'gc>> {
+    Ok(match expected_type {
         //todo what about that same object optimization
-        NewJavaValue::Long(param) => Long::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Int(param) => Int::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Short(param) => Short::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Byte(param) => Byte::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Boolean(param) => Boolean::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Char(param) => Char::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Float(param) => Float::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Double(param) => Double::new(jvm, int_state, param)?.object().into(),
-        NewJavaValue::Null => None,
-        NewJavaValue::AllocObject(_) | NewJavaValue::UnAllocObject(_)  => todo!(),
-        NewJavaValue::Top => panic!(),
+        CompressedParsedDescriptorType::BooleanType => {
+            Boolean::new(jvm, int_state, java_value.unwrap_int() as jboolean)?.full_object().into()
+        }
+        CompressedParsedDescriptorType::ByteType => {
+            Byte::new(jvm, int_state, java_value.unwrap_int() as jbyte)?.full_object().into()
+        }
+        CompressedParsedDescriptorType::ShortType => {
+            Short::new(jvm, int_state, java_value.unwrap_int() as jshort)?.full_object().into()
+        }
+        CompressedParsedDescriptorType::CharType => {
+            Char::new(jvm, int_state, java_value.unwrap_int() as jchar)?.full_object().into()
+        }
+        CompressedParsedDescriptorType::IntType => {
+            Int::new(jvm, int_state, java_value.unwrap_int())?.full_object().into()
+        }
+        CompressedParsedDescriptorType::LongType => {
+            Long::new(jvm, int_state, java_value.unwrap_long_strict())?.full_object().into()
+        }
+        CompressedParsedDescriptorType::FloatType => {
+            Float::new(jvm, int_state, java_value.unwrap_float_strict())?.full_object().into()
+        }
+        CompressedParsedDescriptorType::DoubleType => {
+            Double::new(jvm, int_state, java_value.unwrap_double_strict())?.full_object().into()
+        }
+        CompressedParsedDescriptorType::VoidType => {
+            todo!()
+        }
+        CompressedParsedDescriptorType::Class(_) | CompressedParsedDescriptorType::Array { .. } => {
+            java_value.to_handle_discouraged().unwrap_object()
+        }
     })
 }
 
