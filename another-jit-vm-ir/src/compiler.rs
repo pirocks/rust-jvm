@@ -338,6 +338,9 @@ impl IRInstr {
                     IRVMExitType::AllocateObjectArrayIntrinsic { .. } => {
                         "AllocateObjectArrayIntrinsic"
                     }
+                    IRVMExitType::CheckcastFailure { .. } => {
+                        "CheckcastFailure"
+                    }
                 })
             }
             IRInstr::NPECheck { .. } => {

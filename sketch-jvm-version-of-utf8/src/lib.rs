@@ -1,9 +1,11 @@
 use std::string::FromUtf8Error;
-use itertools::Itertools;
 
+use itertools::Itertools;
 use wtf8::{CodePoint, Wtf8Buf};
 
 pub mod wtf8_pool;
+#[cfg(test)]
+pub mod test;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JVMString {
@@ -87,6 +89,7 @@ impl PossiblyJVMString {
     }
 
     fn to_regular_utf8(&self, is_wtf8: bool) -> Result<Utf8OrWtf8, ValidationError> {
+        assert!(is_wtf8);//this parsing only parses to wtf8
         let mut res = if is_wtf8 { Utf8OrWtf8::new_wtf() } else { Utf8OrWtf8::new_utf() };
         let mut buf_iter = self.buf.iter().multipeek();
         loop {
@@ -117,70 +120,15 @@ impl PossiblyJVMString {
                         panic!()
                         // return Err(ValidationError::UnexpectedBits);
                     }
-                    if x == 0b11101101 && (y >> 4) == 0b1010 && (z >> 6) == 0b10{
-                        let u = x;
-                        let v = y;
-                        let w = z;
-                        let _x = match buf_iter.peek().cloned().cloned() {
-                            None => {
-                                Self::single_three_byte(&mut res, u, v, w)?;
-                                continue
-                            }
-                            Some(x) => {x}
-                        };
-                        let y = match buf_iter.peek().cloned().cloned() {
-                            None => {
-                                Self::single_three_byte(&mut res, u, v, w)?;
-                                continue
-                            }
-                            Some(y) => {y}
-                        };
-                        let z = match buf_iter.peek().cloned().cloned() {
-                            None => {
-                                Self::single_three_byte(&mut res, u, v, w)?;
-                                continue
-                            }
-                            Some(z) => {z}
-                        };
-                        if (y >> 4) != 0b1011 {
-                            Self::single_three_byte(&mut res, u, v, w)?;
-                            continue
-                            // return Err(ValidationError::UnexpectedBits);
-                        }
-                        if (z >> 6) != 0b10 {
-                            Self::single_three_byte(&mut res, u, v, w)?;
-                            continue
-                            // return Err(ValidationError::UnexpectedBits);
-                        }
-                        buf_iter.next().unwrap();
-                        buf_iter.next().unwrap();
-                        buf_iter.next().unwrap();
-                        let y_u32 = y as u32;
-                        let z_u32 = z as u32;
-                        let v_u32 = v as u32;
-                        let w_u32 = w as u32;
-                        let codepoint = 0x10000 + ((v_u32 & 0x0f) << 16) + ((w_u32 & 0x3f) << 10) + ((y_u32 & 0x0f) << 6) + (z_u32 & 0x3f);
-                        res.push_codepoint(codepoint as u32)?;
-                    }else {
-                        let x_u16 = x as u16;
-                        let y_u16 = y as u16;
-                        let z_u16 = z as u16;
-                        let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
-                        res.push_codepoint(codepoint as u32)?;
-                    }
+                    let x_u16 = x as u16;
+                    let y_u16 = y as u16;
+                    let z_u16 = z as u16;
+                    let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
+                    res.push_codepoint(codepoint as u32)?;
                 }
             }
         }
         Ok(res)
-    }
-
-    fn single_three_byte(res: &mut Utf8OrWtf8, u: u8, v: u8, w: u8) -> Result<(), ValidationError> {
-        let x_u16 = u as u16;
-        let y_u16 = v as u16;
-        let z_u16 = w as u16;
-        let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
-        res.push_codepoint(codepoint as u32)?;
-        Ok(())
     }
 }
 

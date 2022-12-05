@@ -153,44 +153,25 @@
 //    }
 //}
 
-import sun.misc.Resource;
-import sun.misc.URLClassPath;
-import sun.net.www.http.HttpClient;
-import sun.util.locale.provider.TimeZoneNameUtility;
-import sun.util.resources.LocaleData;
-import sun.util.resources.ja.TimeZoneNames_ja;
-
 import java.io.*;
 import java.lang.reflect.*;
-import java.net.ServerSocket;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.security.*;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.ResourceBundle;
-import java.util.TimeZone;
-import java.util.prefs.BackingStoreException;
-import java.util.prefs.InvalidPreferencesFormatException;
-import java.util.regex.Pattern;
-import java.util.zip.*;
 
 public class DebuggingClass {
 
+    static String one = "\u0000\u007f\u00ad\u0600\u061c\u06dd\u070f \u180e \u2028 \u2066\u2067\u2068\u2069\u206a　\ud800\ufeff\ufff9\ufffa";
     public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException, NoSuchAlgorithmException, NoSuchProviderException {
-        int readTimeout = 20;
-        ServerSocket ss = new ServerSocket(0);
-
-        URL url1 = new URL("http://localhost:" + ss.getLocalPort());
-        HttpClient c1 = HttpClient.New(url1);
-
-        Method available = HttpClient.class.
-                getDeclaredMethod("available", null);
-        available.setAccessible(true);
-
-        c1.setReadTimeout(readTimeout);
-        System.out.println(available);
-        boolean a = (boolean) available.invoke(c1);
+//            extracted();
+//        final char[] two = "  \u00ad\u0604\u061c\u06dd\u070f \u180e\u200f \u2064\u2066\u2067\u2068\u2069\u206f　\uf8ff\ufeff\ufff9\ufffb".toCharArray();
+        for (char c : one.toCharArray()) {
+            System.out.print(" " + (int) c);
+        }
+//        System.out.println();
+//        for (char c : two) {
+//            System.out.print(" " + (int) c);
+//        }
+//        System.out.println();
+//        matcher(one, two);
 //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
@@ -215,12 +196,34 @@ public class DebuggingClass {
 //        });
     }
 
-    static void test(Object o) throws IOException {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(bos);
-        out.writeObject(o);
-        out.flush();
-        out.close();
-    }
+//    private static void extracted() {
+//        final StringBuilder stringBuilder = new StringBuilder();
+//        final char[] zeros = ZEROES.toCharArray();
+//        for (char c : zeros) {
+//            stringBuilder.append((char) ((int) c + 9));
+//        }
+//        System.out.println(zeros.length);
+//        final char[] nines = stringBuilder.toString().toCharArray();
+//        System.out.println(nines.length);
+//        System.out.println(stringBuilder);
+//        matcher(zeros, nines);
+//    }
+//
+//    private static void matcher(char[] zeros, char[] nines) {
+//        for (int i = 0; i < zeros.length; ++i) {
+//            checkArgument(zeros[i] <= nines[i]);
+//            if (i + 1 < zeros.length) {
+//                System.out.println((int)nines[i]);
+//                System.out.println((int)zeros[i + 1]);
+//                checkArgument(nines[i] < zeros[i + 1]);
+//            }
+//        }
+//    }
+//
+//    private static void checkArgument(boolean b) {
+//        if (!b) {
+//            throw new IllegalArgumentException();
+//        }
+//    }
 
 }

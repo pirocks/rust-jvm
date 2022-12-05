@@ -18,6 +18,7 @@ use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_ar
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
 use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::new_java_values::owned_casts::OwnedCastAble;
+use crate::stdlib::java::lang::class_cast_exception::ClassCastException;
 use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
@@ -116,6 +117,11 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::NPE { .. } => {
                 let int_state = int_state.unwrap();
                 let npe = NullPointerException::new(jvm, int_state).expect("exception while creating exception?");
+                return throw_impl(jvm, int_state, npe.new_java_value_handle().cast_throwable(), false);
+            }
+            RuntimeVMExitInput::CheckCastFailure { pc } => {
+                let int_state = int_state.unwrap();
+                let npe = ClassCastException::new(jvm, int_state).expect("exception while creating exception?");
                 return throw_impl(jvm, int_state, npe.new_java_value_handle().cast_throwable(), false);
             }
             RuntimeVMExitInput::AllocateObject { type_, return_to_ptr, res_address, pc: _ } => {

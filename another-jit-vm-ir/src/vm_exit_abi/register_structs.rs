@@ -560,6 +560,18 @@ impl ExitRegisterStruct for NPE {
     }
 }
 
+pub struct CheckCastFailure;
+
+impl CheckCastFailure {
+    pub const JAVA_PC: Register = Register(4);
+}
+
+impl ExitRegisterStruct for CheckCastFailure {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::JAVA_PC])
+    }
+}
+
 
 pub struct ArrayOutOfBounds;
 

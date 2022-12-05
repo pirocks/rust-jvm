@@ -247,7 +247,7 @@ impl JVMOptions {
             //     combined: "sun/nio/ch/ServerSocketChannelImpl/translateReadyOps".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/util/TimeZone/getDisplayName".to_string(),
+            //     combined: "com/google/common/base/CharMatcher$RangesMatcher/<init>".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
