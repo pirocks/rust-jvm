@@ -14,7 +14,7 @@ use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use slow_interpreter::interpreter::common::invoke::static_::invoke_static_impl;
-use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
+use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::exceptions::WasException;

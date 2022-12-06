@@ -7,7 +7,7 @@ use common::special::instance_of_exit_impl_impl_impl;
 use rust_jvm_common::{ByteCodeOffset, StackNativeJavaValue};
 use rust_jvm_common::classfile::{LineNumber};
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
-use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CompressedParsedRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
 
 
 use rust_jvm_common::runtime_type::RuntimeType;
@@ -20,9 +20,10 @@ use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
 use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
-use crate::java_values::{native_to_new_java_value_rtype};
+use crate::java_values::{native_to_new_java_value_cpdtype};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
+use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::threading::safepoints::Monitor2;
 
@@ -106,7 +107,7 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
             /*unsafe {
                 eprintln!("{:X}",native_value.as_u64);
             }*/
-            Some(native_to_new_java_value_rtype(native_value, return_type.to_runtime_type().unwrap(), jvm))
+            Some(native_to_new_java_value_cpdtype(native_value, *return_type, jvm))
         }
     })
 }
@@ -219,7 +220,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
                 if let Some(monitor) = should_sync {
                     monitor.unlock(jvm, real_interpreter_state.inner()).unwrap();
                 }
-                return Ok(res);
+                return Ok(res.map(|res|coerce_integer_types_to(res,method.desc().return_type)));
             }
             PostInstructionAction::Exception { exception: WasException { exception_obj } } => {
                 // real_interpreter_state.inner().set_current_pc(None);
@@ -257,6 +258,42 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
             PostInstructionAction::Next { .. } => {
                 current_offset.0 += current_instruct.instruction_size;
             }
+        }
+    }
+}
+
+fn coerce_integer_types_to<'gc>(handle: NewJavaValueHandle<'gc>, cpdtype: CPDType) -> NewJavaValueHandle<'gc>{
+    match cpdtype {
+        CPDType::BooleanType => {
+            NewJavaValueHandle::Boolean(handle.unwrap_int() as u8)
+        }
+        CPDType::ByteType => {
+            NewJavaValueHandle::Byte(handle.unwrap_int() as i8)
+        }
+        CPDType::ShortType => {
+            NewJavaValueHandle::Short(handle.unwrap_int() as i16)
+        }
+        CPDType::CharType => {
+            NewJavaValueHandle::Char(handle.unwrap_int() as u16)
+        }
+        CPDType::IntType => {
+            handle
+        }
+        CPDType::LongType => {
+            handle
+        }
+        CPDType::FloatType => {
+            handle
+        }
+        CPDType::DoubleType => {
+            handle
+        }
+        CPDType::VoidType => {
+            todo!()
+        }
+        CPDType::Class(_) |
+        CPDType::Array { .. } => {
+            handle
         }
     }
 }

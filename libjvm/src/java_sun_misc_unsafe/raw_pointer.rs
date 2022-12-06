@@ -94,8 +94,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getFloat__J(env: *mut JNIEnv, the
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_unsafe: jobject, src_obj: jobject, offset: jlong, dst_obj: jobject, address: jlong, len: jlong) {
     let jvm = get_state(env);
-    // get_interpreter_state(env).debug_print_stack_trace(jvm);
-    // get_interpreter_state(env).set_should_be_tracing_interpreter_calls();
     let src_address = if src_obj == null_mut() {
         offset as *const i8
     } else {
@@ -109,38 +107,17 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(env: *mut JNIEnv, the_
     };
     volatile_copy_memory(dst_address as *mut u8, src_address as *const u8, len as usize);
     return;
-    // todo!("use array memory layout or something this func is jank");
-    assert!(len > 0);
-    //todo this needs a better more general impl
-    // volatile_copy_memory(dst_address, src_address, len as usize)
-    for i in 0..len{
-        todo!("this nonsense needs to have way better array layout handling")
-        /*let temp = src_address.offset(i as isize).read() as i32;
-        dst_address.offset((i as usize * size_of::<NativeJavaValue>() as usize) as isize).cast::<i32>().write(temp);*/
-    }
-
-    // let nonnull = match from_object_new(jvm, src_obj) {
-    //     Some(x) => x,
-    //     None => {
-    //         dbg!(offset as *mut c_void);
-    //         todo!()}/*return throw_npe(jvm, get_interpreter_state(env))*/,
-    // };
-    // let as_array = nonnull.unwrap_array(); //not defined for non-byte-array objects
-    // assert_eq!(as_array.elem_cpdtype(), CPDType::ByteType);
-    // let array_mut = as_array;
-    // let src_slice_indices = offset..(offset + len);
-    // let mut src_buffer: Vec<i8> = vec![];
-    // for i in src_slice_indices {
-    //     src_buffer.push(array_mut.get_i(i as usize).unwrap_byte_strict());
-    // }
-    // assert_eq!(dst_obj, null_mut());
-    // libc::memcpy(transmute(address), src_buffer.as_ptr() as *const libc::c_void, len as usize);
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_allocateMemory(env: *mut JNIEnv, the_unsafe: jobject, len: jlong) -> jlong {
     let res: i64 = libc::malloc(len as usize) as i64;
     res
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getAddress(env: *mut JNIEnv, the_unsafe: jobject, address: jlong) -> jlong {
+    address
 }
 
 #[no_mangle]

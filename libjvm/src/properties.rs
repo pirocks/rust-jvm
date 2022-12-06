@@ -40,6 +40,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         add_prop(env, p0, "sun.boot.library.path".to_string(), format!("/home/francis/Clion/rust-jvm/target/debug/deps:{}", Path::new(&jvm.native_libaries.libjava_path).parent().unwrap().display()))?;
         add_prop(env, p0, "sun.boot.class.path".to_string(), jvm.boot_classpath_string())?;
         add_prop(env, p0, "java.class.path".to_string(), jvm.classpath.classpath_string())?;
+        add_prop(env, p0, "java.vm.version".to_string(), "1.8+0+rust-jvm".to_string())?;
         // add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
         // add_prop(env, p0, "org.slf4j.simpleLogger.defaultLogLevel ".to_string(), "off".to_string())?;
         add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string())?;

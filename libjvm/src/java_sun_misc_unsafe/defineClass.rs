@@ -40,7 +40,9 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let classfile = Arc::new(parse_class_file(&mut Cursor::new(byte_array.as_slice())).expect("todo error handling and verification"));
     let class_view = ClassBackedView::from(classfile.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
-        File::create(PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation()).unwrap().write_all(byte_array.clone().as_slice()).unwrap();
+        let class_name_string = PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation();
+        let mut file = File::create(format!("{}.class",class_name_string)).unwrap();
+        file.write_all(byte_array.clone().as_slice()).unwrap();
     }
     let loader_name = if loader != null_mut() {
         NewJavaValueHandle::Object(from_object_new(jvm, loader).unwrap()).cast_class_loader().to_jvm_loader(jvm)

@@ -73,7 +73,8 @@ impl Classfile {
     pub fn extract_class_from_constant_pool(&self, i: u16) -> &Class {
         match &self.constant_pool[i as usize].kind {
             ConstantKind::Class(c) => c,
-            _ => {
+            other => {
+                dbg!(other);
                 panic!();
             }
         }

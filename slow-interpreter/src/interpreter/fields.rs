@@ -18,7 +18,10 @@ use crate::better_java_stack::frames::HasFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::static_vars::static_vars;
+use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 //
 pub fn putstatic<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, field_class_name: CClassName, field_name: FieldName, field_descriptor: &CFieldDescriptor) -> PostInstructionAction<'gc> {
@@ -98,6 +101,11 @@ pub fn getfield<'gc, 'k, 'l, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Int
                 let res = FieldAccessor::new(field_pointer.0, cpdtype).read_interpreter_jv(field_desc.0);
                 current_frame.push(res);
                 PostInstructionAction::Next {}
+            }
+            InterpreterJavaValue::Object(None) => {
+                let exception = NullPointerException::new(jvm, current_frame.inner().inner()).unwrap();
+                let throwable = exception.full_object().cast_throwable();
+                PostInstructionAction::Exception { exception: WasException{ exception_obj: throwable } }
             }
             _ => {
                 current_frame.inner().inner().debug_print_stack_trace(jvm);

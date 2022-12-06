@@ -37,6 +37,8 @@ fn fcmp_common<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Inte
     } else if value1 < value2 {
         current_frame.push(InterpreterJavaValue::Int(-1))
     } else {
+        dbg!(value1);
+        dbg!(value2);
         panic!()
     }
 }

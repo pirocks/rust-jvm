@@ -9,7 +9,7 @@ use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jbyte, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -127,6 +127,46 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
             let field_name = rc.view().field(field_i as usize).field_name();
             let static_vars = static_vars(rc.deref(), jvm);
             static_vars.get(field_name, CPDType::IntType).unwrap_int()
+        }
+    }
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getBooleanVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jboolean {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match from_object_new(jvm, obj) {
+        Some(notnull) => {
+            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jboolean);
+        }
+        None => {
+            //static
+            //todo this is wrong
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let static_vars = static_vars(rc.deref(), jvm);
+            static_vars.get(field_name, CPDType::BooleanType).unwrap_bool_strict()
+        }
+    }
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getCharVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jchar {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match from_object_new(jvm, obj) {
+        Some(notnull) => {
+            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jchar);
+        }
+        None => {
+            //static
+            //todo this is wrong
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let static_vars = static_vars(rc.deref(), jvm);
+            static_vars.get(field_name, CPDType::CharType).unwrap_char_strict()
         }
     }
 }
@@ -311,6 +351,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEn
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
     Java_sun_misc_Unsafe_getObjectVolatile(env, the_unsafe, obj, offset)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getBoolean(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jboolean {
+    Java_sun_misc_Unsafe_getBooleanVolatile(env, the_unsafe, obj, offset)
 }
 
 

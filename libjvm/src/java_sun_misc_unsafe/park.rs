@@ -28,8 +28,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
         let amount_to_wait = time as u128 - unix_time;
         current_thread.park(jvm, int_state, Some(amount_to_wait))
     } else {
-        // int_state.debug_print_stack_trace(jvm);
-        // dbg!(current_thread.thread_object().name(jvm).to_rust_string(jvm));
         current_thread.park(jvm, int_state, Some(time as u128))
     };
 }

@@ -69,8 +69,9 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //sun.security.provider.SHA5#implCompress0
     //sun.security.provider.ByteArrayAccess#b2lBig128
     //com.google.common.base.CharMatcher.RangesMatcher#RangesMatcher
+    //"sun/font/FileFontStrike".getSlot0GlyphImagePtrs
     // use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("com/google/common/base/CharMatcher$RangesMatcher") && method.name().0.to_str(&jvm.string_pool) == "<init>"/* ||
+    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/font/FileFontStrike") && method.name().0.to_str(&jvm.string_pool) == "getSlot0GlyphImagePtrs"/* ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle") && method.name().0.to_str(&jvm.string_pool) == "getBundleImpl") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
     //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/

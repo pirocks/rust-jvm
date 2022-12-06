@@ -15,9 +15,9 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::attribute_view::InnerClassesView;
 use classfile_view::view::method_view::MethodView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ACC_SYNCHRONIZED, JVM_ExceptionTableEntryType, jvmtiCapabilities};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC, ACC_SUPER};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -127,7 +127,9 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let jclass = from_jclass(jvm, cls);
-    jclass.as_runtime_class(jvm).view().access_flags() as jint
+    let mut res = jclass.as_runtime_class(jvm).view().access_flags() as u32;
+    res &= (!(JVM_ACC_SYNCHRONIZED as u32));
+    res as i32
 }
 
 #[no_mangle]

@@ -954,6 +954,9 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::invokedynamic(_) => {
                 todo!()
             }
+            CompressedInstructionInfo::dup2_x2 => {
+                todo!()
+            }
             other => {
                 dbg!(other);
                 todo!()
@@ -1072,10 +1075,10 @@ fn swap(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: 
     let value2_register = Register(2);
 
     let iter = array_into_iter([
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1_register, size: Size::int() },
-        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value2_register, size: Size::int() },
-        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), from: value2_register, size: Size::int() },
-        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1), from: value1_register, size: Size::int() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: value1_register, size: Size::pointer() },
+        IRInstr::LoadFPRelative { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 1), to: value2_register, size: Size::pointer() },
+        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), from: value2_register, size: Size::pointer() },
+        IRInstr::StoreFPRelative { to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 1), from: value1_register, size: Size::pointer() },
     ]);
     iter
 }

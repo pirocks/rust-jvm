@@ -194,6 +194,10 @@ impl InnerClassView<'_> {
         if inner_name_index == 0 {
             return None;
         }
+        //todo clean this up by using inner and outer name functions and making them return options
+        if self.class.outer_class_info_index == 0 {
+            return None
+        }
         let outer_class_name_index = self.backing_class.underlying_class.extract_class_from_constant_pool(self.class.outer_class_info_index).name_index;
         let outer_class_name = self.backing_class.underlying_class.constant_pool[outer_class_name_index as usize].extract_string_from_utf8();
         let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();

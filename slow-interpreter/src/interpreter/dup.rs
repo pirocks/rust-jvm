@@ -129,8 +129,8 @@ pub fn dup2_x2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mu
                 _ => {
                     //form 2:
                     let value1 = current_frame.pop(RuntimeType::LongType); //in principle type doesn't matter todo pass it anyway
-                    let value2 = current_frame.pop(RuntimeType::IntType);
-                    let value3 = current_frame.pop(RuntimeType::IntType);
+                    let value2 = current_frame.pop(RuntimeType::LongType);
+                    let value3 = current_frame.pop(RuntimeType::LongType);
                     assert!(!category2[2]);
                     current_frame.push(value1.clone());
                     current_frame.push(value3);
@@ -148,8 +148,8 @@ pub fn dup2_x2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mu
             match value3_vtype {
                 RuntimeType::LongType | RuntimeType::DoubleType => {
                     //form 3:
-                    let value1 = current_frame.pop(RuntimeType::IntType);
-                    let value2 = current_frame.pop(RuntimeType::IntType);
+                    let value1 = current_frame.pop(RuntimeType::LongType);
+                    let value2 = current_frame.pop(RuntimeType::LongType);
                     let value3 = current_frame.pop(RuntimeType::LongType);
                     current_frame.push(value2.clone());
                     current_frame.push(value1.clone());
@@ -159,10 +159,10 @@ pub fn dup2_x2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mu
                 }
                 _ => {
                     //form 1
-                    let value1 = current_frame.pop(RuntimeType::IntType);
-                    let value2 = current_frame.pop(RuntimeType::IntType);
-                    let value3 = current_frame.pop(RuntimeType::IntType);
-                    let value4 = current_frame.pop(RuntimeType::IntType);
+                    let value1 = current_frame.pop(RuntimeType::LongType);
+                    let value2 = current_frame.pop(RuntimeType::LongType);
+                    let value3 = current_frame.pop(RuntimeType::LongType);
+                    let value4 = current_frame.pop(RuntimeType::LongType);
                     current_frame.push(value2.clone());
                     current_frame.push(value1.clone());
                     current_frame.push(value4);
@@ -182,8 +182,8 @@ pub fn swap<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     // let category2 = &stack_frames[&current_pc].is_category_2_no_tops();
     // assert!(!category2[0]);
     // assert!(!category2[1]);
-    let value1 = current_frame.pop(RuntimeType::IntType);
-    let value2 = current_frame.pop(RuntimeType::IntType);
+    let value1 = current_frame.pop(RuntimeType::LongType);
+    let value2 = current_frame.pop(RuntimeType::LongType);
     current_frame.push(value1);
     current_frame.push(value2);
     PostInstructionAction::Next {}

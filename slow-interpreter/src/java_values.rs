@@ -1046,6 +1046,40 @@ pub fn native_to_new_java_value_rtype<'gc>(native: StackNativeJavaValue<'gc>, rt
     }
 }
 
+pub fn native_to_new_java_value_cpdtype<'gc>(native: StackNativeJavaValue<'gc>, cpdtype: CPDType, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
+    unsafe {
+        match cpdtype {
+            CPDType::DoubleType => NewJavaValueHandle::Double(native.double),
+            CPDType::FloatType => NewJavaValueHandle::Float(native.float),
+            CPDType::IntType => NewJavaValueHandle::Int(native.int),
+            CPDType::LongType => NewJavaValueHandle::Long(native.long),
+            CPDType::Class(_) | CPDType::Array { .. } => {
+                match NonNull::new(native.object) {
+                    Some(ptr) => {
+                        NewJavaValueHandle::Object(jvm.gc.register_root_reentrant(jvm, ptr))
+                    }
+                    None => {
+                        NewJavaValueHandle::Null
+                    }
+                }
+            }
+            CPDType::VoidType => panic!(),
+            CPDType::BooleanType => {
+                NewJavaValueHandle::Boolean(native.int as u8)
+            }
+            CPDType::ByteType => {
+                NewJavaValueHandle::Byte(native.int as i8)
+            }
+            CPDType::ShortType => {
+                NewJavaValueHandle::Short(native.int as i16)
+            }
+            CPDType::CharType => {
+                NewJavaValueHandle::Char(native.int as u16)
+            }
+        }
+    }
+}
+
 pub struct ObjectFieldsAndClass<'gc, 'l> {
     //ordered by alphabetical and super first
     pub fields: RwLock<&'l mut [!]>,

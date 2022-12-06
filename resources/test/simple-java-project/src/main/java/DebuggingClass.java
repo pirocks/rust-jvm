@@ -159,20 +159,13 @@ import java.security.*;
 
 public class DebuggingClass {
 
-    static String one = "\u0000\u007f\u00ad\u0600\u061c\u06dd\u070f \u180e \u2028 \u2066\u2067\u2068\u2069\u206a　\ud800\ufeff\ufff9\ufffa";
-    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException, InvocationTargetException, NoSuchMethodException, IOException, NoSuchAlgorithmException, NoSuchProviderException {
-//            extracted();
-//        final char[] two = "  \u00ad\u0604\u061c\u06dd\u070f \u180e\u200f \u2064\u2066\u2067\u2068\u2069\u206f　\uf8ff\ufeff\ufff9\ufffb".toCharArray();
-        for (char c : one.toCharArray()) {
-            System.out.print(" " + (int) c);
-        }
-//        System.out.println();
-//        for (char c : two) {
-//            System.out.print(" " + (int) c);
-//        }
-//        System.out.println();
-//        matcher(one, two);
-//        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
+    public static void main(String[] args) throws Exception {
+        int access = DebuggingClass.class.getModifiers();
+        System.out.println(access);
+        if (java.lang.reflect.Modifier.isSynchronized(access))
+            throw new Exception("ACC_SUPER bit is not being stripped");
+
+        //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
 //        inputStream.readFully(bytes);
