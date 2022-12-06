@@ -142,8 +142,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         let arg = int_state.current_frame_mut().pop(RuntimeType::object());
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }
-    for cpd_type in args.iter() {
-        //todo is the order correct here
+    for cpd_type in args.iter().rev() {
         let arg = int_state.current_frame_mut().pop(cpd_type.to_runtime_type().unwrap());
         main_invoke_args_owned.push(arg.to_new_java_handle(jvm));
     }

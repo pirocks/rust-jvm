@@ -104,17 +104,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             let args = args_not_null.unwrap_array();
             let collected_args_array = args.array_iterator().collect_vec();
             for (arg, type_) in collected_args_array.into_iter().zip(parsed_md.arg_types.iter()) {
-                let arg = match type_ {
-                    CompressedParsedDescriptorType::BooleanType => NewJavaValueHandle::Boolean(arg.as_njv().to_handle_discouraged().cast_boolean().inner_value(jvm)),
-                    CompressedParsedDescriptorType::ByteType => NewJavaValueHandle::Byte(arg.as_njv().to_handle_discouraged().cast_byte().inner_value(jvm)),
-                    CompressedParsedDescriptorType::ShortType => NewJavaValueHandle::Short(arg.as_njv().to_handle_discouraged().cast_short().inner_value(jvm)),
-                    CompressedParsedDescriptorType::CharType => NewJavaValueHandle::Char(arg.as_njv().to_handle_discouraged().cast_char().inner_value(jvm)),
-                    CompressedParsedDescriptorType::IntType => NewJavaValueHandle::Int(arg.as_njv().to_handle_discouraged().cast_int().inner_value(jvm)),
-                    CompressedParsedDescriptorType::LongType => NewJavaValueHandle::Long(arg.as_njv().to_handle_discouraged().cast_long().inner_value(jvm)),
-                    CompressedParsedDescriptorType::FloatType => NewJavaValueHandle::Float(arg.as_njv().to_handle_discouraged().cast_float().inner_value(jvm)),
-                    CompressedParsedDescriptorType::DoubleType => NewJavaValueHandle::Double(arg.as_njv().to_handle_discouraged().cast_double().inner_value(jvm)),
-                    _ => arg,
-                };
+                let arg = unwrap_boxed_java_value(jvm, arg, type_);
                 res_args.push(arg);
             }
 
@@ -166,6 +156,20 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     };
 
     new_local_ref_public_new(res.as_ref().map(|obj| obj.as_allocated_obj()), int_state)
+}
+
+pub fn unwrap_boxed_java_value<'gc>(jvm: &'gc JVMState<'gc>, arg: NewJavaValueHandle<'gc>, type_: &CompressedParsedDescriptorType) -> NewJavaValueHandle<'gc> {
+    match type_ {
+        CompressedParsedDescriptorType::BooleanType => NewJavaValueHandle::Boolean(arg.as_njv().to_handle_discouraged().cast_boolean().inner_value(jvm)),
+        CompressedParsedDescriptorType::ByteType => NewJavaValueHandle::Byte(arg.as_njv().to_handle_discouraged().cast_byte().inner_value(jvm)),
+        CompressedParsedDescriptorType::ShortType => NewJavaValueHandle::Short(arg.as_njv().to_handle_discouraged().cast_short().inner_value(jvm)),
+        CompressedParsedDescriptorType::CharType => NewJavaValueHandle::Char(arg.as_njv().to_handle_discouraged().cast_char().inner_value(jvm)),
+        CompressedParsedDescriptorType::IntType => NewJavaValueHandle::Int(arg.as_njv().to_handle_discouraged().cast_int().inner_value(jvm)),
+        CompressedParsedDescriptorType::LongType => NewJavaValueHandle::Long(arg.as_njv().to_handle_discouraged().cast_long().inner_value(jvm)),
+        CompressedParsedDescriptorType::FloatType => NewJavaValueHandle::Float(arg.as_njv().to_handle_discouraged().cast_float().inner_value(jvm)),
+        CompressedParsedDescriptorType::DoubleType => NewJavaValueHandle::Double(arg.as_njv().to_handle_discouraged().cast_double().inner_value(jvm)),
+        _ => arg,
+    }
 }
 
 #[no_mangle]

@@ -44,6 +44,7 @@ use slow_interpreter::stdlib::java::lang::null_pointer_exception::NullPointerExc
 use slow_interpreter::stdlib::java::lang::short::Short;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg_res, throw_npe, throw_npe_res};
+use crate::reflection::unwrap_boxed_java_value;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewArray(env: *mut JNIEnv, obj: jobject, currClass: jclass, length: jint) -> jobject {
@@ -184,7 +185,30 @@ unsafe extern "system" fn JVM_SetArrayElement(env: *mut JNIEnv, arr: jobject, in
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let throw = get_throw(env);
-    todo!()
+    let obj_to_set = NewJavaValueHandle::from_optional_object(from_object_new(jvm, val));
+    match get_array(env, arr) {
+        Ok(array) => {
+            match array.unwrap_object(){
+                None => {
+                    return throw_npe(jvm, int_state, throw);
+                }
+                Some(array) => {
+                    let array = array.unwrap_array();
+                    let elem_subtype = array.elem_cpdtype();
+                    if elem_subtype.is_primitive(){
+                        array.set_i(index, unwrap_boxed_java_value(jvm, obj_to_set, &elem_subtype).as_njv());
+                    }else {
+                        //todo impl array store exception
+                        array.set_i(index, obj_to_set.as_njv());
+                    }
+                }
+            }
+        }
+        Err(WasException{ exception_obj }) => {
+            *throw = Some(WasException{ exception_obj });
+            return;
+        }
+    }
 }
 
 #[no_mangle]

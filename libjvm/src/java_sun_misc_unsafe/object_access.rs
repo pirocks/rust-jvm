@@ -9,7 +9,7 @@ use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject};
+use jvmti_jni_bindings::{jbyte, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -132,6 +132,25 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, 
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getByteVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jbyte {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    match from_object_new(jvm, obj) {
+        Some(notnull) => {
+            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jbyte);
+        }
+        None => {
+            //static
+            //todo this is wrong
+            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
+            let field_name = rc.view().field(field_i as usize).field_name();
+            let static_vars = static_vars(rc.deref(), jvm);
+            static_vars.get(field_name, CPDType::ByteType).unwrap_byte_strict()
+        }
+    }
+}
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getFloatVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jfloat {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -213,12 +232,23 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__Ljava_lang_Object_2JI(env
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putFloat__Ljava_lang_Object_2JF(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jfloat) {
-    Java_sun_misc_Unsafe_putFloatVolatile(env,the_unsafe,obj,offset,val)
+    Java_sun_misc_Unsafe_putFloatVolatile(env, the_unsafe, obj, offset, val)
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getDouble__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jdouble) {
-    Java_sun_misc_Unsafe_putDoubleVolatile(env,the_unsafe,obj,offset,val)
+    Java_sun_misc_Unsafe_putDoubleVolatile(env, the_unsafe, obj, offset, val)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getShort__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jshort) {
+    Java_sun_misc_Unsafe_putShortVolatile(env, the_unsafe, obj, offset, val)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getByte__Ljava_lang_Object_2J(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong) -> jbyte {
+    Java_sun_misc_Unsafe_getByteVolatile(env, the_unsafe, obj, offset)
 }
 
 #[no_mangle]
@@ -240,6 +270,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putFloatVolatile(env: *mut JNIEnv
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putDoubleVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jdouble) {
     obj.cast::<c_void>().offset(offset as isize).cast::<jdouble>().write(val)
+}
+
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putShortVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, val: jshort) {
+    obj.cast::<c_void>().offset(offset as isize).cast::<jshort>().write(val)
 }
 
 

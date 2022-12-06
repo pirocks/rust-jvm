@@ -14,6 +14,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::compressed_classfile::string_pool::CCString;
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
@@ -267,6 +268,9 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    int_state.debug_print_stack_trace(jvm);
     unimplemented!()
 }
 

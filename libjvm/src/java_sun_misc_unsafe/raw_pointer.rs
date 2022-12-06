@@ -4,7 +4,7 @@ use std::ptr::null_mut;
 use itertools::repeat_n;
 use libc::{c_void, time};
 
-use jvmti_jni_bindings::{jbyte, jfloat, jint, jlong, JNIEnv, jobject, jshort};
+use jvmti_jni_bindings::{jbyte, jchar, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
@@ -22,6 +22,18 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv, the
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__JI(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, int_: jint) {
     let int_addr: *mut jint = transmute(address);
+    int_addr.write(int_)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putChar__JC(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, int_: jchar) {
+    let int_addr: *mut jchar = transmute(address);
+    int_addr.write(int_)
+}
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putShort__JC(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, int_: jshort) {
+    let int_addr: *mut jshort = transmute(address);
     int_addr.write(int_)
 }
 

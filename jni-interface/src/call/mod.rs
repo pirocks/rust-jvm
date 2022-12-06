@@ -14,7 +14,7 @@ use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::class_loading::check_initing_or_inited_class;
 // use log::trace;
 use slow_interpreter::interpreter::common::invoke::static_::invoke_static_impl;
-use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
+use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual, invoke_virtual_method_i};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::exceptions::WasException;
@@ -44,7 +44,7 @@ unsafe fn call_nonstatic_method<'gc>(env: *mut *const JNINativeInterface_, obj: 
         args.push(push_type_to_operand_stack_new(jvm, int_state, type_, &mut l));
     }
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect_vec();
-    let res = invoke_virtual_method_i(jvm, int_state, parsed, class, &method, not_handles)?;
+    let res = invoke_virtual(jvm, int_state, method.name(),parsed, not_handles)?;
     assert!(get_throw(env).is_none());
     return Ok(res);
 }

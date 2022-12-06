@@ -161,6 +161,11 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         })
     } else {
         dbg!(target_method.is_abstract());
+        interpreter_state.debug_print_stack_trace(jvm);
+        dbg!(expected_descriptor.jvm_representation(&jvm.string_pool));
+        dbg!(target_method.name().0.to_str(&jvm.string_pool));
+        dbg!(target_method.desc_str().to_str(&jvm.string_pool));
+        dbg!(target_class.cpdtype().jvm_representation(&jvm.string_pool));
         panic!()
     }
 }
@@ -288,31 +293,7 @@ pub fn invoke_virtual<'gc, 'l>(
 
     //Let C be the class of objectref.
     let this_pointer = args[0].clone();
-    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().runtime_class(jvm);/*match match this_pointer.unwrap_object() {
-        Some(x) => x,
-        None => {
-            let method_i = int_state.current_frame().method_i(jvm);
-            let class_view = int_state.current_frame().class_pointer(jvm).view();
-            let method_view = class_view.method_view_i(method_i);
-            // dbg!(&method_view.code_attribute().unwrap().code);
-            // dbg!(&int_state.current_frame().operand_stack_types());
-            // dbg!(&int_state.current_frame().local_vars_types());
-            // dbg!(&int_state.current_frame().pc());
-            // dbg!(method_view.name());
-            // dbg!(method_view.desc_str());
-            // dbg!(method_view.classview().name());
-            // dbg!(method_name);
-            int_state.debug_print_stack_trace(jvm);
-            panic!()
-        }
-    } {
-        NewJVObject::Array(_a) => {
-            //todo so spec seems vague about this, but basically assume this is an Object
-            let object_class = assert_inited_or_initing_class(jvm, CClassName::object().into());
-            object_class
-        }
-        NewJVObject::Object(o) => o.objinfo.class_pointer.clone(),
-    }*/
+    let c = this_pointer.unwrap_object().unwrap().unwrap_alloc().runtime_class(jvm);
 
     let (final_target_class, new_i) = virtual_method_lookup(jvm, int_state, method_name, md, c)?;
     let final_class_view = &final_target_class.view();
