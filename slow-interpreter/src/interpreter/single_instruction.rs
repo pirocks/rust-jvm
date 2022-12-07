@@ -70,18 +70,25 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
     //sun.security.provider.ByteArrayAccess#b2lBig128
     //com.google.common.base.CharMatcher.RangesMatcher#RangesMatcher
     //"sun/font/FileFontStrike".getSlot0GlyphImagePtrs
-    // use classfile_view::view::ClassView;
-    // if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/font/FileFontStrike") && method.name().0.to_str(&jvm.string_pool) == "getSlot0GlyphImagePtrs"/* ||
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle") && method.name().0.to_str(&jvm.string_pool) == "getBundleImpl") ||
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/
-    //     /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
-    //     (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
-    //     if let CInstructionInfo::ireturn | CInstructionInfo::return_ = instruct{
-    //         interpreter_state.inner().debug_print_stack_trace(jvm);
-    //     }
-    //     dump_frame(interpreter_state, method, code, current_pc, instruct)
-    // }
+    //sun.security.ssl.SSLContextImpl#engineInit
+    //java.security.Provider.Service#newInstance
+    //java.lang.reflect.Constructor#newInstance
+    //sun.security.ssl.SSLContextImpl.DefaultSSLContext#DefaultSSLContext
+    //sun.security.ssl.SSLContextImpl.DefaultManagersHolder#getTrustManagers
+    //sun.security.ssl.TrustManagerFactoryImpl#engineInit(java.security.KeyStore)
+    //sun.security.x509.CertificateExtensions#parseExtension
+    use classfile_view::view::ClassView;
+    if method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/security/x509/CertificateExtensions") && method.name().0.to_str(&jvm.string_pool) == "parseExtension" ||
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("sun/reflect/GeneratedConstructorAccessor1") && method.name().0.to_str(&jvm.string_pool) == "newInstance") /*||
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/util/ResourceBundle$Control") && method.name().0.to_str(&jvm.string_pool) == "getCandidateLocales") ||
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("DebuggingClass") && method.name().0.to_str(&jvm.string_pool) == "main")*/
+        /*(method.name().0.to_str(&jvm.string_pool) == "<clinit>" || method.name().0.to_str(&jvm.string_pool) == "currentThread" ) &&
+        (method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/ref/Reference") || method.classview().name().jvm_representation(&jvm.string_pool).contains("java/lang/Thread"))*/{
+        if let CInstructionInfo::ireturn | CInstructionInfo::return_ = instruct{
+            interpreter_state.inner().debug_print_stack_trace(jvm);
+        }
+        dump_frame(interpreter_state, method, code, current_pc, instruct)
+    }
     // jvm.thread_state.debug_assert(jvm);
     match instruct {
         CInstructionInfo::aload(n) => aload(interpreter_state.current_frame_mut(), *n as u16),

@@ -77,7 +77,7 @@ pub fn checkcast_impl<'vm>(
                             inheritance_path: inheritance_tree_vec.clone(),
                             object_ref: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0),
                             return_val: Register(1),
-                            instance_of_exit: exit_type,
+                            instance_of_exit: exit_type.clone(),
                         },
                         IRInstr::BranchEqualVal {
                             a: Register(1),
@@ -85,7 +85,7 @@ pub fn checkcast_impl<'vm>(
                             label: checkcast_succeeds,
                             size: Size::int(),
                         },
-                        IRInstr::VMExit2 { exit_type: IRVMExitType::CheckcastFailure { java_pc: current_instr_data.current_offset } }
+                        IRInstr::VMExit2 { exit_type }
                     ]));
                 }
             } else if rc.view().is_interface() {

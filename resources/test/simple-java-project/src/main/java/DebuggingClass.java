@@ -155,16 +155,22 @@
 
 import java.io.*;
 import java.lang.reflect.*;
+import java.net.HttpURLConnection;
+import java.net.Proxy;
+import java.net.URL;
 import java.security.*;
 
 public class DebuggingClass {
 
     public static void main(String[] args) throws Exception {
-        int access = DebuggingClass.class.getModifiers();
-        System.out.println(access);
-        if (java.lang.reflect.Modifier.isSynchronized(access))
-            throw new Exception("ACC_SUPER bit is not being stripped");
-
+        final Object[] objects = {Boolean.valueOf(true), new int[]{1, 45, 6, 4}};
+        System.out.println((Boolean) objects[0]);
+        URL url = new URL("https://www.google.com");
+        HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+        connection.setConnectTimeout(15000);
+        connection.setReadTimeout(15000);
+        connection.setUseCaches(false);
+        System.out.println(connection.getResponseMessage());
         //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
