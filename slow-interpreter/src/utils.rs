@@ -20,7 +20,7 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
-use crate::java_values::ExceptionReturn;
+use crate::java_values::{ExceptionReturn, JavaValue};
 use crate::new_java_values::allocated_objects::{AllocatedHandle};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
@@ -274,7 +274,10 @@ pub fn field_object_from_view<'gc, 'l>(
         Some(signature) => Some(JString::from_rust(jvm, int_state, signature)?),
     };
 
-    let annotations_ = vec![]; //todo impl annotations.
+
+    let annotations_ = NewJavaValueHandle::from_optional_object(f.get_annotation_bytes().map(|default_annotation_bytes| {
+        JavaValue::byte_array(jvm, int_state, default_annotation_bytes).unwrap()
+    }));
 
     Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.new_java_value_handle())
 }

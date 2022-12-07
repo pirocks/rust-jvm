@@ -4,13 +4,14 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
-use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, UnAllocatedObject, WasException};
+use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, PushableFrame, WasException};
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter_util::{new_object_full, run_constructor};
 use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::new_java_values::java_value_common::JavaValueCommon;
+use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::new_java_values::unallocated_objects::UnAllocatedObjectArray;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::string::JString;
 
@@ -34,7 +35,7 @@ impl<'gc> Field<'gc> {
         modifiers: jint,
         slot: jint,
         signature: Option<JString<'gc>>,
-        annotations: Vec<NewJavaValue<'gc, '_>>,
+        annotations: NewJavaValueHandle<'gc>,
     ) -> Result<Self, WasException<'gc>> {
         let field_classfile = check_initing_or_inited_class(jvm, int_state, CClassName::field().into())?;
         let field_object = new_object_full(jvm, int_state, &field_classfile);
@@ -42,11 +43,6 @@ impl<'gc> Field<'gc> {
         let modifiers = NewJavaValue::Int(modifiers);
         let slot = NewJavaValue::Int(slot);
 
-        let allocated_object_handle = jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
-            whole_array_runtime_class: check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?,
-            elems: annotations,
-        }));
-        let annotations = allocated_object_handle.new_java_value();
 
         run_constructor(
             jvm,
@@ -59,7 +55,7 @@ impl<'gc> Field<'gc> {
                  modifiers,
                  slot,
                  signature.as_ref().map(|signature| signature.new_java_value()).unwrap_or(NewJavaValue::Null),
-                 annotations],
+                 annotations.as_njv()],
             &CMethodDescriptor::void_return(vec![CClassName::class().into(),
                                                  CClassName::string().into(),
                                                  CClassName::class().into(),

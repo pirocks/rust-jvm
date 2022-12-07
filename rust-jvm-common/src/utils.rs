@@ -237,4 +237,13 @@ impl FieldInfo {
     pub fn name(&self, class: &Classfile) -> String {
         class.constant_pool[self.name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
+
+    pub fn runtime_visible_annotations(&self) -> Option<&RuntimeVisibleAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleAnnotations(annotations) = &attr.attribute_type {
+                return Some(annotations);
+            }
+        }
+        None
+    }
 }

@@ -188,7 +188,7 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc, 'l>(jvm:
     let field_type = unwrap_or_npe(jvm, int_state, field_type_option)?;
     let empty_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("".to_string()))?;
     //todo impl annotations.
-    let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, None, vec![])?;
+    let field = Field::init(jvm, int_state, clazz, name, field_type, 0, 0, None, NewJavaValueHandle::Null)?;
     let res = Unsafe::the_unsafe(jvm, int_state).object_field_offset(jvm, int_state, field)?;
     Ok(res)
 }

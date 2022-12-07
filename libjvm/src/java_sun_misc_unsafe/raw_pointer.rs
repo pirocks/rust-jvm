@@ -20,6 +20,13 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(env: *mut JNIEnv, the
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putShort__JS(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, short_: jshort) {
+    let byte_addr: *mut jshort = transmute(address);
+    byte_addr.write(short_);
+}
+
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putInt__JI(env: *mut JNIEnv, the_unsafe: jobject, address: jlong, int_: jint) {
     let int_addr: *mut jint = transmute(address);
     int_addr.write(int_)
