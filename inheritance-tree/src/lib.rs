@@ -1,4 +1,3 @@
-#![feature(int_log)]
 #![feature(portable_simd)]
 
 use std::collections::HashMap;

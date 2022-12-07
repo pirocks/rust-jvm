@@ -30,10 +30,10 @@ pub fn fcmpg<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
 }
 
 fn fcmp_common<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, value2: f32, value1: f32) {
-    if value1.to_bits() == value2.to_bits() {
-        current_frame.push(InterpreterJavaValue::Int(0))
-    } else if value1 > value2 {
+    if value1 > value2 {
         current_frame.push(InterpreterJavaValue::Int(1))
+    } else if value1 == value2 {
+        current_frame.push(InterpreterJavaValue::Int(0))
     } else if value1 < value2 {
         current_frame.push(InterpreterJavaValue::Int(-1))
     } else {

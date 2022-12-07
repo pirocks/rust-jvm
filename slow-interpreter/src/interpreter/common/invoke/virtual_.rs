@@ -210,6 +210,10 @@ pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut im
         let (class, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         let class_view = class.view();
         let res_method = class_view.method_view_i(method_i);
+        if args.iter().filter(|arg| !matches!(arg,NewJavaValue::Top)).count() != jvm.num_args_by_method_id(method_id) as usize{
+            dbg!(args.iter().filter(|arg| !matches!(arg,NewJavaValue::Top)).map(|arg|arg.to_type_basic()).collect_vec());
+            dbg!(res_method.desc().jvm_representation(&jvm.string_pool));
+        }
         assert_eq!(args.iter().filter(|arg| !matches!(arg,NewJavaValue::Top)).count(), jvm.num_args_by_method_id(method_id) as usize);
         let args = fixup_args(args, jvm.num_local_var_slots(method_id));
         let res = run_static_or_virtual(jvm, interpreter_state, &class, res_method.name(), res_method.desc(), args)?.unwrap();
