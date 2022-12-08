@@ -4,8 +4,7 @@ use std::os::raw::c_void;
 use parking_lot::ReentrantMutex;
 
 use jvmti_jni_bindings::{jint, JNI_OK};
-use slow_interpreter::jvmti::monitor::create_raw_monitor;
-use slow_interpreter::threading::monitors::Monitor;
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void {

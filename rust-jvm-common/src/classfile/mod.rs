@@ -3,8 +3,8 @@ use std::hash::Hasher;
 use num_derive::FromPrimitive;
 use wtf8::Wtf8Buf;
 
-use crate::classnames::class_name;
 use crate::ByteCodeOffset;
+use crate::classnames::class_name;
 use crate::compressed_classfile::code::LiveObjectIndex;
 use crate::ptype::PType;
 
@@ -62,10 +62,14 @@ pub struct ExceptionTableElem {
     pub catch_type: u16,
 }
 
+//todo what if line number more thatn 64k?
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct LineNumber(pub u16);
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LineNumberTableEntry {
-    pub start_pc: u16,
-    pub line_number: u16,
+    pub start_pc: ByteCodeOffset,
+    pub line_number: LineNumber,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -125,6 +129,18 @@ pub struct LineNumberTable {
     pub line_number_table: Vec<LineNumberTableEntry>,
 }
 
+impl LineNumberTable{
+    pub fn lookup_pc(&self, pc: ByteCodeOffset) -> Option<LineNumber> {
+        let mut current_line = None;
+        for entry in self.line_number_table.iter() {
+            if entry.start_pc <= pc{
+                current_line = Some(entry.line_number)
+            }
+        }
+        current_line
+    }
+}
+
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct LocalVariableTable {
     pub local_variable_table: Vec<LocalVariableTableEntry>,
@@ -164,15 +180,9 @@ pub struct ArrayVariableInfo {
     pub array_type: PType,
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct UninitializedVariableInfo {
     pub offset: ByteCodeOffset,
-}
-
-impl Clone for UninitializedVariableInfo {
-    fn clone(&self) -> Self {
-        UninitializedVariableInfo { offset: self.offset }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -724,7 +734,7 @@ pub enum InstructionInfo {
     athrow,
     baload,
     bastore,
-    bipush(u8),
+    bipush(i8),
     caload,
     castore,
     checkcast(CPIndex),
@@ -903,15 +913,15 @@ pub enum InstructionInfo {
     return_,
     saload,
     sastore,
-    sipush(u16),
+    sipush(i16),
     swap,
     tableswitch(TableSwitch),
     wide(Wide),
     EndOfCode,
 }
 
-impl InstructionInfo{
-    pub fn size(&self) -> u16{
+impl InstructionInfo {
+    pub fn size(&self) -> u16 {
         match self {
             InstructionInfo::aaload => todo!(),
             InstructionInfo::aastore => todo!(),
@@ -1129,6 +1139,7 @@ pub const ACC_PROTECTED: u16 = 0x0004;
 pub const ACC_STATIC: u16 = 0x0008;
 pub const ACC_FINAL: u16 = 0x0010;
 pub const ACC_SUPER: u16 = 0x0020;
+pub const ACC_SYNCHRONIZED: u16 = 0x0020;
 pub const ACC_BRIDGE: u16 = 0x0040;
 pub const ACC_VOLATILE: u16 = 0x0040;
 pub const ACC_TRANSIENT: u16 = 0x0080;
@@ -1168,8 +1179,8 @@ pub struct Classfile {
     pub attributes: Vec<AttributeInfo>,
 }
 
-impl Classfile{
-    pub fn into_bytes(self) -> Vec<u8>{
+impl Classfile {
+    pub fn into_bytes(self) -> Vec<u8> {
         let mut _res = vec![];
         todo!();
         _res
@@ -1178,7 +1189,7 @@ impl Classfile{
 
 pub type Interface = u16;
 
-impl std::cmp::PartialEq for Classfile {
+impl PartialEq for Classfile {
     fn eq(&self, other: &Self) -> bool {
         self.magic == other.magic && self.minor_version == other.minor_version && self.major_version == other.major_version && self.constant_pool == other.constant_pool && self.access_flags == other.access_flags && self.this_class == other.this_class && self.super_class == other.super_class && self.interfaces == other.interfaces && self.fields == other.fields && self.methods == other.methods && self.attributes == other.attributes
     }

@@ -1,10 +1,12 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use jvmti_jni_bindings::{jboolean, jlocation, jlong, JNIEnv, jobject, jthread, JVM_Available};
-use slow_interpreter::interpreter::WasException;
+use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::rust_jni::interface::string::get_string_region;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+
+
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
+use slow_interpreter::utils::pushable_frame_todo;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 ///Blocks current thread, returning when a balancing unpark occurs, or a balancing unpark has already occurred,
 /// or the thread is interrupted, or, if not absolute and time is not zero, the given time nanoseconds have
@@ -40,7 +42,10 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_park(env: *mut JNIEnv, _unsafe: j
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe: jobject, thread: jthread) {
     let jvm = get_state(env);
-    let thread_obj = JavaValue::Object(from_object(jvm, thread)).cast_thread();
+    let thread_obj = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let target_thread = thread_obj.get_java_thread(jvm);
-    target_thread.unpark(jvm, get_interpreter_state(env));
+    let interpreter_state = get_interpreter_state(env);
+    // interpreter_state.debug_print_stack_trace(jvm);
+    // dbg!(target_thread.thread_object().name(jvm).to_rust_string(jvm));
+    target_thread.unpark(jvm, interpreter_state);
 }

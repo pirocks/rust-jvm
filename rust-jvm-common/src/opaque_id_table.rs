@@ -12,6 +12,7 @@ pub struct OpaqueIDs {
 }
 
 impl OpaqueIDs {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             info: Default::default()

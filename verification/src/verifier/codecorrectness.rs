@@ -5,8 +5,11 @@ use itertools::Itertools;
 
 use classfile_view::view::HasAccessFlags;
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CompressedCode, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+
+
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 
@@ -19,6 +22,7 @@ use crate::verifier::instructions::merged_code_is_type_safe;
 use crate::verifier::stackmapframes::get_stack_map_frames;
 use crate::verifier::TypeSafetyError;
 
+#[allow(unreachable_code)]
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
     let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
@@ -26,7 +30,7 @@ pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VTy
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
-        Result::Err(TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string()))
+        Result::Err(todo!()/*TypeSafetyError::NotSafe("Operand stack did not have legal length".to_string())*/)
     }
 }
 
@@ -47,14 +51,14 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, 
 pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
-        is_assignable(vf, &actual_type, type_)?;
+        is_assignable(vf, &actual_type, type_, true)?;
         operand_stack.operand_pop();
         Result::Ok(actual_type)
     } else if size_of(vf, type_) == 2 {
         assert!(matches!(&operand_stack.peek(), VType::TopType));
         let top = operand_stack.operand_pop();
         let actual_type = &operand_stack.peek();
-        if let Err(err) = is_assignable(vf, actual_type, type_) {
+        if let Err(err) = is_assignable(vf, actual_type, type_, true) {
             operand_stack.operand_push(top);
             return Err(err);
         };
@@ -69,9 +73,9 @@ pub fn size_of(vf: &VerifierContext, unified_type: &VType) -> u64 {
     match unified_type {
         VType::TopType => 1,
         _ => {
-            if is_assignable(vf, unified_type, &VType::TwoWord).is_ok() {
+            if is_assignable(vf, unified_type, &VType::TwoWord, true).is_ok() {
                 2
-            } else if is_assignable(vf, unified_type, &VType::OneWord).is_ok() {
+            } else if is_assignable(vf, unified_type, &VType::OneWord, true).is_ok() {
                 1
             } else {
                 panic!("This is a bug")
@@ -108,9 +112,9 @@ pub fn can_pop(vf: &VerifierContext, input_frame: Frame, types: Vec<VType>) -> R
 }
 
 pub fn frame_is_assignable(vf: &VerifierContext, left: &Frame, right: &Frame) -> Result<(), TypeSafetyError> {
-    let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_)).collect();
+    let locals_assignable_res: Result<Vec<_>, _> = left.locals.iter().zip(right.locals.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_, true)).collect();
     let locals_assignable = locals_assignable_res.is_ok();
-    let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_)).collect();
+    let stack_assignable_res: Result<Vec<_>, _> = left.stack_map.iter().zip(right.stack_map.iter()).map(|(left_, right_)| is_assignable(vf, left_, right_, true)).collect();
     let stack_assignable = stack_assignable_res.is_ok();
     if left.stack_map.len() == right.stack_map.len()
         && locals_assignable
@@ -181,6 +185,7 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let stack_map: Vec<StackMap> = get_stack_map_frames(vf, &class, method_info);
     let merged = merge_stack_map_and_code(instructs, stack_map.iter().collect());
     let (frame, return_type) = method_initial_stack_frame(vf, &class, &method, frame_size)?;
+    let debug = vf.debug && method_info.name() == MethodName::constructor_clinit();
     let mut env = Environment {
         method,
         max_stack,
@@ -190,6 +195,8 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
         handlers,
         return_type,
         vf,
+        debug,
+        max_locals: frame_size as u16,
     };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
@@ -238,10 +245,12 @@ pub struct Environment<'l, 'k> {
     pub return_type: VType,
     pub frame_size: u16,
     pub max_stack: u16,
+    pub max_locals: u16,
     pub merged_code: Option<&'l Vec<MergedCodeInstruction<'l>>>,
     pub class_loader: LoaderName,
     pub handlers: Vec<Handler>,
     pub vf: &'l mut VerifierContext<'k>,
+    pub debug: bool,
 }
 
 #[derive(Debug)]

@@ -1,13 +1,18 @@
-use std::char::from_u32;
+use std::string::FromUtf8Error;
 
+use itertools::Itertools;
 use wtf8::{CodePoint, Wtf8Buf};
 
 pub mod wtf8_pool;
+#[cfg(test)]
+pub mod test;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct JVMString {
     pub buf: Vec<u8>,
 }
+
+//todo if issues with this go dumpster diving in history there where some issues merging to master.
 
 impl JVMString {
     pub fn from_regular_string(str: &str) -> Self {
@@ -15,19 +20,19 @@ impl JVMString {
             .chars()
             .flat_map(|char_| {
                 let char_ = char_ as u32;
-                if char_ >= 0x1 && char_ <= 0x7F {
+                if (0x1..=0x7F).contains(&char_) {
                     vec![char_ as u8]
-                } else if char_ >= 0x80 && char_ <= 0x7FF {
+                } else if (0x80..=0x7FF).contains(&char_) {
                     let x = 0b1100_0000 | (0b0001_1111 & ((char_ >> 6) as u8));
                     let y = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
                     vec![x, y]
-                } else if char_ >= 0x800 && char_ <= 0xFFFF {
+                } else if (0x800..=0xFFFF).contains(&char_) {
                     let x = 0b1110_0000 | (0b0000_1111 & ((char_ >> 12) as u8));
                     let y = 0b1000_0000 | (0b0011_1111 & ((char_ >> 6) as u8));
                     let z = 0b1000_0000 | (0b0011_1111 & (char_ as u8));
                     vec![x, y, z]
                 } else {
-                    assert!(char_ > 0xFFFF);
+                    assert!(dbg!(char_) > 0xFFFF);
                     let u = 0b1110_1101;
                     let v = 0b1010_0000 | (0b1111_0000 & ((char_ >> 16) as u8 - 1));
                     let w = 0b1000_0000 | (0b1100_0000 & ((char_ >> 10) as u8));
@@ -84,8 +89,9 @@ impl PossiblyJVMString {
     }
 
     fn to_regular_utf8(&self, is_wtf8: bool) -> Result<Utf8OrWtf8, ValidationError> {
+        assert!(is_wtf8);//this parsing only parses to wtf8
         let mut res = if is_wtf8 { Utf8OrWtf8::new_wtf() } else { Utf8OrWtf8::new_utf() };
-        let mut buf_iter = self.buf.iter().peekable();
+        let mut buf_iter = self.buf.iter().multipeek();
         loop {
             let x = match buf_iter.next() {
                 None => break,
@@ -94,67 +100,32 @@ impl PossiblyJVMString {
             if (x >> 7) == 0 {
                 let codepoint = x as u32;
                 res.push_codepoint(codepoint)?;
-            } else if (x >> 5) == 0b110 {
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (y >> 6) != 0b10 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let x_u16 = x as u16;
-                let y_u16 = y as u16;
-                let codepoint = ((x_u16 & 0x1f) << 6) + (y_u16 & 0x3f);
-                res.push_codepoint(codepoint as u32)?;
-            } else if x != 0b11101101 {
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (y >> 6) != 0b10 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (z >> 6) != 0b10 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let x_u16 = x as u16;
-                let y_u16 = y as u16;
-                let z_u16 = z as u16;
-                let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
-                res.push_codepoint(codepoint as u32)?;
             } else {
-                let u = x;
-                let v = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (v >> 4) != 0b1010 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let w = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (w >> 6) != 0b10 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let x = buf_iter.peek().cloned().cloned();
-                if x != Some(0b11101101) {
-                    let x_u16 = u as u16;
-                    let y_u16 = v as u16;
-                    let z_u16 = w as u16;
+                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                if (x >> 5) == 0b110 && (y >> 6) == 0b10 {
+                    let x_u16 = x as u16;
+                    let y_u16 = y as u16;
+                    let codepoint = ((x_u16 & 0x1f) << 6) + (y_u16 & 0x3f);
+                    res.push_codepoint(codepoint as u32)?;
+                } else if (x >> 4) == 0b1110 {
+                    if (y >> 6) != 0b10 {
+                        dbg!(y);
+                        eprintln!("{:b}", y);
+                        panic!()
+                        // return Err(ValidationError::UnexpectedBits);
+                    }
+                    let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
+                    if (z >> 6) != 0b10 {
+                        dbg!(z);
+                        panic!()
+                        // return Err(ValidationError::UnexpectedBits);
+                    }
+                    let x_u16 = x as u16;
+                    let y_u16 = y as u16;
+                    let z_u16 = z as u16;
                     let codepoint = ((x_u16 & 0xf) << 12) + ((y_u16 & 0x3f) << 6) + (z_u16 & 0x3f);
                     res.push_codepoint(codepoint as u32)?;
-                    if x.is_none() {
-                        break;
-                    } else {
-                        continue;
-                    }
                 }
-                buf_iter.next().unwrap();
-                let y = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (y >> 4) != 0b1010 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let z = buf_iter.next().cloned().ok_or::<ValidationError>(ValidationError::UnexpectedEndOfString)?;
-                if (z >> 6) != 0b10 {
-                    return Err(ValidationError::UnexpectedBits);
-                }
-                let y_u32 = y as u32;
-                let z_u32 = z as u32;
-                let v_u32 = v as u32;
-                let w_u32 = w as u32;
-                let codepoint = 0x10000 + ((v_u32 & 0x0f) << 16) + ((w_u32 & 0x3f) << 10) + ((y_u32 & 0x0f) << 6) + (z_u32 & 0x3f);
-                res.push_codepoint(codepoint as u32)?;
             }
         }
         Ok(res)

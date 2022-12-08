@@ -2,11 +2,18 @@ use std::ops::Deref;
 use std::sync::{Arc, RwLock};
 
 use itertools::Itertools;
+use wtf8::Wtf8Buf;
 
-use classfile_parser::attribute_infos::annotation_to_bytes;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfile, CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use classfile_parser::attribute_infos::runtime_annotations_to_bytes;
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
+use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::CompressedClassfile;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::descriptor_parser::MethodDescriptor;
 
 use crate::view::attribute_view::{BootstrapMethodsView, EnclosingMethodView, InnerClassesView, SourceFileView};
@@ -47,6 +54,9 @@ pub trait HasAccessFlags {
     fn is_synthetic(&self) -> bool {
         self.access_flags() & ACC_SYNTHETIC > 0
     }
+    fn is_synchronized(&self) -> bool {
+        self.access_flags() & ACC_SYNCHRONIZED > 0
+    }
 }
 
 pub trait ClassView: HasAccessFlags {
@@ -54,8 +64,8 @@ pub trait ClassView: HasAccessFlags {
     fn type_(&self) -> CPDType;
     fn super_name(&self) -> Option<CompressedClassName>;
     fn methods(&self) -> MethodIterator;
-    fn virtual_methods(&self) -> Box<dyn Iterator<Item=MethodView<'_>> + '_>{
-        box self.methods().filter(|method|!method.is_static())
+    fn virtual_methods(&self) -> Box<dyn Iterator<Item=MethodView<'_>> + '_> {
+        box self.methods().filter(|method| !method.is_static())
     }
     fn method_view_i(&self, i: u16) -> MethodView;
     fn num_methods(&self) -> usize;
@@ -68,6 +78,7 @@ pub trait ClassView: HasAccessFlags {
     fn num_interfaces(&self) -> usize;
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView>;
     fn sourcefile_attr(&self) -> Option<SourceFileView>;
+    fn signature_attr(&self) -> Option<Wtf8Buf>;
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
     fn annotations(&self) -> Option<Vec<u8>>;
@@ -98,7 +109,7 @@ impl ClassView for ClassBackedView {
     }
 
     fn type_(&self) -> CompressedParsedDescriptorType {
-        CompressedParsedDescriptorType::Ref(self.name())
+        self.name().to_cpdtype()
     }
 
     fn super_name(&self) -> Option<CompressedClassName> {
@@ -176,26 +187,43 @@ impl ClassView for ClassBackedView {
             .next()?;
         Some(SourceFileView { backing_class: self, i })
     }
+
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
+        let signature_index = self
+            .underlying_class
+            .attributes
+            .iter()
+            .find(|attr| matches!(attr.attribute_type, AttributeType::Signature(_)))
+            .map(|attr| match &attr.attribute_type {
+                AttributeType::Signature(signature) => {
+                    signature.signature_index
+                }
+                _ => {
+                    panic!()
+                }
+            })?;
+        Some(self.underlying_class.constant_pool[signature_index as usize].extract_string_from_utf8())
+    }
+
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         self.underlying_class.attributes.iter().enumerate().find(|(_i, attr)| matches!(attr.attribute_type, AttributeType::EnclosingMethod(_))).map(|(i, _)| EnclosingMethodView { backing_class: self, i })
     }
 
     fn inner_classes_view(&self) -> Option<InnerClassesView> {
-        /*self.backing_class.attributes.iter().enumerate().find(|(_i, attr)| {
+        self.underlying_class.attributes.iter().enumerate().find(|(_i, attr)| {
             matches!(attr.attribute_type, AttributeType::InnerClasses(_))
-        }).map(|(i, _)| { InnerClassesView { backing_class: ClassBackedView::from(self.backing_class.clone()), i } })*/
-        todo!()
+        }).map(|(i, _)| { InnerClassesView { backing_class: self, i } })
     }
 
     fn annotations(&self) -> Option<Vec<u8>> {
         self.underlying_class.attributes.iter().find_map(|attr| match &attr.attribute_type {
-            AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(annotations.iter().flat_map(|annotation| annotation_to_bytes(annotation.clone())).collect_vec()),
+            AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(runtime_annotations_to_bytes(annotations.clone())),
             _ => None,
         })
     }
 
     fn lookup_field(&self, name: FieldName) -> Option<FieldView> {
-        self.backing_class.fields.iter().enumerate().filter(|(_,field)|field.name == name.0).map(|(i,_)|FieldView::from(self,i)).exactly_one().ok()
+        self.backing_class.fields.iter().enumerate().filter(|(_, field)| FieldName(field.name) == name).map(|(i, _)| FieldView::from(self, i)).exactly_one().ok()
     }
 
     fn lookup_method(&self, name: MethodName, desc: &CMethodDescriptor) -> Option<MethodView> {
@@ -317,6 +345,10 @@ impl ClassView for PrimitiveView {
         None
     }
 
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
+        None
+    }
+
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView> {
         None
     }
@@ -361,7 +393,7 @@ impl ClassView for ArrayView {
     }
 
     fn type_(&self) -> CPDType {
-        CompressedParsedDescriptorType::Ref(CPRefType::Array(box self.sub.type_()))
+        CompressedParsedDescriptorType::array(self.sub.type_())
     }
 
     /// this is doing the heavy lifting to get all the desired methods here
@@ -415,6 +447,10 @@ impl ClassView for ArrayView {
     }
 
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
+        None
+    }
+
+    fn signature_attr(&self) -> Option<Wtf8Buf> {
         None
     }
 

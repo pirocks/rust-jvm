@@ -15,3 +15,5 @@ test_/
 /jmm-bindings/gen/
 /terminal-build/
 /threads/gen/
+/deps/
+xtask.config

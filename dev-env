@@ -1,9 +1,2 @@
-export LD_LIBRARY_PATH=/home/francis/Clion/rust-jvm/target/debug/deps/;
-export JVM_H=/home/francis/build/openjdk-debug/jdk8u/jdk/src/share/javavm/export/
-export JVM_MD_H=/home/francis/Clion/rust-jvm/jvmti-jni-bindings/
-export JNI_MD_H=/home/francis/Desktop/jdk8u232-b09/include/linux/
-export JNI_H=/home/francis/Desktop/jdk8u232-b09/include/
-export RUSTFLAGS="-C force-frame-pointers=y -C target-feature=-avx2,-avx";
 export RUST_BACKTRACE=full
-export LD_LIBRARY_PATH=/home/francis/CLionProjects/rust-jvm/target/debug/deps/
-export RUSTC_WRAPPER=/home/francis/.cargo/bin/sccache
+export LD_LIBRARY_PATH=/home/francis/CLionProjects/rust-jvm/target/release/deps/:/home/francis/Clion/rust-jvm/target/release/deps/

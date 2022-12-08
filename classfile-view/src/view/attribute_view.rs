@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
-use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, InnerClass, InnerClasses, SourceFile};
+use wtf8::Wtf8Buf;
+
+use rust_jvm_common::classfile::{AttributeType, BootstrapMethod, CPIndex, EnclosingMethod, InnerClass, InnerClasses, SourceFile};
+use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::compressed_types::CPRefType;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::{CCString, CompressedClassfileStringPool};
 use rust_jvm_common::descriptor_parser::parse_class_name;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::constant_info_view::{ConstantInfoView, DoubleView, FloatView, IntegerView, LongView, MethodHandleView, MethodTypeView, StringView};
-use crate::view::ptype_view::{PTypeView, ReferenceTypeView};
 
 #[derive(Clone)]
 pub struct BootstrapMethodIterator<'cl> {
@@ -121,12 +126,39 @@ pub struct EnclosingMethodView<'l> {
     pub(crate) i: usize,
 }
 
-pub struct InnerClassesView {
-    pub(crate) backing_class: ClassBackedView,
+impl<'l> EnclosingMethodView<'l> {
+    fn raw(&self) -> &EnclosingMethod {
+        match &self.backing_class.underlying_class.attributes[self.i].attribute_type {
+            AttributeType::EnclosingMethod(im) => im,
+            _ => panic!(),
+        }
+    }
+
+    pub fn class_name(&self, pool: &CompressedClassfileStringPool) -> CPRefType {
+        self.backing_class.constant_pool_view(self.raw().class_index as usize).unwrap_class().class_ref_type(pool)
+    }
+
+    pub fn method_name(&self, pool: &CompressedClassfileStringPool) -> Option<MethodName> {
+        if self.raw().method_index == 0 {
+            return None;
+        }
+        Some(MethodName(pool.add_name(self.backing_class.underlying_class.name_and_type_extractor(self.raw().method_index).0, false)))
+    }
+
+    pub fn method_desc(&self, pool: &CompressedClassfileStringPool) -> Option<CCString> {
+        if self.raw().method_index == 0 {
+            return None;
+        }
+        Some(pool.add_name(self.backing_class.underlying_class.name_and_type_extractor(self.raw().method_index).1, false))
+    }
+}
+
+pub struct InnerClassesView<'l> {
+    pub(crate) backing_class: &'l ClassBackedView,
     pub(crate) i: usize,
 }
 
-impl InnerClassesView {
+impl InnerClassesView<'_> {
     fn raw(&self) -> &InnerClasses {
         match &self.backing_class.underlying_class.attributes[self.i].attribute_type {
             AttributeType::InnerClasses(ic) => ic,
@@ -145,12 +177,33 @@ pub struct InnerClassView<'l> {
 }
 
 impl InnerClassView<'_> {
-    pub fn inner_name(&self) -> Option<ReferenceTypeView> {
+    pub fn inner_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
+        let inner_name_index = self.class.inner_name_index as usize;
+        let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();
+        CompressedClassName(class_pool.add_name(inner_class_name.into_string().unwrap(), false))
+    }
+
+    pub fn outer_name(&self, class_pool: &CompressedClassfileStringPool) -> CClassName {
+        let outer_class_name_index = self.backing_class.underlying_class.extract_class_from_constant_pool(self.class.outer_class_info_index).name_index;
+        let outer_class_name = self.backing_class.underlying_class.constant_pool[outer_class_name_index as usize].extract_string_from_utf8();
+        CompressedClassName(class_pool.add_name(outer_class_name.as_str().unwrap(), false))
+    }
+
+    pub fn complete_name(&self, class_pool: &CompressedClassfileStringPool) -> Option<CClassName> {
         let inner_name_index = self.class.inner_name_index as usize;
         if inner_name_index == 0 {
             return None;
         }
-        PTypeView::from_ptype(&parse_class_name(&self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo"))).unwrap_ref_type().clone().into()
+        //todo clean this up by using inner and outer name functions and making them return options
+        if self.class.outer_class_info_index == 0 {
+            return None
+        }
+        let outer_class_name_index = self.backing_class.underlying_class.extract_class_from_constant_pool(self.class.outer_class_info_index).name_index;
+        let outer_class_name = self.backing_class.underlying_class.constant_pool[outer_class_name_index as usize].extract_string_from_utf8();
+        let inner_class_name = self.backing_class.underlying_class.constant_pool[inner_name_index].extract_string_from_utf8();
+        let class_name = format!("{}${}", outer_class_name.as_str().unwrap(), inner_class_name.as_str().unwrap());
+        parse_class_name(class_name.as_str()).unwrap_class_type();
+        Some(CompressedClassName(class_pool.add_name(class_name, false)))
     }
 }
 
@@ -167,8 +220,8 @@ impl SourceFileView<'_> {
         }
     }
 
-    pub fn file(&self) -> String {
+    pub fn file(&self) -> Wtf8Buf {
         let si = self.source_file_attr().sourcefile_index;
-        self.backing_class.underlying_class.constant_pool[si as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
+        self.backing_class.underlying_class.constant_pool[si as usize].extract_string_from_utf8()
     }
 }

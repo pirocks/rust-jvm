@@ -1,13 +1,17 @@
 use wtf8::Wtf8Buf;
 
 use rust_jvm_common::classfile::{Classfile, ConstantKind, CPIndex, Fieldref, InterfaceMethodref, MethodHandle, Methodref, MethodType, NameAndType, ReferenceKind};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
-use rust_jvm_common::descriptor_parser::parse_method_descriptor;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::string_pool::{CCString, CompressedClassfileStringPool};
+
+
+use rust_jvm_common::descriptor_parser::{parse_class_name, parse_method_descriptor};
 use rust_jvm_common::ptype::PType;
 
 use crate::view::{ClassBackedView, ClassView};
 use crate::view::attribute_view::BootstrapMethodView;
+use crate::view::ptype_view::PTypeView;
 
 #[derive(Debug)]
 pub struct Utf8View {
@@ -41,11 +45,10 @@ pub struct ClassPoolElemView<'l> {
 }
 
 impl ClassPoolElemView<'_> {
-    pub fn class_ref_type(&self) -> CPRefType {
-        /*let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
-        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str));
-        type_.unwrap_ref_type().clone()*/
-        todo!()
+    pub fn class_ref_type(&self, string_pool: &CompressedClassfileStringPool) -> CPRefType {
+        let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
+        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str.as_str().unwrap()));
+        CPDType::from_ptype(&type_.to_ptype(), string_pool).unwrap_ref_type()
     }
 }
 
@@ -212,7 +215,17 @@ impl MethodHandleView<'_> {
                 };
                 ReferenceInvokeKind::InvokeSpecial(invoke_special)
             }
-            ReferenceKind::NewInvokeSpecial => unimplemented!(),
+            ReferenceKind::NewInvokeSpecial => {
+                let reference_idx = self.get_raw().reference_index as usize;
+                let invoke_special = match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
+                    ConstantKind::Methodref(_) => MethodrefView { class_view: self.class_view, i: reference_idx },
+                    ck => {
+                        dbg!(ck);
+                        panic!()
+                    }
+                };
+                ReferenceInvokeKind::NewInvokeSpecial(invoke_special)
+            },
             ReferenceKind::InvokeInterface => unimplemented!(),
         }
     }
@@ -221,6 +234,7 @@ impl MethodHandleView<'_> {
 pub enum ReferenceInvokeKind<'cl> {
     InvokeStatic(InvokeStatic<'cl>),
     InvokeSpecial(InvokeSpecial<'cl>),
+    NewInvokeSpecial(MethodrefView<'cl>),
 }
 
 pub enum InvokeStatic<'cl> {

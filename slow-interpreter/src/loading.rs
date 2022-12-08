@@ -2,14 +2,15 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
-use iced_x86::OpCodeOperandKind::cl;
 
 use classfile_parser::parse_class_file;
 use jar_manipulation::JarHandle;
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::loading::ClassLoadingError;
 use rust_jvm_common::loading::ClassLoadingError::ClassNotFoundException;
 
@@ -18,7 +19,7 @@ pub struct Classpath {
     //base directories to search for a file in.
     pub classpath_base: Vec<Box<Path>>,
     jar_cache: RwLock<HashMap<Box<Path>, Box<JarHandle<File>>>>,
-    class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>, //todo deal with multiple entries with same name
+    pub class_cache: RwLock<HashMap<CClassName, Arc<Classfile>>>, //todo deal with multiple entries with same name
 }
 
 impl Classpath {
@@ -51,7 +52,14 @@ impl Classpath {
                     let mut cache_write_guard = self.jar_cache.write().unwrap();
                     let boxed_path = dir_member.path().into_boxed_path();
                     if cache_write_guard.get(&boxed_path).is_none() {
-                        cache_write_guard.insert(boxed_path.clone(), box JarHandle::new(boxed_path).unwrap());
+                        cache_write_guard.insert(boxed_path.clone(), box match JarHandle::new(boxed_path.clone()) {
+                            Ok(x) => x,
+                            Err(err) => {
+                                dbg!(err);
+                                dbg!(boxed_path);
+                                todo!()
+                            },
+                        });
                     }
                 }
             }

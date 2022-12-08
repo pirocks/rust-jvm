@@ -1,15 +1,18 @@
-use std::ops::Deref;
 use std::rc::Rc;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CInstructionInfo;
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::ClassWithLoader;
 use rust_jvm_common::vtype::VType;
@@ -23,15 +26,16 @@ use crate::verifier::instructions::{AfterGotoFrames, exception_stack_frame, Inst
 use crate::verifier::passes_protected_check;
 use crate::verifier::TypeSafetyError;
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     match env.return_type {
         VType::VoidType => {}
         _ => {
-            return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
         }
     };
     if stack_frame.flag_this_uninit {
-        return Result::Err(TypeSafetyError::NotSafe("todo messsage".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
     }
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
@@ -55,12 +59,13 @@ pub fn instruction_is_type_safe_goto(target: ByteCodeOffset, env: &Environment, 
     Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     //todo is ireturn used for shorts etc?
     //what should a method return type be?
     match env.return_type {
         VType::IntType => {}
-        _ => return Result::Err(TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())),
+        _ => return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())*/),
     }
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -71,7 +76,7 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -
 
 pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let return_type = &env.return_type;
-    is_assignable(&env.vf, return_type, &VType::Reference)?;
+    is_assignable(&env.vf, return_type, &VType::Reference, true)?;
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![return_type.clone()])?;
@@ -91,6 +96,7 @@ pub fn instruction_is_type_safe_ifnonnull(target: ByteCodeOffset, env: &Environm
     type_safe_if_cmp(target, env, stack_frame, vec![VType::Reference])
 }
 
+#[allow(unreachable_code)]
 pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class = get_class(&env.vf, &env.method.class)?;
     let (call_site_name, descriptor) = match &method_class.constant_pool_view(cp) {
@@ -98,7 +104,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
         _ => panic!(),
     };
     if call_site_name == MethodName::constructor_init() || call_site_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string())*/);
     }
     let operand_arg_list: Vec<VType> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
@@ -109,14 +115,15 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
     standard_exception_frame(locals, flag, next_frame)
 }
 
-pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: &CMethodDescriptor, ref_type: &CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+#[allow(unreachable_code)]
+pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: &CMethodDescriptor, ref_type: CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string())*/);
     }
     let mut operand_arg_list: Vec<_> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
     let current_loader = env.class_loader.clone();
-    operand_arg_list.push(CPDType::Ref(ref_type.clone()).to_verification_type(current_loader));
+    operand_arg_list.push(ref_type.to_cpdtype().to_verification_type(current_loader));
     let stack_arg_list = operand_arg_list;
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
@@ -137,15 +144,15 @@ fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame:
     }
 }
 
-pub fn instruction_is_type_safe_invokespecial(method_class_type: &CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokespecial(method_class_type: CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_class_name = match method_class_type {
-        CPDType::Ref(CPRefType::Class(c)) => c,
+        CPDType::Class(c) => c,
         _ => panic!(),
     };
     if method_name == MethodName::constructor_init() {
-        invoke_special_init(&env, stack_frame, *method_class_name, parsed_descriptor)
+        invoke_special_init(&env, stack_frame, method_class_name, parsed_descriptor)
     } else {
-        invoke_special_not_init(env, stack_frame, *method_class_name, method_name, parsed_descriptor)
+        invoke_special_not_init(env, stack_frame, method_class_name, method_name, parsed_descriptor)
     }
 }
 
@@ -242,9 +249,10 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
     }
 }
 
+#[allow(unreachable_code)]
 fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_clinit() {
-        return Result::Err(TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string()));
+        return Result::Err(todo!()/*TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string())*/);
     }
     let current_class_name = env.method.class.class_name.clone();
     let current_loader = env.method.class.loader.clone();
@@ -265,7 +273,8 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
 
 pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let method_name_str = method_name.0.to_str(env.vf.string_pool);
-    if method_name_str.contains("arrayOf") || method_name_str.contains('[') || method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
+    if method_name_str.contains('[') || method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
+        dbg!(method_name_str);
         unimplemented!();
     }
     let operand_arg_list: Vec<_> = parsed_descriptor.arg_types.iter().map(|x| x.to_verification_type(env.class_loader)).collect();
@@ -297,12 +306,10 @@ pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_des
     }
 }
 
-pub fn instruction_is_type_safe_invokevirtual(class_type: &CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
+pub fn instruction_is_type_safe_invokevirtual(class_type: CPDType, method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let (class_name, method_class) = match class_type {
-        CPDType::Ref(r) => match r {
-            CPRefType::Class(c) => (Some(c.clone()), VType::Class(ClassWithLoader { class_name: *c, loader: env.class_loader.clone() })),
-            CPRefType::Array(a) => (None, VType::ArrayReferenceType(a.deref().clone())),
-        },
+        CPDType::Class(c) => (Some(c), VType::Class(ClassWithLoader { class_name: c, loader: env.class_loader.clone() })),
+        CPDType::Array { base_type, num_nested_arrs } => (None, VType::ArrayReferenceType(CPDType::new_array_or_normal(base_type, num_nested_arrs.get() - 1))),
         _ => panic!(),
     };
 
@@ -341,7 +348,7 @@ pub fn get_method_descriptor(pool: &CompressedClassfileStringPool, cp: usize, cl
         }
         _ => todo!(),
     };
-    (CPDType::Ref(ref_type), method_name, parsed_descriptor)
+    (ref_type.to_cpdtype(), method_name, parsed_descriptor)
 }
 
 pub fn possibly_array_to_type(class_name: &str) -> ReferenceTypeView {

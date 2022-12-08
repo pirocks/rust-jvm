@@ -4,7 +4,9 @@ use itertools::Itertools;
 
 use crate::classfile::{Classfile, MethodInfo};
 use crate::classnames::ClassName;
-use crate::compressed_classfile::{CFieldDescriptor, CMethodDescriptor};
+
+use crate::compressed_classfile::compressed_descriptors::CFieldDescriptor;
+use crate::compressed_classfile::compressed_types::CMethodDescriptor;
 use crate::ptype::{PType, ReferenceType};
 
 #[derive(Debug, Eq, Clone)]
@@ -191,7 +193,7 @@ pub fn parse_class_name(str_: &str) -> PType {
         let field_descriptor = parse_field_descriptor(subtype_descriptor).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type;
         PType::Ref(ReferenceType::Array(box field_descriptor))
     } else if str_.ends_with(';') {
-        parse_field_descriptor(&str_).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type
+        parse_field_descriptor(str_).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type
     } else {
         PType::Ref(ReferenceType::Class(ClassName::Str(str_.to_string())))
     }

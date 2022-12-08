@@ -1,329 +1,33 @@
 use std::num::NonZeroU8;
-#[allow(unreachable_code)]
-#[allow(dead_code)]
-use std::ops::Deref;
 
 use itertools::{Either, Itertools};
 
-use add_only_static_vec::{AddOnlyId, AddOnlyIdMap};
-
-use crate::classfile::{AppendFrame, AttributeType, BootstrapMethods, ChopFrame, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, FullFrame, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, String_, UninitializedVariableInfo};
-use crate::classnames::class_name;
+use crate::classfile::{AppendFrame, AttributeType, BootstrapMethods, ChopFrame, Class, Classfile, Code, ConstantInfo, ConstantKind, Double, ExceptionTableElem, FieldInfo, Fieldref, Float, FullFrame, Instruction, InstructionInfo, Integer, InterfaceMethodref, InvokeInterface, Long, MethodInfo, Methodref, MultiNewArray, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, StackMapFrame, StackMapTable, String_};
+use crate::classnames::{class_name, ClassName};
+use crate::compressed_classfile::class_names::CompressedClassName;
 use crate::compressed_classfile::code::{CInstructionInfo, CompressedAppendFrame, CompressedChopFrame, CompressedCode, CompressedExceptionTableElem, CompressedFullFrame, CompressedInstruction, CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
-use crate::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
-use crate::descriptor_parser::{FieldDescriptor, MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
+use crate::compressed_classfile::compressed_descriptors::{CompressedFieldDescriptor, CompressedMethodDescriptor};
+use crate::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType, CPRefType};
+use crate::compressed_classfile::field_names::FieldName;
+use crate::compressed_classfile::method_names::MethodName;
+use crate::compressed_classfile::string_pool::{CCString, CompressedClassfileString, CompressedClassfileStringPool};
+use crate::descriptor_parser::{MethodDescriptor, parse_field_descriptor, parse_method_descriptor};
 use crate::EXPECTED_CLASSFILE_MAGIC;
-use crate::loading::{ClassWithLoader, LoaderName};
+use crate::loading::LoaderName;
 use crate::ptype::{PType, ReferenceType};
-use crate::runtime_type::{RuntimeRefType, RuntimeType};
 use crate::vtype::VType;
-
-pub struct CompressedClassfileStringPool {
-    pool: AddOnlyIdMap<String>,
-}
-
-static mut ONLY_ONE: bool = false;
-
-impl CompressedClassfileStringPool {
-    pub fn new() -> Self {
-        unsafe {
-            if ONLY_ONE {
-                panic!("should only be one CompressedClassfileStringPool")
-            }
-            ONLY_ONE = true;
-        }
-        let pool: AddOnlyIdMap<String> = AddOnlyIdMap::new();
-        names::add_all_names(&pool);
-        Self { pool }
-    }
-
-    pub fn add_name(&self, str: impl Into<String>, is_class_name: bool) -> CompressedClassfileString {
-        let string = str.into();
-        if is_class_name {
-            assert!(!string.starts_with("["));
-        }
-        let id = self.pool.push(string);
-        CompressedClassfileString { id }
-    }
-
-    pub fn lookup(&self, id: CompressedClassfileString) -> &String {
-        self.pool.lookup(id.id)
-    }
-}
-
-pub type CCString = CompressedClassfileString;
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
-pub struct CompressedClassfileString {
-    id: AddOnlyId,
-}
-
-impl CompressedClassfileString {
-    pub fn to_str(&self, pool: &CompressedClassfileStringPool) -> String {
-        pool.pool.lookup(self.id).to_string()
-    }
-}
 
 pub mod descriptors;
 pub mod names;
+pub mod native_cpdtype;
+pub mod method_names;
+pub mod field_names;
+pub mod class_names;
+pub mod string_pool;
+pub mod compressed_types;
+pub mod compressed_descriptors;
+pub mod code;
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum CompressedParsedVerificationType {
-    TopType,
-    IntType,
-    FloatType,
-    DoubleType,
-    LongType,
-    NullType,
-    UninitializedThis,
-    Uninitialized(UninitializedVariableInfo),
-    Ref(CompressedParsedRefType),
-}
-
-pub type CPRefType = CompressedParsedRefType;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum CompressedParsedRefType {
-    Array(Box<CompressedParsedDescriptorType>),
-    Class(CompressedClassName),
-}
-
-impl CompressedParsedRefType {
-    pub fn unwrap_object_name(&self) -> CClassName {
-        match self {
-            CompressedParsedRefType::Array(_) => panic!(),
-            CompressedParsedRefType::Class(ccn) => *ccn,
-        }
-    }
-
-    pub fn to_verification_type(&self, loader: LoaderName) -> VType {
-        match self {
-            CompressedParsedRefType::Array(arr) => VType::ArrayReferenceType(arr.deref().clone()),
-            CompressedParsedRefType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader }),
-        }
-    }
-
-    pub fn try_unwrap_name(&self) -> Option<CClassName> {
-        match self {
-            CompressedParsedRefType::Array(_) => None,
-            CompressedParsedRefType::Class(ccn) => Some(*ccn),
-        }
-    }
-
-    pub fn unwrap_name(&self) -> CClassName {
-        self.try_unwrap_name().unwrap()
-    }
-
-    pub fn try_unwrap_ref_type(&self) -> Option<&CompressedParsedDescriptorType> {
-        match self {
-            CompressedParsedRefType::Array(arr) => Some(arr.deref()),
-            CompressedParsedRefType::Class(_) => None,
-        }
-    }
-
-    pub fn is_array(&self) -> bool {
-        match self {
-            CompressedParsedRefType::Array(_) => true,
-            CompressedParsedRefType::Class(_) => false,
-        }
-    }
-
-    pub fn unwrap_array(&self) -> &CPDType {
-        match self {
-            CompressedParsedRefType::Array(arr) => arr,
-            CompressedParsedRefType::Class(_) => panic!(),
-        }
-    }
-}
-
-pub type CPDType = CompressedParsedDescriptorType;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum CompressedParsedDescriptorType {
-    BooleanType,
-    ByteType,
-    ShortType,
-    CharType,
-    IntType,
-    LongType,
-    FloatType,
-    DoubleType,
-    VoidType,
-    Ref(CompressedParsedRefType),
-}
-
-impl CompressedParsedDescriptorType {
-    pub fn unwrap_ref_type(&self) -> &CompressedParsedRefType {
-        self.try_unwrap_ref_type().unwrap()
-    }
-
-    pub fn try_unwrap_ref_type(&self) -> Option<&CPRefType> {
-        match self {
-            CompressedParsedDescriptorType::Ref(ref_) => Some(ref_),
-            _ => None,
-        }
-    }
-
-    pub fn unwrap_class_type(&self) -> CClassName {
-        self.try_unwrap_class_type().unwrap()
-    }
-
-    pub fn try_unwrap_class_type(&self) -> Option<CClassName> {
-        match self {
-            CompressedParsedDescriptorType::Ref(ref_) => ref_.try_unwrap_name(),
-            _ => None,
-        }
-    }
-
-    pub fn unwrap_array_type(&self) -> &CPDType {
-        match self {
-            CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array(arr) => arr.deref(),
-                CompressedParsedRefType::Class(_) => panic!(),
-            },
-            _ => panic!(),
-        }
-    }
-
-    pub fn to_verification_type(&self, loader: LoaderName) -> VType {
-        match self {
-            CompressedParsedDescriptorType::BooleanType => VType::IntType,
-            CompressedParsedDescriptorType::ByteType => VType::IntType,
-            CompressedParsedDescriptorType::ShortType => VType::IntType,
-            CompressedParsedDescriptorType::CharType => VType::IntType,
-            CompressedParsedDescriptorType::IntType => VType::IntType,
-            CompressedParsedDescriptorType::LongType => VType::LongType,
-            CompressedParsedDescriptorType::FloatType => VType::FloatType,
-            CompressedParsedDescriptorType::DoubleType => VType::DoubleType,
-            CompressedParsedDescriptorType::VoidType => VType::VoidType,
-            CompressedParsedDescriptorType::Ref(ref_) => match ref_ {
-                CompressedParsedRefType::Array(a) => VType::ArrayReferenceType(a.deref().clone()),
-                CompressedParsedRefType::Class(obj) => VType::Class(ClassWithLoader { class_name: *obj, loader }),
-            },
-        }
-    }
-
-    pub fn to_runtime_type(&self) -> Option<RuntimeType> {
-        Some(match self {
-            CompressedParsedDescriptorType::BooleanType => RuntimeType::IntType,
-            CompressedParsedDescriptorType::ByteType => RuntimeType::IntType,
-            CompressedParsedDescriptorType::ShortType => RuntimeType::IntType,
-            CompressedParsedDescriptorType::CharType => RuntimeType::IntType,
-            CompressedParsedDescriptorType::IntType => RuntimeType::IntType,
-            CompressedParsedDescriptorType::LongType => RuntimeType::LongType,
-            CompressedParsedDescriptorType::FloatType => RuntimeType::FloatType,
-            CompressedParsedDescriptorType::DoubleType => RuntimeType::DoubleType,
-            CompressedParsedDescriptorType::VoidType => None?,
-            CompressedParsedDescriptorType::Ref(ref_) => RuntimeType::Ref(match ref_ {
-                CompressedParsedRefType::Array(arr) => RuntimeRefType::Array(arr.deref().clone()),
-                CompressedParsedRefType::Class(ccn) => RuntimeRefType::Class(*ccn),
-            }),
-        })
-    }
-
-    pub fn is_primitive(&self) -> bool {
-        match self {
-            CompressedParsedDescriptorType::BooleanType => true,
-            CompressedParsedDescriptorType::ByteType => true,
-            CompressedParsedDescriptorType::ShortType => true,
-            CompressedParsedDescriptorType::CharType => true,
-            CompressedParsedDescriptorType::IntType => true,
-            CompressedParsedDescriptorType::LongType => true,
-            CompressedParsedDescriptorType::FloatType => true,
-            CompressedParsedDescriptorType::DoubleType => true,
-            CompressedParsedDescriptorType::VoidType => true,
-            CompressedParsedDescriptorType::Ref(_) => false,
-        }
-    }
-
-    pub fn is_array(&self) -> bool {
-        match self {
-            CompressedParsedDescriptorType::Ref(ref_) => ref_.is_array(),
-            _ => false,
-        }
-    }
-
-    pub fn is_void(&self) -> bool {
-        match self {
-            CompressedParsedDescriptorType::VoidType => true,
-            _ => false,
-        }
-    }
-
-    pub fn array(sub_type: Self) -> Self {
-        Self::Ref(CPRefType::Array(box sub_type))
-    }
-    pub fn object() -> Self {
-        Self::Ref(CPRefType::Class(CompressedClassName::object()))
-    }
-}
-
-impl CompressedParsedDescriptorType {
-    pub fn from_ptype(ptype: &PType, pool: &CompressedClassfileStringPool) -> Self {
-        match ptype {
-            PType::ByteType => Self::ByteType,
-            PType::CharType => Self::CharType,
-            PType::DoubleType => Self::DoubleType,
-            PType::FloatType => Self::FloatType,
-            PType::IntType => Self::IntType,
-            PType::LongType => Self::LongType,
-            PType::Ref(ref_) => Self::Ref(match ref_ {
-                ReferenceType::Class(class_name) => CompressedParsedRefType::Class(CompressedClassName(pool.add_name(class_name.get_referred_name().to_string(), true))),
-                ReferenceType::Array(arr) => CompressedParsedRefType::Array(box CompressedParsedDescriptorType::from_ptype(arr.deref(), pool)),
-            }),
-            PType::ShortType => Self::ShortType,
-            PType::BooleanType => Self::BooleanType,
-            PType::VoidType => Self::VoidType,
-            PType::TopType => panic!(),
-            PType::NullType => panic!(),
-            PType::Uninitialized(_) => panic!(),
-            PType::UninitializedThis => panic!(),
-            PType::UninitializedThisOrClass(_) => panic!(),
-        }
-    }
-}
-
-impl From<CompressedClassName> for CompressedParsedDescriptorType {
-    fn from(ccn: CompressedClassName) -> Self {
-        Self::Ref(CompressedParsedRefType::Class(ccn))
-    }
-}
-
-pub type CMethodDescriptor = CompressedMethodDescriptor;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct CompressedMethodDescriptor {
-    pub arg_types: Vec<CompressedParsedDescriptorType>,
-    pub return_type: CompressedParsedDescriptorType,
-}
-
-impl CompressedMethodDescriptor {
-    pub fn empty_args(return_type: CPDType) -> Self {
-        Self { arg_types: vec![], return_type }
-    }
-    pub fn void_return(arg_types: Vec<CPDType>) -> Self {
-        Self { arg_types, return_type: CPDType::VoidType }
-    }
-    pub fn from_legacy(md: MethodDescriptor, pool: &CompressedClassfileStringPool) -> Self {
-        let MethodDescriptor { parameter_types, return_type } = md;
-        Self {
-            arg_types: parameter_types.into_iter().map(|ptype| CPDType::from_ptype(&ptype, pool)).collect_vec(),
-            return_type: CPDType::from_ptype(&return_type, pool),
-        }
-    }
-}
-
-pub type CFieldDescriptor = CompressedFieldDescriptor;
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct CompressedFieldDescriptor(pub CompressedParsedDescriptorType);
-
-impl CompressedFieldDescriptor {
-    pub fn from_legacy(fd: FieldDescriptor, pool: &CompressedClassfileStringPool) -> Self {
-        let FieldDescriptor { field_type } = fd;
-        Self { 0: CPDType::from_ptype(&field_type, pool) }
-    }
-}
 
 #[derive(Clone)]
 pub struct CompressedFieldInfo {
@@ -362,8 +66,6 @@ pub struct CompressedBootstrapMethods {
     inner: BootstrapMethods,
 }
 
-pub mod code;
-
 impl CompressedClassfile {
     pub fn new(pool: &CompressedClassfileStringPool, classfile: &Classfile) -> Self {
         let Classfile {
@@ -382,7 +84,7 @@ impl CompressedClassfile {
         assert_eq!(*magic, EXPECTED_CLASSFILE_MAGIC);
         let super_class = classfile.super_class_name().map(|name| CompressedClassName(pool.add_name(name.get_referred_name().to_string(), true)));
         let this = class_name(classfile).get_referred_name().to_string();
-        let this_class = CompressedClassName(pool.add_name(this.to_string(), true));
+        let this_class = CompressedClassName(pool.add_name(this, true));
 
         let interfaces = interfaces
             .iter()
@@ -423,7 +125,7 @@ impl CompressedClassfile {
                         let instructions = code
                             .iter()
                             .map(|instruction| {
-                                let info = CompressedClassfile::compressed_instruction_from_instruction(pool, &classfile, constant_pool, instruction);
+                                let info = CompressedClassfile::compressed_instruction_from_instruction(pool, classfile, constant_pool, instruction);
                                 (instruction.offset, CompressedInstruction { offset: instruction.offset, instruction_size: instruction.size, info })
                             })
                             .collect();
@@ -440,7 +142,7 @@ impl CompressedClassfile {
                                 AttributeType::StackMapTable(StackMapTable { entries }) => CompressedClassfile::convert_stack_map_table_entries(pool, entries),
                                 _ => None,
                             })
-                            .unwrap_or(vec![]);
+                            .unwrap_or_default();
                         code_attr = Some(CompressedCode {
                             instructions,
                             max_locals: *max_locals,
@@ -476,7 +178,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn convert_stack_map_table_entries(pool: &CompressedClassfileStringPool, entries: &Vec<StackMapFrame>) -> Option<Vec<CompressedStackMapFrame>> {
+    fn convert_stack_map_table_entries(pool: &CompressedClassfileStringPool, entries: &[StackMapFrame]) -> Option<Vec<CompressedStackMapFrame>> {
         Some(
             entries
                 .iter()
@@ -515,7 +217,7 @@ impl CompressedClassfile {
         )
     }
 
-    fn compressed_instruction_from_instruction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, instruction: &Instruction) -> CompressedInstructionInfo {
+    fn compressed_instruction_from_instruction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], instruction: &Instruction) -> CompressedInstructionInfo {
         match &instruction.instruction {
             InstructionInfo::aaload => CInstructionInfo::aaload,
             InstructionInfo::aastore => CInstructionInfo::aastore,
@@ -606,11 +308,11 @@ impl CompressedClassfile {
             InstructionInfo::fstore_3 => CInstructionInfo::fstore_3,
             InstructionInfo::fsub => CInstructionInfo::fsub,
             InstructionInfo::getfield(cp) => {
-                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
+                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, classfile, constant_pool, *cp);
                 CInstructionInfo::getfield { name: FieldName(pool.add_name(field_name, false)), desc, target_class }
             }
             InstructionInfo::getstatic(cp) => {
-                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
+                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, classfile, constant_pool, *cp);
                 CInstructionInfo::getstatic { name: FieldName(pool.add_name(field_name, false)), desc, target_class }
             }
             InstructionInfo::goto_(offset) => CInstructionInfo::goto_(*offset),
@@ -649,7 +351,7 @@ impl CompressedClassfile {
             InstructionInfo::ifle(idx) => CInstructionInfo::ifle(*idx),
             InstructionInfo::ifnonnull(idx) => CInstructionInfo::ifnonnull(*idx),
             InstructionInfo::ifnull(idx) => CInstructionInfo::ifnull(*idx),
-            InstructionInfo::iinc(iinc) => CInstructionInfo::iinc(iinc.clone()),
+            InstructionInfo::iinc(iinc) => CInstructionInfo::iinc(*iinc),
             InstructionInfo::iload(idx) => CInstructionInfo::iload(*idx),
             InstructionInfo::iload_0 => CInstructionInfo::iload_0,
             InstructionInfo::iload_1 => CInstructionInfo::iload_1,
@@ -743,11 +445,11 @@ impl CompressedClassfile {
             InstructionInfo::pop => CInstructionInfo::pop,
             InstructionInfo::pop2 => CInstructionInfo::pop2,
             InstructionInfo::putfield(cp) => {
-                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
+                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, classfile, constant_pool, *cp);
                 CInstructionInfo::putfield { name: FieldName(pool.add_name(field_name, false)), desc, target_class }
             }
             InstructionInfo::putstatic(cp) => {
-                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, &classfile, constant_pool, *cp);
+                let (target_class, field_name, desc) = CompressedClassfile::field_descriptor_extraction(pool, classfile, constant_pool, *cp);
                 CInstructionInfo::putstatic { name: FieldName(pool.add_name(field_name, false)), desc, target_class }
             }
             InstructionInfo::ret(idx) => CInstructionInfo::ret(*idx),
@@ -762,7 +464,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn constant_value(pool: &CompressedClassfileStringPool, constant_pool: &Vec<ConstantInfo>, cp: u16) -> Either<CompressedLdcW, CompressedLdc2W> {
+    fn constant_value(pool: &CompressedClassfileStringPool, constant_pool: &[ConstantInfo], cp: u16) -> Either<CompressedLdcW, CompressedLdc2W> {
         match constant_pool[cp as usize].kind {
             ConstantKind::Utf8(_) => todo!(),
             ConstantKind::Integer(Integer { bytes }) => Either::Left(CompressedLdcW::Integer { integer: bytes as i32 }),
@@ -771,7 +473,12 @@ impl CompressedClassfile {
             ConstantKind::Double(Double { low_bytes, high_bytes }) => Either::Right(CompressedLdc2W::Double(f64::from_ne_bytes((((high_bytes as u64) << 32) | low_bytes as u64).to_ne_bytes()))),
             ConstantKind::Class(Class { name_index }) => {
                 let name = constant_pool[name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo");
-                let type_ = CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool);
+                let type_ = if name.starts_with('[') {
+                    CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type, pool)
+                } else {
+                    CPDType::from_ptype(&PType::Ref(ReferenceType::Class(ClassName::Str(name))), pool)
+                };
+
                 Either::Left(CompressedLdcW::Class { type_ })
             }
             ConstantKind::String(String_ { string_index }) => {
@@ -788,7 +495,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn field_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, cp: u16) -> (CompressedClassName, String, CompressedFieldDescriptor) {
+    fn field_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], cp: u16) -> (CompressedClassName, String, CompressedFieldDescriptor) {
         match &constant_pool[cp as usize].kind {
             ConstantKind::Fieldref(Fieldref { class_index, name_and_type_index }) => {
                 let target_class = CPDType::from_ptype(&PType::Ref(classfile.extract_class_from_constant_pool_name(*class_index)), pool).unwrap_class_type();
@@ -800,7 +507,7 @@ impl CompressedClassfile {
         }
     }
 
-    fn method_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &Vec<ConstantInfo>, index: &u16) -> (CPRefType, CompressedMethodDescriptor, MethodName) {
+    fn method_descriptor_extraction(pool: &CompressedClassfileStringPool, classfile: &Classfile, constant_pool: &[ConstantInfo], index: &u16) -> (CPRefType, CompressedMethodDescriptor, MethodName) {
         let (class_index, nt_index) = match constant_pool[*index as usize].kind {
             ConstantKind::Methodref(Methodref { class_index, name_and_type_index }) => (class_index, name_and_type_index),
             ConstantKind::InterfaceMethodref(InterfaceMethodref { class_index, nt_index }) => (class_index, nt_index),
@@ -808,9 +515,9 @@ impl CompressedClassfile {
         };
         let p_type = PType::Ref(classfile.extract_class_from_constant_pool_name(class_index));
         let (method_name, desc) = classfile.name_and_type_extractor(nt_index);
-        let ref_type = CPDType::from_ptype(&p_type, pool).unwrap_ref_type().clone();
+        let ref_type = CPDType::from_ptype(&p_type, pool).unwrap_ref_type();
         let descriptor = CMethodDescriptor::from_legacy(parse_method_descriptor(desc.as_str()).unwrap(), pool);
         let method_name = MethodName(pool.add_name(method_name, true));
-        (ref_type.clone(), descriptor, method_name)
+        (ref_type, descriptor, method_name)
     }
 }

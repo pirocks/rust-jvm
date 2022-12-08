@@ -69,7 +69,7 @@ impl PType {
         }
     }
 
-    pub fn jvm_representation(&self) -> String{
+    pub fn jvm_representation(&self) -> String {
         let mut res = String::new();
         //todo dup with ptypeview
         match self {
@@ -97,6 +97,10 @@ impl PType {
         }
         res
     }
+
+    pub fn from_class(class: ClassName) -> PType {
+        PType::Ref(ReferenceType::Class(class))
+    }
 }
 
 impl Clone for PType {
@@ -113,7 +117,7 @@ impl Clone for PType {
             PType::VoidType => PType::VoidType,
             PType::TopType => PType::TopType,
             PType::NullType => PType::NullType,
-            PType::Uninitialized(uvi) => PType::Uninitialized(uvi.clone()),
+            PType::Uninitialized(uvi) => PType::Uninitialized(*uvi),
             PType::UninitializedThis => PType::UninitializedThis,
             PType::UninitializedThisOrClass(t) => PType::UninitializedThisOrClass(t.clone()),
             PType::Ref(r) => PType::Ref(r.clone()),

@@ -1,6 +1,6 @@
 use wtf8::Wtf8Buf;
 
-use crate::classfile::{ACC_STATIC, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo};
+use crate::classfile::{ACC_STATIC, AnnotationDefault, ConstantInfo, ConstantKind, CPIndex, Exceptions, FieldInfo, MethodInfo, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, Signature};
 use crate::classfile::ACC_ABSTRACT;
 use crate::classfile::ACC_FINAL;
 use crate::classfile::ACC_INTERFACE;
@@ -73,7 +73,8 @@ impl Classfile {
     pub fn extract_class_from_constant_pool(&self, i: u16) -> &Class {
         match &self.constant_pool[i as usize].kind {
             ConstantKind::Class(c) => c,
-            _ => {
+            other => {
+                dbg!(other);
                 panic!();
             }
         }
@@ -161,6 +162,42 @@ impl MethodInfo {
         None
     }
 
+    pub fn runtime_visible_annotations(&self) -> Option<&RuntimeVisibleAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleAnnotations(annotations) = &attr.attribute_type {
+                return Some(annotations);
+            }
+        }
+        None
+    }
+
+    pub fn annotation_default(&self) -> Option<&AnnotationDefault> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::AnnotationDefault(annotation) = &attr.attribute_type {
+                return Some(annotation);
+            }
+        }
+        None
+    }
+
+    pub fn parameter_annotations(&self) -> Option<&RuntimeVisibleParameterAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleParameterAnnotations(annotation) = &attr.attribute_type {
+                return Some(annotation);
+            }
+        }
+        None
+    }
+
+    pub fn signature_annotation(&self) -> Option<&Signature> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::Signature(annotation) = &attr.attribute_type {
+                return Some(annotation);
+            }
+        }
+        None
+    }
+
     pub fn descriptor_str(&self, class_file: &Classfile) -> String {
         class_file.constant_pool[self.descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
@@ -188,7 +225,25 @@ impl FieldInfo {
         None
     }
 
+    pub fn signature_attribute_i(&self) -> Option<u16> {
+        for attr in &self.attributes {
+            if let AttributeType::Signature(s) = &attr.attribute_type {
+                return Some(s.signature_index);
+            }
+        }
+        None
+    }
+
     pub fn name(&self, class: &Classfile) -> String {
         class.constant_pool[self.name_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
+    }
+
+    pub fn runtime_visible_annotations(&self) -> Option<&RuntimeVisibleAnnotations> {
+        for attr in self.attributes.iter() {
+            if let AttributeType::RuntimeVisibleAnnotations(annotations) = &attr.attribute_type {
+                return Some(annotations);
+            }
+        }
+        None
     }
 }

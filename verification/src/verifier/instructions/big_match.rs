@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::classfile::{Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::compressed_classfile::code::{CInstruction, CInstructionInfo};
-use rust_jvm_common::compressed_classfile::CPDType;
+
 
 use crate::verifier::codecorrectness::Environment;
 use crate::verifier::Frame;
@@ -175,10 +175,10 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::ineg => instruction_is_type_safe_ineg(env, stack_frame),
         CInstructionInfo::instanceof(_) => instruction_is_type_safe_instanceof(env, stack_frame),
         CInstructionInfo::invokedynamic(cp) => instruction_is_type_safe_invokedynamic(*cp as usize, env, stack_frame),
-        CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => instruction_is_type_safe_invokeinterface(*method_name, descriptor, classname_ref_type, count.get() as usize, env, stack_frame),
-        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokespecial(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokeinterface { method_name, descriptor, classname_ref_type, count } => instruction_is_type_safe_invokeinterface(*method_name, descriptor, *classname_ref_type, count.get() as usize, env, stack_frame),
+        CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokespecial(classname_ref_type.to_cpdtype(), *method_name, descriptor, env, stack_frame),
         CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type: _ } => instruction_is_type_safe_invokestatic(*method_name, descriptor, env, stack_frame),
-        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokevirtual(&CPDType::Ref(classname_ref_type.clone()), *method_name, descriptor, env, stack_frame),
+        CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => instruction_is_type_safe_invokevirtual(classname_ref_type.to_cpdtype(), *method_name, descriptor, env, stack_frame),
         CInstructionInfo::ior => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::irem => instruction_is_type_safe_iadd(env, stack_frame),
         CInstructionInfo::ireturn => instruction_is_type_safe_ireturn(env, stack_frame),

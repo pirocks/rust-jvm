@@ -2,8 +2,8 @@ use std::ffi::CStr;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jintArray, JNIEnv, jobject, jobjectArray};
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{get_interpreter_state, to_object};
+
+use slow_interpreter::rust_jni::native_util::to_object;
 
 //so it appears hotspot implements both of these as null.
 

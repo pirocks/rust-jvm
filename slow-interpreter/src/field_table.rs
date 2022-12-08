@@ -2,19 +2,19 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use by_address::ByAddress;
+
+use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{FieldId, FieldTableIndex};
 
-use crate::runtime_class::RuntimeClass;
-
-pub struct FieldTable<'gc_life> {
-    table: Vec<(Arc<RuntimeClass<'gc_life>>, u16)>,
+pub struct FieldTable<'gc> {
+    table: Vec<(Arc<RuntimeClass<'gc>>, u16)>,
     //todo at a later date will contain compiled code data etc.
-    index: HashMap<ByAddress<Arc<RuntimeClass<'gc_life>>>, HashMap<u16, FieldTableIndex>>,
+    index: HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, HashMap<u16, FieldTableIndex>>,
 }
 
 //todo duplication with MethodTable
-impl<'gc_life> FieldTable<'gc_life> {
-    pub fn get_field_id(&mut self, rc: Arc<RuntimeClass<'gc_life>>, index: u16) -> FieldTableIndex {
+impl<'gc> FieldTable<'gc> {
+    pub fn get_field_id(&mut self, rc: Arc<RuntimeClass<'gc>>, index: u16) -> FieldTableIndex {
         match match self.index.get(&rc.clone().into()) {
             Some(x) => x,
             None => {
@@ -28,7 +28,7 @@ impl<'gc_life> FieldTable<'gc_life> {
         }
     }
 
-    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc_life>>, field_index: u16) -> FieldTableIndex {
+    pub fn register_with_table(&mut self, rc: Arc<RuntimeClass<'gc>>, field_index: u16) -> FieldTableIndex {
         let res = self.table.len();
         self.table.push((rc.clone(), field_index));
         match self.index.get_mut(&rc.clone().into()) {
@@ -44,7 +44,7 @@ impl<'gc_life> FieldTable<'gc_life> {
         res
     }
 
-    pub fn lookup(&self, id: FieldId) -> (Arc<RuntimeClass<'gc_life>>, u16) {
+    pub fn lookup(&self, id: FieldId) -> (Arc<RuntimeClass<'gc>>, u16) {
         self.table[id].clone()
     }
 

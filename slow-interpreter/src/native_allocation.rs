@@ -1,5 +1,5 @@
+use alloc::ffi::CString;
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
@@ -25,6 +25,12 @@ pub struct NativeAllocator {
 unsafe impl Send for NativeAllocator {}
 
 impl NativeAllocator {
+    pub fn new() -> Self{
+        Self{
+            allocations: RwLock::new(HashMap::new())
+        }
+    }
+
     pub unsafe fn allocate_and_write_vec<T>(&self, data: Vec<T>, len_ptr: *mut jint, data_ptr: *mut *mut T) {
         let len = data.len();
         let size = size_of::<T>() * len;

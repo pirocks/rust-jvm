@@ -1,39 +1,34 @@
-use std::ops::Deref;
 use std::os::raw::c_void;
-use std::ptr::NonNull;
+use std::ptr::{NonNull, null_mut};
 
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{_jobject, jclass, JNIEnv, jobject};
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
 
-use crate::{InterpreterStateGuard, JVMState};
+use crate::{AllocatedHandle, JVMState};
 use crate::class_objects::get_or_create_class_object;
-use crate::java::lang::class::JClass;
-use crate::java_values::{GcManagedObject, JavaValue, Object};
-use crate::rust_jni::interface::local_frame::new_local_ref_public;
+use crate::java_values::GcManagedObject;
+use crate::new_java_values::allocated_objects::AllocatedObject;
+use crate::new_java_values::NewJavaValueHandle;
+use crate::rust_jni::jni_utils::{get_interpreter_state, get_state, new_local_ref_public_new};
+use crate::stdlib::java::lang::class::JClass;
 
 pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let unwrapped = from_object(jvm, obj).unwrap(); //todo handle npe
-    let class_object = match unwrapped.deref() {
-        Object::Array(a) => get_or_create_class_object(jvm, CPDType::Ref(CPRefType::Array(Box::new(a.elem_type.clone()))), int_state),
-        Object::Object(o) => get_or_create_class_object(jvm, o.objinfo.class_pointer.view().type_(), int_state),
+    let unwrapped = from_object_new(jvm, obj).unwrap(); //todo handle npe
+    let object_region_header = MemoryRegions::find_object_region_header(NonNull::new(obj as *mut c_void).unwrap());
+    if object_region_header.class_pointer_cache != null_mut() {
+        return object_region_header.class_pointer_cache as jclass;
     }
-        .unwrap(); //todo pass the error up
-
-    new_local_ref_public(class_object.into(), int_state) as jclass
+    let rc = unwrapped.runtime_class(jvm);
+    let class_object = get_or_create_class_object(jvm, rc.cpdtype(), int_state);
+    let res_class = new_local_ref_public_new(class_object.unwrap().as_allocated_obj().into(), int_state) as jclass;
+    object_region_header.class_pointer_cache = res_class;
+    res_class
 }
 
-pub unsafe fn get_state<'gc_life>(env: *mut JNIEnv) -> &'gc_life JVMState<'gc_life> {
-    &(*((**env).reserved0 as *const JVMState))
-}
 
-pub unsafe fn get_interpreter_state<'k, 'l, 'interpreter_guard>(env: *mut JNIEnv) -> &'l mut InterpreterStateGuard<'l,'interpreter_guard> {
-    let jvm = get_state(env);
-    jvm.get_int_state()
-}
-
-pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> jobject {
+pub unsafe fn to_object<'gc>(obj: Option<GcManagedObject<'gc>>) -> jobject {
     match obj {
         None => std::ptr::null_mut(),
         Some(o) => {
@@ -44,19 +39,40 @@ pub unsafe fn to_object<'gc_life>(obj: Option<GcManagedObject<'gc_life>>) -> job
     }
 }
 
-pub unsafe fn from_object<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jobject) -> Option<GcManagedObject<'gc_life>> {
-    let option = NonNull::new(obj as *mut c_void)?;
-    assert!(jvm.gc.all_allocated_object.read().unwrap().contains(&option));
-    Some(GcManagedObject::from_native(option, jvm))
+pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc, '_>>) -> jobject {
+    match obj {
+        None => null_mut(),
+        Some(o) => {
+            let res = o.raw_ptr_usize() as *mut _jobject;
+            res
+        }
+    }
 }
 
-pub unsafe fn from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> JClass<'gc_life> {
+pub unsafe fn from_object<'gc>(jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<GcManagedObject<'gc>> {
+    let option = NonNull::new(obj as *mut c_void)?;
+    // if !jvm.gc.all_allocated_object.read().unwrap().contains(&option) {
+    //     dbg!(option.as_ptr());
+    //     dbg!(jvm.gc.all_allocated_object.read().unwrap());
+    //     panic!()
+    // }
+    todo!()
+    // Some(GcManagedObject::from_native(option, jvm))
+}
+
+pub unsafe fn from_object_new<'gc>(jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<AllocatedHandle<'gc>> {
+    let ptr = NonNull::new(obj as *mut c_void)?;
+    let handle = jvm.gc.register_root_reentrant(jvm, ptr);
+    Some(handle)
+}
+
+pub unsafe fn from_jclass<'gc>(jvm: &'gc JVMState<'gc>, obj: jclass) -> JClass<'gc> {//all jclasses have life of 'gc
     try_from_jclass(jvm, obj).unwrap()
     //todo handle npe
 }
 
-pub unsafe fn try_from_jclass<'gc_life>(jvm: &'gc_life JVMState<'gc_life>, obj: jclass) -> Option<JClass<'gc_life>> {
-    let possibly_null = from_object(jvm, obj);
-    possibly_null.as_ref()?;
-    JavaValue::Object(possibly_null).cast_class().into()
+pub unsafe fn try_from_jclass<'gc>(jvm: &'gc JVMState<'gc>, obj: jclass) -> Option<JClass<'gc>> { //all jclasses have life of 'gc
+    let possibly_null = from_object_new(jvm, obj);
+    let not_null = possibly_null?;
+    NewJavaValueHandle::Object(not_null).cast_class()
 }

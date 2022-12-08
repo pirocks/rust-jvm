@@ -8,31 +8,17 @@ edition = "2018"
 name = "java"
 path = "src/main.rs"
 
-[lib]
-name = "rust_jvm"
-path = "src/lib.rs"
-
 [dependencies]
-rust-jvm-common = { path = "./rust-jvm-common" }
-classfile-parser = { path = "./classfile-parser" }
-verification = { path = "./verification" }
-slow-interpreter = { path = "./slow-interpreter" }
-jar-manipulation = { path = "./jar-manipulation" }
 jvm = { path = "./libjvm" }
-classfile-view = { path = "./classfile-view" }
-jvmti-jni-bindings = { path = "./jvmti-jni-bindings" }
-type-safe-proc-macro-utils = { path = "./type-safe-proc-macro-utils" }
-sketch-jvm-version-of-utf8 = { path = "./sketch-jvm-version-of-utf8" }
-crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
-early-startup = { path = "./early-startup" }
-itertools = "0.10.0"
-argparse = "0.2.2"
+libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
+anyhow = "1"
+controlgroup = "0.3.0"
+libc = "0.2"
+nix = "0.25"
 
-[dev-dependencies]
-classfile-writer = { path = "./classfile-writer" }
-wtf8 = "0.1.0"
-tempdir = "0.3.7"
-ntest = "0.7.3"
+[profile.release]
+debug = true
+incremental = true
 
 [workspace]
 members = [
@@ -48,11 +34,29 @@ members = [
     "type-safe-proc-macro-utils",
     "sketch-jvm-version-of-utf8",
     "add-only-static-vec",
-    "jmm-bindings",
     "method-table",
-    "early-startup",
     "another-jit-vm",
     "classfile-writer",
     "another-jit-vm-ir",
-    "gc-memory-layout-common"
+    "perf-metrics",
+    "java5-verifier",
+    "runtime-class-stuff",
+    "vtable",
+    "interface-vtable",
+    "stage0",
+    "inheritance-tree",
+    "native-vec",
+    "jvm-args",
+    "xtask",
+    "thread-signal-handler",
+    "pressure-stall-information-parser",
+    "meminfo-parser",
+    "memory-limited-executor",
+    "interfaces",
+    "jni-interface",
+    "jvmti-interface",
+    "jmm-interface",
+    "better-nonnull",
+    "array-memory-layout",
+    "openjdk-test-parser"
 ]

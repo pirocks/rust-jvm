@@ -1,8 +1,16 @@
+use wtf8::Wtf8Buf;
+
+use classfile_parser::attribute_infos::{annotation_default_to_bytes, parameter_annotations_to_bytes, runtime_annotations_to_bytes};
 use rust_jvm_common::classfile::{AttributeType, Code, LineNumberTable, LocalVariableTableEntry, MethodInfo};
-use rust_jvm_common::compressed_classfile::{CCString, CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CompressedCode;
-use rust_jvm_common::compressed_classfile::names::{CClassName, MethodName};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CCString;
+
+
 use rust_jvm_common::descriptor_parser::{FieldDescriptor, parse_field_descriptor};
+use rust_jvm_common::method_shape::{MethodShape, MethodShapeID, MethodShapeIDs};
 
 use crate::view::{ClassBackedView, ClassView, HasAccessFlags};
 
@@ -104,6 +112,47 @@ impl MethodView<'_> {
                 AttributeType::LineNumberTable(lnt) => Some(lnt),
                 _ => None,
             })
+        })
+    }
+
+    pub fn method_shape(&self) -> MethodShape {
+        MethodShape {
+            name: self.name(),
+            desc: self.desc().clone(),
+        }
+    }
+
+    pub fn method_shape_id(&self, method_shapes: &MethodShapeIDs) -> MethodShapeID {
+        method_shapes.lookup_method_shape_id(self.method_shape())
+    }
+
+    pub fn get_annotation_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().runtime_visible_annotations().map(|annotations| runtime_annotations_to_bytes(annotations.annotations.clone()))
+    }
+
+    pub fn get_parameter_annotation_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().parameter_annotations().map(|annotations| {
+            parameter_annotations_to_bytes(annotations.clone().parameter_annotations)
+        })
+    }
+
+    pub fn get_annotation_default_bytes(&self) -> Option<Vec<u8>> {
+        self.method_info().annotation_default().map(|annotations| annotation_default_to_bytes(annotations.clone()))
+    }
+
+    pub fn local_var_slots(&self) -> u16 {
+        let local_vars = self.desc().count_local_vars_needed() + if self.is_static() {
+            0
+        } else {
+            1
+        };
+        self.code_attribute().map(|code| code.max_locals).unwrap_or(local_vars)
+    }
+
+    pub fn generic_signature(&self) -> Option<Wtf8Buf> {
+        self.method_info().signature_annotation().map(|signature| {
+            let i = signature.signature_index as usize;
+            self.class_view.underlying_class.constant_pool[i].extract_string_from_utf8()
         })
     }
 }

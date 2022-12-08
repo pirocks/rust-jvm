@@ -1,0 +1,24 @@
+[package]
+name = "stage0"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+classfile-view = { path = "../classfile-view" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+another-jit-vm = { path = "../another-jit-vm" }
+another-jit-vm-ir = { path = "../another-jit-vm-ir" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
+sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
+verification = { path = "../verification" }
+java5-verifier = { path = "../java5-verifier" }
+method-table = { path = "../method-table" }
+inheritance-tree = { path = "../inheritance-tree" }
+array-memory-layout = { path = "../array-memory-layout" }
+itertools = "0.10"
+wtf8 = "0.1"
+by_address = "1"

@@ -1,5 +1,6 @@
 use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
-use slow_interpreter::rust_jni::native_util::get_state;
+use slow_interpreter::rust_jni::jni_utils::get_state;
+
 
 #[no_mangle]
 unsafe extern "system" fn JVM_DesiredAssertionStatus(env: *mut JNIEnv, _unused: jclass, _cls: jclass) -> jboolean {

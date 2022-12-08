@@ -1,13 +1,14 @@
 use std::ops::Deref;
 
 use crate::classfile::UninitializedVariableInfo;
-use crate::compressed_classfile::{CompressedClassfileStringPool, CPDType};
-use crate::compressed_classfile::names::{CClassName, CompressedClassName};
+use crate::compressed_classfile::class_names::{CClassName, CompressedClassName};
+use crate::compressed_classfile::compressed_types::CPDType;
+use crate::compressed_classfile::string_pool::CompressedClassfileStringPool;
 use crate::loading::{ClassWithLoader, LoaderName};
 use crate::ptype::{PType, ReferenceType};
 use crate::runtime_type::{RuntimeRefType, RuntimeType};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum VType {
     //VType for VerificationType
     // this doesn't reside in the verifier b/c class view needs to_verification_type on PTypeView
@@ -32,29 +33,6 @@ pub enum VType {
     UninitializedEmpty,
 }
 
-impl Clone for VType {
-    fn clone(&self) -> Self {
-        match self {
-            VType::DoubleType => VType::DoubleType,
-            VType::FloatType => VType::FloatType,
-            VType::IntType => VType::IntType,
-            VType::LongType => VType::LongType,
-            VType::Class(cl) => VType::Class(cl.clone()),
-            VType::ArrayReferenceType(at) => VType::ArrayReferenceType(at.clone()),
-            VType::VoidType => VType::VoidType,
-            VType::TopType => VType::TopType,
-            VType::NullType => VType::NullType,
-            VType::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
-            VType::UninitializedThis => VType::UninitializedThis,
-            VType::TwoWord => VType::TwoWord,
-            VType::OneWord => VType::OneWord,
-            VType::Reference => VType::TwoWord,
-            VType::UninitializedEmpty => VType::OneWord,
-            VType::UninitializedThisOrClass(t) => VType::UninitializedThisOrClass(t.clone()),
-        }
-    }
-}
-
 impl VType {
     pub fn from_ptype(ptype: &PType, loader: LoaderName, pool: &CompressedClassfileStringPool) -> Self {
         match ptype {
@@ -76,7 +54,7 @@ impl VType {
             PType::VoidType => VType::VoidType,
             PType::TopType => VType::TopType,
             PType::NullType => VType::NullType,
-            PType::Uninitialized(uninitvarinfo) => VType::Uninitialized(uninitvarinfo.clone()),
+            PType::Uninitialized(uninitvarinfo) => VType::Uninitialized(*uninitvarinfo),
             PType::UninitializedThis => VType::UninitializedThis,
             PType::UninitializedThisOrClass(ptype) => VType::UninitializedThisOrClass(CPDType::from_ptype(ptype.deref(), pool)),
         }
@@ -89,7 +67,7 @@ impl VType {
             VType::IntType => RuntimeType::IntType,
             VType::LongType => RuntimeType::LongType,
             VType::Class(c) => RuntimeType::Ref(RuntimeRefType::Class(c.class_name)),
-            VType::ArrayReferenceType(array_ref) => RuntimeType::Ref(RuntimeRefType::Array(array_ref.clone())),
+            VType::ArrayReferenceType(array_ref) => RuntimeType::Ref(RuntimeRefType::Array(*array_ref)),
             VType::VoidType => panic!(),
             VType::TopType => RuntimeType::TopType,
             VType::NullType => RuntimeType::Ref(RuntimeRefType::NullType),

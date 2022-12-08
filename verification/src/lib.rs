@@ -1,13 +1,14 @@
-extern crate elapsed;
-
 use std::collections::HashMap;
 use std::collections::vec_deque::VecDeque;
 use std::sync::{Arc, Mutex};
 
 use classfile_view::view::ClassView;
+use perf_metrics::PerfMetrics;
 use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LivePoolGetter, LoaderName};
 use rust_jvm_common::vtype::VType;
 
@@ -18,7 +19,10 @@ use crate::verifier::TypeSafetyError;
 pub mod verifier;
 
 pub fn verify(vf: &mut VerifierContext, to_verify: CClassName, loader: LoaderName) -> Result<(), TypeSafetyError> {
-    class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader })
+    let verify = vf.perf_metrics.verifier_start();
+    let res = class_is_type_safe(vf, &ClassWithLoader { class_name: to_verify, loader });
+    drop(verify);
+    res
 }
 
 #[derive(Debug)]
@@ -31,25 +35,27 @@ pub struct StackMap {
 pub struct CodeIndex(u16);
 
 
-
 pub struct VerifierContext<'l> {
     pub live_pool_getter: Arc<dyn LivePoolGetter + 'l>,
     pub classfile_getter: Arc<dyn ClassFileGetter + 'l>,
     pub string_pool: &'l CompressedClassfileStringPool,
+    pub current_class: CClassName,
     pub class_view_cache: Mutex<HashMap<ClassWithLoader, Arc<dyn ClassView>>>,
     pub current_loader: LoaderName,
     pub verification_types: HashMap<u16, HashMap<ByteCodeOffset, Frame>>,
     pub debug: bool,
+    pub perf_metrics: &'l PerfMetrics,
+    pub permissive_types_workaround: bool,
 }
 
 pub trait ClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
+    fn get_classfile(&self, vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError>;
 }
 
 pub struct NoopClassFileGetter;
 
 impl ClassFileGetter for NoopClassFileGetter {
-    fn get_classfile(&self, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, _vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         todo!("{:?}{:?}", loader, class)
     }
 }

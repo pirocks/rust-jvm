@@ -2,8 +2,11 @@ use std::ops::Deref;
 
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType};
-use rust_jvm_common::compressed_classfile::names::CompressedClassName;
+use rust_jvm_common::compressed_classfile::class_names::CompressedClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::ptype::{PType, ReferenceType};
 use rust_jvm_common::vtype::VType;
@@ -71,7 +74,7 @@ impl PTypeView {
         }
     }
 
-    pub fn from_compressed(cpd: &CPDType, pool: &CompressedClassfileStringPool) -> PTypeView {
+    pub fn from_compressed(cpd: CPDType, pool: &CompressedClassfileStringPool) -> PTypeView {
         match cpd {
             CPDType::ByteType => PTypeView::ByteType,
             CPDType::CharType => PTypeView::CharType,
@@ -79,10 +82,8 @@ impl PTypeView {
             CPDType::FloatType => PTypeView::FloatType,
             CPDType::IntType => PTypeView::IntType,
             CPDType::LongType => PTypeView::LongType,
-            CPDType::Ref(r) => PTypeView::Ref(match r {
-                CompressedParsedRefType::Array(arr) => ReferenceTypeView::Array(box PTypeView::from_compressed(arr.deref(), pool)),
-                CompressedParsedRefType::Class(obj) => ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string())),
-            }),
+            CPDType::Array { .. } => PTypeView::Ref(ReferenceTypeView::Array(box PTypeView::from_compressed(cpd.unwrap_array_type(), pool))),
+            CPDType::Class(obj) => PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string()))),
             CPDType::ShortType => PTypeView::ShortType,
             CPDType::BooleanType => PTypeView::BooleanType,
             CPDType::VoidType => PTypeView::VoidType,

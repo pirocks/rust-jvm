@@ -1,0 +1,17 @@
+[package]
+name = "runtime-class-stuff"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+classfile-view = { path = "../classfile-view" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+inheritance-tree = { path = "../inheritance-tree" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+array-memory-layout = { path = "../array-memory-layout" }
+itertools = "0.10"
+strum = "0.24"
+strum_macros = "0.24"
+

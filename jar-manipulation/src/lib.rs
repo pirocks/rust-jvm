@@ -10,8 +10,9 @@ use zip::ZipArchive;
 
 use classfile_parser::parse_class_file;
 use rust_jvm_common::classfile::Classfile;
-use rust_jvm_common::compressed_classfile::CompressedClassfileStringPool;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
 
 #[derive(Debug)]
 pub struct JarHandle<R: Read + io::Seek> {
@@ -22,7 +23,7 @@ pub struct JarHandle<R: Read + io::Seek> {
 #[derive(Debug)]
 pub struct NoClassFoundInJarError {}
 
-impl std::fmt::Display for NoClassFoundInJarError {
+impl fmt::Display for NoClassFoundInJarError {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         write!(f, "{:?}", self)
     }
@@ -34,7 +35,7 @@ impl JarHandle<File> {
     pub fn new(path: Box<Path>) -> Result<JarHandle<File>, Box<dyn Error>> {
         let f = File::open(&path)?;
         let zip_archive = zip::ZipArchive::new(f)?;
-        Result::Ok(JarHandle { path, zip_archive })
+        Ok(JarHandle { path, zip_archive })
     }
 
     pub fn lookup(&mut self, pool: &CompressedClassfileStringPool, class_name: &CClassName) -> Result<Arc<Classfile>, Box<dyn Error>> {

@@ -2,26 +2,32 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
 use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
+use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
+use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::interpreter::WasException;
-use slow_interpreter::interpreter_state::InterpreterStateGuard;
-use slow_interpreter::java::lang::class_loader::ClassLoader;
-use slow_interpreter::java_values::Object;
+use slow_interpreter::exceptions::WasException;
+use slow_interpreter::java_values::{ExceptionReturn, Object};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::interface::local_frame::new_local_ref_public;
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, get_interpreter_state, get_state, to_object};
-use slow_interpreter::sun::misc::launcher::ext_class_loader::ExtClassLoader;
-use slow_interpreter::sun::misc::launcher::Launcher;
+
+
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
+use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
+use slow_interpreter::stdlib::sun::misc::launcher::ext_class_loader::ExtClassLoader;
+use slow_interpreter::stdlib::sun::misc::launcher::Launcher;
+use slow_interpreter::utils::pushable_frame_todo;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
-    match get_or_create_class_object(jvm, ptype, int_state) {
-        Ok(class_obj) => to_object(class_obj.into()),
+    /*let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
+    match get_or_create_class_object(jvm, ptype, pushable_frame_todo()) {
+        Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
         Err(_) => null_mut(),
-    }
+    }*/
+    todo!()
 }
 
 #[no_mangle]
@@ -32,8 +38,8 @@ unsafe extern "system" fn JVM_CurrentClassLoader(env: *mut JNIEnv) -> jobject {
     loader_name_to_native_obj(jvm, int_state, loader_name)
 }
 
-unsafe fn loader_name_to_native_obj(jvm: &'gc_life JVMState<'gc_life>, int_state: &'_ mut InterpreterStateGuard<'gc_life,'l>, loader_name: LoaderName) -> jobject {
-    new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object()), int_state)
+unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, loader_name: LoaderName) -> jobject {
+    new_local_ref_public(jvm.get_loader_obj(loader_name).map(|loader| loader.object().to_gc_managed()), int_state)
 }
 
 //from Java_java_lang_SecurityManager_classLoaderDepth0
@@ -96,18 +102,21 @@ unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currCla
 unsafe extern "system" fn JVM_LatestUserDefinedLoader(env: *mut JNIEnv) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    for stack_entry in int_state.cloned_stack_snapshot(jvm) {
-        if !stack_entry.privileged_frame() {
-            return new_local_ref_public(jvm.get_loader_obj(stack_entry.loader()).map(|class_loader| class_loader.object()), int_state);
+    for stack_entry in int_state.frame_iter() {
+        if !stack_entry.privileged_frame() || stack_entry.reflection_frame() {
+            let owned = jvm.get_loader_obj(stack_entry.loader());
+            return new_local_ref_public_new(owned.as_ref().map(|class_loader| class_loader.full_object_ref()), int_state);
         }
     }
-    return new_local_ref_public(
-        match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
+    return new_local_ref_public_new(
+        Some(match ExtClassLoader::get_ext_class_loader(jvm, int_state) {
             Ok(res) => res,
-            Err(_) => todo!(),
+            Err(WasException{ exception_obj }) => {
+                *get_throw(env) = Some(WasException{ exception_obj });
+                return jobject::invalid_default()
+            },
         }
-            .object()
-            .into(),
+            .full_object_ref()),
         int_state,
     );
 }

@@ -201,7 +201,7 @@ impl PartialEq for ClassName {
     }
 }
 
-impl std::clone::Clone for ClassName {
+impl Clone for ClassName {
     fn clone(&self) -> Self {
         match self {
             ClassName::Str(s) => {
@@ -211,7 +211,7 @@ impl std::clone::Clone for ClassName {
     }
 }
 
-impl std::fmt::Debug for ClassName {
+impl fmt::Debug for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.get_referred_name())
     }

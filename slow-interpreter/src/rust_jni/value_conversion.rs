@@ -1,26 +1,29 @@
 use std::ops::Deref;
+use std::ptr::null_mut;
 use std::sync::Arc;
 
 use libffi::middle::Arg;
 use libffi::middle::Type;
 
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
-use rust_jvm_common::compressed_classfile::CPDType;
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, jshort};
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
-use crate::java_values::JavaValue;
-use crate::runtime_class::RuntimeClass;
-use crate::rust_jni::interface::local_frame::new_local_ref;
-use crate::rust_jni::native_util::to_object;
 
-pub fn runtime_class_to_native<'gc_life>(runtime_class: Arc<RuntimeClass<'gc_life>>) -> Arg {
+use crate::{JavaValueCommon, NewJavaValue};
+use crate::better_java_stack::native_frame::NativeFrame;
+use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
+use crate::rust_jni::jni_utils::new_local_ref_internal_new;
+
+pub fn runtime_class_to_native<'gc>(runtime_class: Arc<RuntimeClass<'gc>>) -> Arg {
     let boxed_arc = Box::new(runtime_class);
     let arc_pointer = Box::into_raw(boxed_arc);
     let pointer_ref = Box::leak(Box::new(arc_pointer));
     Arg::new(pointer_ref)
 }
 
-pub unsafe fn native_to_runtime_class<'gc_life>(clazz: jclass) -> Arc<RuntimeClass<'gc_life>> {
-    let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass<'gc_life>>);
+pub unsafe fn native_to_runtime_class<'gc>(clazz: jclass) -> Arc<RuntimeClass<'gc>> {
+    let boxed_arc = Box::from_raw(clazz as *mut Arc<RuntimeClass<'gc>>);
     boxed_arc.deref().clone()
 }
 
@@ -34,58 +37,29 @@ pub fn to_native_type(t: &CPDType) -> Type {
         CPDType::LongType => Type::i64(),
         CPDType::ShortType => Type::i16(),
         CPDType::BooleanType => Type::u8(),
-        CPDType::Ref(_) => Type::pointer(),
+        CPDType::Class(_) => Type::usize(),
+        CPDType::Array { .. } => Type::usize(),
         _ => panic!(),
     }
 }
 
-pub unsafe fn to_native<'gc_life>(env: *mut JNIEnv, j: JavaValue<'gc_life>, t: &CPDType) -> Arg {
+pub fn to_native<'gc, 'l>(int_state: &mut NativeFrame<'gc, 'l>, arg_boxes: &mut ArgBoxesToFree, j: NewJavaValue<'gc, '_>, t: &CPDType) -> Arg {
     match t {
-        CPDType::ByteType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i8)).as_ref().unwrap() as &jbyte),
-        CPDType::CharType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u16)).as_ref().unwrap() as &jchar),
-        CPDType::DoubleType => Arg::new(Box::into_raw(Box::new(j.unwrap_double())).as_ref().unwrap() as &jdouble),
-        CPDType::FloatType => Arg::new(Box::into_raw(Box::new(j.unwrap_float())).as_ref().unwrap() as &jfloat),
-        CPDType::IntType => Arg::new(Box::into_raw(Box::new(j.unwrap_int())).as_ref().unwrap() as &jint),
-        CPDType::LongType => Arg::new(Box::into_raw(Box::new(j.unwrap_long())).as_ref().unwrap() as &jlong),
-        CPDType::Ref(_) => {
-            let object_ptr = new_local_ref(env, to_object(j.unwrap_object()));
-            drop(j);
-            Arg::new(Box::into_raw(Box::new(object_ptr)).as_ref().unwrap() as &jobject)
-        }
-        CPDType::ShortType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as i16)).as_ref().unwrap() as &jshort),
-        CPDType::BooleanType => Arg::new(Box::into_raw(Box::new(j.unwrap_int() as u8)).as_ref().unwrap() as &jboolean),
-        _ => panic!(),
-    }
-}
-
-pub unsafe fn free_native<'gc_life>(_j: JavaValue<'gc_life>, t: &CPDType, to_free: &mut Arg) {
-    match t {
-        CPDType::ByteType => {
-            Box::<jbyte>::from_raw(to_free.0 as *mut jbyte);
-        }
-        CPDType::CharType => {
-            Box::<jchar>::from_raw(to_free.0 as *mut jchar);
-        }
-        CPDType::DoubleType => {
-            Box::<jdouble>::from_raw(to_free.0 as *mut jdouble);
-        }
-        CPDType::FloatType => {
-            Box::<jfloat>::from_raw(to_free.0 as *mut jfloat);
-        }
-        CPDType::IntType => {
-            Box::<jint>::from_raw(to_free.0 as *mut jint);
-        }
-        CPDType::LongType => {
-            Box::<jlong>::from_raw(to_free.0 as *mut jlong);
-        }
-        CPDType::Ref(_) => {
-            Box::<jobject>::from_raw(to_free.0 as *mut jobject);
-        }
-        CPDType::ShortType => {
-            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
-        }
-        CPDType::BooleanType => {
-            Box::<jshort>::from_raw(to_free.0 as *mut jshort);
+        CPDType::ByteType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jbyte).as_ref()),
+        CPDType::CharType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jchar).as_ref()),
+        CPDType::DoubleType => Arg::new(arg_boxes.new_generic(j.unwrap_double_strict() as jdouble).as_ref()),
+        CPDType::FloatType => Arg::new(arg_boxes.new_generic(j.unwrap_float_strict() as jfloat).as_ref()),
+        CPDType::IntType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jint).as_ref()),
+        CPDType::LongType => Arg::new(arg_boxes.new_generic(j.unwrap_long_strict() as jlong).as_ref()),
+        CPDType::ShortType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jshort).as_ref()),
+        CPDType::BooleanType => Arg::new(arg_boxes.new_generic(j.unwrap_int() as jboolean).as_ref()),
+        CPDType::Array { .. } | CPDType::Class(_) => {
+            let object_ptr = if let Some(object) = j.unwrap_object_alloc() {
+                unsafe { new_local_ref_internal_new(object, int_state) }
+            } else {
+                null_mut()
+            };
+            Arg::new(arg_boxes.new_generic(object_ptr).as_ref())
         }
         _ => panic!(),
     }

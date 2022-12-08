@@ -14,40 +14,49 @@ classfile-view = { path = "../classfile-view" }
 jar-manipulation = { path = "../jar-manipulation" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
 threads = { path = "../threads" }
-type-safe-proc-macro-utils = { path = "../type-safe-proc-macro-utils" }
+jvm-args = { path = "../jvm-args" }
 sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
-early-startup = { path = "../early-startup" }
 another-jit-vm = { path = "../another-jit-vm" }
 another-jit-vm-ir = { path = "../another-jit-vm-ir" }
 gc-memory-layout-common = { path = "../gc-memory-layout-common" }
-libffi = { git = 'https://github.com/pirocks/libffi-rs.git' }
+add-only-static-vec = { path = "../add-only-static-vec" }
+perf-metrics = { path = "../perf-metrics" }
+java5-verifier = { path = "../java5-verifier" }
+stage0 = { path = "../stage0" }
+libffi = { version = "3", features = ["system"] }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
-crossbeam = { git = "https://github.com/pirocks/crossbeam.git" }
-rangemap = { git = "https://github.com/pirocks/rangemap.git" }
-num-traits = "0.2.14"
-num-derive = "0.3.3"
-lazy_static = "1.4.0"
-libc = "0.2.66"
+nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
+vtable = { path = "../vtable" }
+interface-vtable = { path = "../interface-vtable" }
+method-table = { path = "../method-table" }
+inheritance-tree = { path = "../inheritance-tree" }
+thread-signal-handler = { path = "../thread-signal-handler" }
+better-nonnull = { path = "../better-nonnull" }
+array-memory-layout = { path = "../array-memory-layout" }
+rangemap = "1"
+num-traits = "0.2"
+num-derive = "0.3"
+num-integer = "0.1"
+lazy_static = "1.4"
+libc = "0.2"
 regex = "1"
-va_list = "0.1.3"
-lock_api = "0.3.4"
-parking_lot = "0.11.1"
-futures-intrusive = "0.3.0"
-thread-priority = "0.2.0"
-nix = "0.23"
-errno = "0.2.5"
-num = "0.2.1"
-by_address = "1.0.4"
-bimap = "0.5.2"
-itertools = "0.10.0"
-closure = "0.3.0"
-wtf8 = "0.1.0"
-memoffset = "0.6.4"
+lock_api = "0.4"
+parking_lot = "0.12"
+nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
+by_address = "1"
+bimap = "0.6"
+itertools = "0.10"
+wtf8 = "0.1"
+memoffset = "0.7"
 
 
 [dependencies.iced-x86]
-version = "1.15.0"
+version = "1.15"
 features = ["code_asm"]
 
 [build-dependencies]
-bindgen = "0.53.2"
+bindgen = "0.60"
+
+#[dev-dependencies]
+#xtask = { path = "../xtask" }

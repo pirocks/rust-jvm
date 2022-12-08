@@ -7,11 +7,11 @@ use std::hash::{Hash, Hasher};
 use wtf8::Wtf8Buf;
 
 use sketch_jvm_version_of_utf8::ValidationError;
-use crate::classnames::ClassName;
 
+use crate::classnames::ClassName;
+use crate::compressed_classfile::class_names::CClassName;
 use crate::compressed_classfile::code::LiveObjectIndex;
-use crate::compressed_classfile::CPRefType;
-use crate::compressed_classfile::names::CClassName;
+use crate::compressed_classfile::compressed_types::CPRefType;
 use crate::loading::ClassfileParsingError::UTFValidationError;
 
 pub trait LivePoolGetter {
@@ -87,28 +87,12 @@ impl std::error::Error for ClassLoadingError {}
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-pub struct LoaderIndex(pub usize);
+pub struct LoaderIndex(pub u32);
 
-#[derive(Debug, Eq, Clone, Hash, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Hash, Copy)]
 pub enum LoaderName {
     UserDefinedLoader(LoaderIndex),
     BootstrapLoader,
-}
-
-impl PartialEq for LoaderName {
-    fn eq(&self, other: &LoaderName) -> bool {
-        match self {
-            LoaderName::BootstrapLoader => match other {
-                LoaderName::BootstrapLoader => true,
-                LoaderName::UserDefinedLoader(_) => false,
-            },
-
-            LoaderName::UserDefinedLoader(idx) => match other {
-                LoaderName::UserDefinedLoader(other_idx) => other_idx == idx,
-                LoaderName::BootstrapLoader => false,
-            },
-        }
-    }
 }
 
 impl Display for LoaderName {
@@ -124,7 +108,7 @@ impl Display for LoaderName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ClassWithLoader {
     pub class_name: CClassName,
     pub loader: LoaderName,
@@ -140,12 +124,6 @@ impl Hash for ClassWithLoader {
 impl PartialEq for ClassWithLoader {
     fn eq(&self, other: &ClassWithLoader) -> bool {
         self.class_name == other.class_name && self.loader == other.loader
-    }
-}
-
-impl Clone for ClassWithLoader {
-    fn clone(&self) -> Self {
-        ClassWithLoader { class_name: self.class_name.clone(), loader: self.loader.clone() }
     }
 }
 

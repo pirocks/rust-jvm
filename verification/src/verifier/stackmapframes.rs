@@ -2,10 +2,12 @@ use std::rc::Rc;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
 use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::{CPDType, CPRefType};
+use rust_jvm_common::classfile::{AttributeType, Code, SameFrame, StackMapTable};
 use rust_jvm_common::compressed_classfile::code::{CompressedAppendFrame, CompressedChopFrame, CompressedFullFrame, CompressedSameFrameExtended, CompressedSameLocals1StackItemFrame, CompressedSameLocals1StackItemFrameExtended, CompressedStackMapFrame};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
+
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
 
@@ -28,7 +30,7 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
     let code = method_info.code_attribute().expect("This method won't be called for a non-code attribute function. If you see this , this is a bug");
     let parsed_descriptor = method_info.desc();
     let stack_map = &code.stack_map_table;
-    let this_pointer = if method_info.is_static() { None } else { Some(CPDType::Ref(CPRefType::Class(class.class_name))) };
+    let this_pointer = if method_info.is_static() { None } else { Some(CPDType::Class(class.class_name)) };
     let mut frame = init_frame(parsed_descriptor.arg_types.clone(), this_pointer, code.max_locals);
 
     let mut previous_frame_is_first_frame = true;

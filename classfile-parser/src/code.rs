@@ -2,9 +2,9 @@ use std::slice::Iter;
 
 use num_traits::FromPrimitive;
 
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::{Atype, IInc, Instruction, InstructionInfo, InvokeInterface, LookupSwitch, MultiNewArray, TableSwitch, Wide, WideAload, WideAstore, WideDload, WideDstore, WideFload, WideFstore, WideIload, WideIstore, WideLload, WideLstore, WideRet};
 use rust_jvm_common::classfile::instruction_info_nums::InstructionTypeNum;
-use rust_jvm_common::ByteCodeOffset;
 
 use crate::ClassfileParsingError;
 
@@ -45,7 +45,7 @@ fn read_multi_new_array(c: &mut CodeParserContext) -> Result<MultiNewArray, Clas
 
 fn read_atype(c: &mut CodeParserContext) -> Result<Atype, ClassfileParsingError> {
     let num = read_u8(c)?;
-    Ok(FromPrimitive::from_u8(num).ok_or(ClassfileParsingError::ATypeWrong)?)
+    FromPrimitive::from_u8(num).ok_or(ClassfileParsingError::ATypeWrong)
 }
 
 fn read_table_switch(c: &mut CodeParserContext) -> Result<TableSwitch, ClassfileParsingError> {
@@ -163,7 +163,7 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Result<InstructionInfo, C
         InstructionTypeNum::athrow => InstructionInfo::athrow,
         InstructionTypeNum::baload => InstructionInfo::baload,
         InstructionTypeNum::bastore => InstructionInfo::bastore,
-        InstructionTypeNum::bipush => InstructionInfo::bipush(read_u8(c)?),
+        InstructionTypeNum::bipush => InstructionInfo::bipush(read_i8(c)?),
         InstructionTypeNum::caload => InstructionInfo::caload,
         InstructionTypeNum::castore => InstructionInfo::castore,
         InstructionTypeNum::checkcast => InstructionInfo::checkcast(read_u16(c)?),
@@ -347,7 +347,7 @@ pub fn parse_instruction(c: &mut CodeParserContext) -> Result<InstructionInfo, C
         InstructionTypeNum::return_ => InstructionInfo::return_,
         InstructionTypeNum::saload => InstructionInfo::saload,
         InstructionTypeNum::sastore => InstructionInfo::sastore,
-        InstructionTypeNum::sipush => InstructionInfo::sipush(read_u16(c)?),
+        InstructionTypeNum::sipush => InstructionInfo::sipush(read_i16(c)?),
         InstructionTypeNum::swap => InstructionInfo::swap,
         InstructionTypeNum::tableswitch => InstructionInfo::tableswitch(read_table_switch(c)?),
         InstructionTypeNum::wide => InstructionInfo::wide(read_wide(c)?),

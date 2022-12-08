@@ -8,8 +8,25 @@ edition = "2021"
 [dependencies]
 rust-jvm-common = { path = "../rust-jvm-common" }
 jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
-early-startup = { path = "../early-startup" }
-verification = { path = "../verification" }
-nix = "0.23.0"
+another-jit-vm = { path = "../another-jit-vm" }
+vtable = { path = "../vtable" }
+interface-vtable = { path = "../interface-vtable" }
+inheritance-tree = { path = "../inheritance-tree" }
+array-memory-layout = { path = "../array-memory-layout" }
+
+nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
+nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
 libc = "0.2"
 itertools = "0.10"
+static_assertions = "1"
+
+[dependencies.iced-x86]
+version = "1.15"
+features = ["code_asm"]
+
+[dev-dependencies]
+rusty-fork = "0.3"
+
+[dependencies.memoffset]
+version = "0.6"
+features = ["unstable_const"]

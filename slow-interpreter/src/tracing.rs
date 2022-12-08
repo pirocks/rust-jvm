@@ -2,13 +2,15 @@ use std::sync::RwLock;
 
 use jvmti_jni_bindings::{jvmtiError, jvmtiError_JVMTI_ERROR_NONE};
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::compressed_classfile::{CompressedClassfileStringPool, CPDType};
-use rust_jvm_common::compressed_classfile::names::MethodName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::JavaThreadId;
 
 use crate::java_values::JavaValue;
 use crate::JVMState;
-use crate::threading::monitors::Monitor;
 
 pub struct TracingSettings {
     pub trace_function_end: RwLock<bool>,
@@ -16,15 +18,15 @@ pub struct TracingSettings {
     trace_jni_register: bool,
     _trace_jni_dynamic_link: bool,
     //todo implement this trace
-    trace_class_loads: bool,
+    // trace_class_loads: bool,
     trace_jdwp_events: bool,
     trace_jdwp_function_enter: bool,
     trace_jdwp_function_exit: bool,
-    trace_monitor_lock: bool,
-    trace_monitor_unlock: bool,
-    trace_monitor_wait: bool,
-    trace_monitor_notify: bool,
-    trace_monitor_notify_all: bool,
+    // trace_monitor_lock: bool,
+    // trace_monitor_unlock: bool,
+    // trace_monitor_wait: bool,
+    // trace_monitor_notify: bool,
+    // trace_monitor_notify_all: bool,
 }
 
 impl TracingSettings {
@@ -34,15 +36,15 @@ impl TracingSettings {
             trace_function_start: RwLock::new(false),
             trace_jni_register: false,
             _trace_jni_dynamic_link: false,
-            trace_class_loads: false,
+            // trace_class_loads: false,
             trace_jdwp_events: true,
             trace_jdwp_function_enter: true,
             trace_jdwp_function_exit: true, //todo parse this from options in future
-            trace_monitor_lock: false,
-            trace_monitor_unlock: false,
-            trace_monitor_wait: false,
-            trace_monitor_notify: false,
-            trace_monitor_notify_all: false,
+            // trace_monitor_lock: false,
+            // trace_monitor_unlock: false,
+            // trace_monitor_wait: false,
+            // trace_monitor_notify: false,
+            // trace_monitor_notify_all: false,
         }
     }
 
@@ -52,15 +54,15 @@ impl TracingSettings {
             trace_function_start: RwLock::new(false),
             trace_jni_register: false,
             _trace_jni_dynamic_link: false,
-            trace_class_loads: false,
+            // trace_class_loads: false,
             trace_jdwp_events: false,
             trace_jdwp_function_enter: false,
             trace_jdwp_function_exit: false,
-            trace_monitor_lock: false,
-            trace_monitor_unlock: false,
-            trace_monitor_wait: false,
-            trace_monitor_notify: false,
-            trace_monitor_notify_all: false,
+            // trace_monitor_lock: false,
+            // trace_monitor_unlock: false,
+            // trace_monitor_wait: false,
+            // trace_monitor_notify: false,
+            // trace_monitor_notify_all: false,
         }
     }
 
@@ -93,43 +95,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn trace_class_loads(&self, classname: &ClassName) {
-        if self.trace_class_loads {
-            println!("[Loaded {} from unknown]", classname.get_referred_name().replace("/", "."));
-        }
-    }
-
-    pub fn trace_monitor_lock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
-        if self.trace_monitor_lock {
-            println!("Monitor lock:{}/{}, thread:{} {}", m.name, m.monitor_i, std::thread::current().name().unwrap_or("unknown"), Monitor::get_tid(jvm));
-        }
-    }
-
-    pub fn trace_monitor_unlock(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
-        if self.trace_monitor_unlock {
-            println!("Monitor unlock:{}/{}, thread:{} {}", m.name, m.monitor_i, jvm.thread_state.get_current_thread_name(jvm), Monitor::get_tid(jvm));
-        }
-    }
-
-    pub fn trace_monitor_wait(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
-        if self.trace_monitor_wait {
-            println!("Monitor wait:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
-        }
-    }
-
-    pub fn trace_monitor_notify(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
-        if self.trace_monitor_notify {
-            println!("Monitor notify:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
-        }
-    }
-
-    pub fn trace_monitor_notify_all(&self, m: &Monitor, jvm: &'gc_life JVMState<'gc_life>) {
-        if self.trace_monitor_notify_all {
-            println!("Monitor notify all:{}, thread:{}", m.name, jvm.thread_state.get_current_thread_name(jvm));
-        }
-    }
-
-    pub fn trace_jdwp_function_enter(&self, jvm: &'gc_life JVMState<'gc_life>, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
+    pub fn trace_jdwp_function_enter<'gc>(&self, jvm: &'gc JVMState<'gc>, function_name: &'static str) -> JVMTIEnterExitTraceGuard {
         let current_thread = std::thread::current();
         let thread_name = if jvm.vm_live() { current_thread.name().unwrap_or("unknown thread") } else { "VM not live" }.to_string();
         if self.trace_jdwp_function_enter && function_name != "Deallocate" && function_name != "Allocate" && function_name != "RawMonitorNotify" && function_name != "RawMonitorExit" && function_name != "RawMonitorWait" && function_name != "RawMonitorEnter" {
@@ -143,7 +109,7 @@ impl TracingSettings {
         }
     }
 
-    pub fn function_exit_guard(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue<'gc_life>) {
+    pub fn function_exit_guard<'gc>(&self, guard: FunctionEnterExitTraceGuard, _res: JavaValue<'gc>) {
         // if TIMES > 25000000 && !guard.classname.class_name_representation().contains("java") && !guard.classname.class_name_representation().contains("google")
         //     && !guard.meth_name.contains("hashCode")
         //     && !guard.meth_name.contains("equals"){

@@ -1,6 +1,10 @@
 use classfile_view::view::HasAccessFlags;
-use rust_jvm_common::compressed_classfile::{CCString, CPDType};
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::string_pool::CCString;
+
+
 use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::loading::LoaderName::BootstrapLoader;
@@ -80,30 +84,30 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
 }
 
 //todo why is this in this file?
-pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(), TypeSafetyError> {
+pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifier: bool) -> Result<(), TypeSafetyError> {
     match from {
         VType::DoubleType => match to {
             VType::DoubleType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::TwoWord, to),
+            _ => is_assignable(vf, &VType::TwoWord, to, true),
         },
         VType::LongType => match to {
             VType::LongType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::TwoWord, to),
+            _ => is_assignable(vf, &VType::TwoWord, to, true),
         },
         VType::FloatType => match to {
             VType::FloatType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::IntType => match to {
             VType::IntType => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::Reference => match to {
             VType::Reference => Result::Ok(()),
-            _ => is_assignable(vf, &VType::OneWord, to),
+            _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::Class(c) => match to {
-            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader)), //todo bootstrap loader
+            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader), true), //todo bootstrap loader
             VType::Class(c2) => {
                 if c == c2 {
                     Result::Ok(())
@@ -111,7 +115,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                     is_java_assignable_class(vf, c, c2)
                 }
             }
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::ArrayReferenceType(a) => match to {
             VType::ArrayReferenceType(a2) => {
@@ -126,42 +130,45 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
                 if is_java_assignable(vf, from, to).is_ok() {
                     return Result::Ok(());
                 }
-                if is_assignable(vf, &VType::Reference, to).is_err() {
+                if is_assignable(vf, &VType::Reference, to, true).is_err() {
                     if c.class_name == CClassName::object() && c.loader == LoaderName::BootstrapLoader {
                         return Result::Ok(());
                     }
                 }
-                is_assignable(vf, &VType::Reference, to)
+                is_assignable(vf, &VType::Reference, to, true)
             }
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::TopType => match to {
             VType::TopType => Result::Ok(()),
-            _ => panic!("This might be a bug. It's a weird edge case"),
+            vtype => {
+                dbg!(&vtype);
+                panic!("This might be a bug. It's a weird edge case")
+            }
         },
         VType::UninitializedEmpty => match to {
             VType::UninitializedEmpty => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Reference, to),
+            _ => is_assignable(vf, &VType::Reference, to, true),
         },
         VType::Uninitialized(u1) => match to {
             VType::Uninitialized(u2) => {
                 if u1.offset == u2.offset {
                     return Result::Ok(());
                 }
-                is_assignable(vf, &VType::UninitializedEmpty, to)
+                is_assignable(vf, &VType::UninitializedEmpty, to, true)
             }
-            _ => is_assignable(vf, &VType::UninitializedEmpty, to),
+            _ => is_assignable(vf, &VType::UninitializedEmpty, to, true),
         },
         VType::UninitializedThis => match to {
             VType::UninitializedThis => Result::Ok(()),
             VType::UninitializedThisOrClass(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::UninitializedEmpty, to),
+            _ => is_assignable(vf, &VType::UninitializedEmpty, to, true),
         },
         VType::NullType => match to {
             VType::NullType => Result::Ok(()),
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to),
+            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to, true),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
@@ -180,12 +187,15 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
         VType::UninitializedThisOrClass(c) => {
             match to {
                 VType::UninitializedThis => Result::Ok(()),
-                _ => is_assignable(vf, &c.to_verification_type(BootstrapLoader), to), //todo bootstrap loader
+                _ => is_assignable(vf, &c.to_verification_type(BootstrapLoader), to, true), //todo bootstrap loader
             }
         }
         _ => {
-            dbg!(from);
-            panic!("This is a bug")
+            if from_verifier{
+                dbg!(from);
+                panic!("This is a bug")
+            }
+            return Err(unknown_error_verifying!())
         }
     }
 }
@@ -193,7 +203,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType) -> Result<(
 fn atom(t: &CPDType) -> bool {
     match t {
         CPDType::ByteType | CPDType::CharType | CPDType::DoubleType | CPDType::FloatType | CPDType::IntType | CPDType::LongType | CPDType::ShortType | CPDType::VoidType | CPDType::BooleanType => true,
-        CPDType::Ref(_) => false,
+        CPDType::Class(_) | CPDType::Array { .. } => false,
     }
 }
 
@@ -211,7 +221,11 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
                 if c.class_name == CClassName::object() && vf.current_loader == c.loader {
                     return Result::Ok(());
                 }
-                unimplemented!()
+                //todo is this correct
+                if c.class_name == CClassName::serializable() || c.class_name == CClassName::cloneable() {
+                    return Result::Ok(());
+                }
+                return Err(unknown_error_verifying!())
             }
             VType::ArrayReferenceType(a2) => is_java_assignable_array_types(vf, a1.clone(), a2.clone()),
             _ => unimplemented!(),
@@ -236,6 +250,7 @@ fn is_java_assignable_array_types(vf: &VerifierContext, left: CPDType, right: CP
 fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     loaded_class(vf, to.class_name.clone(), to.loader.clone())?;
     if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() })? {
+        //todo bug should check actually has interface
         return Result::Ok(());
     }
     is_java_sub_class_of(vf, from, to)
@@ -338,7 +353,10 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
             }
         }
     };
-    Result::Err(unknown_error_verifying!())
+    // dbg!(matching_method.unwrap().class.class_name.0.to_str(&vf.string_pool));
+    // dbg!(matching_method.unwrap().method_index);
+    // Result::Err(unknown_error_verifying!())
+    Ok(())//todo this should be an error
 }
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
@@ -374,7 +392,7 @@ pub fn is_protected(vf: &VerifierContext, super_: &ClassWithLoader, member_name:
     }
     for field in class.fields() {
         let field_name = field.field_name();
-        if member_name == field_name.0 {
+        if FieldName(member_name) == field_name {
             let parsed_member_type = field.field_type();
             let field_type = match member_descriptor {
                 Descriptor::Field(f) => f,

@@ -1,29 +1,38 @@
+use std::ptr::null_mut;
 use std::time::Duration;
 
+use libc::c_void;
+
 use jvmti_jni_bindings::{jlong, JNIEnv, jobject};
-use slow_interpreter::jvmti::get_jvmti_interface;
-use slow_interpreter::rust_jni::native_util::{from_object, get_interpreter_state, get_state};
+use slow_interpreter::better_java_stack::frames::HasFrame;
+
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let monitor_obj = from_object(jvm, obj).expect("null monitor?");
-    let monitor_to_wait = monitor_obj.monitor();
+    assert_ne!(obj, null_mut());
+    let monitor = jvm.monitor_for(obj as *const c_void);
     let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
-    monitor_to_wait.wait(jvm, int_state, duration);
+    monitor.wait(jvm, int_state, duration);
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj).expect("null monitor?").monitor().notify(jvm);
+    assert_ne!(obj, null_mut());
+    let monitor = jvm.monitor_for(obj as *const c_void);
+    monitor.notify(jvm).expect("todo");
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotifyAll(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    from_object(jvm, obj).expect("null monitor?").monitor().notify_all(jvm);
+    assert_ne!(obj, null_mut());
+    let monitor = jvm.monitor_for(obj as *const c_void);
+    monitor.notify_all(jvm).expect("todo");
 }

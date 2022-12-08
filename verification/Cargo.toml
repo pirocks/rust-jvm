@@ -12,10 +12,10 @@ edition = "2018"
 rust-jvm-common = { path = "../rust-jvm-common" }
 classfile-parser = { path = "../classfile-parser" }
 classfile-view = { path = "../classfile-view" }
-elapsed = "0.1"
-itertools = "0.10.0"
+perf-metrics = { path = "../perf-metrics" }
+itertools = "0.10"
 
 [dev-dependencies]
-ntest_timeout = "0.3.0"
-timebomb = "0.1.2"
+#ntest_timeout = "0.3.0"
+#timebomb = "0.1.2"
 jar-manipulation = { path = "../jar-manipulation" }

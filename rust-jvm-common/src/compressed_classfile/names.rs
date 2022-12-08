@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug};
 
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -6,229 +6,16 @@ use strum_macros::EnumIter;
 use add_only_static_vec::{AddOnlyId, AddOnlyIdMap, AddOnlyVecIDType};
 
 use crate::classnames::ClassName;
-use crate::compressed_classfile::{CompressedClassfileString, CompressedParsedRefType};
 use crate::compressed_classfile::names::PredefinedStrings::*;
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct CompressedClassName(pub CompressedClassfileString);
-
-impl Debug for CompressedClassName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.id.0)
-    }
-}
-
-pub type CClassName = CompressedClassName;
-
-impl CompressedClassName {
-    const fn from_raw_id(raw_id: AddOnlyVecIDType) -> Self {
-        Self { 0: CompressedClassfileString { id: AddOnlyId(raw_id) } }
-    }
-
-    pub fn object() -> Self {
-        Self::from_raw_id(JAVA_LANG_OBJECT as AddOnlyVecIDType)
-    }
-
-    pub const fn class() -> Self {
-        Self::from_raw_id(JAVA_LANG_CLASS as AddOnlyVecIDType)
-    }
-
-    pub const fn string() -> Self {
-        Self::from_raw_id(JAVA_LANG_STRING as AddOnlyVecIDType)
-    }
-
-    pub const fn throwable() -> Self {
-        Self::from_raw_id(JAVA_LANG_THROWABLE as AddOnlyVecIDType)
-    }
-
-    pub const fn float() -> Self {
-        Self::from_raw_id(JAVA_LANG_FLOAT as AddOnlyVecIDType)
-    }
-
-    pub const fn double() -> Self {
-        Self::from_raw_id(JAVA_LANG_DOUBLE as AddOnlyVecIDType)
-    }
-
-    pub const fn int() -> Self {
-        Self::from_raw_id(JAVA_LANG_INTEGER as AddOnlyVecIDType)
-    }
-
-    pub const fn long() -> Self {
-        Self::from_raw_id(JAVA_LANG_LONG as AddOnlyVecIDType)
-    }
-
-    pub const fn character() -> Self {
-        Self::from_raw_id(JAVA_LANG_CHARACTER as AddOnlyVecIDType)
-    }
-
-    pub const fn boolean() -> Self {
-        Self::from_raw_id(JAVA_LANG_BOOLEAN as AddOnlyVecIDType)
-    }
-
-    pub const fn byte() -> Self {
-        Self::from_raw_id(JAVA_LANG_BYTE as AddOnlyVecIDType)
-    }
-
-    pub const fn short() -> Self {
-        Self::from_raw_id(JAVA_LANG_SHORT as AddOnlyVecIDType)
-    }
-
-    pub const fn void() -> Self {
-        Self::from_raw_id(JAVA_LANG_VOID as AddOnlyVecIDType)
-    }
-
-    pub const fn method_type() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_TYPE as AddOnlyVecIDType)
-    }
-
-    pub const fn method_type_form() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_TYPE_FORM as AddOnlyVecIDType)
-    }
-
-    pub const fn method_handle() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLE as AddOnlyVecIDType)
-    }
-
-    pub const fn method_handles() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLES as AddOnlyVecIDType)
-    }
-
-    pub const fn lookup() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP as AddOnlyVecIDType)
-    }
-
-    pub const fn direct_method_handle() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_DIRECT_METHOD_HANDLE as AddOnlyVecIDType)
-    }
-
-    pub const fn member_name() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_MEMBER_NAME as AddOnlyVecIDType)
-    }
-
-    pub const fn method() -> Self {
-        Self::from_raw_id(JAVA_LANG_REFLECT_METHOD as AddOnlyVecIDType)
-    }
-
-    pub const fn system() -> Self {
-        Self::from_raw_id(JAVA_LANG_SYSTEM as AddOnlyVecIDType)
-    }
-
-    pub const fn serializable() -> Self {
-        Self::from_raw_id(JAVA_IO_SERIALIZABLE as AddOnlyVecIDType)
-    }
-
-    pub const fn cloneable() -> Self {
-        Self::from_raw_id(JAVA_LANG_CLONEABLE as AddOnlyVecIDType)
-    }
-
-    pub const fn unsafe_() -> Self {
-        Self::from_raw_id(SUN_MISC_UNSAFE as AddOnlyVecIDType)
-    }
-
-    pub const fn field() -> Self {
-        Self::from_raw_id(JAVA_LANG_REFLECT_FIELD as AddOnlyVecIDType)
-    }
-
-    pub const fn properties() -> Self {
-        Self::from_raw_id(JAVA_UTIL_PROPERTIES as AddOnlyVecIDType)
-    }
-
-    pub const fn thread() -> Self {
-        Self::from_raw_id(JAVA_LANG_THREAD as AddOnlyVecIDType)
-    }
-
-    pub const fn thread_group() -> Self {
-        Self::from_raw_id(JAVA_LANG_THREADGROUP as AddOnlyVecIDType)
-    }
-
-    pub const fn constructor() -> Self {
-        Self::from_raw_id(JAVA_LANG_REFLECT_CONSTRUCTOR as AddOnlyVecIDType)
-    }
-
-    pub const fn classloader() -> Self {
-        Self::from_raw_id(JAVA_LANG_CLASSLOADER as AddOnlyVecIDType)
-    }
-
-    pub const fn stack_trace_element() -> Self {
-        Self::from_raw_id(JAVA_LANG_STACK_TRACE_ELEMENT as AddOnlyVecIDType)
-    }
-
-    pub const fn illegal_argument_exception() -> Self {
-        Self::from_raw_id(JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION as AddOnlyVecIDType)
-    }
-
-    pub const fn null_pointer_exception() -> Self {
-        Self::from_raw_id(JAVA_LANG_NULL_POINTER_EXCEPTION as AddOnlyVecIDType)
-    }
-
-    pub const fn class_not_found_exception() -> Self {
-        Self::from_raw_id(JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION as AddOnlyVecIDType)
-    }
-
-    pub const fn array_out_of_bounds_exception() -> Self {
-        Self::from_raw_id(JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION as AddOnlyVecIDType)
-    }
-
-    pub const fn launcher() -> Self {
-        Self::from_raw_id(SUN_MISC_LAUNCHER as AddOnlyVecIDType)
-    }
-
-    pub const fn reflection() -> Self {
-        Self::from_raw_id(SUN_REFLECT_REFLECTION as AddOnlyVecIDType)
-    }
-
-    pub const fn constant_pool() -> Self {
-        Self::from_raw_id(JAVA_LANG_REFLECT_CONSTANT_POOL as AddOnlyVecIDType)
-    }
-
-    pub const fn call_site() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_CALL_SITE as AddOnlyVecIDType)
-    }
-
-    pub const fn lambda_from_named_function() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_LAMBDA_FORM_NAMED_FUNCTION as AddOnlyVecIDType)
-    }
-
-    pub const fn heap_byte_buffer() -> Self {
-        Self::from_raw_id(JAVA_NIO_HEAP_BYTE_BUFFER as AddOnlyVecIDType)
-    }
-
-    pub const fn access_control_context() -> Self {
-        Self::from_raw_id(JAVA_SECURITY_ACCESS_CONTROL_CONTEXT as AddOnlyVecIDType)
-    }
-
-    pub const fn protection_domain() -> Self {
-        Self::from_raw_id(JAVA_SECURITY_PROTECTION_DOMAIN as AddOnlyVecIDType)
-    }
-
-    pub const fn ext_class_loader() -> Self {
-        Self::from_raw_id(SUN_MISC_LAUNCHER_EXT_CLASS_LOADER as AddOnlyVecIDType)
-    }
-    pub const fn method_handles_lookup() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_METHOD_HANDLES_LOOKUP as AddOnlyVecIDType)
-    }
-
-    pub const fn linkage_error() -> Self {
-        Self::from_raw_id(JAVA_LANG_LINKAGE_ERROR as AddOnlyVecIDType)
-    }
-
-    pub const fn invokers() -> Self {
-        Self::from_raw_id(JAVA_LANG_INVOKE_INVOKERS as AddOnlyVecIDType)
-    }
-}
-
-impl From<CompressedClassName> for CompressedParsedRefType {
-    fn from(ccn: CompressedClassName) -> Self {
-        Self::Class(ccn)
-    }
-}
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, EnumIter)]
 #[repr(C)]
 #[derive(Copy, Clone, Eq, PartialEq)]
 #[allow(non_snake_case)]
-enum PredefinedStrings {
+#[allow(clippy::upper_case_acronyms)]
+pub(crate) enum PredefinedStrings {
+    INVALID,
     JAVA_LANG_OBJECT,
     JAVA_LANG_CLASS,
     JAVA_LANG_STRING,
@@ -252,10 +39,20 @@ enum PredefinedStrings {
     JAVA_LANG_REFLECT_METHOD,
     JAVA_LANG_SYSTEM,
     JAVA_IO_SERIALIZABLE,
+    JAVA_LANG_REFLECT_GENERIC_DECLARATION,
+    JAVA_LANG_REFLECT_TYPE,
+    JAVA_LANG_REFLECT_ANNOTATED_ELEMENT,
     JAVA_LANG_CLONEABLE,
     SUN_MISC_UNSAFE,
     JAVA_LANG_REFLECT_FIELD,
     JAVA_UTIL_PROPERTIES,
+    JAVA_UTIL_HASHTABLE,
+    JAVA_UTIL_HASHTABLE_ENTRY,
+    JAVA_UTIL_BIG_INTEGER,
+    JAVA_UTIL_MUTABLE_BIG_INTEGER,
+    JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP,
+    JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE,
+    JAVA_LANG_DEPRECATED,
     JAVA_LANG_THREAD,
     JAVA_LANG_THREADGROUP,
     JAVA_LANG_REFLECT_CONSTRUCTOR,
@@ -265,7 +62,7 @@ enum PredefinedStrings {
     JAVA_LANG_NULL_POINTER_EXCEPTION,
     JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION,
     JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION,
-    JAVA_LANG_REFLECT_CONSTANT_POOL,
+    SUN_REFLECT_CONSTANT_POOL,
     JAVA_SECURITY_ACCESS_CONTROL_CONTEXT,
     JAVA_SECURITY_PROTECTION_DOMAIN,
     SUN_MISC_LAUNCHER,
@@ -276,8 +73,18 @@ enum PredefinedStrings {
     SUN_MISC_LAUNCHER_EXT_CLASS_LOADER,
     JAVA_LANG_LINKAGE_ERROR,
     JAVA_LANG_INVOKE_INVOKERS,
+    SUN_NIO_CS_FAST_CHARSET_PROVIDER,
+    SUN_NIO_CS_STANDARD_CHARSETS,
+    SUN_NIO_CS_STANDARD_CHARSETS_CACHE,
+    SUN_UTIL_PRE_HASHED_MAP,
+    JAVA_LANG_REFLECT_ARRAY,
+    JAVA_LANG_COMPARABLE,
+    JAVA_LANG_CLASS_CAST_EXCEPTION,
+    JAVA_LANG_NO_SUCH_METHOD_ERROR,
+    JAVA_NIO_DIRECT_BYTE_BUFFER,
+    JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION,
     field_annotationData,
-    field_annotationType,
+    method_and_field_annotationType,
     field_argCounts,
     field_argToSlotTable,
     field_arguments,
@@ -300,16 +107,20 @@ enum PredefinedStrings {
     field_form,
     field_function,
     field_genericInfo,
+    field_ht,
     field_and_method_getContextClassLoader,
+    field_key,
+    field_int_len,
     field_index,
     field_invokers,
     field_and_method_isAlive,
+    field_map,
     field_maxPriority,
     field_methodDescriptor,
     field_methodHandles,
     field_and_method_methodType,
     field_modifiers,
-    field_name,
+    field_and_method_name,
     field_names,
     field_newInstanceCallerCache,
     field_ordinal,
@@ -327,25 +138,42 @@ enum PredefinedStrings {
     field_and_method_run,
     field_signature,
     field_slot,
+    field_val,
     field_theUnsafe,
     field_threadStatus,
     field_threads,
+    field_table,
+    field_sizeCtl,
     field_tid,
     field_and_method_type,
     field_and_method_value,
+    field_next,
+    field_hash,
     field_vmentry,
     field_and_method_inheritedAccessControlContext,
     field_IMPL_LOOKUP,
     field_member,
     field_slotToArgTable,
+    field_signum,
+    field_mag,
+    field_formalTypeParams,
     constructor_init,
     constructor_clinit,
     method_clone,
+    method_equals,
     method_findSpecial,
+    method_findConstructor,
     method_findStatic,
     method_findVirtual,
     method_fromMethodDescriptorString,
     method_getClass,
+    method_getComponentType,
+    method_newArray,
+    method_arraycopy,
+    method_compareAndSwapLong,
+    method_compareAndSwapInt,
+    method_compareAndSwapObject,
+    method_identityHashCode,
     method_getClassLoader,
     method_getExtClassLoader,
     method_getFieldType,
@@ -370,9 +198,23 @@ enum PredefinedStrings {
     method_printStackTrace,
     method_publicLookup,
     method_setProperty,
+    method_getProperty,
     method_start,
     method_toString,
     method_initializeSystemClass,
+    method_getGenericInterfaces,
+    method_putIfAbsent,
+    method_get,
+    method_destructiveMulAdd,
+    SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE,
+    method_getLong,
+    method_getByte,
+    method_registerNatives,
+    method_addressSize,
+    method_getIntVolatile,
+    method_allocateMemory,
+    method_putLong,
+    method_freeMemory
 }
 
 impl PredefinedStrings {
@@ -410,11 +252,11 @@ impl PredefinedStrings {
             JAVA_LANG_REFLECT_CONSTRUCTOR => ClassName::constructor().get_referred_name().to_string(),
             JAVA_LANG_CLASSLOADER => ClassName::classloader().get_referred_name().to_string(),
             JAVA_LANG_STACK_TRACE_ELEMENT => ClassName::stack_trace_element().get_referred_name().to_string(),
-            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => "java/lang/ArrayOutOfBoundsException".to_string(),
+            JAVA_LANG_ARRAY_OUT_OF_BOUNDS_EXCEPTION => "java/lang/ArrayIndexOutOfBoundsException".to_string(),
             JAVA_LANG_NULL_POINTER_EXCEPTION => "java/lang/NullPointerException".to_string(),
             JAVA_LANG_ILLEGAL_ARGUMENT_EXCEPTION => "java/lang/IllegalArgumentException".to_string(),
             JAVA_LANG_CLASS_NOT_FOUND_EXCEPTION => "java/lang/ClassNotFoundException".to_string(),
-            JAVA_LANG_REFLECT_CONSTANT_POOL => "java/lang/reflect/ConstantPool".to_string(),
+            SUN_REFLECT_CONSTANT_POOL => "sun/reflect/ConstantPool".to_string(),
             JAVA_SECURITY_ACCESS_CONTROL_CONTEXT => "java/security/AccessControlContext".to_string(),
             JAVA_SECURITY_PROTECTION_DOMAIN => "java/security/ProtectionDomain".to_string(),
             SUN_MISC_LAUNCHER => "sun/misc/Launcher".to_string(),
@@ -425,8 +267,9 @@ impl PredefinedStrings {
             SUN_MISC_LAUNCHER_EXT_CLASS_LOADER => "sun/misc/Launcher$ExtClassLoader".to_string(),
             JAVA_LANG_LINKAGE_ERROR => "java/lang/LinkageError".to_string(),
             JAVA_LANG_INVOKE_INVOKERS => "java/lang/invoke/Invokers".to_string(),
+            JAVA_UTIL_HASHTABLE => "java/util/Hashtable".to_string(),
             field_annotationData => "annotationData".to_string(),
-            field_annotationType => "annotationType".to_string(),
+            method_and_field_annotationType => "annotationType".to_string(),
             field_argCounts => "argCounts".to_string(),
             field_argToSlotTable => "argToSlotTable".to_string(),
             field_arguments => "arguments".to_string(),
@@ -458,7 +301,7 @@ impl PredefinedStrings {
             field_methodHandles => "methodHandles".to_string(),
             field_and_method_methodType => "methodType".to_string(),
             field_modifiers => "modifiers".to_string(),
-            field_name => "name".to_string(),
+            field_and_method_name => "name".to_string(),
             field_names => "names".to_string(),
             field_newInstanceCallerCache => "newInstanceCallerCache".to_string(),
             field_ordinal => "ordinal".to_string(),
@@ -515,6 +358,7 @@ impl PredefinedStrings {
             method_objectFieldOffset => "objectFieldOffset".to_string(),
             method_printStackTrace => "printStackTrace".to_string(),
             method_publicLookup => "publicLookup".to_string(),
+            method_getProperty => "getProperty".to_string(),
             method_setProperty => "setProperty".to_string(),
             method_start => "start".to_string(),
             method_toString => "toString".to_string(),
@@ -522,6 +366,60 @@ impl PredefinedStrings {
             constructor_init => "<init>".to_string(),
             constructor_clinit => "<clinit>".to_string(),
             method_linkToVirtual => "linkToVirtual".to_string(),
+            field_map => "map".to_string(),
+            field_table => "table".to_string(),
+            field_key => "key".to_string(),
+            field_next => "next".to_string(),
+            field_hash => "hash".to_string(),
+            SUN_NIO_CS_FAST_CHARSET_PROVIDER => "sun/nio/cs/FastCharsetProvider".to_string(),
+            field_ht => "ht".to_string(),
+            SUN_NIO_CS_STANDARD_CHARSETS => "sun/nio/cs/StandardCharsets".to_string(),
+            SUN_NIO_CS_STANDARD_CHARSETS_CACHE => "sun/nio/cs/StandardCharsets$Cache".to_string(),
+            SUN_UTIL_PRE_HASHED_MAP => "sun/util/PreHashedMap".to_string(),
+            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP => "java/util/concurrent/ConcurrentHashMap".to_string(),
+            field_sizeCtl => "sizeCtl".to_string(),
+            method_putIfAbsent => "putIfAbsent".to_string(),
+            field_val => "val".to_string(),
+            JAVA_LANG_DEPRECATED => "java/lang/Deprecated".to_string(),
+            method_equals => "equals".to_string(),
+            method_get => "get".to_string(),
+            JAVA_UTIL_CONCURRENT_CONCURRENT_HASHMAP_NODE => "java/util/concurrent/ConcurrentHashMap$Node".to_string(),
+            JAVA_LANG_REFLECT_GENERIC_DECLARATION => "java/lang/reflect/GenericDeclaration".to_string(),
+            JAVA_LANG_REFLECT_TYPE => "java/lang/reflect/Type".to_string(),
+            JAVA_LANG_REFLECT_ANNOTATED_ELEMENT => "java/lang/reflect/AnnotatedElement".to_string(),
+            JAVA_UTIL_HASHTABLE_ENTRY => "java/util/Hashtable$Entry".to_string(),
+            JAVA_UTIL_BIG_INTEGER => "java/math/BigInteger".to_string(),
+            JAVA_UTIL_MUTABLE_BIG_INTEGER => "java/math/MutableBigInteger".to_string(),
+            field_int_len => "intLen".to_string(),
+            field_signum => "signum".to_string(),
+            field_mag => "mag".to_string(),
+            method_destructiveMulAdd => "destructiveMulAdd".to_string(),
+            INVALID => "__rust_jvm_invalid".to_string(),
+            method_getGenericInterfaces => "getGenericInterfaces".to_string(),
+            SUN_REFLECT_GENERICS_TREE_CLASS_SIGNATURE => "sun/reflect/generics/tree/ClassSignature".to_string(),
+            field_formalTypeParams => "formalTypeParams".to_string(),
+            method_arraycopy => "arraycopy".to_string(),
+            method_compareAndSwapLong => "compareAndSwapLong".to_string(),
+            method_compareAndSwapInt => "compareAndSwapInt".to_string(),
+            method_compareAndSwapObject => "compareAndSwapObject".to_string(),
+            method_identityHashCode => "identityHashCode".to_string(),
+            method_getComponentType => "getComponentType".to_string(),
+            JAVA_LANG_REFLECT_ARRAY => "java/lang/reflect/Array".to_string(),
+            method_newArray => "newArray".to_string(),
+            JAVA_LANG_COMPARABLE  => "java/lang/Comparable".to_string(),
+            method_getLong => "getLong".to_string(),
+            method_registerNatives => "registerNatives".to_string(),
+            method_addressSize => "addressSize".to_string(),
+            method_getIntVolatile => "getIntVolatile".to_string(),
+            method_allocateMemory => "allocateMemory".to_string(),
+            method_putLong => "putLong".to_string(),
+            method_getByte => "getByte".to_string(),
+            method_freeMemory => "freeMemory".to_string(),
+            JAVA_LANG_CLASS_CAST_EXCEPTION => "java/lang/ClassCastException".to_string(),
+            JAVA_LANG_NO_SUCH_METHOD_ERROR => "java/lang/NoSuchMethodError".to_string(),
+            method_findConstructor => "findConstructor".to_string(),
+            JAVA_NIO_DIRECT_BYTE_BUFFER => "java/nio/DirectByteBuffer".to_string(),
+            JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION => "java/lang/IndexOutOfBoundsException".to_string()
         }
     }
 }
@@ -537,350 +435,3 @@ pub fn add_all_names(pool: &AddOnlyIdMap<String>) {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct FieldName(pub CompressedClassfileString);
-
-#[allow(non_snake_case)]
-impl FieldName {
-    fn from_raw_id(id: PredefinedStrings) -> Self {
-        FieldName(CompressedClassfileString { id: AddOnlyId(id as AddOnlyVecIDType) })
-    }
-
-    pub fn field_annotationData() -> Self {
-        Self::from_raw_id(field_annotationData)
-    }
-    pub fn field_annotationType() -> Self {
-        Self::from_raw_id(field_annotationType)
-    }
-    pub fn field_argCounts() -> Self {
-        Self::from_raw_id(field_argCounts)
-    }
-    pub fn field_argToSlotTable() -> Self {
-        Self::from_raw_id(field_argToSlotTable)
-    }
-    pub fn field_arguments() -> Self {
-        Self::from_raw_id(field_arguments)
-    }
-    pub fn field_basicType() -> Self {
-        Self::from_raw_id(field_basicType)
-    }
-    pub fn field_btChar() -> Self {
-        Self::from_raw_id(field_btChar)
-    }
-    pub fn field_btClass() -> Self {
-        Self::from_raw_id(field_btClass)
-    }
-    pub fn field_cachedConstructor() -> Self {
-        Self::from_raw_id(field_cachedConstructor)
-    }
-    pub fn field_classLoader() -> Self {
-        Self::from_raw_id(field_classLoader)
-    }
-    pub fn field_classRedefinedCount() -> Self {
-        Self::from_raw_id(field_classRedefinedCount)
-    }
-    pub fn field_classValueMap() -> Self {
-        Self::from_raw_id(field_classValueMap)
-    }
-    pub fn field_clazz() -> Self {
-        Self::from_raw_id(field_clazz)
-    }
-    pub fn field_constantPoolOop() -> Self {
-        Self::from_raw_id(field_constantPoolOop)
-    }
-    pub fn field_daemon() -> Self {
-        Self::from_raw_id(field_daemon)
-    }
-    pub fn field_detailMessage() -> Self {
-        Self::from_raw_id(field_detailMessage)
-    }
-    pub fn field_enumConstantDirectory() -> Self {
-        Self::from_raw_id(field_enumConstantDirectory)
-    }
-    pub fn field_enumConstants() -> Self {
-        Self::from_raw_id(field_enumConstants)
-    }
-    pub fn field_erasedType() -> Self {
-        Self::from_raw_id(field_erasedType)
-    }
-    pub fn field_exit() -> Self {
-        Self::from_raw_id(field_and_method_exit)
-    }
-    pub fn field_flags() -> Self {
-        Self::from_raw_id(field_flags)
-    }
-    pub fn field_form() -> Self {
-        Self::from_raw_id(field_form)
-    }
-    pub fn field_function() -> Self {
-        Self::from_raw_id(field_function)
-    }
-    pub fn field_genericInfo() -> Self {
-        Self::from_raw_id(field_genericInfo)
-    }
-    pub fn field_getContextClassLoader() -> Self {
-        Self::from_raw_id(field_and_method_getContextClassLoader)
-    }
-    pub fn field_index() -> Self {
-        Self::from_raw_id(field_index)
-    }
-    pub fn field_invokers() -> Self {
-        Self::from_raw_id(field_invokers)
-    }
-    pub fn field_isAlive() -> Self {
-        Self::from_raw_id(field_and_method_isAlive)
-    }
-    pub fn field_maxPriority() -> Self {
-        Self::from_raw_id(field_maxPriority)
-    }
-    pub fn field_methodDescriptor() -> Self {
-        Self::from_raw_id(field_methodDescriptor)
-    }
-    pub fn field_methodHandles() -> Self {
-        Self::from_raw_id(field_methodHandles)
-    }
-    pub fn field_methodType() -> Self {
-        Self::from_raw_id(field_and_method_methodType)
-    }
-    pub fn field_modifiers() -> Self {
-        Self::from_raw_id(field_modifiers)
-    }
-    pub fn field_name() -> Self {
-        Self::from_raw_id(field_name)
-    }
-    pub fn field_names() -> Self {
-        Self::from_raw_id(field_names)
-    }
-    pub fn field_newInstanceCallerCache() -> Self {
-        Self::from_raw_id(field_newInstanceCallerCache)
-    }
-    pub fn field_ordinal() -> Self {
-        Self::from_raw_id(field_ordinal)
-    }
-    pub fn field_parameterType() -> Self {
-        Self::from_raw_id(field_and_method_parameterType)
-    }
-    pub fn field_parameterTypes() -> Self {
-        Self::from_raw_id(field_parameterTypes)
-    }
-    pub fn field_parent() -> Self {
-        Self::from_raw_id(field_parent)
-    }
-    pub fn field_primCounts() -> Self {
-        Self::from_raw_id(field_primCounts)
-    }
-    pub fn field_priority() -> Self {
-        Self::from_raw_id(field_priority)
-    }
-    pub fn field_props() -> Self {
-        Self::from_raw_id(field_props)
-    }
-    pub fn field_ptypes() -> Self {
-        Self::from_raw_id(field_ptypes)
-    }
-    pub fn field_reflectionData() -> Self {
-        Self::from_raw_id(field_reflectionData)
-    }
-    pub fn field_resolution() -> Self {
-        Self::from_raw_id(field_resolution)
-    }
-    pub fn field_returnType() -> Self {
-        Self::from_raw_id(field_returnType)
-    }
-    pub fn field_rtype() -> Self {
-        Self::from_raw_id(field_rtype)
-    }
-    pub fn field_run() -> Self {
-        Self::from_raw_id(field_and_method_run)
-    }
-    pub fn field_signature() -> Self {
-        Self::from_raw_id(field_signature)
-    }
-    pub fn field_slot() -> Self {
-        Self::from_raw_id(field_slot)
-    }
-    pub fn field_theUnsafe() -> Self {
-        Self::from_raw_id(field_theUnsafe)
-    }
-    pub fn field_threadStatus() -> Self {
-        Self::from_raw_id(field_threadStatus)
-    }
-    pub fn field_threads() -> Self {
-        Self::from_raw_id(field_threads)
-    }
-    pub fn field_tid() -> Self {
-        Self::from_raw_id(field_tid)
-    }
-    pub fn field_type() -> Self {
-        Self::from_raw_id(field_and_method_type)
-    }
-    pub fn field_value() -> Self {
-        Self::from_raw_id(field_and_method_value)
-    }
-    pub fn field_vmentry() -> Self {
-        Self::from_raw_id(field_vmentry)
-    }
-    pub fn field_inheritedAccessControlContext() -> Self {
-        Self::from_raw_id(field_and_method_inheritedAccessControlContext)
-    }
-    pub fn field_IMPL_LOOKUP() -> Self {
-        Self::from_raw_id(field_IMPL_LOOKUP)
-    }
-    pub fn field_member() -> Self {
-        Self::from_raw_id(field_member)
-    }
-    pub fn field_slotToArgTable() -> Self {
-        Self::from_raw_id(field_slotToArgTable)
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct MethodName(pub CompressedClassfileString);
-
-impl Debug for MethodName {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.id.0)
-    }
-}
-
-#[allow(non_snake_case)]
-impl MethodName {
-    fn from_raw_id(id: PredefinedStrings) -> Self {
-        MethodName(CompressedClassfileString { id: AddOnlyId(id as AddOnlyVecIDType) })
-    }
-
-    pub fn constructor_init() -> Self {
-        Self::from_raw_id(constructor_init)
-    }
-
-    pub fn constructor_clinit() -> Self {
-        Self::from_raw_id(constructor_clinit)
-    }
-
-    pub fn method_clone() -> Self {
-        Self::from_raw_id(method_clone)
-    }
-    pub fn method_findSpecial() -> Self {
-        Self::from_raw_id(method_findSpecial)
-    }
-    pub fn method_findStatic() -> Self {
-        Self::from_raw_id(method_findStatic)
-    }
-    pub fn method_findVirtual() -> Self {
-        Self::from_raw_id(method_findVirtual)
-    }
-    pub fn method_fromMethodDescriptorString() -> Self {
-        Self::from_raw_id(method_fromMethodDescriptorString)
-    }
-    pub fn method_getClass() -> Self {
-        Self::from_raw_id(method_getClass)
-    }
-    pub fn method_getClassLoader() -> Self {
-        Self::from_raw_id(method_getClassLoader)
-    }
-    pub fn method_getExtClassLoader() -> Self {
-        Self::from_raw_id(method_getExtClassLoader)
-    }
-    pub fn method_getFieldType() -> Self {
-        Self::from_raw_id(method_getFieldType)
-    }
-    pub fn method_getLauncher() -> Self {
-        Self::from_raw_id(method_getLauncher)
-    }
-    pub fn method_getMethodType() -> Self {
-        Self::from_raw_id(method_getMethodType)
-    }
-    pub fn method_getName() -> Self {
-        Self::from_raw_id(method_getName)
-    }
-    pub fn method_getTarget() -> Self {
-        Self::from_raw_id(method_getTarget)
-    }
-    pub fn method_hashCode() -> Self {
-        Self::from_raw_id(method_hashCode)
-    }
-    pub fn method_inheritedAccessControlContext() -> Self {
-        Self::from_raw_id(field_and_method_inheritedAccessControlContext)
-    }
-    pub fn method_intern() -> Self {
-        Self::from_raw_id(method_intern)
-    }
-    pub fn method_internalMemberName() -> Self {
-        Self::from_raw_id(method_internalMemberName)
-    }
-    pub fn method_invoke() -> Self {
-        Self::from_raw_id(method_invoke)
-    }
-    pub fn method_invokeBasic() -> Self {
-        Self::from_raw_id(method_invokeBasic)
-    }
-    pub fn method_invokeExact() -> Self {
-        Self::from_raw_id(method_invokeExact)
-    }
-    pub fn method_isSameClassPackage() -> Self {
-        Self::from_raw_id(method_isSameClassPackage)
-    }
-    pub fn method_isStatic() -> Self {
-        Self::from_raw_id(method_isStatic)
-    }
-    pub fn method_length() -> Self {
-        Self::from_raw_id(method_length)
-    }
-    pub fn method_linkToStatic() -> Self {
-        Self::from_raw_id(method_linkToStatic)
-    }
-    pub fn method_linkToVirtual() -> Self {
-        Self::from_raw_id(method_linkToVirtual)
-    }
-    pub fn method_loadClass() -> Self {
-        Self::from_raw_id(method_loadClass)
-    }
-    pub fn method_lookup() -> Self {
-        Self::from_raw_id(method_lookup)
-    }
-    pub fn method_objectFieldOffset() -> Self {
-        Self::from_raw_id(method_objectFieldOffset)
-    }
-    pub fn method_printStackTrace() -> Self {
-        Self::from_raw_id(method_printStackTrace)
-    }
-    pub fn method_publicLookup() -> Self {
-        Self::from_raw_id(method_publicLookup)
-    }
-    pub fn method_run() -> Self {
-        Self::from_raw_id(field_and_method_run)
-    }
-    pub fn method_setProperty() -> Self {
-        Self::from_raw_id(method_setProperty)
-    }
-    pub fn method_start() -> Self {
-        Self::from_raw_id(method_start)
-    }
-    pub fn method_toString() -> Self {
-        Self::from_raw_id(method_toString)
-    }
-    pub fn method_type() -> Self {
-        Self::from_raw_id(field_and_method_type)
-    }
-    pub fn method_value() -> Self {
-        Self::from_raw_id(field_and_method_value)
-    }
-    pub fn method_exit() -> Self {
-        Self::from_raw_id(field_and_method_exit)
-    }
-    pub fn method_isAlive() -> Self {
-        Self::from_raw_id(field_and_method_isAlive)
-    }
-    pub fn method_getContextClassLoader() -> Self {
-        Self::from_raw_id(field_and_method_getContextClassLoader)
-    }
-    pub fn method_initializeSystemClass() -> Self {
-        Self::from_raw_id(method_initializeSystemClass)
-    }
-    pub fn method_parameterType() -> Self {
-        Self::from_raw_id(field_and_method_parameterType)
-    }
-    pub fn method_methodType() -> Self {
-        Self::from_raw_id(field_and_method_methodType)
-    }
-}

@@ -2,17 +2,23 @@ use std::rc::Rc;
 
 use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
+use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::classfile::UninitializedVariableInfo;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::{CFieldDescriptor, CompressedClassfileStringPool, CompressedFieldDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::names::{CClassName, CompressedClassName, FieldName, MethodName};
+use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
+use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescriptor, CompressedFieldDescriptor};
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
+
+
 use rust_jvm_common::descriptor_parser::{Descriptor, parse_field_descriptor};
 use rust_jvm_common::loading::{ClassWithLoader, LoaderName};
 use rust_jvm_common::vtype::VType;
 
-use crate::{OperandStack};
+use crate::OperandStack;
 use crate::verifier::{Frame, standard_exception_frame};
 use crate::verifier::codecorrectness::{Environment, valid_type_transition};
 use crate::verifier::codecorrectness::can_pop;
@@ -176,7 +182,7 @@ pub fn instruction_is_type_safe_monitorenter(env: &Environment, stack_frame: Fra
 
 pub fn instruction_is_type_safe_multianewarray(cpdtype: &CPDType, dim: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     let expected_type = cpdtype.clone(); //parse_field_type(.class_name().unwrap_name().get_referred_name().as_str()).unwrap().1;
-    if class_dimension(env, &expected_type.to_verification_type(env.class_loader)) != dim {
+    if class_dimension(env, &expected_type.to_verification_type(env.class_loader)) < dim {
         return Result::Err(unknown_error_verifying!());
     }
     let dim_list = dim_list(dim);

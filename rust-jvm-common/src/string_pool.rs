@@ -24,7 +24,7 @@ impl StringPool {
     pub fn garbage_collect(&mut self) {
         let mut to_remove = vec![];
         for s in &self.entries {
-            if Arc::strong_count(&s) == 1 {
+            if Arc::strong_count(s) == 1 {
                 to_remove.push(s.clone());
             }
         }

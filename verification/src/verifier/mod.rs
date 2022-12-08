@@ -3,8 +3,10 @@ use std::sync::Arc;
 
 use classfile_view::view::ClassView;
 use rust_jvm_common::ByteCodeOffset;
-use rust_jvm_common::compressed_classfile::CCString;
-use rust_jvm_common::compressed_classfile::names::CClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::string_pool::CCString;
+
+
 use rust_jvm_common::descriptor_parser::Descriptor;
 use rust_jvm_common::loading::*;
 use rust_jvm_common::vtype::VType;
@@ -40,7 +42,7 @@ pub fn get_class(verifier_context: &VerifierContext, class: &ClassWithLoader) ->
     let mut guard = verifier_context.class_view_cache.lock().unwrap();
     match guard.get(class) {
         None => {
-            let res = verifier_context.classfile_getter.get_classfile(class.loader, class.class_name.clone())?;
+            let res = verifier_context.classfile_getter.get_classfile(verifier_context, class.loader, class.class_name.clone())?;
             guard.insert(class.clone(), res.clone());
             Ok(res)
         }
@@ -102,21 +104,22 @@ impl From<ClassLoadingError> for TypeSafetyError {
     }
 }
 
+#[allow(unreachable_code)]
 pub fn class_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader) -> Result<(), TypeSafetyError> {
     if class.class_name == CClassName::object() {
         if !is_bootstrap_loader(&class.loader) {
-            return Result::Err(TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("Loading object with something other than bootstrap loader".to_string())*/);
         }
     } else {
         let mut chain = vec![];
         super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
         if chain.is_empty() {
-            return Result::Err(TypeSafetyError::NotSafe("No superclass but object is not Object".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("No superclass but object is not Object".to_string())*/);
         }
         let super_class_name = get_class(vf, class)?.super_name();
         let super_class = loaded_class(vf, super_class_name.unwrap(), vf.current_loader.clone()).unwrap();
         if class_is_final(vf, &super_class)? {
-            return Result::Err(TypeSafetyError::NotSafe("Superclass is final".to_string()));
+            return Result::Err(todo!()/*TypeSafetyError::NotSafe("Superclass is final".to_string())*/);
         }
     }
     let methods = get_class_methods(vf, class.clone())?;

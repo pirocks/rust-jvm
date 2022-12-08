@@ -1,11 +1,8 @@
-use rust_jvm_common::classfile::{
-    Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry,
-    MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo,
-};
+use rust_jvm_common::ByteCodeOffset;
+use rust_jvm_common::classfile::{Annotation, AnnotationDefault, AnnotationValue, AppendFrame, ArrayValue, AttributeInfo, AttributeType, BootstrapMethod, BootstrapMethods, ChopFrame, ClassInfoIndex, Code, ConstantKind, ConstantValue, Deprecated, ElementValue, ElementValuePair, EnumConstValue, Exceptions, ExceptionTableElem, FullFrame, InnerClass, InnerClasses, LineNumber, LineNumberTable, LineNumberTableEntry, LocalVariableTable, LocalVariableTableEntry, LocalVariableTypeTable, LocalVariableTypeTableEntry, LocalVarTargetTableEntry, MethodParameter, MethodParameters, NestHost, NestMembers, RuntimeInvisibleAnnotations, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, RuntimeVisibleTypeAnnotations, SameFrame, SameFrameExtended, SameLocals1StackItemFrame, SameLocals1StackItemFrameExtended, Signature, SourceDebugExtension, SourceFile, StackMapFrame, StackMapTable, Synthetic, TargetInfo, TypeAnnotation, TypePath, TypePathEntry, UninitializedVariableInfo};
 use rust_jvm_common::classfile::AttributeType::Unknown;
 use rust_jvm_common::classfile::EnclosingMethod;
 use rust_jvm_common::classnames::ClassName;
-use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 use rust_jvm_common::ptype::{PType, ReferenceType};
 
@@ -189,52 +186,58 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
     let mut res = vec![];
     match element_value {
         ElementValue::Byte(cp_index) => {
-            res.push('B' as u8);
+            res.push(b'B');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Char(cp_index) => {
-            res.push('C' as u8);
+            res.push(b'C');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Double(cp_index) => {
-            res.push('D' as u8);
+            res.push(b'D');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Float(cp_index) => {
-            res.push('F' as u8);
+            res.push(b'F');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Int(cp_index) => {
-            res.push('I' as u8);
+            res.push(b'I');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Long(cp_index) => {
-            res.push('J' as u8);
+            res.push(b'J');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Short(cp_index) => {
-            res.push('S' as u8);
+            res.push(b'S');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::Boolean(cp_index) => {
-            res.push('Z' as u8);
+            res.push(b'Z');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::String(cp_index) => {
-            res.push('s' as u8);
+            res.push(b's');
             res.extend_from_slice(&cp_index.to_be_bytes());
         }
         ElementValue::EnumType(EnumConstValue { type_name_index, const_name_index }) => {
+            res.push(b'e');
             res.extend_from_slice(&type_name_index.to_be_bytes());
             res.extend_from_slice(&const_name_index.to_be_bytes());
         }
         ElementValue::Class(ClassInfoIndex { class_info_index }) => {
+            res.push(b'c');
             res.extend_from_slice(&class_info_index.to_be_bytes());
         }
         ElementValue::AnnotationType(AnnotationValue { annotation }) => {
+            res.push(b'@');
             res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
         }
         ElementValue::ArrayType(ArrayValue { values }) => {
+            res.push(b'[');
+            let num_bytes = values.len() as u16;
+            res.extend_from_slice(&num_bytes.to_be_bytes());
             for value in values {
                 res.extend_from_slice(element_value_to_bytes(value).as_slice());
             }
@@ -286,6 +289,16 @@ fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Anno
     Ok(annotations)
 }
 
+pub fn runtime_annotations_to_bytes(annotations: Vec<Annotation>) -> Vec<u8> {
+    let mut res = vec![];
+    let num_annotations = annotations.len() as u16;
+    res.extend_from_slice(&num_annotations.to_be_bytes());
+    for annotation in annotations {
+        res.extend_from_slice(annotation_to_bytes(annotation).as_slice());
+    }
+    res
+}
+
 fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_runtime_annotations_impl(p)?;
     Ok(AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }))
@@ -309,6 +322,17 @@ fn parse_runtime_parameter_annotations_impl(p: &mut dyn ParsingContext) -> Resul
     }
     Ok(parameter_annotations)
 }
+
+pub fn parameter_annotations_to_bytes(param_annotations: Vec<Vec<Annotation>>) -> Vec<u8> {
+    let mut res = vec![];
+    let num_parameters = param_annotations.len() as u8;
+    res.push(num_parameters);
+    for annotations in param_annotations {
+        res.extend_from_slice(runtime_annotations_to_bytes(annotations).as_slice());
+    }
+    res
+}
+
 
 fn parse_runtime_visible_parameter_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let parameter_annotations = parse_runtime_parameter_annotations_impl(p)?;
@@ -396,6 +420,10 @@ fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfilePars
 fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let default_value = parse_element_value(p)?;
     Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
+}
+
+pub fn annotation_default_to_bytes(annotations: AnnotationDefault) -> Vec<u8> {
+    element_value_to_bytes(annotations.default_value)
 }
 
 fn parse_method_parameters(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
@@ -568,8 +596,8 @@ fn parse_line_number_table(p: &mut dyn ParsingContext) -> Result<AttributeType, 
 }
 
 fn parse_line_number_table_entry(p: &mut dyn ParsingContext) -> Result<LineNumberTableEntry, ClassfileParsingError> {
-    let start_pc = p.read16()?;
-    let line_number = p.read16()?;
+    let start_pc = ByteCodeOffset(p.read16()?);
+    let line_number = LineNumber(p.read16()?);
     Ok(LineNumberTableEntry { start_pc, line_number })
 }
 

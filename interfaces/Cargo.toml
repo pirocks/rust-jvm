@@ -1,0 +1,31 @@
+[package]
+name = "interfaces"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+slow-interpreter = { path = "../slow-interpreter" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+stage0 = { path = "../stage0" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
+verification = { path = "../verification" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+classfile-view = { path = "../classfile-view" }
+method-table = { path = "../method-table" }
+sketch-jvm-version-of-utf8 = { path = "../sketch-jvm-version-of-utf8" }
+another-jit-vm = { path = "../another-jit-vm" }
+another-jit-vm-ir = { path = "../another-jit-vm-ir" }
+gc-memory-layout-common = { path = "../gc-memory-layout-common" }
+java5-verifier = { path = "../java5-verifier" }
+classfile-parser = { path = "../classfile-parser" }
+jni-interface = { path = "../jni-interface" }
+jmm-interface = { path = "../jmm-interface" }
+jvmti-interface = { path = "../jvmti-interface" }
+by_address = "1"
+num-traits = "0.2"
+wtf8 = "0.1"
+thread-priority = "0.9"
+libc = "0.2"
+itertools = "0.10"
