@@ -24,7 +24,7 @@ use crate::compiler::arrays::arraylength;
 use crate::compiler::bitmanip::{iand, ior, ishl, ishr, iushr, ixor, land, lor, lshl, lshr, lushr, lxor};
 use crate::compiler::branching::{goto_, if_, if_acmp, if_icmp, if_nonnull, if_null, IntEqualityType, lookup_switch, ReferenceComparisonType, tableswitch};
 use crate::compiler::consts::{bipush, const_64, dconst, fconst, sipush};
-use crate::compiler::dup::{dup, dup2, dup2_x1, dup_x1, dup_x2};
+use crate::compiler::dup::{dup, dup2, dup2_x1, dup2_x2, dup_x1, dup_x2};
 use crate::compiler::fields::{getfield, putfield};
 use crate::compiler::float_arithmetic::{dadd, dcmpg, dcmpl, ddiv, dmul, dneg, drem, dsub, fadd, fcmpg, fcmpl, fdiv, fmul, fneg, frem, fsub};
 use crate::compiler::float_convert::{d2f, d2i, d2l, f2d, f2i, i2d, i2f, l2d, l2f};
@@ -955,7 +955,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 todo!()
             }
             CompressedInstructionInfo::dup2_x2 => {
-                todo!()
+                this_function_ir.extend(dup2_x2(method_frame_data, current_instr_data));
             }
             other => {
                 dbg!(other);

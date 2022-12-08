@@ -275,8 +275,8 @@ pub fn field_object_from_view<'gc, 'l>(
     };
 
 
-    let annotations_ = NewJavaValueHandle::from_optional_object(f.get_annotation_bytes().map(|default_annotation_bytes| {
-        JavaValue::byte_array(jvm, int_state, default_annotation_bytes).unwrap()
+    let annotations_ = NewJavaValueHandle::from_optional_object(f.get_annotation_bytes().map(|annotation_bytes| {
+        JavaValue::byte_array(jvm, int_state, annotation_bytes).unwrap()
     }));
 
     Ok(Field::init(jvm, int_state, clazz, name, type_, modifiers, slot, signature, annotations_)?.new_java_value_handle())
