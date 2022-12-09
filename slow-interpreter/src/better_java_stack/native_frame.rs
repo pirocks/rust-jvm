@@ -133,11 +133,11 @@ impl<'gc, 'k> HasFrame<'gc> for NativeFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> PushableFrame<'gc> for NativeFrame<'gc, 'k> {
-    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+    fn push_frame<T>(&mut self, _frame_to_write: StackEntryPush, _within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         todo!()
     }
 
-    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+    fn push_frame_opaque<T>(&mut self, _opaque_frame: OpaqueFramePush, _within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         todo!()
     }
 

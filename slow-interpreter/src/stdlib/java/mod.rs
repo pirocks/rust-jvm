@@ -1,7 +1,7 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-use crate::{AllocatedHandle, JavaValue, JString, JVMState, NewJavaValue, pushable_frame_todo, PushableFrame, WasException};
+use crate::{AllocatedHandle, JavaValue, JString, JVMState, NewJavaValue, PushableFrame, WasException};
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObject};
@@ -33,7 +33,7 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
         todo!()
     }
 
-    fn get_class<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>) -> Result<JClass<'gc>, WasException<'gc>> {
+    fn get_class<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &'_ mut impl PushableFrame<'gc>) -> Result<JClass<'gc>, WasException<'gc>> {
         todo!();/*int_state.current_frame_mut().push(JavaValue::Object(self.normal_object.clone().into()));*/
         /*let desc = rust_jvm_common::compressed_classfile::CMethodDescriptor {
             arg_types: vec![],
@@ -45,7 +45,7 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
 
     fn hash_code<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>) -> Result<i32, WasException<'gc>> {
         let desc = CMethodDescriptor { arg_types: vec![], return_type: CPDType::IntType };
-        let res = invoke_virtual(jvm, pushable_frame_todo()/*int_state*/, MethodName::method_hashCode(), &desc, vec![self.new_java_value()])?;
+        let res = invoke_virtual(jvm, int_state, MethodName::method_hashCode(), &desc, vec![self.new_java_value()])?;
         Ok(res.unwrap().unwrap_int_strict())
     }
 

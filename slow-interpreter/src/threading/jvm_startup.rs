@@ -11,11 +11,12 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
 use rust_jvm_common::loading::LoaderName;
-use threads::Threads;
-use crate::{check_initing_or_inited_class, check_loaded_class,  JString, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, PushableFrame, run_function, run_main, set_properties, StackEntryPush, System, WasException};
+use crate::{check_initing_or_inited_class, check_loaded_class, JVMState, MethodResolverImpl, NewJavaValue, NewJavaValueHandle, PushableFrame, run_function, run_main, set_properties, StackEntryPush, WasException};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::new_object_full;
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;
+use crate::stdlib::java::lang::string::JString;
+use crate::stdlib::java::lang::system::System;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
 use crate::threading::java_thread::JavaThread;
@@ -61,12 +62,12 @@ fn jvm_init_from_main_thread<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
 
     let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("log4j2.disable.jmx".to_string())).expect("todo");
     let value = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("true".to_string())).expect("todo");
-    System::props(jvm, int_state).set_property(jvm, int_state, key, value).expect("todo");
+    System::props(jvm).set_property(jvm, int_state, key, value).expect("todo");
     eprintln!("JVM INIT COMPLETE")
 }
 
 
-pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, threads: &'vm Threads<'vm>, main_thread_start_info: MainThreadStartInfo) -> Arc<JavaThread<'vm>> {
+pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, main_thread_start_info: MainThreadStartInfo) -> Arc<JavaThread<'vm>> {
     let main_jthread = JavaThread::new_with_stack_on_this_thread(jvm, None, true, move |bootstrap_thread, opaque_frame| {
         unsafe {
             jvm.native_libaries.load(jvm, opaque_frame, &jvm.native_libaries.libjava_path, "java".to_string());

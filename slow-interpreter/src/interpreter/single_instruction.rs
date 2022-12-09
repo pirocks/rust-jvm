@@ -237,7 +237,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
         // CInstructionInfo::invokedynamic(cp) => invoke_dynamic(jvm, interpreter_state, *cp),
         CInstructionInfo::invokeinterface { classname_ref_type, descriptor, method_name, count } => invoke_interface(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor, *count),
         CInstructionInfo::invokespecial { method_name, descriptor, classname_ref_type } => invoke_special(jvm, interpreter_state, classname_ref_type.unwrap_object_name(), *method_name, descriptor),
-        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, method, code, classname_ref_type.clone(), *method_name, descriptor),
+        CInstructionInfo::invokestatic { method_name, descriptor, classname_ref_type } => run_invoke_static(jvm, interpreter_state, classname_ref_type.clone(), *method_name, descriptor),
         CInstructionInfo::invokevirtual { method_name, descriptor, classname_ref_type } => {
             // dump_frame(interpreter_state,method,code);
             invoke_virtual_instruction(jvm, interpreter_state, *method_name, descriptor, *classname_ref_type)

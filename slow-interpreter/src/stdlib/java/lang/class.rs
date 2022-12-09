@@ -71,7 +71,7 @@ impl<'gc> JClass<'gc> {
         JClass { normal_object: self.normal_object.clone() }//todo there should be a better way to do this b/c class objects live forever
     }
 
-    pub fn get_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException<'gc>> {
+    pub fn get_class_loader<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException<'gc>> {
         todo!()
         /*int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.as_allocated_obj().to_gc_managed().clone().into()));
         run_static_or_virtual(jvm, int_state, &self.normal_object.as_allocated_obj().to_gc_managed().unwrap_normal_object().objinfo.class_pointer, MethodName::method_getClassLoader(), &CMethodDescriptor::empty_args(CClassName::classloader().into()), todo!())?;
@@ -127,7 +127,7 @@ impl<'gc> JClass<'gc> {
         Ok(res.cast_class().unwrap())//todo we should be able to safely turn handles that live for gc life without reentrant register
     }
 
-    pub fn get_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
+    pub fn get_name<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
         /*int_state.push_current_operand_stack(self.clone().java_value());
         let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
         run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;

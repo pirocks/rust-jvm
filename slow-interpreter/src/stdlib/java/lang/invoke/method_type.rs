@@ -10,8 +10,6 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, NewJavaValueHandle, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::new_object;
 use crate::java_values::JavaValue;
@@ -123,12 +121,11 @@ impl<'gc> MethodType<'gc> {
         Ok(res.unwrap().cast_class().unwrap())
     }
 
-    pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaStackGuard<'gc>, rtype: JClass<'gc>, ptypes: Vec<JClass<'gc>>, form: MethodTypeForm<'gc>, wrap_alt: JavaValue<'gc>, invokers: JavaValue<'gc>, method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
+    pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, _rtype: JClass<'gc>, _ptypes: Vec<JClass<'gc>>, _form: MethodTypeForm<'gc>, _wrap_alt: JavaValue<'gc>, _invokers: JavaValue<'gc>, _method_descriptor: JavaValue<'gc>) -> MethodType<'gc> {
         let method_type: Arc<RuntimeClass<'gc>> = assert_inited_or_initing_class(jvm, CClassName::method_type().into());
-        let mut temp: OpaqueFrame<'gc, '_> = todo!();
-        let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, &mut temp/*int_state*/, &method_type, false);
-        let res = AllocatedHandle::NormalObject(res_handle).cast_method_type();
-        let ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
+        let res_handle: AllocatedNormalObjectHandle<'gc> = new_object(jvm, int_state, &method_type, false);
+        let _res = AllocatedHandle::NormalObject(res_handle).cast_method_type();
+        let _ptypes_arr_handle = jvm.allocate_object(todo!()/*Object::Array(ArrayObject {
             // elems: UnsafeCell::new(ptypes.into_iter().map(|x| x.java_value().to_native()).collect::<Vec<_>>()),
             whole_array_runtime_class: todo!(),
             loader: todo!(),
@@ -138,17 +135,17 @@ impl<'gc> MethodType<'gc> {
             elem_type: CClassName::class().into(),
             // monitor: jvm.thread_state.new_monitor("".to_string()),
         })*/);
-        let ptypes_arr = ptypes_arr_handle.new_java_value();
-        res.set_ptypes(jvm, ptypes_arr);
-        res.set_rtype(jvm, rtype);
-        res.set_form(jvm, form);
-        res.set_wrap_alt(jvm, wrap_alt);
-        res.set_invokers(jvm, invokers);
-        res.set_method_descriptors(jvm, method_descriptor);
-        res
+        let ptypes_arr = _ptypes_arr_handle.new_java_value();
+        _res.set_ptypes(jvm, ptypes_arr);
+        _res.set_rtype(jvm, _rtype);
+        _res.set_form(jvm, _form);
+        _res.set_wrap_alt(jvm, _wrap_alt);
+        _res.set_invokers(jvm, _invokers);
+        _res.set_method_descriptors(jvm, _method_descriptor);
+        _res
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodType<'gc> {

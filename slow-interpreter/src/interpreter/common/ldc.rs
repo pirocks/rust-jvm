@@ -30,36 +30,6 @@ fn load_string_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl P
     string.new_java_value_handle()
 }
 
-pub fn create_string_on_stack<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>, res_string: String) -> Result<(), WasException<'gc>> {
-    let java_lang_string = CClassName::string();
-    let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
-    let str_as_vec = res_string.chars();
-    let chars: Vec<JavaValue<'gc>> = str_as_vec.map(|x| JavaValue::Char(x as u16)).collect();
-    let string_object = new_object(jvm, interpreter_state, &string_class, false).to_jv();
-    let mut args = vec![string_object.clone()];
-    args.push(JavaValue::Object(todo!()/*Some(jvm.allocate_object(todo!()/*Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)*/))*/));
-    let char_array_type = CPDType::array(CPDType::CharType);
-    let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
-    let (constructor_i, final_target_class) = find_target_method(jvm, todo!()/*interpreter_state*/, MethodName::constructor_init(), &expected_descriptor, string_class);
-    let java_frame_push = StackEntryPush::new_java_frame(jvm, final_target_class, constructor_i as u16, todo!()/*args*/);
-    let _: Result<(), WasException<'gc>> = interpreter_state.push_frame_java(java_frame_push, |java_frame| {
-        match run_function(jvm, java_frame) {
-            Ok(_) => {}
-            Err(_) => todo!(),
-        };
-        todo!()
-    });
-    todo!();/*let was_exception = interpreter_state.throw().is_some();
-    interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-    if !jvm.config.compiled_mode_active {}
-    if interpreter_state.throw().is_some() {
-        unimplemented!()
-    }*/
-    todo!();// interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
-    Ok(())
-}
-
-
 pub fn from_constant_pool_entry<'gc, 'l>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> NewJavaValueHandle<'gc> {
     match &c {
         ConstantInfoView::Integer(i) => NewJavaValueHandle::Int(i.int),

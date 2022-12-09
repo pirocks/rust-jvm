@@ -22,15 +22,15 @@ impl<'gc> NewJavaValueHandle<'gc> {
 }
 
 impl<'gc> Reflection<'gc> {
-    pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class1: JClass<'gc>, class2: JClass<'gc>) -> Result<jboolean, WasException<'gc>> {
-        let reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
+    pub fn is_same_class_package<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, _class1: JClass<'gc>, _class2: JClass<'gc>) -> Result<jboolean, WasException<'gc>> {
+        let _reflection = check_initing_or_inited_class(jvm, int_state, CClassName::reflection().into())?;
         todo!();// int_state.push_current_operand_stack(class1.java_value());
         todo!();// int_state.push_current_operand_stack(class2.java_value()); //I hope these are in the right order, but it shouldn't matter
         let desc = CMethodDescriptor {
             arg_types: vec![CClassName::class().into(), CClassName::class().into()],
             return_type: CPDType::BooleanType,
         };
-        run_static_or_virtual(jvm, int_state, &reflection, MethodName::method_isSameClassPackage(), &desc, todo!())?;
+        run_static_or_virtual(jvm, int_state, &_reflection, MethodName::method_isSameClassPackage(), &desc, todo!())?;
         Ok(todo!()/*int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean()*/)
     }
 

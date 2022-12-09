@@ -35,7 +35,6 @@ use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::fields::get_static_impl;
 use crate::interpreter::common::invoke::virtual_::virtual_method_lookup;
@@ -50,7 +49,7 @@ use crate::static_vars::static_vars;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::throwable::Throwable;
-use crate::utils::{lookup_method_parsed, pushable_frame_todo};
+use crate::utils::{lookup_method_parsed};
 
 pub mod multi_allocate_array;
 pub mod new_run_native;
@@ -74,7 +73,9 @@ pub fn throw_exit<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
     let exception_obj_native_value = unsafe { (exception_obj_ptr).cast::<StackNativeJavaValue<'gc>>().read() };
     let exception_obj_handle = native_to_new_java_value_rtype(exception_obj_native_value, CClassName::object().into(), jvm);
     let throwable = exception_obj_handle.cast_throwable();
-    throw_impl(&jvm, int_state, throwable, false)
+    let res = throw_impl(&jvm, int_state, throwable, false);
+    drop(throw);
+    res
 }
 
 #[inline(never)]
@@ -82,8 +83,8 @@ pub fn invoke_interface_resolve<'gc>(
     jvm: &'gc JVMState<'gc>,
     int_state: &mut JavaExitFrame<'gc, '_>,
     return_to_ptr: *const c_void,
-    native_method_restart_point: RestartPointID,
-    native_method_res: *mut c_void,
+    _native_method_restart_point: RestartPointID,
+    _native_method_res: *mut c_void,
     object_ref: *const c_void,
     target_method_shape_id: MethodShapeID,
     interface_id: InterfaceID,
@@ -92,7 +93,7 @@ pub fn invoke_interface_resolve<'gc>(
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InvokeInterfaceResolve");
     }
-    let caller_method_id = int_state.frame_ref().method_id().unwrap();
+    let _caller_method_id = int_state.frame_ref().method_id().unwrap();
     let obj_native_jv = unsafe { (object_ref).cast::<StackNativeJavaValue>().read() };
     let obj_jv_handle = native_to_new_java_value_rtype(obj_native_jv, RuntimeType::object(), jvm);
     let obj_rc = obj_jv_handle.unwrap_object_nonnull().runtime_class(jvm);
@@ -147,7 +148,7 @@ fn resolved_entry_from_method_id(jvm: &JVMState, resolver: MethodResolverImpl, r
 }
 
 #[inline(never)]
-pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
+pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc, 'k>, value: &*const c_void, cpdtype_id: &CPDTypeID, return_to_ptr: &*const c_void) -> IRVMExitAction {
     let checkcast = jvm.perf_metrics.vm_exit_checkcast();
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("CheckCast");
@@ -197,8 +198,7 @@ pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
     let value = unsafe { (*value).cast::<StackNativeJavaValue>().read() };
     let value = native_to_new_java_value_rtype(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
-    let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let initied = check_initing_or_inited_class(jvm, pushable_frame_todo()/*int_state*/, cpdtype).unwrap();
+    let _initied = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     let res_int = instance_of_exit_impl(jvm, cpdtype, value.as_ref());
     dbg!(&value.as_ref().unwrap().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool));
     dbg!(cpdtype.jvm_representation(&jvm.string_pool));
@@ -263,8 +263,6 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
     object_ref_ptr: *const c_void,
     method_shape_id: MethodShapeID,
     method_number: MethodNumber,
-    native_method_restart_point: RestartPointID,
-    native_method_res: *mut c_void,
 ) -> IRVMExitAction {
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("InvokeVirtualResolve");
@@ -392,7 +390,7 @@ pub fn new_class<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame
 }
 
 #[inline(never)]
-pub fn new_class_register<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn new_class_register<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, type_: CPDTypeID, _res: Register, return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("NewClassRegister");
     }
@@ -481,11 +479,11 @@ pub fn trace_instruction_before(jvm: &JVMState, method_id: MethodId, return_to_p
     IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
-pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc, 'k>, _return_to_ptr: *const c_void) -> IRVMExitAction {
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("LogWholeFrame");
     }
-    todo!();/*let current_frame = int_state.current_frame();
+    todo!()/*let current_frame = int_state.current_frame();
     dbg!(current_frame.pc);
     let method_id = current_frame.frame_view.ir_ref.method_id().unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -496,7 +494,7 @@ pub fn log_whole_frame<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExi
     dbg!(method_view.desc_str().to_str(&jvm.string_pool));
     current_frame.ir_stack_entry_debug_print();
     dump_frame_contents(jvm, int_state);*/
-    IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
+    // IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
 }
 
 pub fn log_frame_pointer_offset_value(jvm: &JVMState, value: u64, return_to_ptr: *const c_void) -> IRVMExitAction {
@@ -512,7 +510,7 @@ pub fn init_class_and_recompile<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mu
         eprintln!("InitClassAndRecompile");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(class_type).clone();
-    let inited = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
+    let _ = check_initing_or_inited_class(jvm, int_state, cpdtype).unwrap();
     assert!(jvm.classes.read().unwrap().is_inited_or_initing(&cpdtype).is_some());
     let method_resolver = MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) };
     jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, current_method_id, false);
@@ -593,7 +591,7 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
     // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
     // dbg!(exception_as_string.to_rust_string(jvm));
     // throwable.print_stack_trace(jvm,int_state).unwrap();
-    let exception_obj_rc = throwable.normal_object.runtime_class(jvm);
+    // let _exception_obj_rc = throwable.normal_object.runtime_class(jvm);
     let mut this_frame = true;
     for current_frame in int_state.frame_iter() {
         if this_frame && ignore_this_frame {

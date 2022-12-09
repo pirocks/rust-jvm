@@ -85,7 +85,7 @@ pub mod lookup {
             Ok(res.unwrap().cast_method_handle())
         }
 
-        // as_object_or_java_value!();
+
     }
 
     impl<'gc> NewAsObjectOrJavaValue<'gc> for Lookup<'gc> {

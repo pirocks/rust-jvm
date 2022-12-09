@@ -132,9 +132,8 @@ impl<'gc> MethodResolverImpl<'gc> {
 impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
     fn lookup_static(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
+        let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
         let view = rc.view();
-        let string_pool = &self.jvm.string_pool;
         let method_view = match view.lookup_method(name, &desc) {
             Some(x) => x,
             None => {

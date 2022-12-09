@@ -182,15 +182,15 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl HasFrame<'gc>, _without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }
         self.safepoint_state.set_suspended()?;
         if self.underlying_thread.is_this_thread() {
             todo!();/*assert_eq!(self.java_tid, int_state.thread().java_tid);*/
-            if !without_self_suspend {
-                safepoint_check(jvm, pushable_frame_todo()/*int_state*/)?;
+            if !_without_self_suspend {
+                safepoint_check(_jvm, pushable_frame_todo()/*int_state*/)?;
             }
         }
         Ok(())
@@ -215,13 +215,13 @@ impl<'gc> JavaThread<'gc> {
             match answer {
                 RemoteQueryAnswer::GetGuestFrameStackInstructionPointer(inner) => {
                     match inner {
-                        GetGuestFrameStackInstructionPointer::InGuest { rbp, rsp, rip } => {
+                        GetGuestFrameStackInstructionPointer::InGuest { rbp, .. } => {
                             let frame_pointer = FramePointer(NonNull::new(rbp as *mut c_void).unwrap());
                             let mut java_stack = JavaStackGuard::new_remote_with_frame_pointer(jvm, unsafe { transmute(&self.java_stack) }, self.clone(), frame_pointer);
                             let remote_frame = RemoteFrame::new(&mut java_stack, frame_pointer);
                             with_frame(remote_frame);
                         }
-                        GetGuestFrameStackInstructionPointer::InVM { rbp, rsp, rip } => {
+                        GetGuestFrameStackInstructionPointer::InVM { .. } => {
                             // dbg!("in vm");
                             // dbg!(rbp);
                             // dbg!(rsp);

@@ -18,7 +18,6 @@ use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jbyte, jfieldID, jint, jmethodID, jobject, jvalue};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::runtime_type::{RuntimeRefType, RuntimeType};
 use rust_jvm_common::StackNativeJavaValue;
@@ -252,12 +251,6 @@ impl<'gc> GcManagedObject<'gc> {
         Self { obj, raw_ptr, gc: jvm.gc, jvm }*/
     }
 
-    pub fn from_native_assert_already_registered(raw_ptr: NonNull<c_void>, gc: &'gc GC<'gc>) -> Self {
-        todo!();
-        assert!(gc.vm_temp_owned_roots.read().unwrap().contains_key(&raw_ptr));
-        Self { obj: todo!(), raw_ptr, gc, jvm: todo!() }
-    }
-
     pub fn self_check(&self) {
         assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&(self.raw_ptr)))
     }
@@ -300,11 +293,6 @@ impl Drop for GcManagedObject<'_> {
 }
 
 impl<'gc> GcManagedObject<'gc> {
-    pub fn lookup_field(&self, jvm: &'gc JVMState<'gc>, field_name: FieldName) -> JavaValue<'gc> {
-        todo!()
-        // self.deref().lookup_field(jvm, field_name)
-    }
-
     pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'gc> {
         self.deref().unwrap_normal_object()
     }
@@ -580,17 +568,6 @@ impl<'gc> JavaValue<'gc> {
         }
     }
 
-    pub fn deep_clone(&self, jvm: &'gc JVMState<'gc>) -> Self {
-        todo!()
-        /*match &self {
-            JavaValue::Object(o) => JavaValue::Object(match o {
-                None => None,
-                Some(o) => jvm.allocate_object(todo!()).into(),
-            }),
-            JavaValue::Top => panic!(),
-            jv => (*jv).clone(),
-        }*/
-    }
     pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
         let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
         Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
@@ -720,70 +697,6 @@ impl<'gc> Clone for JavaValue<'gc> {
             JavaValue::Double(d) => JavaValue::Double(*d),
             JavaValue::Object(o) => JavaValue::Object(o.clone()),
             JavaValue::Top => JavaValue::Top,
-        }
-    }
-}
-
-impl<'gc> PartialEq for JavaValue<'gc> {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            JavaValue::Long(x) => match other {
-                JavaValue::Long(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Int(x) => match other {
-                JavaValue::Int(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Short(x) => match other {
-                JavaValue::Short(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Byte(x) => match other {
-                JavaValue::Byte(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Boolean(x) => match other {
-                JavaValue::Boolean(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Char(x) => match other {
-                JavaValue::Char(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Float(x) => match other {
-                JavaValue::Float(x1) => x == x1,
-                _ => false,
-            },
-            JavaValue::Double(x) => match other {
-                JavaValue::Double(x1) => x == x1,
-                _ => false,
-            },
-            /*JavaValue::Array(x) => {
-                match other {
-                    JavaValue::Array(x1) => x == x1,
-                    _ => false
-                }
-            }*/
-            JavaValue::Object(x) => {
-                match other {
-                    JavaValue::Object(x1) => {
-                        todo!()
-                        /*                        match x {
-                                                    None => x1.is_none(),
-                                                    Some(o) => match x1 {
-                                                        None => false,
-                                                        Some(o1) => Arc::ptr_eq(o, o1),
-                                                    },
-                                                }
-                        */
-                    }
-                    _ => false,
-                }
-            }
-            JavaValue::Top => {
-                matches!(other, JavaValue::Top)
-            }
         }
     }
 }

@@ -23,6 +23,7 @@ use slow_interpreter::rust_jni::jni_utils::{get_state};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object_new};
 use slow_interpreter::static_vars::static_vars;
 use slow_interpreter::utils::new_field_id;
+use crate::double_register_addressing::calc_address;
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(_env: *mut JNIEnv, _cb: jclass) {
@@ -301,29 +302,29 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(_env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putByteVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jbyte) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jbyte>().write(val)
+    calc_address(obj, offset).cast::<jbyte>().write(val)
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putLongVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jlong) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jlong>().write(val)
+    calc_address(obj, offset).cast::<jlong>().write(val)
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putFloatVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jfloat) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jfloat>().write(val)
+    calc_address(obj, offset).cast::<jfloat>().write(val)
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putDoubleVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jdouble) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jdouble>().write(val)
+    calc_address(obj, offset).cast::<jdouble>().write(val)
 }
 
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putShortVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jshort) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jshort>().write(val)
+    calc_address(obj, offset).cast::<jshort>().write(val)
 }
 
 

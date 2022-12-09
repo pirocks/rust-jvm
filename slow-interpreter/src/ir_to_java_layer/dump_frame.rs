@@ -25,7 +25,7 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
         let local_vars = int_state.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
         unsafe {
-            for (i, local_var_type) in local_vars.into_iter().enumerate() {
+            for (i, _local_var_type) in local_vars.into_iter().enumerate() {
                 let jv = int_state.raw_local_var_get(i as u16);
                 eprint!("#{}: {:?}\t", i, jv as *const c_void)
             }
@@ -34,7 +34,7 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
         eprint!("Operand Stack:");
         let operand_stack_types = int_state.operand_stack_simplified_types(jvm);
         unsafe {
-            for (i, operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+            for (i, _operand_stack_type) in operand_stack_types.into_iter().enumerate() {
                 let jv = int_state.raw_operand_stack_get(i as u16);
                 eprint!("#{}: {:?}\t", i, jv as *const c_void)
             }

@@ -210,7 +210,7 @@ impl<'gc> ThreadState<'gc> {
             .expect("todo")
             .map(|class_loader| class_loader.to_jvm_loader(jvm))
             .unwrap_or(LoaderName::BootstrapLoader);
-        let thread_name = obj.name(jvm).to_rust_string(jvm);
+        // let thread_name = obj.name(jvm).to_rust_string(jvm);
         let java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
             send.send(java_thread.clone()).unwrap();
             java_thread.notify_alive(jvm);

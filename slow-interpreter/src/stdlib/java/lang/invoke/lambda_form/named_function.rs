@@ -19,7 +19,7 @@ impl<'gc> JavaValue<'gc> {
 
 impl<'gc> NamedFunction<'gc> {
     //noinspection DuplicatedCode
-    pub fn get_member_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<MemberName<'gc>> {
+    pub fn get_member_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<MemberName<'gc>> {
         // let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_member());
         /*if maybe_null.try_unwrap_object().is_some() {
             if maybe_null.unwrap_object().is_some() {
@@ -36,7 +36,7 @@ impl<'gc> NamedFunction<'gc> {
         self.get_member_or_null(jvm).unwrap()
     }
 
-    pub fn method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
+    pub fn method_type<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
         // java.lang.invoke.LambdaForm.NamedFunction
         /*let named_function_type = assert_inited_or_initing_class(jvm, CClassName::lambda_from_named_function().into());
         int_state.push_current_operand_stack(self.clone().java_value());

@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use jvmti_jni_bindings::{jchar, jint};
+use jvmti_jni_bindings::{jchar};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -109,13 +109,6 @@ impl<'gc> JString<'gc> {
             res.push(elem.as_njv().unwrap_char_strict())
         }
         String::from_utf16(res.as_slice()).ok()
-    }
-
-    pub fn length<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jint, WasException<'gc>> {
-        todo!()/*int_state.push_current_operand_stack(self.clone().java_value())*/;
-        let string_class = check_initing_or_inited_class(jvm, int_state, CClassName::string().into())?;
-        run_static_or_virtual(jvm, int_state, &string_class, MethodName::method_length(), &CMethodDescriptor::empty_args(CPDType::IntType), todo!())?;
-        Ok(todo!()/*int_state.pop_current_operand_stack(Some(CClassName::string().into())).unwrap_int()*/)
     }
 }
 

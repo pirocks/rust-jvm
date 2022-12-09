@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use wtf8::Wtf8Buf;
 
-use jvmti_jni_bindings::{jboolean, jint};
+use jvmti_jni_bindings::{jint};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
@@ -66,22 +66,6 @@ impl Clone for JThread<'_> {
 }
 
 impl<'gc> JThread<'gc> {
-    pub fn invalid_thread(jvm: &'gc JVMState<'gc>) -> JThread<'gc> {
-        todo!()
-        /*            JThread {
-            normal_object: NewJavaValue::AllocObject(todo!()/*jvm.allocate_object(todo!()/*Object::Object(NormalObject {
-                /*monitor: jvm.thread_state.new_monitor("invalid thread monitor".to_string()),
-
-                objinfo: ObjectFieldsAndClass {
-                    fields: (0..NUMBER_OF_LOCAL_VARS_IN_THREAD).map(|_| UnsafeCell::new(NativeJavaValue { object: null_mut() })).collect_vec(),
-                    class_pointer: Arc::new(RuntimeClass::Top),
-                },*/
-                objinfo: todo!(),
-                obj_ptr: todo!(),
-            })*/)*/).to_jv().unwrap_object_nonnull(),
-        }
-*/
-    }
 
     pub fn tid(&self, jvm: &'gc JVMState<'gc>) -> JavaThreadId {
         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
@@ -114,7 +98,7 @@ impl<'gc> JThread<'gc> {
 
     pub fn priority(&self, jvm: &'gc JVMState<'gc>) -> i32 {
         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-        todo!()/*self.normal_object.unwrap_normal_object().get_var(jvm, thread_class, FieldName::field_priority()).unwrap_int()*/
+        self.normal_object.get_var(jvm, &thread_class, FieldName::field_priority()).unwrap_int()
     }
 
     fn top_level_rc(&self) -> Arc<RuntimeClass<'gc>> {
@@ -157,13 +141,6 @@ impl<'gc> JThread<'gc> {
         jvm.thread_state.try_get_thread_by_tid(tid)
     }
 
-    pub fn is_alive<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<jboolean, WasException<'gc>> {
-        let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-        todo!();// int_state.push_current_operand_stack(todo!()/*self.clone().java_value()*/);
-        run_static_or_virtual(jvm, int_state, &thread_class, MethodName::method_isAlive(), &CompressedMethodDescriptor::empty_args(CPDType::BooleanType), todo!())?;
-        Ok(todo!()/*int_state.pop_current_operand_stack(Some(RuntimeType::IntType)).unwrap_boolean()*/)
-    }
-
     pub fn get_context_class_loader<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Option<ClassLoader<'gc>>, WasException<'gc>> {
         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
         let mut args = vec![];
@@ -183,7 +160,8 @@ impl<'gc> JThread<'gc> {
     }
 
     pub fn get_inherited_access_control_context(&self, jvm: &'gc JVMState<'gc>) -> JThread<'gc> {
-        todo!()/*self.normal_object.lookup_field(jvm, FieldName::field_inheritedAccessControlContext()).cast_thread()*/
+        let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
+        self.normal_object.get_var(jvm,&thread_class, FieldName::field_inheritedAccessControlContext()).cast_thread(jvm)
     }
 
     pub fn notify_object_change(&self, jvm: &'gc JVMState<'gc>) {
@@ -194,13 +172,11 @@ impl<'gc> JThread<'gc> {
     //     todo!()
     // }
     //
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {
     fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-        let jvm = self.jvm;
-        // assert_eq!(self.normal_object.as_allocated_obj().runtime_class(jvm).cpdtype().jvm_representation(&jvm.string_pool), CPDType::from(CClassName::thread()).jvm_representation(&jvm.string_pool));
         self.normal_object
     }
 

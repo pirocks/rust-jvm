@@ -3,9 +3,8 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
-use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue, pushable_frame_todo};
-use crate::better_java_stack::java_stack_guard::JavaStackGuard;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
+use crate::{AllocatedHandle, NewAsObjectOrJavaValue, NewJavaValue};
+use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::new_object;
 use crate::jvm_state::JVMState;
@@ -53,7 +52,7 @@ impl<'gc> MethodTypeForm<'gc> {
 
     pub fn new<'l>(
         jvm: &'gc JVMState<'gc>,
-        int_state: &mut JavaStackGuard<'gc>,
+        int_state: &mut impl PushableFrame<'gc>,
         arg_to_slot_table: NewJavaValue<'gc, '_>,
         slot_to_arg_table: NewJavaValue<'gc, '_>,
         arg_counts: jlong,
@@ -63,9 +62,8 @@ impl<'gc> MethodTypeForm<'gc> {
         method_handles: NewJavaValue<'gc, '_>,
         lambda_forms: NewJavaValue<'gc, '_>,
     ) -> MethodTypeForm<'gc> {
-        let mut temp: OpaqueFrame<'gc, '_> = todo!();
         let method_type_form = assert_inited_or_initing_class(jvm, CClassName::method_type_form().into());
-        let res_handle = AllocatedHandle::NormalObject(new_object(jvm, pushable_frame_todo()/*int_state*/, &method_type_form, false));
+        let res_handle = AllocatedHandle::NormalObject(new_object(jvm, int_state, &method_type_form, false));
         let res = res_handle.cast_method_type_form();
         res.set_arg_to_slot_table(jvm, arg_to_slot_table);
         res.set_slot_to_arg_table(jvm, slot_to_arg_table);
@@ -81,8 +79,6 @@ impl<'gc> MethodTypeForm<'gc> {
         res.set_lambda_forms(jvm, lambda_forms);
         res
     }
-
-    // as_object_or_java_value!();
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for MethodTypeForm<'gc> {

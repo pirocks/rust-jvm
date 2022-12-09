@@ -29,7 +29,7 @@ use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::PType;
 use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::interpreter::common::ldc::{create_string_on_stack, load_class_constant_by_type};
+use slow_interpreter::interpreter::common::ldc::{load_class_constant_by_type};
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object, to_object};

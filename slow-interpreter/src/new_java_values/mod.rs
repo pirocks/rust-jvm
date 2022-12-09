@@ -43,7 +43,7 @@ pub enum NewJavaValueHandle<'gc> {
 impl Eq for NewJavaValueHandle<'_> {}
 
 impl PartialEq for NewJavaValueHandle<'_> {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         todo!()
     }
 }

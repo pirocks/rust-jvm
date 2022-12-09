@@ -55,7 +55,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     pub fn init(&'vm self, jvm: &'vm JVMState<'vm>) {
         self.ir.inner.write().unwrap().handler.get_or_init(|| {
-            let ir_exit_handler: ExitHandlerType<'vm, JavaStackGuard<'vm>> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, java_stack_guard: &mut JavaStackGuard<'vm>, rbp_and_rsp: RBPAndRSP, ir_vm_state: &IRVMState<'vm, JavaStackGuard<'vm>>| {
+            let ir_exit_handler: ExitHandlerType<'vm, JavaStackGuard<'vm>> = Arc::new(move |ir_vm_exit_event: &IRVMExitEvent, java_stack_guard: &mut JavaStackGuard<'vm>, rbp_and_rsp: RBPAndRSP, _ir_vm_state: &IRVMState<'vm, JavaStackGuard<'vm>>| {
                 java_stack_guard.notify_guest_exit(rbp_and_rsp.rbp, rbp_and_rsp.rbp);
                 JavaVMStateWrapper::exit_handler(&jvm, &ir_vm_exit_event, rbp_and_rsp.rbp, java_stack_guard)
             });
@@ -80,7 +80,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         // let class_name = view.name().unwrap_name().0.to_str(&jvm.string_pool);
         // eprintln!("ENTER RUN METHOD: {} {} {}", &class_name, &method_name, &desc_str);
         let ir_method_id = *self.inner.read().unwrap().most_up_to_date_ir_method_id_for_method_id.get(&method_id).unwrap();
-        let current_frame_pointer = int_state.frame_ref().frame_ptr();
         // let assert_data = int_state.frame_state_assert_save_from(current_frame_pointer);
         let mut frame_to_run_on = int_state.frame_mut();
         let frame_ir_method_id = frame_to_run_on.downgrade().ir_method_id().unwrap();
@@ -88,7 +87,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.set_ir_method_id(ir_method_id);
         }
-        let method_id = frame_to_run_on.downgrade().method_id().unwrap();
         let res = int_state.within_guest(|java_stack_guard, rbp_and_rsp| {
             match self.ir.run_method(extra_intrinsics(),ir_method_id, rbp_and_rsp, java_stack_guard) {
                 Ok(res) => {
@@ -286,9 +284,6 @@ impl<'vm> JavaVMStateWrapper<'vm> {
 
     #[inline(never)]
     fn exit_handler(jvm: &'vm JVMState<'vm>, ir_vm_exit_event: &IRVMExitEvent, rbp: NonNull<c_void>, java_stack_guard: &mut JavaStackGuard<'vm>) -> IRVMExitAction {
-
-        let mmaped_top = java_stack_guard.ir_stack().native.mmaped_top;
-        let exiting_frame_position_rbp = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rbp as *mut c_void;
         let exiting_stack_pointer = ir_vm_exit_event.inner.saved_guest_registers.saved_registers_without_ip.rsp as *mut c_void;
         let mut exit_frame = JavaExitFrame::new(java_stack_guard, FramePointer(rbp), NonNull::new(exiting_stack_pointer).unwrap(), ir_vm_exit_event.exit_type.exiting_pc());
         JavaVMStateWrapperInner::handle_vm_exit(jvm, Some(&mut exit_frame), &ir_vm_exit_event.exit_type)

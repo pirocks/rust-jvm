@@ -15,7 +15,7 @@ pub struct LambdaForm<'gc> {
 }
 
 impl<'gc> LambdaForm<'gc> {
-    pub fn names(&self, jvm: &'gc JVMState<'gc>) -> Vec<Name<'gc>> {
+    pub fn names(&self, _jvm: &'gc JVMState<'gc>) -> Vec<Name<'gc>> {
         todo!()
         // self.normal_object.get_var_top_level(jvm, FieldName::field_names()).unwrap_object_nonnull().unwrap_array().unwrap_object_array(jvm).iter().map(|name| JavaValue::Object(todo!() /*name.clone()*/).cast_lambda_form_name()).collect()
     }

@@ -70,8 +70,6 @@ impl<'gc> Constructor<'gc> {
         let constructor_object = new_object_full(jvm, int_state, &constructor_class);
 
         //todo impl annotations
-        let empty_byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
-        let empty_byte_array = NewJavaValueHandle::empty_byte_array(jvm, empty_byte_array_rc);
         let full_args = vec![constructor_object.new_java_value(),
                              clazz.new_java_value(),
                              parameter_types,
@@ -95,51 +93,10 @@ impl<'gc> Constructor<'gc> {
         self.normal_object.get_var_top_level(jvm, FieldName::field_modifiers()).unwrap_int()
     }
 
-    pub fn get_name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
-        todo!()
-        /*self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("methods must have names")*/
-    }
-
     pub fn parameter_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<JClass<'gc>> {
         self.normal_object.get_var_top_level(jvm, FieldName::field_parameterTypes()).unwrap_object().unwrap().unwrap_array().array_iterator().map(|value| value.cast_class().unwrap()).collect()
     }
 
-    pub fn get_slot_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
-        todo!()
-        /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_slot());
-        if maybe_null.try_unwrap_object().is_some() {
-            if maybe_null.unwrap_object().is_some() {
-                maybe_null.unwrap_int().into()
-            } else {
-                None
-            }
-        } else {
-            maybe_null.unwrap_int().into()
-        }*/
-    }
-    pub fn get_slot(&self, jvm: &'gc JVMState<'gc>) -> jint {
-        todo!()
-        /*self.get_slot_or_null(jvm).unwrap()*/
-    }
-    pub fn get_return_type_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
-        todo!()
-        /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_returnType());
-        if maybe_null.try_unwrap_object().is_some() {
-            if maybe_null.unwrap_object().is_some() {
-                maybe_null.to_new().cast_class().into()
-            } else {
-                None
-            }
-        } else {
-            maybe_null.to_new().cast_class().into()
-        }*/
-    }
-    pub fn get_return_type(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
-        todo!()
-        /*self.get_return_type_or_null(jvm).unwrap()*/
-    }
-
-    /*as_object_or_java_value!();*/
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for Constructor<'gc> {

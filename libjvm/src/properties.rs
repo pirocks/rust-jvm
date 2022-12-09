@@ -12,7 +12,6 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
-use slow_interpreter::interpreter::common::ldc::create_string_on_stack;
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValue;

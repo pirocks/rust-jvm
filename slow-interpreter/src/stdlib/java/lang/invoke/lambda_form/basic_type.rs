@@ -12,8 +12,7 @@ pub struct BasicType<'gc> {
 }
 
 impl<'gc> BasicType<'gc> {
-    //noinspection DuplicatedCode
-    pub fn get_ordinal_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
+    pub fn get_ordinal_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<jint> {
         todo!()
         /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_ordinal());
         if maybe_null.try_unwrap_object().is_some() {
@@ -29,7 +28,7 @@ impl<'gc> BasicType<'gc> {
     pub fn get_ordinal(&self, jvm: &'gc JVMState<'gc>) -> jint {
         self.get_ordinal_or_null(jvm).unwrap()
     }
-    pub fn get_bt_char_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jchar> {
+    pub fn get_bt_char_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<jchar> {
         todo!()
         /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btChar());
         if maybe_null.try_unwrap_object().is_some() {
@@ -47,7 +46,7 @@ impl<'gc> BasicType<'gc> {
     }
 
     //noinspection DuplicatedCode
-    pub fn get_bt_class_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
+    pub fn get_bt_class_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
         // let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_btClass());
         todo!()
         /*if maybe_null.try_unwrap_object().is_some() {
@@ -63,7 +62,7 @@ impl<'gc> BasicType<'gc> {
     pub fn get_bt_class(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {
         self.get_bt_class_or_null(jvm).unwrap()
     }
-    pub fn get_name_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
+    pub fn get_name_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
         // let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_name());
         todo!()
         /*if maybe_null.try_unwrap_object().is_some() {

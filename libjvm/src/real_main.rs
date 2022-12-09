@@ -104,7 +104,7 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object(&jvm_ref.cpdtype_table);
     let thread_state = &jvm_ref.thread_state;
-    let main_thread: Arc<JavaThread> = bootstrap_main_thread(jvm_ref, &thread_state.threads, MainThreadStartInfo { args });
+    let main_thread: Arc<JavaThread> = bootstrap_main_thread(jvm_ref, MainThreadStartInfo { args });
     let main_thread_clone = main_thread.clone();
     // jvm_ref.thread_state.threads.create_thread(Some("stacktracer".to_string())).start_thread(box move |_| unsafe {
     //     loop {

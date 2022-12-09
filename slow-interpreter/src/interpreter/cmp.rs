@@ -67,7 +67,7 @@ pub fn dcmpg<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
 }
 
 
-fn dcmp_common<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, val2: f64, val1: f64) {
+fn dcmp_common<'gc, 'j, 'k, 'l>(_jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, val2: f64, val1: f64) {
     assert!(!val2.is_nan());
     assert!(!val1.is_nan());
     let res = if val1 > val2 {

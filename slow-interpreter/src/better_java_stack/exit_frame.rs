@@ -199,7 +199,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> PushableFrame<'gc> for JavaExitFrame<'gc, 'k> {
-    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+    fn push_frame<T>(&mut self, _frame_to_write: StackEntryPush, _within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         todo!()
     }
 

@@ -78,7 +78,7 @@ impl<'gc> Field<'gc> {
         self.normal_object.get_var(jvm, &field_rc, FieldName::field_clazz()).cast_class().expect("todo")
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for Field<'gc> {

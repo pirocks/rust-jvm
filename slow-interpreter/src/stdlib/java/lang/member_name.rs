@@ -113,7 +113,7 @@ impl<'gc> MemberName<'gc> {
         Some(self.normal_object.get_var_top_level(jvm, FieldName::field_clazz()).unwrap_object()?.cast_class())
     }
 
-    pub fn get_method_type<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
+    pub fn get_method_type<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
         /*let member_name_class = assert_inited_or_initing_class(jvm, CClassName::member_name().into());
         int_state.push_current_operand_stack(JavaValue::Object(self.normal_object.clone().into()));
         run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getMethodType(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;
@@ -129,7 +129,7 @@ impl<'gc> MemberName<'gc> {
         Ok(res.unwrap().cast_class())
     }
 
-    pub fn new_from_field<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, field: Field<'gc>) -> Result<Self, WasException<'gc>> {
+    pub fn new_from_field<'l>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _field: Field<'gc>) -> Result<Self, WasException<'gc>> {
         /*let member_class = check_initing_or_inited_class(jvm, int_state, CClassName::member_name().into())?;
         let res = new_object(jvm, int_state, &member_class).to_jv();
         run_constructor(jvm, int_state, member_class, todo!()/*vec![res.clone(), field.java_value()]*/, &CMethodDescriptor::void_return(vec![CClassName::field().into()]))?;

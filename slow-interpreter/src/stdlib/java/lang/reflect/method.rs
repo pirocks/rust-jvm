@@ -60,7 +60,6 @@ impl<'gc> Method<'gc> {
         //todo what does slot do?
         let slot = -1;
         let signature = get_signature(jvm, int_state, &method_view)?;
-        let byte_array_rc = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType)).unwrap();
         let annotations = NewJavaValueHandle::from_optional_object(method_view.get_annotation_bytes().map(|param_annotations| {
             JavaValue::byte_array(jvm, int_state, param_annotations).unwrap()
         }));
@@ -130,8 +129,7 @@ impl<'gc> Method<'gc> {
     }
 
     pub fn get_name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
-        todo!()
-        /*self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("methods must have names")*/
+        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string().expect("methods must have names")
     }
 
     pub fn parameter_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<JClass<'gc>> {
@@ -144,23 +142,6 @@ impl<'gc> Method<'gc> {
             .collect()
     }
 
-    pub fn get_slot_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
-        todo!()
-        /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_slot());
-        if maybe_null.try_unwrap_object().is_some() {
-            if maybe_null.unwrap_object().is_some() {
-                maybe_null.unwrap_int().into()
-            } else {
-                None
-            }
-        } else {
-            maybe_null.unwrap_int().into()
-        }*/
-    }
-    pub fn get_slot(&self, jvm: &'gc JVMState<'gc>) -> jint {
-        todo!()
-        /*self.get_slot_or_null(jvm).unwrap()*/
-    }
     pub fn get_return_type_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<JClass<'gc>> {
         self.normal_object.get_var_top_level(jvm, FieldName::field_returnType()).cast_class()
     }
@@ -168,7 +149,7 @@ impl<'gc> Method<'gc> {
         self.get_return_type_or_null(jvm).unwrap()
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for Method<'gc> {

@@ -3,6 +3,7 @@ use std::mem::transmute;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jbyte, jchar, jfloat, jint, jlong, JNIEnv, jobject, jshort};
+use crate::double_register_addressing::calc_address;
 
 
 #[no_mangle]
@@ -84,23 +85,15 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getFloat__J(_env: *mut JNIEnv, _t
 */
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(_env: *mut JNIEnv, _the_unsafe: jobject, src_obj: jobject, offset: jlong, dst_obj: jobject, address: jlong, len: jlong) {
-    let src_address = if src_obj == null_mut() {
-        offset as *const i8
-    } else {
-        (src_obj as *const i8).offset(offset as isize)
-    };
-    let dst_address = if dst_obj == null_mut() {
-        address as *mut i8
-    } else {
-        (dst_obj as *mut i8).offset(address as isize)
-    };
-    volatile_copy_memory(dst_address as *mut u8, src_address as *const u8, len as usize);
+    let src_address = calc_address(src_obj, offset) as *const u8;
+    let dst_address = calc_address(dst_obj, address) as *mut u8;
+    volatile_copy_memory(dst_address, src_address, len as usize);
     return;
 }
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_allocateMemory(_env: *mut JNIEnv, _the_unsafe: jobject, len: jlong) -> jlong {
-    let res: i64 = libc::malloc(len as usize) as i64;
+    let res: jlong = libc::malloc(len as usize) as i64;
     res
 }
 

@@ -100,12 +100,11 @@ impl<'gc, 'k> PushableFrame<'gc> for OpaqueFrame<'gc, 'k> {
     fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         match frame_to_write {
             StackEntryPush::Java(java_frame) => {
-                self.java_stack.push_java_frame(self.frame_pointer, self.next_frame_pointer(), java_frame, |frame| within_push(todo!()/*frame*/))
+                self.java_stack.push_java_frame(self.frame_pointer, self.next_frame_pointer(), java_frame, |_frame| within_push(todo!()/*frame*/))
             }
             StackEntryPush::Native(_) => todo!(),
-            StackEntryPush::Opaque(opaque) => {
+            StackEntryPush::Opaque(_) => {
                 todo!()
-                /*                self.java_stack.push_opaque_frame(self.frame_pointer, self.next_frame_pointer(), opaque,|java_stack_guard|within_push(java_stack_guard))*/
             }
         }
     }

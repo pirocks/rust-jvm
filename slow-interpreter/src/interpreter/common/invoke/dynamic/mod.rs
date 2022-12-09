@@ -31,7 +31,7 @@ pub mod resolvers;
 
 pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> PostInstructionAction<'gc> {
     match invoke_dynamic_impl(jvm, int_state, cp, current_pc) {
-        Ok(res) => {
+        Ok(()) => {
             PostInstructionAction::Next {}
         }
         Err(WasException { exception_obj }) => {

@@ -28,7 +28,7 @@ impl<'gc> Name<'gc> {
     }
 
     //noinspection DuplicatedCode
-    pub fn get_index_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<jint> {
+    pub fn get_index_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<jint> {
         todo!()
         /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_index());
         if maybe_null.try_unwrap_object().is_some() {
@@ -44,7 +44,7 @@ impl<'gc> Name<'gc> {
     pub fn get_index(&self, jvm: &'gc JVMState<'gc>) -> jint {
         self.get_index_or_null(jvm).unwrap()
     }
-    pub fn get_type_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<BasicType<'gc>> {
+    pub fn get_type_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<BasicType<'gc>> {
         todo!()
         /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_type());
         if maybe_null.try_unwrap_object().is_some() {
@@ -60,7 +60,7 @@ impl<'gc> Name<'gc> {
     pub fn get_type(&self, jvm: &'gc JVMState<'gc>) -> BasicType<'gc> {
         self.get_type_or_null(jvm).unwrap()
     }
-    pub fn get_function_or_null(&self, jvm: &'gc JVMState<'gc>) -> Option<NamedFunction<'gc>> {
+    pub fn get_function_or_null(&self, _jvm: &'gc JVMState<'gc>) -> Option<NamedFunction<'gc>> {
         todo!()
         /*let maybe_null = self.normal_object.lookup_field(jvm, FieldName::field_function());
         if maybe_null.try_unwrap_object().is_some() {

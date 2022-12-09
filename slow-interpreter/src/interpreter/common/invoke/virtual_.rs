@@ -64,7 +64,6 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
             return PostInstructionAction::Exception { exception: WasException { exception_obj: npe.new_java_value_handle().cast_throwable() } };
         }
     }.runtime_class(jvm);
-    let current_loader = int_state.inner().current_loader(jvm);
     let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state.inner(), method_name, expected_descriptor, base_object_class).unwrap();
     let view = resolved_rc.view();
     let method_view = view.method_view_i(method_i);
@@ -111,9 +110,6 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
     args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_method_i = target_method.method_i();
-    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
-    let method_resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
-    // jvm.java_vm_state.add_method_if_needed(jvm, &method_resolver, method_id);
     if target_method.is_signature_polymorphic() {
         // let current_frame = interpreter_state.current_frame();
 
@@ -221,33 +217,6 @@ pub fn call_vmentry<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut im
     } else {
         unimplemented!()
     }
-}
-
-pub fn setup_virtual_args<'gc, 'l>(int_state: &mut impl PushableFrame<'gc>, expected_descriptor: &CMethodDescriptor, args: &mut Vec<JavaValue<'gc>>, max_locals: u16) {
-    todo!();
-    // let mut current_frame = int_state.current_frame_mut();
-    // for _ in 0..max_locals {
-    //     args.push(JavaValue::Top);
-    // }
-    // let mut i = 1;
-    // for ptype in expected_descriptor.arg_types.iter().rev() {
-    //     let value = current_frame.pop(Some(ptype.to_runtime_type().unwrap()));
-    //     match value.clone() {
-    //         JavaValue::Long(_) | JavaValue::Double(_) => {
-    //             args[i] = JavaValue::Top;
-    //             args[i + 1] = value;
-    //             i += 2
-    //         }
-    //         _ => {
-    //             args[i] = value;
-    //             i += 1
-    //         }
-    //     };
-    // }
-    // if !expected_descriptor.arg_types.is_empty() {
-    //     args[1..i].reverse();
-    // }
-    // args[0] = current_frame.pop(Some(CClassName::object().into()));
 }
 
 pub fn setup_virtual_args2<'gc, 'l, 'k>(expected_descriptor: &CMethodDescriptor, args: &mut Vec<NewJavaValue<'gc, 'k>>, max_locals: u16, input_args: Vec<NewJavaValue<'gc, 'k>>) {

@@ -35,7 +35,7 @@ impl<'gc> HeapByteBuffer<'gc> {
         Ok(object.cast_heap_byte_buffer())
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for HeapByteBuffer<'gc> {

@@ -103,7 +103,6 @@ pub trait HasFrame<'gc> {
     }
 
     fn debug_print_stack_trace(&self, jvm: &'gc JVMState<'gc>) {
-        let full = false;
         let iter = self.frame_iter();
         for (i, stack_entry) in iter.enumerate() {
             if let Ok(class_pointer) = stack_entry.try_class_pointer(jvm) {
@@ -152,7 +151,7 @@ pub trait PushableFrame<'gc>: HasFrame<'gc> {
     fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'k> FnOnce(&mut OpaqueFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
     fn push_frame_java<T>(&mut self, java_frame: JavaFramePush, within_push: impl for<'k> FnOnce(&mut JavaInterpreterFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
     fn push_frame_native<T>(&mut self, java_frame: NativeFramePush, within_push: impl for<'k> FnOnce(&mut NativeFrame<'gc, 'k>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>>;
-    fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
+    fn current_loader(&self, _jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
 }

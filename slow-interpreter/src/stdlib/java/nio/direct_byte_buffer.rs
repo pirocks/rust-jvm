@@ -35,7 +35,7 @@ impl<'gc> DirectByteBuffer<'gc> {
         Ok(object.cast_direct_byte_buffer())
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for DirectByteBuffer<'gc> {

@@ -27,8 +27,6 @@ use crate::stack_entry::StackEntryPush;
 pub fn run_invoke_static<'gc, 'l, 'k>(
     jvm: &'gc JVMState<'gc>,
     int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
-    method: &MethodView,
-    code: &CompressedCode,
     ref_type: CPRefType,
     expected_method_name: MethodName,
     expected_descriptor: &CMethodDescriptor,

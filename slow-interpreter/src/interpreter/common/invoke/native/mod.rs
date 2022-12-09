@@ -62,7 +62,6 @@ pub fn run_native_method<'gc, 'l, 'k>(
     // }
 
     assert!(method.is_native());
-    let method_as_string = method.name().0.to_str(&jvm.string_pool);
     let monitor = monitor_for_function(jvm, int_state, &method, method.is_synchronized());
     let owned_args_clone = args.clone();
     let corrected_args = correct_args(owned_args_clone.as_slice());

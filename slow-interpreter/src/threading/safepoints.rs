@@ -249,7 +249,7 @@ impl<'gc> SafePoint<'gc> {
         if guard.suspended {
             // dbg!("regular suspended");
             let _unused = self.waiton.wait(guard).unwrap();
-            let current_thread = jvm.thread_state.get_current_thread();
+            // let current_thread = jvm.thread_state.get_current_thread();
             drop(_unused);
             return self.check(jvm, int_state);
         }

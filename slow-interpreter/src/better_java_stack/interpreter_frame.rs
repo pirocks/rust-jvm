@@ -136,11 +136,11 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
 }
 
 impl<'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
-    fn push_frame<T>(&mut self, frame_to_write: StackEntryPush, within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+    fn push_frame<T>(&mut self, _frame_to_write: StackEntryPush, _within_push: impl FnOnce(&mut JavaStackGuard<'gc>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         todo!()
     }
 
-    fn push_frame_opaque<T>(&mut self, opaque_frame: OpaqueFramePush, within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
+    fn push_frame_opaque<T>(&mut self, _opaque_frame: OpaqueFramePush, _within_push: impl for<'l> FnOnce(&mut OpaqueFrame<'gc, 'l>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
         todo!()
     }
 
@@ -157,7 +157,6 @@ impl<'gc, 'k> PushableFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
 impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
     pub fn from_frame_pointer_interpreter<T>(java_stack_guard: &mut JavaStackGuard<'gc>, frame_pointer: FramePointer,
                                              within_interpreter: impl for<'k2> FnOnce(&mut JavaInterpreterFrame<'gc, 'k2>) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
-        let jvm = java_stack_guard.jvm();
         let mut res = JavaInterpreterFrame {
             java_stack: java_stack_guard,
             frame_ptr: frame_pointer,
@@ -201,7 +200,7 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 
     pub fn class_pointer(&self, jvm: &'gc JVMState<'gc>) -> Arc<RuntimeClass<'gc>> {
         let method_id = self.frame_ref().method_id().unwrap();
-        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let (rc, _) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         rc
     }
 
@@ -211,11 +210,11 @@ impl<'gc, 'k> JavaInterpreterFrame<'gc, 'k> {
 
     pub fn current_method_i(&self, jvm: &'gc JVMState<'gc>) -> MethodI {
         let method_id = self.frame_ref().method_id().unwrap();
-        let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let (_, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
         method_i
     }
 
-    pub fn current_loader(&self, jvm: &'gc JVMState<'gc>) -> LoaderName {
+    pub fn current_loader(&self, _jvm: &'gc JVMState<'gc>) -> LoaderName {
         LoaderName::BootstrapLoader //todo
     }
 }

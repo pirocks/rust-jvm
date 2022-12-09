@@ -152,12 +152,6 @@ impl<'vm, 'k> Iterator for JavaFrameIterRefNew<'vm, 'k> {
                 is_interpreted,
                 pc: self.current_pc,
             };
-            let jvm= self.java_stack_guard.jvm();
-            // if let Ok(rc) = res.class_pointer() {
-            //     let view = rc.view();
-            //     let method_view = view.method_view_i(res.method_i());
-            //     // dbg!((method_view.name().0.to_str(&jvm.string_pool), self.current_pc));
-            // }
             self.current_rip = Some(prev_rip);
             match self.java_stack_guard.jvm().java_vm_state.lookup_ip(prev_rip.as_ptr()) {
                 Some((_, new_pc)) => {

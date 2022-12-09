@@ -26,7 +26,7 @@ impl<'gc> JavaValue<'gc> {
 }
 
 impl<'gc> Unsafe<'gc> {
-    pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Unsafe<'gc> {
+    pub fn the_unsafe<'l>(jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Unsafe<'gc> {
         let unsafe_class = assert_inited_or_initing_class(jvm, CClassName::unsafe_().into());
         let static_vars = static_vars(unsafe_class.deref(), jvm);
         static_vars.get(FieldName::field_theUnsafe(),CPDType::object()).cast_unsafe()

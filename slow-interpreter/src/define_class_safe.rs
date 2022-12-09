@@ -14,12 +14,13 @@ use stage0::compiler_common::frame_data::SunkVerifierFrames;
 use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 use crate::better_java_stack::frames::PushableFrame;
-use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData, create_class_object, get_static_var_types};
+use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData, create_class_object};
 use crate::class_objects::get_or_create_class_object_force_loader;
 use crate::exceptions::WasException;
 use crate::java_values::ByAddressAllocatedObject;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::runtime_class::{initialize_class, prepare_class};
 use crate::static_vars::static_vars;
 use crate::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
@@ -38,7 +39,6 @@ pub fn define_class_safe<'gc, 'l>(
     let class_view = Arc::new(class_view);
     let super_class = class_view.super_name().map(|name| check_initing_or_inited_class(jvm, int_state, name.into()).unwrap());
     let interfaces = class_view.interfaces().map(|interface| check_initing_or_inited_class(jvm, int_state, interface.interface_name().into()).unwrap()).collect_vec();
-    let static_var_types = get_static_var_types(class_view.deref());
     let runtime_class = Arc::new(RuntimeClass::Object(
         RuntimeClassClass::new_new(&jvm.inheritance_tree, &jvm.all_the_static_fields, &mut jvm.bit_vec_paths.write().unwrap(), class_view.clone(), super_class, interfaces, RwLock::new(ClassStatus::UNPREPARED), &jvm.string_pool, &jvm.class_ids)
     ));
@@ -62,11 +62,9 @@ pub fn define_class_safe<'gc, 'l>(
             jvm.sink_function_verification_date(&vf.verification_types, runtime_class.clone());
         }
         Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassNotFoundException(class_name))) => {
-            dbg!(&class_name);
             let class = JString::from_rust(jvm, pushable_frame_todo(), Wtf8Buf::from_str(class_name.get_referred_name()))?;
             let to_throw = ClassNotFoundException::new(jvm, int_state, class)?.object().new_java_handle().unwrap_object().unwrap();
-            todo!();// int_state.set_throw(Some(to_throw));
-            return Err(WasException { exception_obj: todo!() });
+            return Err(WasException { exception_obj: to_throw.cast_throwable() });
         }
         Err(TypeSafetyError::NotSafe(msg)) => {
             dbg!(&msg);
@@ -76,8 +74,6 @@ pub fn define_class_safe<'gc, 'l>(
             //todo check for privileged here
             for method_view in class_view.methods() {
                 let method_id = jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method_view.method_i());
-                let code = method_view.code_attribute().unwrap();
-                let instructs = code.instructions.iter().sorted_by_key(|(offset, instruct)| *offset).map(|(_, instruct)| instruct.clone()).collect_vec();
                 let res = type_infer(&method_view);
                 let frames_tops = res.inferred_frames().iter().map(|(offset, frame)| {
                     (*offset, SunkVerifierFrames::PartialInferredFrame(frame.clone()))

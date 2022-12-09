@@ -3,6 +3,7 @@ use std::sync::Arc;
 use jvmti_jni_bindings::{jboolean, jint};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
+use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState, WasException};
@@ -12,7 +13,6 @@ use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::stdlib::java::lang::string::JString;
-use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub struct JThreadGroup<'gc> {
@@ -61,44 +61,23 @@ impl<'gc> JThreadGroup<'gc> {
         Ok(thread_group_object.cast_thread_group())
     }
 
-    pub fn threads(&self, jvm: &'gc JVMState<'gc>) -> Vec<Option<JThread<'gc>>> {
-        /*let threads_field = self.normal_object.lookup_field(jvm, FieldName::field_threads());
-        let array = threads_field.unwrap_array();
-        array
-            .array_iterator(jvm)
-            .map(|thread| match thread.unwrap_object() {
-                None => None,
-                Some(t) => JavaValue::Object(t.into()).cast_thread().into(),
-            })
-            .collect()*/
-        todo!()
-    }
-
-    pub fn threads_non_null(&self, jvm: &'gc JVMState<'gc>) -> Vec<JThread<'gc>> {
-        self.threads(jvm).into_iter().flatten().collect()
-    }
-
     pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
-        /*self.normal_object.lookup_field(jvm, FieldName::field_name()).cast_string().expect("thread group null name")*/
-        todo!()
+        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string().expect("thread group null name")
     }
 
     pub fn daemon(&self, jvm: &'gc JVMState<'gc>) -> jboolean {
-        /*self.normal_object.lookup_field(jvm, FieldName::field_daemon()).unwrap_boolean()*/
-        todo!()
+        self.normal_object.get_var_top_level(jvm, FieldName::field_daemon()).unwrap_bool_strict()
     }
 
     pub fn max_priority(&self, jvm: &'gc JVMState<'gc>) -> jint {
-        /*self.normal_object.lookup_field(jvm, FieldName::field_maxPriority()).unwrap_int()*/
-        todo!()
+        self.normal_object.get_var_top_level(jvm, FieldName::field_maxPriority()).unwrap_int()
     }
 
     pub fn parent(&self, jvm: &'gc JVMState<'gc>) -> Option<JThreadGroup<'gc>> {
-        /*self.normal_object.lookup_field(jvm, FieldName::field_parent()).try_cast_thread_group()*/
-        todo!()
+        self.normal_object.get_var_top_level(jvm, FieldName::field_parent()).try_cast_thread_group()
     }
 
-    // as_object_or_java_value!();
+
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for JThreadGroup<'gc> {

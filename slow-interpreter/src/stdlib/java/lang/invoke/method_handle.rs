@@ -50,7 +50,7 @@ impl<'gc> MethodHandle<'gc> {
         self.normal_object.get_var(jvm, &method_handle_class, FieldName::field_type()).cast_method_type()
     }
 
-    pub fn type_<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
+    pub fn type_<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<MethodType<'gc>, WasException<'gc>> {
         /*let method_handle_class = assert_inited_or_initing_class(jvm, CClassName::method_handle().into());
         int_state.push_current_operand_stack(self.clone().java_value());
         run_static_or_virtual(jvm, int_state, &method_handle_class, MethodName::method_type(), &CMethodDescriptor::empty_args(CClassName::method_type().into()), todo!())?;

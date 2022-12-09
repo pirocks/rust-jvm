@@ -1,5 +1,4 @@
 #![allow(unused_unsafe)]
-#![allow(unused_variables)]
 #![allow(unreachable_code)]
 #![feature(c_variadic)]
 #![feature(thread_local)]
@@ -160,7 +159,7 @@ fn set_properties<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFra
     let loader = int_state.current_loader(jvm);
     let frame_to_push = StackEntryPush::new_completely_opaque_frame(jvm, loader, vec![], "properties setting frame");
     int_state.push_frame_opaque(frame_to_push, |opaque_frame| {
-        let prop_obj = System::props(jvm, opaque_frame);
+        let prop_obj = System::props(jvm);
         for (key, value) in &jvm.properties {
             let key = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(key.to_string())).expect("todo");
             let value = JString::from_rust(jvm, opaque_frame, Wtf8Buf::from_string(value.to_string())).expect("todo");
