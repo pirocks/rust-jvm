@@ -1,22 +1,10 @@
 use std::intrinsics::atomic_cxchg_seqcst_seqcst;
-use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::Arc;
 
 use libc::c_void;
 
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
-use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
-
-use slow_interpreter::exceptions::WasException;
-use slow_interpreter::new_java_values::{NewJavaValue};
-use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
-
-use slow_interpreter::rust_jni::native_util::{from_object_new};
-use slow_interpreter::utils::{throw_npe_res};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(_env: *mut JNIEnv, _the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
@@ -45,45 +33,3 @@ unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(_env: *mut JNIEnv
     atomic_cxchg_seqcst_seqcst(target, expected, new).1 as jboolean
 }
 
-pub fn do_swap<'l, 'gc>(curval: NewJavaValue<'gc, 'l>, expected: Option<AllocatedHandle<'gc>>, new: NewJavaValue<'gc, 'l>) -> (jboolean, NewJavaValue<'gc, 'l>) {
-    let should_replace = match curval.unwrap_object() {
-        None => match expected {
-            None => true,
-            Some(_) => false,
-        },
-        Some(cur) => match expected {
-            None => false,
-            Some(expected) => {
-                cur.unwrap_alloc().raw_ptr_usize() == expected.as_allocated_obj().raw_ptr_usize()
-            }
-        },
-    };
-    let mut res = curval;
-    if should_replace {
-        res = new;
-    }
-    (should_replace as jboolean, res)
-}
-
-
-pub unsafe fn get_obj_and_name<'gc>(
-    env: *mut JNIEnv,
-    the_unsafe: jobject,
-    target_obj: jobject,
-    offset: jlong,
-) -> Result<(Arc<RuntimeClass<'gc>>, AllocatedHandle<'gc>, FieldName), WasException<'gc>> {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-    let view = rc.view();
-    let field = view.field(field_i as usize);
-    let field_name = field.field_name();
-    let notnull = match from_object_new(jvm, target_obj) {
-        None => {
-            throw_npe_res(jvm, int_state)?;
-            unreachable!()
-        }
-        Some(notnull) => notnull,
-    };
-    Ok((rc, notnull, field_name))
-}

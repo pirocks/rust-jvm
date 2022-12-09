@@ -4,7 +4,6 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jbyte, jchar, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
-use slow_interpreter::rust_jni::jni_utils::{get_state};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putByte__JB(_env: *mut JNIEnv, _the_unsafe: jobject, address: jlong, byte_: jbyte) {

@@ -28,7 +28,7 @@ use rust_jvm_common::loading::{LoaderName};
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter_util::new_object;
-use slow_interpreter::java_values::{ByAddressAllocatedObject, JavaValue};
+use slow_interpreter::java_values::{JavaValue};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::jvm_state::JVMState;

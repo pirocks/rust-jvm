@@ -7,17 +7,13 @@ use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jbyteArray, jclass, jint, JNIEnv, jobject, jstring};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-
-
-
-use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object_new};
-use slow_interpreter::utils::throw_npe;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::from_object_new;
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _the_unsafe: jobject, _name: jstring, bytes: jbyteArray, off: jint, len: jint, loader: jobject, _protection_domain: jobject) -> jclass {
@@ -37,7 +33,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineClass(env: *mut JNIEnv, _th
     let class_view = ClassBackedView::from(classfile.clone(), &jvm.string_pool);
     if jvm.config.store_generated_classes {
         let class_name_string = PTypeView::from_compressed(class_view.type_(), &jvm.string_pool).class_name_representation();
-        let mut file = File::create(format!("{}.class",class_name_string)).unwrap();
+        let mut file = File::create(format!("{}.class", class_name_string)).unwrap();
         file.write_all(byte_array.clone().as_slice()).unwrap();
     }
     let loader_name = if loader != null_mut() {
