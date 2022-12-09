@@ -64,7 +64,6 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     let method_id = jvm.method_table.write().unwrap().get_method_id(rc, method_i);
     let view = interpreter_state.current_class_view(jvm).clone();
     let method = view.method_view_i(method_i);
-    let code = method.code_attribute().unwrap();
     let resolver = MethodResolverImpl { jvm, loader: interpreter_state.current_loader(jvm) };
     let compile_interpreted = !(jvm.config.compiled_mode_active && jvm.function_execution_count.function_instruction_count(method_id) >= jvm.config.compile_threshold);
 

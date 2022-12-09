@@ -6,16 +6,13 @@ use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::jint;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRefType, CPDType, CPRefType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedRefType, CPDType};
 
 
-use crate::{AllocatedHandle, JVMState, WasException};
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
-use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, check_resolved_class, try_assert_loaded_class};
+use crate::{AllocatedHandle, JVMState};
+use crate::class_loading::{assert_inited_or_initing_class, assert_loaded_class, try_assert_loaded_class};
 use crate::interpreter::PostInstructionAction;
-use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue, RealInterpreterStateGuard};
-use crate::java_values::GcManagedObject;
-use crate::java_values::Object::{Array, Object};
+use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 
 pub fn instance_of_exit_impl<'gc, 'any>(jvm: &'gc JVMState<'gc>, cpdtype: CPDType, obj: Option<&'any AllocatedHandle<'gc>>) -> jint {
     match obj {
@@ -67,13 +64,12 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                 }
             }
         }
-        CompressedParsedRefType::Class(object) => {
+        CompressedParsedRefType::Class(_) => {
             match instance_of_class_type {
                 CompressedParsedRefType::Class(instance_of_class_name) => {
                     if let Some(instance_of_class) = try_assert_loaded_class(jvm, instance_of_class_name.into()) {
                         if instance_of_class.unwrap_class_class().class_view.is_interface() {
                             let interface_class_id = jvm.class_ids.get_id_or_add(instance_of_class.cpdtype());
-                            let guard = jvm.gc.memory_region.lock().unwrap();
                             let region_header = MemoryRegions::find_object_region_header(obj.ptr());
                             for i in 0..region_header.interface_ids_list_len {
                                 let current_class_id = unsafe { region_header.interface_ids_list.offset(i as isize).read() };
@@ -86,7 +82,7 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
                             return 0;
                         } else {
                             if let Some(sub_inheritance_tree_vec) = runtime_object_class.unwrap_class_class().inheritance_tree_vec.as_ref() {
-                                let instance_of_class = match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()) {
+                                match try_assert_loaded_class(jvm, instance_of_class_type.to_cpdtype()) {
                                     None => {
                                         return if inherits_from_cpdtype(jvm, &runtime_object_class, instance_of_class_name.into()) {
                                             panic!()
@@ -127,51 +123,11 @@ pub fn instance_of_exit_impl_impl_impl<'gc>(jvm: &'gc JVMState<'gc>, instance_of
 
 pub fn invoke_instanceof<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, cpdtype: CPDType) -> PostInstructionAction<'gc> {
     let interpreter_jv = current_frame.pop(CClassName::object().into());
-    let possibly_null = interpreter_jv.unwrap_object();
-    let instance_of_class_type = cpdtype.unwrap_ref_type().clone();
     let res_int = instance_of_exit_impl(jvm, cpdtype, interpreter_jv.to_new_java_handle(jvm).unwrap_object().as_ref());
     current_frame.push(InterpreterJavaValue::Int(res_int));
     PostInstructionAction::Next {}
 }
 
-pub fn instance_of_impl<'gc, 'l, 'k>(
-    jvm: &'gc JVMState<'gc>,
-    int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, unwrapped: GcManagedObject<'gc>, instance_of_class_type: CPRefType) -> Result<(), WasException<'gc>> {
-    match unwrapped.deref() {
-        Array(array) => {
-            match instance_of_class_type {
-                CPRefType::Class(instance_of_class_name) => {
-                    if instance_of_class_name == CClassName::serializable() || instance_of_class_name == CClassName::cloneable() {
-                        unimplemented!() //todo need to handle serializable and the like
-                    } else {
-                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(0))
-                    }
-                }
-                CPRefType::Array { base_type, num_nested_arrs } => {
-                    if todo!()/*a.deref() == &array.elem_type*/ {
-                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(1))
-                    }
-                }
-            }
-        }
-        Object(object) => {
-            match instance_of_class_type {
-                CPRefType::Class(instance_of_class_name) => {
-                    let mut temp: OpaqueFrame<'gc, 'l> = todo!();
-                    let instanceof_class = check_resolved_class(jvm, &mut temp/*int_state.inner()*/, instance_of_class_name.into())?; //todo check if this should be here
-                    let object_class = object.objinfo.class_pointer.clone();
-                    if todo!()/*inherits_from(jvm, int_state, &object_class, &instanceof_class)?*/ {
-                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(1))
-                    } else {
-                        int_state.current_frame_mut().push(InterpreterJavaValue::Int(0))
-                    }
-                }
-                CPRefType::Array { .. } => int_state.current_frame_mut().push(InterpreterJavaValue::Int(0)),
-            }
-        }
-    };
-    Ok(())
-}
 
 fn runtime_super_class<'gc>(jvm: &'gc JVMState<'gc>, inherits: &Arc<RuntimeClass<'gc>>) -> Option<Arc<RuntimeClass<'gc>>> {
     if inherits.view().super_name().is_some() { Some(assert_inited_or_initing_class(jvm, inherits.view().super_name().unwrap().into())) } else { None }

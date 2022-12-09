@@ -9,7 +9,6 @@ use crate::exceptions::WasException;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame};
-use crate::JVMState;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
@@ -20,68 +19,68 @@ fn generic_store<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, '
     PostInstructionAction::Next {}
 }
 
-pub fn astore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn astore<'gc, 'j, 'k, 'l>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let runtime_type = RuntimeType::object();
     generic_store(current_frame, n, runtime_type)
 }
 
-pub fn istore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn istore<'gc, 'j, 'k, 'l>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let runtime_type = RuntimeType::IntType;
     generic_store(current_frame, n, runtime_type)
 }
 
-pub fn lstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn lstore<'gc, 'j, 'k, 'l>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let runtime_type = RuntimeType::LongType;
     generic_store(current_frame, n, runtime_type)
 }
 
-pub fn dstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn dstore<'gc, 'j, 'k, 'l>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let runtime_type = RuntimeType::DoubleType;
     generic_store(current_frame, n, runtime_type)
 }
 
-pub fn fstore<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn fstore<'gc, 'j, 'k, 'l>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let runtime_type = RuntimeType::FloatType;
     generic_store(current_frame, n, runtime_type)
 }
 
 
-pub fn castore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn castore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::CharType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn fastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn fastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::FloatType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn dastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn dastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::DoubleType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn bastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn bastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ByteType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn lastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn lastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::LongType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn sastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn sastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::ShortType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn iastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn iastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::IntType;
     generic_array_store(current_frame, array_sub_type)
 }
 
-pub fn aastore<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn aastore<'gc, 'l, 'k, 'j>(current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let array_sub_type = CPDType::object();
     generic_array_store(current_frame, array_sub_type)
 }

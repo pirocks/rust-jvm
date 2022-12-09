@@ -43,7 +43,7 @@ pub fn invoke_dynamic<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut R
     }
 }
 
-fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, current_pc: ByteCodeOffset) -> Result<(), WasException<'gc>> {
+fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, cp: u16, _current_pc: ByteCodeOffset) -> Result<(), WasException<'gc>> {
     let method_handle_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_handle().into())?;
     let _method_type_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::method_type().into())?;
     let _call_site_class = check_initing_or_inited_class(jvm, int_state.inner(), CClassName::call_site().into())?;
@@ -120,7 +120,7 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
     let target = call_site.get_target(jvm, int_state.inner())?;
     let lookup_res = method_handle_view.lookup_method_name(MethodName::method_invokeExact()); //todo need safe java wrapper way of doing this
     let invoke = lookup_res.iter().next().unwrap();
-    let (num_args, args, is_static) = if int_state.current_frame_mut().operand_stack_depth() == 0 {
+    let (_num_args, args, is_static) = if int_state.current_frame_mut().operand_stack_depth() == 0 {
         (0u16, vec![], true)
     } else {
         let method_type = target.type__(jvm);
@@ -198,7 +198,7 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
         ReferenceInvokeKind::NewInvokeSpecial(mr) => {
             //todo dupe
             let lookup = Lookup::trusted_lookup(jvm,int_state);
-            let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
+            // let name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)))?;
             let desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(mr.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)))?;
             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
             let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;

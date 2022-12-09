@@ -34,7 +34,7 @@ pub fn invoke_special<'gc, 'l, 'k>(
         Ok(x) => x,
         Err(WasException { exception_obj }) => return PostInstructionAction::Exception { exception: WasException { exception_obj } },
     };
-    let (target_m_i, final_target_class) = find_target_method(jvm, int_state.inner(), method_name, &parsed_descriptor, target_class);
+    let (target_m_i, final_target_class) = find_target_method(jvm, method_name, &parsed_descriptor, target_class);
     // dbg!(final_target_class.view().name().jvm_representation(&jvm.string_pool));
     // dbg!(final_target_class.view().method_view_i(target_m_i).name().0.to_str(&jvm.string_pool));
     let view = final_target_class.view();
@@ -86,8 +86,6 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         let max_locals = target_m.code_attribute().unwrap().max_locals;
         setup_virtual_args2(&parsed_descriptor, &mut args, max_locals, input_args);
         assert!(args[0].unwrap_object().is_some());
-        let method_id = jvm.method_table.write().unwrap().get_method_id(final_target_class.clone(), target_m_i);
-        // jvm.java_vm_state.add_method_if_needed(jvm, &MethodResolverImpl { jvm, loader: int_state.current_loader(jvm) }, method_id);
         let next_entry = StackEntryPush::new_java_frame(jvm, final_target_class.clone(), target_m_i as u16, args);
         int_state.push_frame_java(next_entry, |java_frame| {
             match run_function(jvm, java_frame) {

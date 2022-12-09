@@ -59,7 +59,7 @@ impl JVMOptionsStart {
         vec!["/lib/ext"].into_iter()
     }
 
-    pub fn from_java_home(java_home: PathBuf, parsed: JVMArgs) -> JVMOptionsStart {
+    pub fn from_java_home(parsed: JVMArgs) -> JVMOptionsStart {
         let JVMArgs {
             java_home,
             classpath,
@@ -82,6 +82,7 @@ impl JVMOptionsStart {
 
         let ext_classpath = Self::ext_classpath_format()
             .map(|classpath_elem| java_home.join(classpath_elem))
+            .filter(|elem|elem.exists())
             .collect_vec();
 
         JVMOptionsStart {
@@ -164,8 +165,9 @@ impl InstructionTraceOptions {
 
 impl JVMOptions {
     pub fn from_options_start(options_start: JVMOptionsStart) -> JVMOptions {
+        //todo handle ext classpath
         let JVMOptionsStart { main, java_home, classpath, boot_classpath, ext_classpath, properties, args, enable_assertions, store_anon_class, debug_print_exceptions } = options_start;
-        let classpath = Classpath::from_dirs(classpath.into_iter().map(|path|path.into_boxed_path()).collect_vec());
+        let classpath = Classpath::from_dirs(classpath.into_iter().map(|path|path.into_boxed_path()).chain(ext_classpath.into_iter().map(|path|path.into_boxed_path())).collect_vec());
         Self::new(
             ClassName::Str(main.replace('.', "/")),
             java_home.clone(),

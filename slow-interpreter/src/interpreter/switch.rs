@@ -3,9 +3,8 @@ use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::InterpreterFrame;
-use crate::jvm_state::JVMState;
 
-pub fn invoke_lookupswitch<'gc, 'j, 'k, 'l>(ls: &LookupSwitch, jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn invoke_lookupswitch<'gc, 'j, 'k, 'l>(ls: &LookupSwitch, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let key = current_frame.pop(RuntimeType::IntType).unwrap_int();
     for (candidate_key, o) in &ls.pairs {
         if *candidate_key == key {
@@ -15,7 +14,7 @@ pub fn invoke_lookupswitch<'gc, 'j, 'k, 'l>(ls: &LookupSwitch, jvm: &'gc JVMStat
     PostInstructionAction::NextOffset { offset_change: ls.default as i32 }
 }
 
-pub fn tableswitch<'gc, 'j, 'k, 'l>(ls: &TableSwitch, jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn tableswitch<'gc, 'j, 'k, 'l>(ls: &TableSwitch, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let index = current_frame.pop(RuntimeType::IntType).unwrap_int();
     if index < ls.low || index > ls.high {
         PostInstructionAction::NextOffset { offset_change: ls.default as i32 }

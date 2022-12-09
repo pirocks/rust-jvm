@@ -8,7 +8,7 @@ use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValue, WasException};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
+use crate::better_java_stack::frames::{PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use crate::interpreter::common::invoke::native::mhn_temp::{Java_java_lang_invoke_MethodHandleNatives_getMembers, Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset, MHN_getConstant};
@@ -69,7 +69,6 @@ pub fn run_native_method<'gc, 'l, 'k>(
         if let Some(m) = monitor.as_ref() {
             m.lock(jvm, native_frame).unwrap();
         }
-        let prev_rip = native_frame.frame_ref().prev_rip();
         let result: Option<NewJavaValueHandle<'gc>> = if jvm.native_libaries.registered_natives.read().unwrap().contains_key(&ByAddress(class.clone())) && jvm.native_libaries.registered_natives.read().unwrap().get(&ByAddress(class.clone())).unwrap().read().unwrap().contains_key(&(method_i as u16)) {
             //todo dup
             let res_fn = {
@@ -129,7 +128,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
-                throw_npe_res(jvm, int_state)?;
+                throw_npe_res()?;
                 unreachable!()
             }
             Some(class) => class,

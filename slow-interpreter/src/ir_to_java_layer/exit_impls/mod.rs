@@ -36,7 +36,6 @@ use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, M
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::interpreter::common::fields::get_static_impl;
 use crate::interpreter::common::invoke::virtual_::virtual_method_lookup;
 use crate::interpreter::common::special::{instance_of_exit_impl, instance_of_exit_impl_impl};
 use crate::ir_to_java_layer::dump_frame::dump_frame_contents;
@@ -208,27 +207,28 @@ pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
 }
 
 #[inline(never)]
-pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, value_ptr: *mut c_void, field_name: FieldName, cpdtype_id: CPDTypeID, return_to_ptr: *const c_void) -> IRVMExitAction {
-    let get_static = jvm.perf_metrics.vm_exit_get_static();
+pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc, 'k>, _value_ptr: *mut c_void, _field_name: FieldName, _cpdtype_id: CPDTypeID, _return_to_ptr: *const c_void) -> IRVMExitAction {
+    let _get_static = jvm.perf_metrics.vm_exit_get_static();
     if jvm.exit_tracing_options.tracing_enabled() {
         eprintln!("GetStatic");
     }
-    let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(cpdtype_id).clone();
-    let name = cpd_type.unwrap_class_type();
-    let static_var = get_static_impl(jvm, int_state, name, field_name).unwrap().unwrap();
-    // let static_var = static_vars_guard.get(field_name);
-    // todo doesn't handle interfaces and the like
-    unsafe {
-        if libc::rand() < 1_000 {
-            todo!();/*int_state.debug_print_stack_trace(jvm);*/
-        }
-    }
-    unsafe {
-        let native_java_value = static_var.as_njv().to_stack_native();
-        value_ptr.cast::<StackNativeJavaValue>().write(native_java_value);
-    }
-    drop(get_static);
-    IRVMExitAction::RestartAtPtr { ptr: return_to_ptr }
+    todo!("no longer used");
+    // let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(cpdtype_id).clone();
+    // let name = cpd_type.unwrap_class_type();
+    // let static_var = get_static_impl(jvm, int_state, name, field_name).unwrap().unwrap();
+    // // let static_var = static_vars_guard.get(field_name);
+    // // todo doesn't handle interfaces and the like
+    // unsafe {
+    //     if libc::rand() < 1_000 {
+    //         todo!();/*int_state.debug_print_stack_trace(jvm);*/
+    //     }
+    // }
+    // unsafe {
+    //     let native_java_value = static_var.as_njv().to_stack_native();
+    //     value_ptr.cast::<StackNativeJavaValue>().write(native_java_value);
+    // }
+    drop(_get_static);
+    IRVMExitAction::RestartAtPtr { ptr: _return_to_ptr }
 }
 
 #[inline(never)]

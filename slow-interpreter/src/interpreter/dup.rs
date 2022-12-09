@@ -5,14 +5,14 @@ use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::InterpreterFrame;
 use crate::jvm_state::JVMState;
 
-pub fn dup<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn dup<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let val = current_frame.pop(RuntimeType::LongType); //type doesn't currently matter so do whatever(well it has to be 64 bit).//todo fix for when type does matter
     current_frame.push(val.clone());
     current_frame.push(val);
     PostInstructionAction::Next {}
 }
 
-pub fn dup_x1<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn dup_x1<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value1 = current_frame.pop(RuntimeType::LongType); //type doesn't matter
     let value2 = current_frame.pop(RuntimeType::LongType); //type doesn't matter
     current_frame.push(value1.clone());
@@ -177,7 +177,7 @@ pub fn dup2_x2<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, method_id: MethodId, mu
 }
 
 
-pub fn swap<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
+pub fn swap<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     // let stack_frames = &jvm.function_frame_type_data.read().unwrap().no_tops[&method_id];
     // let category2 = &stack_frames[&current_pc].is_category_2_no_tops();
     // assert!(!category2[0]);

@@ -43,7 +43,7 @@ fn jvm_init_from_main_thread<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
         locals.push(NewJavaValue::Top);
     }
     let initialize_system_frame = StackEntryPush::new_java_frame(jvm, system_class.clone(), init_method_view.method_i() as u16, locals);
-    let init_frame_guard: Result<(), WasException<'gc>> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
+    let _init_frame_guard: Result<(), WasException<'gc>> = int_state.push_frame_java(initialize_system_frame, |java_frame| {
         assert!(Arc::ptr_eq(&main_thread, &jvm.thread_state.get_current_thread()));
         match run_function(&jvm, java_frame) {
             Ok(_) => {}
@@ -70,12 +70,12 @@ fn jvm_init_from_main_thread<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
 pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, main_thread_start_info: MainThreadStartInfo) -> Arc<JavaThread<'vm>> {
     let main_jthread = JavaThread::new_with_stack_on_this_thread(jvm, None, true, move |bootstrap_thread, opaque_frame| {
         unsafe {
-            jvm.native_libaries.load(jvm, opaque_frame, &jvm.native_libaries.libjava_path, "java".to_string());
+            jvm.native_libaries.load(jvm, &jvm.native_libaries.libjava_path, "java".to_string());
             {
                 let native_libs_guard = jvm.native_libaries.native_libs.read().unwrap();
                 let libjava_native_lib = native_libs_guard.get("java").unwrap();
                 let setup_hack_symbol: Symbol<unsafe extern "system" fn(*const JNIInvokeInterfaceNamedReservedPointers)> = libjava_native_lib.library.get("setup_jvm_pointer_hack".as_bytes()).unwrap();
-                (*setup_hack_symbol.deref())(get_invoke_interface_new(jvm, opaque_frame))
+                (*setup_hack_symbol.deref())(get_invoke_interface_new(jvm))
             }
         }
         let frame = StackEntryPush::new_completely_opaque_frame(jvm, LoaderName::BootstrapLoader, vec![], "bootstrapping opaque frame");

@@ -77,7 +77,7 @@ fn avx_check() {
 
 pub fn main_<'l, 'env>() {
     let jvm_args: JVMArgs = JVMArgs::parse();
-    let jvm_options_start = JVMOptionsStart::from_java_home(jvm_args.java_home.clone(), jvm_args);
+    let jvm_options_start = JVMOptionsStart::from_java_home(jvm_args);
     let jvm_options = JVMOptions::from_options_start(jvm_options_start);
     let gc: GC<'l> = GC::new(get_regions());
     std::thread::scope::<'env>(|scope: &Scope<'_, 'env>| {

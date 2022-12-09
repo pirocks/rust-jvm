@@ -241,7 +241,7 @@ impl<'gc> SafePoint<'gc> {
             return self.check(jvm, int_state);
         }
 
-        if let Some(exception) = &guard.throw_exception {
+        if let Some(_exception) = &guard.throw_exception {
             todo!();
             // int_state.set_throw(Some(exception.clone().to_allocated_object().into()));
             return Err(WasException { exception_obj: todo!() });

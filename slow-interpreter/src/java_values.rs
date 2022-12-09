@@ -25,7 +25,7 @@ use rust_jvm_common::StackNativeJavaValue;
 use crate::{AllocatedHandle, check_initing_or_inited_class};
 use crate::accessor_ext::AccessorExt;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
-use crate::class_loading::{assert_inited_or_initing_class, check_resolved_class};
+use crate::class_loading::{assert_inited_or_initing_class};
 use crate::exceptions::WasException;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
@@ -754,33 +754,6 @@ impl<'gc, 'l> Object<'gc, 'l> {
             }
         }
     }
-
-    pub fn deep_clone(&self, jvm: &'gc JVMState<'gc>) -> Self {
-        match &self {
-            Object::Array(a) => {
-                // let sub_array = a.array_iterator(jvm).map(|x| x.deep_clone(jvm).to_native()).collect();//todo
-                todo!();
-                Object::Array(ArrayObject {
-                    whole_array_runtime_class: a.whole_array_runtime_class.clone(),
-                    loader: a.loader,
-                    len: todo!(),
-                    elems_base: todo!(),
-                    phantom_data: Default::default(),
-                    elem_type: a.elem_type.clone(),
-                })
-            }
-            Object::Object(o) => {
-                todo!()
-                // let new_fields = UnsafeCell::new(o.fields_mut().iter().map(|(s, jv)| { (s.clone(), jv.deep_clone(jvm)) }).collect());
-                // Object::Object(NormalObject {
-                //     monitor: jvm.thread_state.new_monitor("".to_string()),
-                //     fields: new_fields,
-                //     class_pointer: o.class_pointer.clone(),
-                // })
-            }
-        }
-    }
-
     pub fn is_array(&self) -> bool {
         match self {
             Object::Array(_) => true,
@@ -788,14 +761,10 @@ impl<'gc, 'l> Object<'gc, 'l> {
         }
     }
 
-    pub fn object_array(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, object_array: Vec<JavaValue<'gc>>, class_type: CPDType) -> Result<Object<'gc, 'gc>, WasException<'gc>> {
-        Ok(Object::Array(ArrayObject::new_array(jvm, int_state, object_array, class_type, jvm.thread_state.new_monitor("".to_string()))?))
-    }
-
     pub fn monitor(&self) -> &Monitor2 {
         match self {
-            Object::Array(a) => todo!(),  /*&a.monitor*/
-            Object::Object(o) => todo!(), /*&o.monitor*/
+            Object::Array(_a) => todo!(),  /*&a.monitor*/
+            Object::Object(_o) => todo!(), /*&o.monitor*/
         }
     }
 
@@ -817,60 +786,6 @@ pub struct ArrayObject<'gc, 'l> {
     //pointer to elems bas
     pub phantom_data: PhantomData<&'l ()>,
     pub elem_type: CPDType,
-}
-
-pub struct ArrayIterator<'gc, 'l, 'k> {
-    elems: &'l ArrayObject<'gc, 'k>,
-    jvm: &'gc JVMState<'gc>,
-    i: usize,
-}
-
-impl<'gc> Iterator for ArrayIterator<'gc, '_, '_> {
-    type Item = JavaValue<'gc>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.i >= self.elems.len as usize {
-            return None;
-        }
-        let next = self.elems.get_i(self.jvm, self.i as i32);
-        self.i += 1;
-        Some(next)
-    }
-}
-
-impl<'gc> ArrayObject<'gc, '_> {
-    pub fn get_i(&self, jvm: &'gc JVMState<'gc>, i: i32) -> JavaValue<'gc> {
-        let inner_type = &self.elem_type;
-        todo!("layout");
-        // let native = *unsafe { self.elems_base.offset(i as isize).as_ref() }.unwrap();
-        // native_to_new_java_value(native, *inner_type, jvm).to_jv()
-    }
-
-    pub fn set_i(&mut self, jvm: &'gc JVMState<'gc>, i: i32, jv: JavaValue<'gc>) {
-        // let native = jv.to_native();
-        todo!("layout");
-        // unsafe { *self.elems_base.offset(i as isize).as_mut().unwrap() = native; }
-    }
-
-    pub fn array_iterator<'l>(&'l self, jvm: &'gc JVMState<'gc>) -> ArrayIterator<'gc, 'l, '_> {
-        ArrayIterator { elems: self, jvm, i: 0 }
-    }
-
-    pub fn len(&self) -> i32 {
-        self.len
-    }
-
-    pub fn new_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut impl PushableFrame<'gc>, elems: Vec<JavaValue<'gc>>, type_: CPDType, monitor: Arc<Monitor2>) -> Result<Self, WasException<'gc>> {
-        check_resolved_class(jvm, int_state, CPDType::array(type_/*CPRefType::Array(box type_.clone())*/))?;
-        Ok(Self {
-            whole_array_runtime_class: todo!(),
-            loader: todo!(),
-            len: todo!(),
-            elems_base: todo!(),
-            phantom_data: Default::default(),
-            elem_type: type_,
-        })
-    }
 }
 
 
@@ -1038,27 +953,6 @@ pub fn default_value_njv<'gc, 'any>(type_: &CPDType) -> NewJavaValue<'gc, 'any> 
 }
 
 impl<'gc> ArrayObject<'gc, '_> {
-    pub fn unwrap_object_array(&self, jvm: &'gc JVMState<'gc>) -> Vec<Option<GcManagedObject<'gc>>> {
-        /*unsafe { self.elems.get().as_ref() }.unwrap().iter().map(|x| { x.to_java_value(self.elem_type.clone(), jvm).unwrap_object() }).collect()*/
-        todo!()
-    }
-
-    /*pub fn unwrap_mut(&self) -> &mut Vec<JavaValue<'gc>> {
-        unsafe { self.elems.get().as_mut() }.unwrap()
-    }*/
-    /*pub fn unwrap_object_array_nonnull(&self) -> Vec<GcManagedObject<'gc>> {
-        self.mut_array().iter().map(|x| { x.unwrap_object_nonnull() }).collect()
-    }*/
-    pub fn unwrap_byte_array(&self, jvm: &'gc JVMState<'gc>) -> Vec<jbyte> {
-        assert_eq!(self.elem_type, CPDType::ByteType);
-        self.array_iterator(jvm).map(|x| x.unwrap_byte()).collect()
-    }
-    pub fn unwrap_char_array(&self, jvm: &'gc JVMState<'gc>) -> String {
-        assert_eq!(self.elem_type, CPDType::CharType);
-        let mut res = String::new();
-        self.array_iterator(jvm).for_each(|x| res.push(x.unwrap_int() as u8 as char)); //todo fix this
-        res
-    }
 }
 
 impl<'gc> From<Option<GcManagedObject<'gc>>> for JavaValue<'gc> {

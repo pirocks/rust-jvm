@@ -134,7 +134,7 @@ unsafe fn get_java_value_field<'gc>(env: *mut JNIEnv, obj: *mut _jobject, field_
     let notnull = match from_object_new(jvm, obj) {
         Some(x) => x,
         None => {
-            throw_npe_res(jvm, int_state)?;
+            throw_npe_res()?;
             unreachable!()
         }
     };

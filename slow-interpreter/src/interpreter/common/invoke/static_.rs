@@ -6,7 +6,6 @@ use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::code::CompressedCode;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
@@ -38,7 +37,7 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
         Ok(x) => x,
         Err(exception) => return PostInstructionAction::Exception { exception },
     };
-    let (target_method_i, final_target_method) = find_target_method(jvm, int_state.inner(), expected_method_name, &expected_descriptor, target_class);
+    let (target_method_i, final_target_method) = find_target_method(jvm, expected_method_name, &expected_descriptor, target_class);
 
     let view = final_target_method.view();
     let target_method = view.method_view_i(target_method_i);
@@ -55,7 +54,6 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
             invoke_static_impl(
                 jvm,
                 int_state.inner(),
-                &expected_descriptor,
                 final_target_method.clone(),
                 target_method_i,
                 &final_target_method.view().method_view_i(target_method_i),
@@ -81,7 +79,6 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
         invoke_static_impl(
             jvm,
             int_state.inner(),
-            &expected_descriptor,
             final_target_method.clone(),
             target_method_i,
             &final_target_method.view().method_view_i(target_method_i),
@@ -103,14 +100,12 @@ pub fn run_invoke_static<'gc, 'l, 'k>(
 pub fn invoke_static_impl<'l, 'gc>(
     jvm: &'gc JVMState<'gc>,
     interpreter_state: &mut impl PushableFrame<'gc>,
-    expected_descriptor: &CMethodDescriptor,
     target_class: Arc<RuntimeClass<'gc>>,
     target_method_i: u16,
     target_method: &MethodView,
     mut args: Vec<NewJavaValue<'gc, '_>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let target_class_view = target_class.view();
-    let method_id = jvm.method_table.write().unwrap().get_method_id(target_class.clone(), target_method_i);
     if target_class_view.method_view_i(target_method_i).is_signature_polymorphic() {
         let method_view = target_class_view.method_view_i(target_method_i);
         let name = method_view.name();

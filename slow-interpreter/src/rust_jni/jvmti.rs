@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::ffi::{c_int, c_void, CString};
 use std::mem::size_of;
 use std::ops::Deref;

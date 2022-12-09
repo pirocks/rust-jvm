@@ -65,7 +65,7 @@ pub fn newarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInt
         todo!("check array length, this one seems like it would be easy to debug");
     }
     match a_new_array_from_name(jvm, int_state, count, type_) {
-        Ok(arr) => PostInstructionAction::Next {},
+        Ok(()) => PostInstructionAction::Next {},
         Err(WasException { exception_obj }) => PostInstructionAction::Exception { exception: WasException { exception_obj } },
     }
 }
@@ -82,7 +82,7 @@ pub fn multi_a_new_array<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mu
     }
     dimensions.reverse();
     let array_type = type_;
-    let rc = check_initing_or_inited_class(jvm, int_state.inner(), array_type).unwrap();
+    check_initing_or_inited_class(jvm, int_state.inner(), array_type).unwrap();
     let default = default_value(elem_type);
     let res = multi_new_array_impl(jvm, array_type, dimensions.as_slice(), default.as_njv());
     int_state.current_frame_mut().push(res.to_interpreter_jv());

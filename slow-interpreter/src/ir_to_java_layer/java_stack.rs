@@ -1,5 +1,4 @@
 use std::ffi::c_void;
-use std::mem::size_of;
 use std::ptr::NonNull;
 
 use nonnull_const::NonNullConst;
@@ -9,9 +8,8 @@ use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, OwnedIRStack};
 use rust_jvm_common::{MethodId, StackNativeJavaValue};
 use rust_jvm_common::opaque_id_table::OpaqueID;
-use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{JavaValue, JVMState};
+use crate::{JVMState};
 use crate::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 
 #[allow(unused)]
@@ -146,17 +144,6 @@ impl<'vm> RuntimeJavaStackFrameRef<'vm, '_> {
                 panic!()
             }
         }*/
-    }
-
-    pub fn nth_operand_stack_member(&self, n: usize, rtype: RuntimeType) -> JavaValue<'vm> {
-        todo!()
-        /*let offset = FramePointerOffset(self.max_locals.unwrap() as usize * size_of::<u64>() + n * size_of::<u64>());
-        self.read_target(offset, rtype)*/
-    }
-
-    pub fn nth_local(&self, n: usize) -> StackNativeJavaValue<'vm> {
-        let offset = FramePointerOffset(n * size_of::<u64>());
-        self.read_target(offset)
     }
 }
 

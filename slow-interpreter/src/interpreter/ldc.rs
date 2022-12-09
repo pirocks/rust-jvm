@@ -1,7 +1,6 @@
 use itertools::Either;
 
 use classfile_view::view::constant_info_view::ConstantInfoView;
-use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::{CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
@@ -19,47 +18,7 @@ fn load_class_constant<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
     Ok(NewJavaValueHandle::Object(AllocatedHandle::NormalObject(object)))
 }
 
-//
-// fn load_string_constant(jvm: &'gc JVMState<'gc>, int_state: &'_ mut InterpreterStateGuard<'gc,'l>, s: &StringView) {
-//     let res_string = s.string();
-//     assert!(int_state.throw().is_none());
-//     let before_intern = JString::from_rust(jvm, pushable_frame_todo(), res_string).expect("todo");
-//     let string = intern_safe(jvm, before_intern.object().into());
-//     int_state.push_current_operand_stack(string.java_value());
-// }
-//
-// pub fn create_string_on_stack(jvm: &'gc JVMState<'gc>, interpreter_state: &'_ mut InterpreterStateGuard<'gc,'l>, res_string: String) -> Result<(), WasException<'gc>> {
-//     let java_lang_string = CClassName::string();
-//     let string_class = assert_inited_or_initing_class(jvm, java_lang_string.into());
-//     let str_as_vec = res_string.chars();
-//     let chars: Vec<JavaValue<'gc>> = str_as_vec.map(|x| JavaValue::Char(x as u16)).collect();
-//     let string_object = new_object(jvm, interpreter_state, &string_class);
-//     let mut args = vec![string_object.clone()];
-//     args.push(JavaValue::Object(Some(jvm.allocate_object(Object::Array(ArrayObject::new_array(jvm, interpreter_state, chars, CPDType::CharType, jvm.thread_state.new_monitor("monitor for a string".to_string()))?)))));
-//     let char_array_type = CPDType::Ref(CPRefType::Array(CPDType::CharType.into()));
-//     let expected_descriptor = CMethodDescriptor { arg_types: vec![char_array_type], return_type: CPDType::VoidType };
-//     let (constructor_i, final_target_class) = find_target_method(jvm, interpreter_state, MethodName::constructor_init(), &expected_descriptor, string_class);
-//     let next_entry = StackEntry::new_java_frame(jvm, final_target_class, constructor_i as u16, args);
-//     let mut function_call_frame = interpreter_state.push_frame(next_entry);
-//     match run_function(jvm, interpreter_state, &mut function_call_frame) {
-//         Ok(_) => {}
-//         Err(_) => todo!(),
-//     }
-//     let was_exception = interpreter_state.throw().is_some();
-//     interpreter_state.pop_frame(jvm, function_call_frame, was_exception);
-//     if !jvm.config.compiled_mode_active {
-//     }
-//     if interpreter_state.throw().is_some() {
-//         unimplemented!()
-//     }
-//     if interpreter_state.function_return() {
-//         interpreter_state.set_function_return(false);
-//     }
-//     interpreter_state.push_current_operand_stack(JavaValue::Object(string_object.unwrap_object()));
-//     Ok(())
-// }
-//
-pub fn ldc2_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc> {
+pub fn ldc2_w<'gc, 'l, 'k>(int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, ldc2w: &CompressedLdc2W) -> PostInstructionAction<'gc> {
     let mut current_frame = int_state.current_frame_mut();
     match ldc2w {
         CompressedLdc2W::Long(l) => {
@@ -112,24 +71,23 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
                 }
             }
         }
-        Either::Right(ldc2w) => {
+        Either::Right(_ldc2w) => {
             todo!()
         }
     };
     PostInstructionAction::Next {}
 }
 
-pub fn from_constant_pool_entry<'gc, 'l, 'k>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> NewJavaValueHandle<'gc> {
+pub fn from_constant_pool_entry<'gc, 'l, 'k>(c: &ConstantInfoView, jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>) -> Result<NewJavaValueHandle<'gc>,WasException<'gc>> {
     match &c {
-        ConstantInfoView::Integer(i) => NewJavaValueHandle::Int(i.int),
-        ConstantInfoView::Float(f) => NewJavaValueHandle::Float(f.float),
-        ConstantInfoView::Long(l) => NewJavaValueHandle::Long(l.long),
-        ConstantInfoView::Double(d) => NewJavaValueHandle::Double(d.double),
+        ConstantInfoView::Integer(i) => Ok(NewJavaValueHandle::Int(i.int)),
+        ConstantInfoView::Float(f) => Ok(NewJavaValueHandle::Float(f.float)),
+        ConstantInfoView::Long(l) => Ok(NewJavaValueHandle::Long(l.long)),
+        ConstantInfoView::Double(d) => Ok(NewJavaValueHandle::Double(d.double)),
         ConstantInfoView::String(s) => {
-            // load_string_constant(jvm, int_state, s);
-            todo!();
-            let string_value = int_state.current_frame_mut().pop(CClassName::string().into()).to_new_java_handle(jvm);
-            intern_safe(jvm, AllocatedHandle::NormalObject(string_value.cast_string().unwrap().object())).new_java_value_handle()
+            let jstring = JString::from_rust(jvm, int_state.inner(), s.string())?;
+            let jstring = jstring.intern(jvm, int_state.inner())?;
+            Ok(jstring.new_java_value_handle())
         }
         _ => panic!(),
     }

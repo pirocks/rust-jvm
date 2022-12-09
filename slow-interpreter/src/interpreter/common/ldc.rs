@@ -1,19 +1,11 @@
 use classfile_view::view::constant_info_view::{ConstantInfoView, StringView};
-use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
-use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
 
 
 use crate::{AllocatedHandle, JVMState, WasException};
 use crate::better_java_stack::frames::PushableFrame;
-use crate::class_loading::assert_inited_or_initing_class;
 use crate::class_objects::get_or_create_class_object;
-use crate::interpreter::common::invoke::find_target_method;
-use crate::interpreter::run_function;
-use crate::interpreter_util::new_object;
-use crate::java_values::JavaValue;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::stack_entry::StackEntryPush;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::string_intern::intern_safe;

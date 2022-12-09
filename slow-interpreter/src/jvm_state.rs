@@ -51,8 +51,6 @@ use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 
 use crate::{AllocatedHandle, NewAsObjectOrJavaValue, UnAllocatedObject};
-use crate::better_java_stack::frames::PushableFrame;
-use crate::better_java_stack::opaque_frame::OpaqueFrame;
 use crate::class_loading::{ClassIntrinsicsData, DefaultClassfileGetter, DefaultLivePoolGetter};
 use crate::field_table::FieldTable;
 use crate::function_instruction_count::FunctionInstructionExecutionCount;
@@ -321,12 +319,12 @@ impl<'gc> JVMState<'gc> {
             perf_metrics: &self.perf_metrics,
             permissive_types_workaround: false,
         };
-        let lookup = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
+        let _object_classfile = self.classpath.lookup(&CClassName::object(), &self.string_pool).expect("Can not find Object class");
         verify(&mut context, CClassName::object(), LoaderName::BootstrapLoader).expect("Object doesn't verify");
         self.sink_function_verification_date(&context.verification_types, object_runtime_class);
         context.verification_types.clear();
         context.current_class = CClassName::class();
-        let lookup = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
+        let _class_classfile = self.classpath.lookup(&CClassName::class(), &self.string_pool).expect("Can not find Class class");
         verify(&mut context, CClassName::class(), LoaderName::BootstrapLoader).expect("Class doesn't verify");
         self.sink_function_verification_date(&context.verification_types, class_runtime_class.clone());
 
@@ -334,7 +332,7 @@ impl<'gc> JVMState<'gc> {
             context.verification_types.clear();
             context.current_class = interface.cpdtype().unwrap_class_type();
             let name = interface.cpdtype().unwrap_class_type();
-            let lookup = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class jni_interface");
+            let _class_interface_classfile = self.classpath.lookup(&name, &self.string_pool).expect("Can not find Class class interface");
             verify(&mut context, name, LoaderName::BootstrapLoader).expect("Class doesn't verify");
             self.sink_function_verification_date(&context.verification_types, interface.clone());
         }
@@ -372,7 +370,7 @@ impl<'gc> JVMState<'gc> {
         }
     }
 
-    pub fn get_class_class_or_object_class_method_numbers(pool: &CompressedClassfileStringPool, class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32, HashMap<MethodShape, MethodNumber>) {
+    pub fn get_class_class_or_object_class_method_numbers(class_class_view: &dyn ClassView, parent: Option<&dyn ClassView>) -> (u32, HashMap<MethodShape, MethodNumber>) {
         let mut method_number_mappings = MethodNumberMappings::new();
 
         if let Some(parent) = parent {
@@ -387,8 +385,6 @@ impl<'gc> JVMState<'gc> {
             .map(|method| ShapeOrderWrapperOwned(method.method_shape())).sorted() {
             method_number_mappings.sink_method(method_shape.0);
         }
-
-        let reverse_mapping = method_number_mappings.mapping.iter().map(|(_1, _2)| (_2.clone(), _1.clone())).collect::<HashMap<MethodNumber, MethodShape>>();
 
         (method_number_mappings.current_method_number, method_number_mappings.mapping)
     }
@@ -480,16 +476,9 @@ fn default_on_load(_: *mut *const JNIInvokeInterfaceNamedReservedPointers, _: *m
 }
 
 impl<'gc> NativeLibraries<'gc> {
-    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, opaque_frame: &mut OpaqueFrame<'gc, '_>, path: &PathBuf, name: String) {
+    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, path: &PathBuf, name: String) {
         let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterfaceNamedReservedPointers = get_invoke_interface_new(jvm, opaque_frame);
-        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterfaceNamedReservedPointers, null_mut());
-        //todo check return res
-    }
-
-    pub unsafe fn load_old<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, path: &PathBuf, name: String) {
-        let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterfaceNamedReservedPointers = todo!()/*get_invoke_interface(jvm, todo!()/*int_state*/)*/;
+        let interface: *const JNIInvokeInterfaceNamedReservedPointers = get_invoke_interface_new(jvm);
         onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterfaceNamedReservedPointers, null_mut());
         //todo check return res
     }
@@ -532,7 +521,7 @@ impl From<libloading::Error> for LookupError {
 }
 
 impl<'gc> LivePoolGetter for LivePoolGetterImpl<'gc> {
-    fn elem_type(&self, idx: LiveObjectIndex) -> CPRefType {
+    fn elem_type(&self, _idx: LiveObjectIndex) -> CPRefType {
         // let classes_guard = self.jvm.classes.read().unwrap();
         // let object = &classes_guard.anon_class_live_object_ldc_pool[idx.0];
         // JavaValue::Object(object.clone().to_gc_managed().into()).to_type().unwrap_ref_type().clone();
@@ -576,7 +565,7 @@ pub struct BootstrapLoaderClassGetter<'vm, 'l> {
 }
 
 impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
-    fn get_classfile(&self, vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, _vf_context: &VerifierContext, loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         assert_eq!(loader, LoaderName::BootstrapLoader);
         Ok(Arc::new(ClassBackedView::from(self.jvm.classpath.lookup(&class, &self.jvm.string_pool)?, &self.jvm.string_pool)))
     }

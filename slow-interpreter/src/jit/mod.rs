@@ -147,7 +147,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         Some((method_id, method_view.is_native()))
     }
 
-    fn lookup_virtual(&self, on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID {
+    fn lookup_virtual(&self, _on: CPDType, name: MethodName, desc: CMethodDescriptor) -> MethodShapeID {
         self.jvm.method_shapes.lookup_method_shape_id(MethodShape { name, desc })
     }
 
@@ -199,7 +199,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
 
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
-        let (loader_name, rc) = classes_guard.get_loader_and_runtime_class(on)?;
+        let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(on)?;
         self.lookup_special_impl(name, &desc, rc)
     }
 

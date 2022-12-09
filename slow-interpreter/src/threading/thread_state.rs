@@ -59,7 +59,7 @@ impl<'gc> ThreadState<'gc> {
         });
     }
 
-    pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, loader_obj: ClassLoader<'gc>) {
+    pub(crate) fn debug_assertions<'l>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _loader_obj: ClassLoader<'gc>) {
         // for _ in 0..100{
         //     let list_cpdtype = CPDType::from_ptype(&PType::from_class(ClassName::Str("java/util/ArrayList".to_string())), &jvm.string_pool);
         //     let list_class_object = get_or_create_class_object(jvm,list_cpdtype,int_state).unwrap();
@@ -210,8 +210,7 @@ impl<'gc> ThreadState<'gc> {
             .expect("todo")
             .map(|class_loader| class_loader.to_jvm_loader(jvm))
             .unwrap_or(LoaderName::BootstrapLoader);
-        // let thread_name = obj.name(jvm).to_rust_string(jvm);
-        let java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
+        let _java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
             send.send(java_thread.clone()).unwrap();
             java_thread.notify_alive(jvm);
             Self::thread_start_impl(jvm, java_thread, loader_name, frame)
@@ -219,7 +218,7 @@ impl<'gc> ThreadState<'gc> {
         recv.recv().unwrap()
     }
 
-    fn thread_start_impl<'l>(jvm: &'gc JVMState<'gc>, java_thread: Arc<JavaThread<'gc>>, loader_name: LoaderName, opaque_frame: &mut OpaqueFrame<'gc, 'l>)  -> Result<(), WasException<'gc>>{
+    fn thread_start_impl<'l>(jvm: &'gc JVMState<'gc>, java_thread: Arc<JavaThread<'gc>>, _loader_name: LoaderName, opaque_frame: &mut OpaqueFrame<'gc, 'l>)  -> Result<(), WasException<'gc>>{
         let java_thread_clone: Arc<JavaThread<'gc>> = java_thread.clone();
         if let Some(jvmti) = jvm.jvmti_state() {
             jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, java_thread.clone().thread_object())
@@ -231,7 +230,7 @@ impl<'gc> ThreadState<'gc> {
                 .expect("Exception occurred while printing exception. Something is pretty messed up");
             todo!()
         };
-        if let Err(WasException { exception_obj }) = java_thread.thread_object().exit(jvm, opaque_frame) {
+        if let Err(WasException { .. }) = java_thread.thread_object().exit(jvm, opaque_frame) {
             eprintln!("Exception occurred exiting thread, something is pretty messed up");
             panic!()
         }

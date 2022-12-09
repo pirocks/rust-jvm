@@ -30,7 +30,7 @@ pub fn mangle(mangling_regex: &ManglingRegex, pool: &CompressedClassfileStringPo
     let multiple_same_name_methods = class_view.lookup_method_name(method_name).iter().filter(|m| m.is_native()).count() > 1;
     let res = if multiple_same_name_methods {
         let descriptor_str = method.desc_str();
-        let desc = method.desc();
+        // let desc = method.desc();
         //todo replace regex with using parsed desc
         let rg = &mangling_regex.rg;
         let extracted_descriptor = rg.captures(descriptor_str.to_str(pool).as_str()).unwrap().get(1).unwrap().as_str().to_string();

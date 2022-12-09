@@ -26,13 +26,13 @@ pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, '
     PostInstructionAction::Next {}
 }
 
-pub fn iload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn iload<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = current_frame.local_get(n, RuntimeType::IntType);
     current_frame.push(java_val);
     PostInstructionAction::Next {}
 }
 
-pub fn lload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn lload<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = current_frame.local_get(n, RuntimeType::LongType);
     match java_val {
         InterpreterJavaValue::Long(_) => {}
@@ -45,7 +45,7 @@ pub fn lload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
     PostInstructionAction::Next {}
 }
 
-pub fn fload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn fload<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = current_frame.local_get(n, RuntimeType::FloatType);
     match java_val {
         InterpreterJavaValue::Float(_) => {}
@@ -58,7 +58,7 @@ pub fn fload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interp
     PostInstructionAction::Next {}
 }
 
-pub fn dload<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
+pub fn dload<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let java_val = current_frame.local_get(n, RuntimeType::DoubleType);
     match java_val {
         InterpreterJavaValue::Double(_) => {}

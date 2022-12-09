@@ -81,7 +81,7 @@ unsafe fn add_prop<'gc>(env: *mut JNIEnv, p: jobject, key: String, val: String) 
     let val = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
     let prop_obj = match from_object_new(jvm, p) {
         Some(x) => x,
-        None => return throw_npe_res(jvm, int_state),
+        None => return throw_npe_res(),
     };
     let normal_object_handle = prop_obj.unwrap_normal_object();
     let runtime_class = &normal_object_handle.runtime_class(jvm);

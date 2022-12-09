@@ -106,7 +106,7 @@ impl JavaVMStateWrapperInner {
                 exit_impls::log_frame_pointer_offset_value(jvm, *value, *return_to_ptr)
             }
             RuntimeVMExitInput::LogWholeFrame { return_to_ptr, pc: _ } => {
-                exit_impls::log_whole_frame(&jvm, todo!()/*int_state.unwrap()*/, *return_to_ptr)
+                exit_impls::log_whole_frame(&jvm, int_state.unwrap(), *return_to_ptr)
             }
             RuntimeVMExitInput::TraceInstructionBefore { method_id, return_to_ptr, bytecode_offset, pc: _ } => {
                 exit_impls::trace_instruction_before(&jvm, *method_id, *return_to_ptr, *bytecode_offset)
@@ -119,7 +119,7 @@ impl JavaVMStateWrapperInner {
                 let npe = NullPointerException::new(jvm, int_state).expect("exception while creating exception?");
                 return throw_impl(jvm, int_state, npe.new_java_value_handle().cast_throwable(), false);
             }
-            RuntimeVMExitInput::CheckCastFailure { pc } => {
+            RuntimeVMExitInput::CheckCastFailure { .. } => {
                 let int_state = int_state.unwrap();
                 int_state.debug_print_stack_trace(jvm);
                 let npe = ClassCastException::new(jvm, int_state).expect("exception while creating exception?");
@@ -134,7 +134,7 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr, pc: _ } => {
                 exit_impls::new_class(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
             }
-            RuntimeVMExitInput::NewClassRegister { return_to_ptr, res, type_, pc } => {
+            RuntimeVMExitInput::NewClassRegister { return_to_ptr, res, type_, pc:_ } => {
                 exit_impls::new_class_register(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, method_number, .. } => {

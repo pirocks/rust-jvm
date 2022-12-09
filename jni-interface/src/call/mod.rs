@@ -64,7 +64,7 @@ pub unsafe fn call_static_method_impl<'gc, 'l>(env: *mut *const JNINativeInterfa
     let parsed = method.desc();
     let args = push_params_onto_frame_new(jvm, &mut l, int_state, &parsed);
     let not_handles = args.iter().map(|handle| handle.as_njv()).collect();
-    let res = invoke_static_impl(jvm, int_state, parsed, class.clone(), method_i, method, not_handles)?;
+    let res = invoke_static_impl(jvm, int_state, class.clone(), method_i, method, not_handles)?;
     Ok(if method.desc().return_type == CPDType::VoidType {
         assert!(res.is_none());
         None

@@ -49,8 +49,8 @@ pub unsafe fn to_object_new<'gc>(obj: Option<AllocatedObject<'gc, '_>>) -> jobje
     }
 }
 
-pub unsafe fn from_object<'gc>(jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<GcManagedObject<'gc>> {
-    let option = NonNull::new(obj as *mut c_void)?;
+pub unsafe fn from_object<'gc>(_jvm: &'gc JVMState<'gc>, obj: jobject) -> Option<GcManagedObject<'gc>> {
+    let _option = NonNull::new(obj as *mut c_void)?;
     // if !jvm.gc.all_allocated_object.read().unwrap().contains(&option) {
     //     dbg!(option.as_ptr());
     //     dbg!(jvm.gc.all_allocated_object.read().unwrap());

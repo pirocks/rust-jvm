@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::Ordering;
 
 use by_address::ByAddress;
-use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
@@ -27,7 +26,6 @@ use crate::{AllocatedHandle, NewAsObjectOrJavaValue, UnAllocatedObject, WasExcep
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_objects::get_or_create_class_object;
 use crate::java_values::ByAddressAllocatedObject;
-use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
@@ -191,7 +189,7 @@ pub struct DefaultClassfileGetter<'l, 'k> {
 }
 
 impl ClassFileGetter for DefaultClassfileGetter<'_, '_> {
-    fn get_classfile(&self, vf_context: &VerifierContext, _loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
+    fn get_classfile(&self, _vf_context: &VerifierContext, _loader: LoaderName, class: CClassName) -> Result<Arc<dyn ClassView>, ClassLoadingError> {
         //todo verification needs to be better hooked in
         Ok(match self.jvm.classpath.lookup(&class, &self.jvm.string_pool) {
             Ok(x) => Arc::new(ClassBackedView::from(x, &self.jvm.string_pool)),
@@ -281,7 +279,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
 
 
             match verify(&mut verifier_context, class_name, LoaderName::BootstrapLoader) {
-                Ok(verfied) => {
+                Ok(()) => {
                     let verification_types = verifier_context.verification_types;
                     jvm.sink_function_verification_date(&verification_types, res.clone());
                 }
@@ -300,11 +298,9 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                     //todo major dup
                     for method_view in class_view.clone().methods() {
                         let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method_view.method_i());
-                        let code = match method_view.code_attribute() {
-                            Some(x) => x,
-                            None => continue,
-                        };
-                        let instructs = code.instructions.iter().sorted_by_key(|(offset, instruct)| *offset).map(|(_, instruct)| instruct.clone()).collect_vec();
+                        if method_view.code_attribute().is_none() {
+                            continue
+                        }
                         let res = type_infer(&method_view);
                         let frames_tops = res.inferred_frames().iter().map(|(offset, frame)| {
                             (*offset, SunkVerifierFrames::PartialInferredFrame(frame.clone()))
@@ -321,7 +317,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                 }
                 Err(TypeSafetyError::ClassNotFound(ClassLoadingError::ClassVerificationError)) => panic!(),
             };
-            let method_resolver = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader };
+            // let method_resolver = MethodResolverImpl { jvm, loader: LoaderName::BootstrapLoader };
             // for method in class_view.methods() {
             //     if method.code_attribute().is_some() {
             //         let method_id = jvm.method_table.write().unwrap().get_method_id(res.clone(), method.method_i());

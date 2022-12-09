@@ -80,7 +80,7 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
     }
 }
 
-pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
+pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>() -> Result<T, WasException<'gc>> {
     todo!();
     /*let _ = throw_npe::<T>(jvm, int_state);*/
     Err(WasException { exception_obj: todo!() })
@@ -89,7 +89,7 @@ pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_s
 pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
     let npe_object = match NullPointerException::new(jvm, int_state) {
         Ok(npe) => npe,
-        Err(WasException { exception_obj }) => {
+        Err(WasException { .. }) => {
             panic!("Exception occurred creating exception")
         }
     }
@@ -108,7 +108,7 @@ pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMS
 pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>, index: jint) -> T {
     let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
         Ok(npe) => npe,
-        Err(WasException { exception_obj }) => {
+        Err(WasException { .. }) => {
             todo!();
             eprintln!("Warning error encountered creating Array out of bounds");
             return T::invalid_default();
@@ -126,9 +126,9 @@ pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc
 }
 
 pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> T {
-    let illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
+    let _illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(illegal_arg) => illegal_arg,
-        Err(WasException { exception_obj }) => {
+        Err(WasException { .. }) => {
             eprintln!("Warning error encountered creating illegal arg exception");
             return T::invalid_default();
         }
@@ -192,7 +192,7 @@ pub fn run_static_or_virtual<'gc, 'l>(
         None => panic!(),
     };
     if method_view.is_static() {
-        invoke_static_impl(jvm, int_state, desc, class.clone(), method_view.method_i(), &method_view, args)
+        invoke_static_impl(jvm, int_state, class.clone(), method_view.method_i(), &method_view, args)
     } else {
         // let (resolved_rc, method_i) = virtual_method_lookup(jvm, int_state, method_name, &desc, class.clone()).unwrap();
         // let view = resolved_rc.view();
@@ -201,10 +201,10 @@ pub fn run_static_or_virtual<'gc, 'l>(
     }
 }
 
-pub fn unwrap_or_npe<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException<'gc>> {
+pub fn unwrap_or_npe<'gc, 'l, T>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException<'gc>> {
     match to_unwrap {
         None => {
-            throw_npe_res(jvm, int_state)?;
+            throw_npe_res()?;
             unreachable!()
         }
         Some(unwrapped) => Ok(unwrapped),

@@ -16,8 +16,7 @@ use crate::interpreter::{PostInstructionAction, run_function};
 use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::run_native_method;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
-use crate::java_values::{ByAddressAllocatedObject, JavaValue};
-use crate::jit::MethodResolverImpl;
+use crate::java_values::{ByAddressAllocatedObject};
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
@@ -34,7 +33,7 @@ pub fn invoke_virtual_instruction<'gc, 'l, 'k>(
     int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>,
     method_name: MethodName,
     expected_descriptor: &CMethodDescriptor,
-    ref_type: CPRefType,
+    _ref_type: CPRefType,
 ) -> PostInstructionAction<'gc> {
     //let the main instruction check intresstate inste
     // if (method_name == MethodName::method_invoke() || method_name == MethodName::method_invokeBasic() || method_name == MethodName::method_invokeExact()) &&
