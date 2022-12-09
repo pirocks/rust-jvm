@@ -1,0 +1,21 @@
+[package]
+name = "sun-misc-unsafe"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+slow-interpreter = { path = "../slow-interpreter" }
+classfile-view = { path = "../classfile-view" }
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+verification = { path = "../verification" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
+classfile-parser = { path = "../classfile-parser" }
+array-memory-layout = { path = "../array-memory-layout" }
+better-nonnull = { path = "../better-nonnull" }
+libc = "0.2"
+by_address = "1"
+itertools = "0.10"
+wtf8 = "0.1"

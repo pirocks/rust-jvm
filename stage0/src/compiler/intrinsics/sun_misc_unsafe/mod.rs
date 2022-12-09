@@ -1,10 +1,18 @@
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use rust_jvm_common::MethodId;
 
 use crate::compiler::CompilerLabeler;
+use crate::compiler::intrinsics::sun_misc_unsafe::compare_and_swap::{intrinsic_compare_and_swap_int, intrinsic_compare_and_swap_long, intrinsic_compare_and_swap_object};
+use crate::compiler::intrinsics::sun_misc_unsafe::get_raw::{unsafe_get_byte_raw, unsafe_get_long_raw};
+use crate::compiler::intrinsics::sun_misc_unsafe::malloc_interface::{unsafe_allocate_memory, unsafe_free_memory};
+use crate::compiler::intrinsics::sun_misc_unsafe::put_raw::unsafe_put_long;
 use crate::compiler_common::MethodResolver;
 
 pub mod compare_and_swap;
@@ -110,4 +118,84 @@ pub fn address_size<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeSta
             frame_size: layout.full_frame_size(),
         },
     ]);
+}
+
+
+
+pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, labeler: &mut CompilerLabeler, method_id: MethodId, ir_method_id: IRMethodID, desc: CMethodDescriptor, method_name: MethodName) -> Option<Vec<IRInstr>> {
+    let compare_and_swap_long = CompressedMethodDescriptor {
+        arg_types: vec![CClassName::object().into(), CPDType::LongType, CPDType::LongType, CPDType::LongType],
+        return_type: CPDType::BooleanType,
+    };
+    if method_name == MethodName::method_compareAndSwapLong() && desc == compare_and_swap_long {
+        return intrinsic_compare_and_swap_long(resolver, layout, labeler, method_id, ir_method_id);
+    }
+    let compare_and_swap_int = CompressedMethodDescriptor {
+        arg_types: vec![CPDType::object(), CPDType::LongType, CPDType::IntType, CPDType::IntType],
+        return_type: CPDType::BooleanType,
+    };
+    if method_name == MethodName::method_compareAndSwapInt() && desc == compare_and_swap_int {
+        return intrinsic_compare_and_swap_int(resolver, layout, labeler, method_id, ir_method_id);
+    }
+
+    let compare_and_swap_obj = CompressedMethodDescriptor {
+        arg_types: vec![CPDType::object(), CPDType::LongType, CPDType::object(), CPDType::object()],
+        return_type: CPDType::BooleanType,
+    };
+    if method_name == MethodName::method_compareAndSwapObject() && desc == compare_and_swap_obj {
+        return intrinsic_compare_and_swap_object(resolver, layout, labeler, method_id, ir_method_id);
+    }
+
+    let address_size_desc = CompressedMethodDescriptor::empty_args(CPDType::IntType);
+    if method_name == MethodName::method_addressSize() && desc == address_size_desc {
+        return address_size(resolver, layout, method_id, ir_method_id);
+    }
+
+    let get_long = CompressedMethodDescriptor {
+        arg_types: vec![CPDType::LongType],
+        return_type: CompressedParsedDescriptorType::LongType,
+    };
+    if method_name == MethodName::method_getLong() && desc == get_long {
+        return unsafe_get_long_raw(resolver, layout, method_id, ir_method_id);
+    }
+
+    let get_byte_desc = CompressedMethodDescriptor {
+        arg_types: vec![CPDType::LongType],
+        return_type: CompressedParsedDescriptorType::ByteType,
+    };
+    if method_name == MethodName::method_getByte() && desc == get_byte_desc {
+        return unsafe_get_byte_raw(resolver, layout, method_id, ir_method_id);
+    }
+
+    let get_int_volatile_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::object(), CPDType::LongType], return_type: CPDType::IntType };
+    if method_name == MethodName::method_getIntVolatile() && desc == get_int_volatile_desc {
+        return get_int_volatile(resolver, layout, labeler, method_id, ir_method_id);
+    }
+
+    let allocate_memory_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::LongType], return_type: CPDType::LongType };
+    if method_name == MethodName::method_allocateMemory() && desc == allocate_memory_desc {
+        return unsafe_allocate_memory(resolver, layout, method_id, ir_method_id);
+    }
+
+    let free_memory_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType]);
+    if method_name == MethodName::method_freeMemory() && desc == free_memory_desc {
+        return unsafe_free_memory(resolver, layout, method_id, ir_method_id);
+    }
+
+    let put_long_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType, CPDType::LongType]);
+    if method_name == MethodName::method_putLong() && desc == put_long_desc {
+        return unsafe_put_long(resolver, layout, labeler, method_id, ir_method_id);
+    }
+
+
+
+    // if method_name != MethodName::method_registerNatives() &&
+    //     method_name.0.to_str(resolver.string_pool()) != "arrayBaseOffset" &&
+    //     method_name.0.to_str(resolver.string_pool()) != "objectFieldOffset" &&
+    //     method_name.0.to_str(resolver.string_pool()) != "arrayIndexScale" {
+    //     dbg!(method_name.0.to_str(resolver.string_pool()));
+    //     dbg!(desc.jvm_representation(resolver.string_pool()));
+    //     todo!()
+    // }
+    None
 }

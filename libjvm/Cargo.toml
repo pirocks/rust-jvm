@@ -32,6 +32,7 @@ jni-interface = { path = "../jni-interface" }
 jvmti-interface = { path = "../jvmti-interface" }
 array-memory-layout = { path = "../array-memory-layout" }
 better-nonnull = { path = "../better-nonnull" }
+sun-misc-unsafe = { path = "../sun-misc-unsafe" }
 lazy_static = "1.4"
 libc = "0.2"
 num_cpus = "1"

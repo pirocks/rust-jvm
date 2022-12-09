@@ -1,42 +1,33 @@
 use std::intrinsics::atomic_cxchg_seqcst_seqcst;
 use std::mem::transmute;
-use std::ops::Deref;
 use std::ptr::null_mut;
 use std::sync::Arc;
-use std::sync::atomic::AtomicPtr;
 
 use libc::c_void;
 
-use classfile_view::view::ClassView;
-use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
-use rust_jvm_common::runtime_type::RuntimeType;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
-use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::{NewJavaValue};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
-use slow_interpreter::utils::{throw_npe, throw_npe_res};
-use verification::verifier::codecorrectness::operand_stack_has_legal_length;
+use slow_interpreter::rust_jni::native_util::{from_object_new};
+use slow_interpreter::utils::{throw_npe_res};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
+unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapInt(_env: *mut JNIEnv, _the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jint, new: jint) -> jboolean {
     if target_obj == null_mut() {
         todo!()
     }
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     atomic_cxchg_seqcst_seqcst((target_obj as *mut c_void).offset(offset as isize) as *mut jint, old, new).1 as jboolean
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jlong, new: jlong) -> jboolean {
+unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(_env: *mut JNIEnv, _the_unsafe: jobject, target_obj: jobject, offset: jlong, old: jlong, new: jlong) -> jboolean {
     if target_obj == null_mut() {
         todo!()
     }
@@ -45,7 +36,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_compareAndSwapLong(env: *mut JNIE
 
 
 #[no_mangle]
-unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(env: *mut JNIEnv, the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
+unsafe extern "C" fn Java_sun_misc_Unsafe_compareAndSwapObject(_env: *mut JNIEnv, _the_unsafe: jobject, target_obj: jobject, offset: jlong, expected: jobject, new: jobject) -> jboolean {
     //todo make these intrinsics
     if target_obj == null_mut() {
         todo!()

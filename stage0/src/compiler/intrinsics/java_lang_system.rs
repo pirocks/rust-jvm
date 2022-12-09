@@ -5,10 +5,27 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
+
+pub fn java_lang_system<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID, labeler: &mut CompilerLabeler, desc: &CMethodDescriptor, method_name: MethodName, class_name: CClassName) -> Option<Vec<IRInstr>> {
+    let identity_hash_code = CompressedMethodDescriptor { arg_types: vec![CClassName::object().into()], return_type: CompressedParsedDescriptorType::IntType };
+    if method_name == MethodName::method_identityHashCode() && desc == &identity_hash_code && class_name == CClassName::system() {
+        return system_identity_hashcode(resolver, layout, method_id, ir_method_id);
+    }
+    let array_copy_hashcode = CompressedMethodDescriptor::void_return(vec![CPDType::object(), CPDType::IntType, CPDType::object(), CPDType::IntType, CPDType::IntType]);
+    if method_name == MethodName::method_arraycopy() &&
+        desc == &array_copy_hashcode &&
+        class_name == CClassName::system() {
+        return intrinsic_array_copy(resolver, layout, method_id, ir_method_id, labeler);
+    }
+    None
+}
 
 #[allow(unreachable_code, unused_variables)]
 pub fn intrinsic_array_copy<'gc>(
@@ -18,6 +35,7 @@ pub fn intrinsic_array_copy<'gc>(
     ir_method_id: IRMethodID,
     labeler: &mut CompilerLabeler,
 ) -> Option<Vec<IRInstr>> {
+    return None;
     let temp = Register(1);
     let src = Register(2);
     let src_pos = Register(3);
@@ -216,3 +234,31 @@ pub fn intrinsic_array_copy<'gc>(
     });
     Some(res)
 }
+
+
+pub fn system_identity_hashcode<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
+    return Some(vec![
+        IRInstr::IRStart {
+            temp_register: Register(2),
+            ir_method_id,
+            method_id,
+            frame_size: layout.full_frame_size(),
+            num_locals: resolver.num_locals(method_id) as usize,
+        },
+        IRInstr::LoadFPRelative {
+            from: layout.local_var_entry(0),
+            to: Register(0),
+            size: Size::pointer(),
+        },
+        IRInstr::Return {
+            return_val: Some(Register(0)),
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            temp_register_3: Register(3),
+            temp_register_4: Register(4),
+            frame_size: layout.full_frame_size(),
+        },
+    ]);
+}
+
+

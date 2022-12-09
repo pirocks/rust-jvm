@@ -58,5 +58,6 @@ members = [
     "jmm-interface",
     "better-nonnull",
     "array-memory-layout",
-    "openjdk-test-parser"
+    "openjdk-test-parser",
+    "sun-misc-unsafe"
 ]

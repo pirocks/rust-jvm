@@ -1,9 +1,9 @@
 use std::intrinsics::volatile_load;
 use std::mem::{size_of, transmute};
 use std::ops::Deref;
-use std::ptr::{NonNull, null_mut};
+use std::ptr::{null_mut};
 
-use libc::{c_void, initgroups};
+use libc::{c_void};
 
 use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
@@ -11,14 +11,12 @@ use better_nonnull::BetterNonNull;
 use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
-use runtime_class_stuff::object_layout::{FieldAccessor, ObjectLayout};
+use runtime_class_stuff::object_layout::{FieldAccessor};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::FieldId;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
 use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
@@ -28,7 +26,7 @@ use slow_interpreter::static_vars::static_vars;
 use slow_interpreter::utils::new_field_id;
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(env: *mut JNIEnv, cb: jclass) {
+pub unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(env: *mut JNIEnv, cb: jclass) {
     //todo for now register nothing, register later as needed.
 }
 
@@ -378,8 +376,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEn
 
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, the_unsafe: jobject, obj_to_write: jobject, offset: jlong, to_put: jobject) {
-    let jvm = get_state(env);
+unsafe extern "system" fn Java_sun_misc_Unsafe_putObjectVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj_to_write: jobject, offset: jlong, to_put: jobject) {
     let field_address = BetterNonNull::new(obj_to_write as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
     FieldAccessor::new(field_address, CPDType::object()).write_object(to_put)
 }

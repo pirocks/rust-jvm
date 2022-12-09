@@ -55,7 +55,6 @@ pub mod hashcode;
 pub mod intern;
 pub mod introspection;
 pub mod io;
-pub mod java_sun_misc_unsafe;
 pub mod jio;
 pub mod jvm_management;
 pub mod library;
@@ -74,6 +73,8 @@ pub mod thread;
 pub mod time;
 pub mod trace;
 pub mod util;
+pub mod sun_reflect_reflection;
+pub mod ensure_deps_used;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetTemporaryDirectory(env: *mut JNIEnv) -> jstring {
@@ -81,7 +82,7 @@ unsafe extern "system" fn JVM_GetTemporaryDirectory(env: *mut JNIEnv) -> jstring
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ReleaseUTF(utf: *const ::std::os::raw::c_char) {
+unsafe extern "system" fn JVM_ReleaseUTF(utf: *const c_char) {
     unimplemented!()
 }
 
@@ -105,7 +106,7 @@ unsafe extern "system" fn JVM_CopySwapMemory(env: *mut JNIEnv, srcObj: jobject, 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_KnownToNotExist(env: *mut JNIEnv, loader: jobject, classname: *const ::std::os::raw::c_char) -> jboolean {
+unsafe extern "system" fn JVM_KnownToNotExist(env: *mut JNIEnv, loader: jobject, classname: *const c_char) -> jboolean {
     unimplemented!()
 }
 

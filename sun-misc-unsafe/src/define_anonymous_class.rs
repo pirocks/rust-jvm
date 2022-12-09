@@ -1,40 +1,25 @@
-use std::collections::HashMap;
-use std::env::current_exe;
 use std::fs::File;
 use std::io::Write;
-use std::ops::DerefMut;
-use std::panic::resume_unwind;
-use std::sync::{Arc, Mutex, RwLock};
-use std::sync::atomic::Ordering;
-use std::sync::atomic::Ordering::AcqRel;
+use std::sync::{Arc};
 
-use by_address::ByAddress;
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jni_interface::define_class_safe;
+use classfile_view::view::ptype_view::{PTypeView};
 use jvmti_jni_bindings::{jbyteArray, jclass, JNIEnv, jobject, jobjectArray};
 use rust_jvm_common::classfile::{Class, Classfile, ConstantInfo, ConstantKind, Utf8};
-use rust_jvm_common::classnames::{class_name, ClassName};
+use rust_jvm_common::classnames::{class_name};
 use rust_jvm_common::compressed_classfile::code::LiveObjectIndex;
-use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::PushableFrame;
-use slow_interpreter::class_loading::create_class_object;
-use slow_interpreter::class_objects::get_or_create_class_object;
-use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
-use slow_interpreter::java_values::{GcManagedObject, JavaValue, Object};
+use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::runtime_class::{initialize_class, prepare_class};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
-use slow_interpreter::stack_entry::{StackEntry, StackEntryRef};
-use verification::{VerifierContext, verify};
+use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JNIEnv, the_unsafe: jobject, parent_class: jobject, byte_array: jbyteArray, patches: jobjectArray) -> jclass {
@@ -52,11 +37,11 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_defineAnonymousClass(env: *mut JN
     });
 
 
-    to_object_new(Some(defineAnonymousClass(jvm, int_state, &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
+    to_object_new(Some(define_anonymous_class(jvm, int_state, &mut args).as_njv().unwrap_object().unwrap().unwrap_alloc()))
     //todo local ref
 }
 
-pub fn defineAnonymousClass<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: &mut Vec<NewJavaValueHandle<'gc>>) -> NewJavaValueHandle<'gc> {
+pub fn define_anonymous_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: &mut Vec<NewJavaValueHandle<'gc>>) -> NewJavaValueHandle<'gc> {
     let _parent_class = args[1].as_njv().to_handle_discouraged(); //todo idk what this is for which is potentially problematic
     let byte_array: Vec<u8> = args[2].as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|b| b.unwrap_int() as u8).collect();
     let mut unpatched = parse_class_file(&mut byte_array.as_slice()).expect("todo error handling and verification");
@@ -110,7 +95,7 @@ fn patch_single<'gc>(patch: AllocatedHandle<'gc>, jvm: &'gc JVMState<'gc>, unpat
         unimplemented!()
     } else {
         let mut classes_guard = jvm.classes.write().unwrap();
-        let mut anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
+        let anon_class_write_guard = &mut classes_guard.anon_class_live_object_ldc_pool;
         let live_object_i = anon_class_write_guard.len();
         anon_class_write_guard.push(patch);
         unpatched.constant_pool[i] = ConstantKind::LiveObject(LiveObjectIndex(live_object_i)).into();
