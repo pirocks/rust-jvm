@@ -67,15 +67,13 @@ pub extern "C" fn handler(sig: c_int, info: *mut siginfo_t, ucontext: *mut c_voi
     };
 }
 
-unsafe fn handler_impl(info: *mut siginfo_t, ucontext: Option<*const ucontext_t>) {
+unsafe fn handler_impl(info: *mut siginfo_t, mut ucontext: Option<*const ucontext_t>) {
     if let Err(_err) = std::panic::catch_unwind(|| {
         let si_value = (info.as_ref().unwrap().si_value().sival_ptr as *mut RemoteQueryUnsafe).as_mut().unwrap();
         let signal_safe_data = si_value.signal_safe_data();
         assert!(!signal_safe_data.in_signal.load(Ordering::SeqCst));
         signal_safe_data.in_signal.store(true, Ordering::SeqCst);
-        let remote_query = si_value.to_remote_query();
-        assert!(!signal_safe_data.interpreter_should_safepoint_check.load(Ordering::SeqCst));
-        handle_query(ucontext, signal_safe_data, remote_query);
+        (ucontext.unwrap() as *mut ucontext_t).as_mut().unwrap().uc_mcontext.gregs = [0;23];
         signal_safe_data.in_signal.store(false, Ordering::SeqCst);
     }) {
         eprintln!("panic in signal handler");
@@ -104,5 +102,21 @@ impl RemoteFramePush {
         let sig_handler = SigHandler::SigAction(handler);
         let _old_sigaction = unsafe { sigaction(THREAD_PAUSE_SIGNAL, &SigAction::new(sig_handler, SaFlags::SA_SIGINFO, signal_set)).unwrap() };
         Self { per_thread_signal_lock: RwLock::new(HashMap::new()) }
+    }
+}
+
+#[cfg(test)]
+pub mod test{
+    use crate::RemoteFramePush;
+
+    #[test]
+    pub fn test() {
+        RemoteFramePush::sigaction_setup();
+
+        let other_thread = std::thread::spawn(||{
+            loop {
+            }
+        }).thread();
+        other_thread.id().
     }
 }
