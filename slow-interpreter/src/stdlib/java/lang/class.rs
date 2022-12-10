@@ -127,13 +127,10 @@ impl<'gc> JClass<'gc> {
         Ok(res.cast_class().unwrap())//todo we should be able to safely turn handles that live for gc life without reentrant register
     }
 
-    pub fn get_name<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
-        /*int_state.push_current_operand_stack(self.clone().java_value());
+    pub fn get_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
         let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
-        run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), todo!())?;
-        let result_popped_from_operand_stack: JavaValue<'gc> = int_state.pop_current_operand_stack(Some(CClassName::string().into()));
-        Ok(result_popped_from_operand_stack.cast_string().expect("classes are known to have non-null names"))*/
-        todo!()
+        let res = run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), vec![self.new_java_value()])?;
+        Ok(res.expect("classes are known to have non-null names").cast_string().expect("classes are known to have non-null names"))
     }
 
     pub fn get_generic_interfaces<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

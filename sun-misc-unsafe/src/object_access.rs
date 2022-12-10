@@ -1,6 +1,4 @@
-use std::intrinsics::volatile_load;
-use std::mem::{size_of, transmute};
-use std::ops::Deref;
+use std::mem::{size_of};
 use std::ptr::null_mut;
 
 use libc::c_void;
@@ -8,21 +6,17 @@ use libc::c_void;
 use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use better_nonnull::BetterNonNull;
-use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use runtime_class_stuff::field_numbers::FieldNameAndClass;
 use runtime_class_stuff::object_layout::FieldAccessor;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-use rust_jvm_common::FieldId;
 use rust_jvm_common::global_consts::ADDRESS_SIZE;
-use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_state};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object_new};
-use slow_interpreter::static_vars::static_vars;
-use slow_interpreter::utils::new_field_id;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
+
 use crate::double_register_addressing::calc_address;
 
 #[no_mangle]
@@ -79,128 +73,42 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_staticFieldOffset(env: *mut JNIEn
     let jvm = get_state(env);
     let jfield = NewJavaValueHandle::Object(from_object_new(jvm, field_obj).unwrap()).cast_field();
     let name = FieldName(jvm.string_pool.add_name(jfield.name(jvm).to_rust_string(jvm), false));
-    let clazz = jfield.clazz(jvm).gc_lifeify().as_runtime_class(jvm);
-    let class_view = clazz.view();
-    let mut field_i = None;
-    class_view.fields().enumerate().for_each(|(i, f)| {
-        if f.field_name() == name && f.is_static() {
-            field_i = Some(i);
-        }
-    });
-    let jvm = get_state(env);
-    let field_id = new_field_id(jvm, clazz, field_i.unwrap());
-    field_id as jlong
+    let clazz = jfield.clazz(jvm);
+    let class_name = clazz.as_type(jvm).unwrap_class_type();
+    let static_field = jvm.all_the_static_fields.get(FieldNameAndClass { field_name: name, class_name });
+    static_field.raw_address().as_ptr() as jlong
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jint {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jint);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::IntType).unwrap_int()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getIntVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jint {
+    calc_address(obj, offset).cast::<jint>().read()
 }
 
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getBooleanVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jboolean {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jboolean);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::BooleanType).unwrap_bool_strict()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getBooleanVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jboolean {
+    calc_address(obj, offset).cast::<jboolean>().read()
 }
 
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getCharVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jchar {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jchar);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::CharType).unwrap_char_strict()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getCharVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jchar {
+    calc_address(obj, offset).cast::<jchar>().read()
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getByteVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jbyte {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jbyte);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::ByteType).unwrap_byte_strict()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getByteVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jbyte {
+    calc_address(obj, offset).cast::<jbyte>().read()
 }
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getShortVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jshort {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jshort);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::ShortType).unwrap_short_strict()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getShortVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jshort {
+    calc_address(obj, offset).cast::<jshort>().read()
 }
 
-
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getFloatVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jfloat {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            return volatile_load((obj as *const c_void).offset(offset as isize) as *const jfloat);
-        }
-        None => {
-            //static
-            //todo this is wrong
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::FloatType).unwrap_float_strict()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getFloatVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jfloat {
+    calc_address(obj, offset).cast::<jfloat>().read()
 }
 
 #[no_mangle]
@@ -232,25 +140,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putOrderedObject(env: *mut JNIEnv
 
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        Some(_notnull) => {
-            let res = volatile_load(obj.cast::<c_void>().offset(offset as isize) as *const jlong);
-            return res;
-            /*let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            notnull.as_allocated_obj().get_var_top_level(jvm, field_name).as_njv().unwrap_int()*/
-        }
-        None => {
-            //static
-            let (rc, field_i) = jvm.field_table.read().unwrap().lookup(transmute(offset));
-            let field_name = rc.view().field(field_i as usize).field_name();
-            let static_vars = static_vars(rc.deref(), jvm);
-            static_vars.get(field_name, CPDType::LongType).unwrap_long_strict()
-        }
-    }
-    /*Java_sun_misc_Unsafe_getLong__Ljava_lang_Object_2J(env, the_unsafe, obj, offset)*/
+unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
+    calc_address(obj, offset).cast::<jlong>().read()
 }
 
 #[no_mangle]
@@ -329,24 +220,8 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putShortVolatile(_env: *mut JNIEn
 
 
 #[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
-    let jvm = get_state(env);
-    match from_object_new(jvm, obj) {
-        None => {
-            let field_id = offset as FieldId;
-            let (runtime_class, i) = jvm.field_table.read().unwrap().lookup(field_id);
-            let runtime_class_view = runtime_class.view();
-            let field_view = runtime_class_view.field(i as usize);
-            assert!(field_view.is_static());
-            let name = field_view.field_name();
-            let res = static_vars(runtime_class.deref(), jvm).get(name, CPDType::object());
-            to_object_new(res.as_njv().unwrap_object_alloc())
-        }
-        Some(_object_to_read) => {
-            let field_address = BetterNonNull::new(obj as *mut c_void).unwrap().offset(offset as isize).unwrap().0;
-            FieldAccessor::new(field_address, CPDType::object()).read_object()
-        }
-    }
+unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
+    calc_address(obj, offset).cast::<jobject>().read()
 }
 
 
