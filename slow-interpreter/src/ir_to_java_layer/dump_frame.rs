@@ -3,8 +3,6 @@ use std::ffi::c_void;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-
-
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{AllocatedHandle, JavaValueCommon, JVMState};
@@ -24,41 +22,35 @@ pub fn dump_frame_contents_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut Ja
     if !int_state.full_frame_available(jvm) {
         let local_vars = int_state.local_var_simplified_types(jvm);
         eprint!("Local Vars:");
-        unsafe {
-            for (i, _local_var_type) in local_vars.into_iter().enumerate() {
-                let jv = int_state.raw_local_var_get(i as u16);
-                eprint!("#{}: {:?}\t", i, jv as *const c_void)
-            }
+        for (i, _local_var_type) in local_vars.into_iter().enumerate() {
+            let jv = int_state.raw_local_var_get(i as u16);
+            eprint!("#{}: {:?}\t", i, jv as *const c_void)
         }
         eprintln!();
         eprint!("Operand Stack:");
         let operand_stack_types = int_state.operand_stack_simplified_types(jvm);
-        unsafe {
-            for (i, _operand_stack_type) in operand_stack_types.into_iter().enumerate() {
-                let jv = int_state.raw_operand_stack_get(i as u16);
-                eprint!("#{}: {:?}\t", i, jv as *const c_void)
-            }
+        for (i, _operand_stack_type) in operand_stack_types.into_iter().enumerate() {
+            let jv = int_state.raw_operand_stack_get(i as u16);
+            eprint!("#{}: {:?}\t", i, jv as *const c_void)
         }
         eprintln!();
         return;
     }
     let local_var_types = int_state.local_var_types(jvm);
     eprint!("Local Vars:");
-    unsafe {
-        for (i, local_var_type) in local_var_types.into_iter().enumerate() {
-            match local_var_type.to_runtime_type() {
-                RuntimeType::TopType => {
-                    let jv = int_state.raw_local_var_get(i as u16);
-                    eprint!("#{}: Top: {:?}\t", i, jv as *const c_void)
-                }
-                _ => {
+    for (i, local_var_type) in local_var_types.into_iter().enumerate() {
+        match local_var_type.to_runtime_type() {
+            RuntimeType::TopType => {
+                let jv = int_state.raw_local_var_get(i as u16);
+                eprint!("#{}: Top: {:?}\t", i, jv as *const c_void)
+            }
+            _ => {
+                let jv = int_state.local_get_handle(i as u16, local_var_type.to_runtime_type());
+                if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
+                    display_obj(jvm, int_state, i, obj);
+                } else {
                     let jv = int_state.local_get_handle(i as u16, local_var_type.to_runtime_type());
-                    if let Some(Some(obj)) = jv.try_unwrap_object_alloc() {
-                        display_obj(jvm, int_state, i, obj);
-                    } else {
-                        let jv = int_state.local_get_handle(i as u16, local_var_type.to_runtime_type());
-                        eprint!("#{}: {:?}\t", i, jv.as_njv())
-                    }
+                    eprint!("#{}: {:?}\t", i, jv.as_njv())
                 }
             }
         }

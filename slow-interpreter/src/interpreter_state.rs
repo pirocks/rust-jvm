@@ -1,11 +1,9 @@
 use std::collections::HashSet;
 
-use another_jit_vm_ir::ir_stack::IRPushFrameGuard;
 use jvmti_jni_bindings::jobject;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::StackNativeJavaValue;
 
-use crate::ir_to_java_layer::java_stack::JavaStackPosition;
 use crate::java_values::{JavaValue};
 
 // thread_local! {
@@ -412,12 +410,5 @@ pub struct NativeFrameInfo<'gc> {
 pub enum AddFrameNotifyError {
     Opaque,
     NothingAtDepth,
-}
-
-#[must_use = "Must handle frame push guard. "]
-pub struct FramePushGuard {
-    _correctly_exited: bool,
-    _prev_stack_location: JavaStackPosition,
-    pub ir_frame_push_guard: IRPushFrameGuard,
 }
 

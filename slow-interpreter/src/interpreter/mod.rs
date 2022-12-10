@@ -19,7 +19,7 @@ use crate::better_java_stack::StackDepth;
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::interpreter::single_instruction::run_single_instruction;
-use crate::ir_to_java_layer::java_stack::{JavaStackPosition, OpaqueFrameIdOrMethodID};
+use crate::ir_to_java_layer::java_stack::{OpaqueFrameIdOrMethodID};
 use crate::java_values::{native_to_new_java_value_cpdtype};
 use crate::jit::MethodResolverImpl;
 use crate::jvm_state::JVMState;
@@ -46,12 +46,6 @@ pub mod switch;
 pub mod pop;
 pub mod throw;
 pub mod common;
-
-
-pub struct FrameToRunOn {
-    pub frame_pointer: JavaStackPosition,
-    pub size: usize,
-}
 
 //takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
 pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {

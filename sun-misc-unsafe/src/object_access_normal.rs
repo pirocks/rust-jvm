@@ -1,10 +1,8 @@
-use std::mem::{size_of};
 
 
 use jvmti_jni_bindings::{jboolean, jbyte, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 
-use crate::double_register_addressing::calc_address;
-use crate::object_access_volatile::{Java_sun_misc_Unsafe_getBooleanVolatile, Java_sun_misc_Unsafe_getByteVolatile, Java_sun_misc_Unsafe_getFloatVolatile, Java_sun_misc_Unsafe_getIntVolatile, Java_sun_misc_Unsafe_getObjectVolatile, Java_sun_misc_Unsafe_putByteVolatile, Java_sun_misc_Unsafe_putDoubleVolatile, Java_sun_misc_Unsafe_putFloatVolatile, Java_sun_misc_Unsafe_putIntVolatile, Java_sun_misc_Unsafe_putLongVolatile, Java_sun_misc_Unsafe_putObjectVolatile, Java_sun_misc_Unsafe_putShortVolatile};
+use crate::object_access_volatile::{Java_sun_misc_Unsafe_getBooleanVolatile, Java_sun_misc_Unsafe_getByteVolatile, Java_sun_misc_Unsafe_getFloatVolatile, Java_sun_misc_Unsafe_getIntVolatile, Java_sun_misc_Unsafe_getLongVolatile, Java_sun_misc_Unsafe_getObjectVolatile, Java_sun_misc_Unsafe_putByteVolatile, Java_sun_misc_Unsafe_putDoubleVolatile, Java_sun_misc_Unsafe_putFloatVolatile, Java_sun_misc_Unsafe_putIntVolatile, Java_sun_misc_Unsafe_putLongVolatile, Java_sun_misc_Unsafe_putObjectVolatile, Java_sun_misc_Unsafe_putShortVolatile};
 
 
 #[no_mangle]
@@ -31,11 +29,6 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_putObject(env: *mut JNIEnv, the_u
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_putOrderedObject(env: *mut JNIEnv, the_unsafe: jobject, obj: jobject, offset: jlong, to_put: jobject) {
     Java_sun_misc_Unsafe_putObjectVolatile(env, the_unsafe, obj, offset, to_put)
-}
-
-#[no_mangle]
-unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
-    calc_address(obj, offset).cast::<jlong>().read()
 }
 
 #[no_mangle]

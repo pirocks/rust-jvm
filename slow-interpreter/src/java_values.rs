@@ -193,71 +193,7 @@ pub struct GcManagedObject<'gc> {
 }
 
 impl<'gc> GcManagedObject<'gc> {
-    pub fn from_native(raw_ptr: NonNull<c_void>, jvm: &'gc JVMState<'gc>) -> Self {
-        let handle = jvm.gc.register_root_reentrant(jvm, raw_ptr);
-        dbg!(&handle);
-        todo!()
-        /*let guard = jvm.gc.memory_region.lock().unwrap();
-        let allocated_type = guard.find_object_allocated_type(raw_ptr);
-        let obj = match allocated_type {
-            AllocatedObjectType::Class { size, name, loader, vtable:_ } => {
-                let classes = jvm.classes.read().unwrap();
-                let runtime_class = classes.loaded_classes_by_type(loader, &(*name).into());
-                let runtime_class_class = runtime_class.unwrap_class_class();
-                let num_fields = runtime_class_class.recursive_num_fields;
-                unsafe {
-                    Arc::new(Object::Object(NormalObject {
-                        objinfo: ObjectFieldsAndClass {
-                            fields: RwLock::new(slice::from_raw_parts_mut(raw_ptr.as_ptr() as *mut NativeJavaValue<'gc>, num_fields as usize)),
-                            class_pointer: runtime_class.clone(),
-                        },
-                        obj_ptr: Some(raw_ptr.cast()),
-                    }))
-                }
-            }
-            AllocatedObjectType::ObjectArray { sub_type, sub_type_loader, len, object_vtable:_ } => {
-                let classes = jvm.classes.read().unwrap();
-                let runtime_class = classes.loaded_classes_by_type(sub_type_loader, &CPDType::array(sub_type.to_cpdtype()));
-                unsafe {
-                    Arc::new(Object::Array(ArrayObject {
-                        whole_array_runtime_class: runtime_class.clone(),
-                        loader: *sub_type_loader,
-                        len: *len,
-                        elems_base: raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc>,
-                        phantom_data: Default::default(),
-                        elem_type: sub_type.to_cpdtype(),
-                    }))
-                }
-            }
-            AllocatedObjectType::PrimitiveArray { primitive_type, len, object_vtable:_ } => {
-                let classes = jvm.classes.read().unwrap();
-                //todo loader nonsense
-                let runtime_class = classes.loaded_classes_by_type(&LoaderName::BootstrapLoader, &CPDType::array(*primitive_type));
-                unsafe {
-                    Arc::new(Object::Array(ArrayObject {
-                        whole_array_runtime_class: runtime_class.clone(),
-                        loader: LoaderName::BootstrapLoader,//todo loader nonsense
-                        len: *len,
-                        phantom_data: Default::default(),
-                        elem_type: primitive_type.clone(),
-                        elems_base: raw_ptr.as_ptr().offset(size_of::<jlong>() as isize) as *mut NativeJavaValue<'gc>,
-                    }))
-                }
-            }
-            AllocatedObjectType::Raw { .. } => {
-                panic!()
-            }
-        };
-        Self { obj, raw_ptr, gc: jvm.gc, jvm }*/
-    }
 
-    pub fn self_check(&self) {
-        assert!(self.gc.vm_temp_owned_roots.read().unwrap().contains_key(&(self.raw_ptr)))
-    }
-
-    pub fn strong_count(&self) -> usize {
-        self.gc.vm_temp_owned_roots.read().unwrap().get(&(self.raw_ptr)).unwrap().load(Ordering::SeqCst)
-    }
 }
 
 impl<'gc> Deref for GcManagedObject<'gc> {
@@ -293,13 +229,6 @@ impl Drop for GcManagedObject<'_> {
 }
 
 impl<'gc> GcManagedObject<'gc> {
-    pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'gc> {
-        self.deref().unwrap_normal_object()
-    }
-
-    pub fn ptr_eq(one: &GcManagedObject<'gc>, two: &GcManagedObject<'gc>) -> bool {
-        one.raw_ptr == two.raw_ptr
-    }
 
     pub fn raw_ptr_usize(&self) -> usize {
         self.raw_ptr.as_ptr() as usize
@@ -327,98 +256,6 @@ impl<'gc> JavaValue<'gc> {
         todo!()
     }
 }
-// pub trait CycleDetectingDebug {
-//     fn cycle_fmt<'gc>(&self, prev: &Vec<&GcManagedObject<'gc>>, f: &mut Formatter<'_>) -> Result<(), Error>;
-// }
-
-// impl<'gc> CycleDetectingDebug for JavaValue<'gc> {
-//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-//         match self {
-//             JavaValue::Long(l) => { write!(f, "{}", l) }
-//             JavaValue::Int(l) => { write!(f, "{}", l) }
-//             JavaValue::Short(l) => { write!(f, "{}", l) }
-//             JavaValue::Byte(l) => { write!(f, "{}", l) }
-//             JavaValue::Boolean(l) => { write!(f, "{}", l) }
-//             JavaValue::Char(l) => { write!(f, "{}", l) }
-//             JavaValue::Float(l) => { write!(f, "{}", l) }
-//             JavaValue::Double(l) => { write!(f, "{}", l) }
-//             JavaValue::Object(o) => {
-//                 match o {
-//                     None => {
-//                         write!(f, "null", )
-//                     }
-//                     Some(s) => {
-//                         if prev.iter().any(|above| Arc::ptr_eq(above, s)) {
-//                             write!(f, "<cycle>")
-//                         } else {
-//                             let mut new = prev.clone();
-//                             new.push(s);
-//                             s.cycle_fmt(&new, f)
-//                         }
-//                     }
-//                 }
-//             }
-//             JavaValue::Top => { write!(f, "top") }
-//         }
-//     }
-// }
-//
-// impl<'gc> CycleDetectingDebug for Object<'gc> {
-//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-//         write!(f, "\n")?;
-//         for _ in 0..prev.len() {
-//             write!(f, " ")?;
-//         }
-//         match &self {
-//             Object::Array(a) => {
-//                 write!(f, "[")?;
-//                 unsafe {
-//                     a.elems.get().as_ref().unwrap()
-//                 }.iter().for_each(|x| {
-//                     x.cycle_fmt(prev, f).unwrap();
-//                     write!(f, ",").unwrap();
-//                 });
-//                 write!(f, "]")
-//             }
-//             Object::Object(o) => {
-//                 o.cycle_fmt(prev, f)
-//             }
-//         }
-//     }
-// }
-//
-// impl<'gc> CycleDetectingDebug for NormalObject<'gc> {
-//     fn cycle_fmt(&self, prev: &Vec<&GcManagedObject<'gc>>, f: &mut Formatter<'_>) -> Result<(), Error> {
-// //         let o = self;
-// //         if o.class_pointer.view().name() == ClassName::class().into() {
-// //             write!(f, "need a jvm pointer here to give more info on class object")?;
-// //         } else if o.class_pointer.view().name() == ClassName::string().into() {
-// //             let fields_borrow = o.fields_mut();
-// //             let value_field = fields_borrow.get("value").unwrap();
-// //             match &value_field.unwrap_object() {
-// //                 None => {
-// //                     write!(f, "(String Object: {:?})", "weird af string obj.")?;
-// //                 }
-// //                 Some(_) => {
-// //                     write!(f, "(String Object: {:?})", value_field.unwrap_array().unwrap_char_array())?;
-// //                 }
-// //             }
-// //         } else {
-// //             write!(f, "{:?}", &o.class_pointer.view().name())?;
-// //             write!(f, "-")?;
-// // //        write!(f, "{:?}", self.class_pointer.static_vars)?;
-// //             write!(f, "-")?;
-// //             o.fields_mut().iter().for_each(|(n, v)| {
-// //                 write!(f, "({},", n).unwrap();
-// //                 v.cycle_fmt(prev, f).unwrap();
-// //                 write!(f, ")").unwrap();
-// //             });
-// //             write!(f, "-")?;
-// //         }
-// //         Result::Ok(())
-//         writeln!(f, "object")
-//     }
-// }
 
 impl<'gc> Debug for JavaValue<'gc> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -456,9 +293,6 @@ impl<'gc> Debug for JavaValue<'gc> {
 }
 
 impl<'gc> JavaValue<'gc> {
-    pub fn null() -> Self {
-        Self::Object(None)
-    }
 
     pub fn unwrap_int(&self) -> i32 {
         self.try_unwrap_int().unwrap()
@@ -506,7 +340,6 @@ impl<'gc> JavaValue<'gc> {
         match self {
             JavaValue::Long(l) => (*l).into(),
             _ => {
-                dbg!(self);
                 None
             }
         }
@@ -537,25 +370,11 @@ impl<'gc> JavaValue<'gc> {
         self.try_unwrap_object().unwrap()
     }
 
-    pub fn unwrap_object_nonnull(&self) -> GcManagedObject<'gc> {
-        match match self.try_unwrap_object() {
-            Some(x) => x,
-            None => unimplemented!(),
-        } {
-            Some(x) => x,
-            None => unimplemented!(),
-        }
-    }
-
     pub fn unwrap_array<'l>(&'l self) -> &'l ArrayObject<'gc, 'gc> {
         match self {
             JavaValue::Object(o) => o.as_ref().unwrap().unwrap_array(),
             _ => panic!(),
         }
-    }
-
-    pub fn unwrap_array_mut<'l>(&'l mut self) -> &'l mut ArrayObject<'gc, 'gc> {
-        todo!()
     }
 
     pub fn try_unwrap_object(&self) -> Option<Option<GcManagedObject<'gc>>> {
@@ -566,11 +385,6 @@ impl<'gc> JavaValue<'gc> {
                 None
             }
         }
-    }
-
-    pub fn empty_byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
-        let byte_array = check_initing_or_inited_class(jvm, int_state, CPDType::array(CPDType::ByteType))?;
-        Ok(jvm.allocate_object(UnAllocatedObject::new_array(byte_array, vec![])))
     }
 
     pub fn byte_array<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, bytes: Vec<u8>) -> Result<AllocatedHandle<'gc>, WasException<'gc>> {
@@ -608,79 +422,11 @@ impl<'gc> JavaValue<'gc> {
 
     pub fn new_vec_from_vec(jvm: &'gc JVMState<'gc>, vals: Vec<NewJavaValue<'gc, '_>>, elem_type: CPDType) -> AllocatedHandle<'gc> {
         let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(elem_type));
-        jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: vals })/*Object::Array(ArrayObject {
-            whole_array_runtime_class: todo!(),
-            loader: todo!(),
-            len: todo!(),
-            elems_base: todo!(),
-            phantom_data: Default::default(),
-            elem_type,
-        })*/)
-    }
-
-    pub fn unwrap_normal_object(&self) -> &NormalObject<'gc, 'gc> {
-        //todo these are longer than ideal
-        self.try_unwrap_normal_object().unwrap()
-    }
-
-    pub fn try_unwrap_normal_object(&self) -> Option<&NormalObject<'gc, 'gc>> {
-        //todo these are longer than ideal
-        match self {
-            JavaValue::Object(ref_) => match match ref_.as_ref() {
-                None => return None,
-                Some(obj) => obj.deref(),
-            } {
-                Object::Array(_) => None,
-                Object::Object(o) => o.into(),
-            },
-            _ => None,
-        }
+        jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray { whole_array_runtime_class, elems: vals }))
     }
 
     pub fn unwrap_char(&self) -> u16 {
         self.unwrap_int() as u16
-        // match self {
-        //     JavaValue::Char(c) => {
-        //         *c
-        //     }
-        //     _ => {
-        //         dbg!(self);
-        //         panic!()
-        //     }
-        // }
-    }
-
-    pub fn to_type(&self) -> RuntimeType {
-        match self {
-            JavaValue::Long(_) => RuntimeType::LongType,
-            JavaValue::Int(_) => RuntimeType::IntType,
-            JavaValue::Short(_) => RuntimeType::IntType,
-            JavaValue::Byte(_) => RuntimeType::IntType,
-            JavaValue::Boolean(_) => RuntimeType::IntType,
-            JavaValue::Char(_) => RuntimeType::IntType,
-            JavaValue::Float(_) => RuntimeType::FloatType,
-            JavaValue::Double(_) => RuntimeType::DoubleType,
-            JavaValue::Object(obj) => RuntimeType::Ref(match obj {
-                None => RuntimeRefType::NullType,
-                Some(not_null) => match not_null.deref() {
-                    Object::Array(array) => RuntimeRefType::Array(array.elem_type.clone().into()),
-                    Object::Object(obj) => RuntimeRefType::Class(obj.objinfo.class_pointer.cpdtype().unwrap_class_type()),
-                },
-            }),
-            JavaValue::Top => RuntimeType::TopType,
-        }
-    }
-
-    pub fn is_size_2(&self) -> bool {
-        match self {
-            JavaValue::Long(_) => true,
-            JavaValue::Double(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_size_1(&self) -> bool {
-        !self.is_size_2()
     }
 }
 
@@ -1069,6 +815,6 @@ impl ExceptionReturn for jmethodID {
 
 impl ExceptionReturn for jvalue {
     fn invalid_default() -> Self {
-        unsafe { jvalue { j: 0 } }
+        jvalue { j: 0 }
     }
 }

@@ -144,7 +144,7 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     };
 
     method_ptr.write(transmute(meth_id));
-    location_ptr.write(stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1));
+    location_ptr.write(todo!()/*stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1)*/);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 

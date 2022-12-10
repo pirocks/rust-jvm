@@ -1,4 +1,3 @@
-#![allow(unused_unsafe)]
 #![allow(unreachable_code)]
 #![feature(c_variadic)]
 #![feature(thread_local)]

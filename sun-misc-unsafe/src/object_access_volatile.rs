@@ -1,9 +1,5 @@
 use std::ffi::c_void;
-use array_memory_layout::accessor::Accessor;
-use better_nonnull::BetterNonNull;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
-use runtime_class_stuff::object_layout::FieldAccessor;
-use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::double_register_addressing::calc_address;
 
 #[no_mangle]
@@ -81,6 +77,10 @@ pub unsafe extern "system" fn Java_sun_misc_Unsafe_getDoubleVolatile(_env: *mut 
     calc_address(obj, offset).cast::<jdouble>().read()
 }
 
+#[no_mangle]
+pub unsafe extern "system" fn Java_sun_misc_Unsafe_getLongVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jlong {
+    calc_address(obj, offset).cast::<jlong>().read()
+}
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_sun_misc_Unsafe_getObjectVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong) -> jobject {
