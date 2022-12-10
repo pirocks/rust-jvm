@@ -79,7 +79,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
             Err(_) => null_mut(),
         },
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -103,7 +103,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
             }
         }
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -261,7 +261,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, c
             (class, name, desc_str)
         }
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     };
     let jv_vec = vec![
@@ -303,7 +303,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetIntAt(env: *mut JNIEnv, constantPoo
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Integer(int_) => int_.int,
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -321,7 +321,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetLongAt(env: *mut JNIEnv, constantPo
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Long(long_) => long_.long,
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -339,7 +339,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetFloatAt(env: *mut JNIEnv, constantP
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Float(float_) => float_.float,
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -357,7 +357,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetDoubleAt(env: *mut JNIEnv, constant
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Double(double_) => double_.double,
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -462,7 +462,7 @@ unsafe extern "system" fn JVM_GetCPFieldNameUTF(env: *mut JNIEnv, cb: jclass, in
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -481,7 +481,7 @@ unsafe extern "system" fn JVM_GetCPMethodNameUTF(env: *mut JNIEnv, cb: jclass, i
         ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -500,7 +500,7 @@ unsafe extern "system" fn JVM_GetCPMethodSignatureUTF(env: *mut JNIEnv, cb: jcla
         ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -518,7 +518,7 @@ unsafe extern "system" fn JVM_GetCPFieldSignatureUTF(env: *mut JNIEnv, cb: jclas
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().desc_str(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -536,7 +536,7 @@ unsafe extern "system" fn JVM_GetCPClassNameUTF(env: *mut JNIEnv, cb: jclass, in
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Class(class_) => jvm.native.native_interface_allocations.allocate_modified_string(PTypeView::from_compressed(class_.class_ref_type(&jvm.string_pool).to_cpdtype(), &jvm.string_pool).class_name_representation()),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -554,7 +554,7 @@ unsafe extern "system" fn JVM_GetCPFieldClassNameUTF(env: *mut JNIEnv, cb: jclas
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }
@@ -573,7 +573,7 @@ unsafe extern "system" fn JVM_GetCPMethodClassNameUTF(env: *mut JNIEnv, cb: jcla
         ConstantInfoView::Methodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         ConstantInfoView::InterfaceMethodref(ref_) => jvm.native.native_interface_allocations.allocate_modified_string(ref_.name_and_type().name(&jvm.string_pool).to_str(&jvm.string_pool)),
         _ => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
     }
 }

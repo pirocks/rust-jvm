@@ -65,7 +65,6 @@ pub mod interpreter_state;
 pub mod interpreter_util;
 pub mod jvm_state;
 pub mod loading;
-pub mod method_table;
 pub mod native_allocation;
 pub mod options;
 pub mod rust_jni;

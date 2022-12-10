@@ -298,7 +298,6 @@ impl IRInstr {
                     IRVMExitType::NPE { .. } => { "NPE" }
                     IRVMExitType::LoadClassAndRecompile { .. } => { "LoadClassAndRecompile" }
                     IRVMExitType::InitClassAndRecompile { .. } => { "InitClassAndRecompile" }
-                    IRVMExitType::RunStaticNative { .. } => { "RunStaticNative" }
                     IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => { "CompileFunctionAndRecompileCurrent" }
                     IRVMExitType::TopLevelReturn => { "TopLevelReturn" }
                     IRVMExitType::PutStatic { .. } => { "PutStatic" }
@@ -313,12 +312,9 @@ impl IRInstr {
                     IRVMExitType::MonitorEnter { .. } => { "MonitorEnter" }
                     IRVMExitType::MonitorExit { .. } => { "MonitorExit" }
                     IRVMExitType::Throw { .. } => { "Throw" }
-                    IRVMExitType::GetStatic { .. } => { "GetStatic" }
                     IRVMExitType::Todo { .. } => { "Todo" }
                     IRVMExitType::InstanceOf { .. } => { "InstanceOf" }
                     IRVMExitType::CheckCast { .. } => { "CheckCast" }
-                    IRVMExitType::RunNativeVirtual { .. } => { "RunNativeVirtual" }
-                    IRVMExitType::RunNativeSpecial { .. } => { "RunNativeSpecial" }
                     IRVMExitType::InvokeInterfaceResolve { .. } => { "InvokeInterfaceResolve" }
                     IRVMExitType::MultiAllocateObjectArray_ { .. } => {
                         "MultiAllocateObjectArray_"

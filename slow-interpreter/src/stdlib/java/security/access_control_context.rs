@@ -13,12 +13,6 @@ pub struct AccessControlContext<'gc> {
     normal_object: AllocatedHandle<'gc>,
 }
 
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_access_control_context(&self) -> AccessControlContext<'gc> {
-        AccessControlContext { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
-}
-
 impl<'gc> AccessControlContext<'gc> {
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, protection_domains: Vec<ProtectionDomain<'gc>>) -> Result<Self, crate::WasException<'gc>> {
         let access_control_context_class = assert_inited_or_initing_class(jvm, CClassName::access_control_context().into());
@@ -36,6 +30,6 @@ impl<'gc> NewAsObjectOrJavaValue<'gc> for AccessControlContext<'gc> {
     }
 
     fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-        todo!()
+        self.normal_object.unwrap_normal_object_ref()
     }
 }

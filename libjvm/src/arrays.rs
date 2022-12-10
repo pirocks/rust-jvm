@@ -57,8 +57,8 @@ unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> 
     match get_array(env, arr) {
         Ok(jv) => jv.unwrap_object_nonnull().unwrap_array().len() as i32,
         Err(WasException { exception_obj }) => {
-            todo!();
-            -1 as i32
+            *get_throw(env) = Some(WasException { exception_obj });
+            jint::invalid_default()
         }
     }
 }
@@ -68,7 +68,7 @@ unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueH
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {
         None => {
-            throw_npe_res()?;
+            throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
         Some(possibly_arr) => {
@@ -102,8 +102,8 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
                 match java_value_to_boxed_object(jvm, int_state, java_value.as_njv(), elem_type) {
                     Ok(boxed) => boxed,
                     Err(WasException { exception_obj }) => {
-                        todo!();
-                        None
+                        *get_throw(env) = Some(WasException { exception_obj });
+                        return jobject::invalid_default()
                     }
                 }
             };
@@ -113,8 +113,8 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             )
         }
         Err(WasException { exception_obj }) => {
-            todo!();
-            null_mut()
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jobject::invalid_default()
         }
     }
 }

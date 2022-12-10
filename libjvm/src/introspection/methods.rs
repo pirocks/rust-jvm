@@ -8,7 +8,7 @@ use wtf8::Wtf8Buf;
 use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType, lchmod};
 use rust_jvm_common::classfile::Code;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
@@ -33,6 +33,7 @@ use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, thro
 unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
+    let throw = get_throw(env);
     let method = JavaValue::Object(
         todo!(), /*Some(match from_jclass(jvm,method) {
                      None => {
@@ -50,12 +51,12 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let view = clazz.view();
     let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, throw);
         }
         Some(res_method_view) => res_method_view,
     };
     // todo!("{}", res_method_view);
-    unimplemented!()
+    todo!()
 }
 
 // returns 3 object array, class, name, descriptor string
@@ -117,7 +118,6 @@ unsafe fn get_method_view<'gc, T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass,
     and_then(&method_view)
 }
 
-//todo should just return T, no need to handle result
 unsafe fn get_code_attr<'gc, T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&Code) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
     get_method_view(env, cb, method_index, |method_view| {
         let jvm = get_state(env);
@@ -139,7 +139,7 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: j
     }) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             jint::invalid_default()
         }
     }
@@ -147,17 +147,14 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: j
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code_output: *mut c_uchar) {
-    match get_code_attr(env, cb, method_index, |code| {
+    if let Err(WasException { exception_obj }) = get_code_attr(env, cb, method_index, |code| {
         for (i, x) in code.code_raw.iter().enumerate() {
             code_output.offset(i as isize).write(*x)
         }
         Ok(())
     }) {
-        Ok(res) => res,
-        Err(WasException { exception_obj }) => {
-            todo!();
-            return;
-        }
+        *get_throw(env) = Some(WasException { exception_obj });
+        return;
     }
 }
 
@@ -166,7 +163,7 @@ unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jc
     match get_code_attr(env, cb, method_index, |code| Ok(code.code_raw.len() as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }
@@ -177,7 +174,7 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, 
     match get_code_attr(env, cb, index, |code| Ok(code.exception_table.len() as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }
@@ -188,7 +185,7 @@ unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass,
     match get_method_view(env, cb, index, |method_view| Ok(method_view.access_flags() as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }
@@ -199,7 +196,7 @@ unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclas
     match get_code_attr(env, cb, index, |code| Ok(code.max_locals as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }
@@ -210,7 +207,7 @@ unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, 
     match get_method_view(env, cb, index, |method_view| Ok(method_view.num_args() as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }
@@ -221,7 +218,7 @@ unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, 
     match get_code_attr(env, cb, index, |code| Ok(code.max_stack as jint)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return jint::invalid_default();
         }
     }

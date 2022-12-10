@@ -1,7 +1,7 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
-use crate::{AllocatedHandle, JavaValue, JavaValueCommon, JString, JVMState, NewJavaValueHandle};
+use crate::{AllocatedHandle, JavaValueCommon, JString, JVMState, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
 
 pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) -> JString<'gc> {
@@ -9,7 +9,7 @@ pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) 
     let char_array_ptr = match str_obj.unwrap_normal_object_ref().get_var(jvm, &string_class, FieldName::field_value()).unwrap_object() {
         None => {
             eprintln!("Weird malformed string encountered. Not interning.");
-            return JavaValue::Object(todo!() /*str_obj.into()*/).cast_string().unwrap();
+            return str_obj.cast_string();
             //fallback to not interning weird strings like this. not sure if compatible with hotspot but idk what else to do. perhaps throwing an exception would be better idk?
         }
         Some(char_array_ptr) => char_array_ptr,

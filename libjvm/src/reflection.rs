@@ -77,7 +77,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
     let target_runtime_class = match check_initing_or_inited_class(jvm, int_state, target_class_name.into()) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return null_mut();
         }
     };
@@ -190,8 +190,8 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
         }
     };
     if let Err(WasException { exception_obj }) = check_loaded_class(jvm, int_state, clazz.cpdtype()) {
-        todo!();
-        return null_mut();
+        *get_throw(env) = Some(WasException { exception_obj });
+        return jobject::invalid_default();
     };
     let parameter_types = constructor_obj.cast_constructor().parameter_types(jvm).iter().map(|paramater_type| paramater_type.as_type(jvm)).collect_vec();
     let args = if args0.is_null() {
@@ -225,7 +225,7 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     };
     let signature = CMethodDescriptor {
         arg_types: parameter_types,
-        return_type: CPDType::VoidType, //todo use from_leaacy instead
+        return_type: CPDType::VoidType,
     };
     let obj = new_object(jvm, int_state, &clazz, false);
     let mut full_args = vec![obj.new_java_value()];

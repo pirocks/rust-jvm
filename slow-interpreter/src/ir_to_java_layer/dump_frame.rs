@@ -93,7 +93,6 @@ fn display_obj<'gc>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc,
             eprint!("#{}: {:?}(Class:{:?} {:?})\t", i, ptr, class_short_name, ref_data.as_njv().to_stack_native().object)
         } /*else if obj_type == CClassName::concurrent_hash_map().into() {
             obj.cast_concurrent_hash_map().debug_print_table(jvm);
-            //todo display hashtable entrys
         } else if obj_type == CClassName::hashtable_entry().into() {
             let ptr = obj.ptr();
             let entry = obj.cast_entry();

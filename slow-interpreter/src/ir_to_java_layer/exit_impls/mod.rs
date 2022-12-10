@@ -20,7 +20,6 @@ use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId, MethodTableIndex, Stack
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::CompressedExceptionTableElem;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType};
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
@@ -153,9 +152,6 @@ pub fn check_cast<'gc, 'k>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFra
         eprintln!("CheckCast");
     }
     let cpdtype = jvm.cpdtype_table.read().unwrap().get_cpdtype(*cpdtype_id).clone();
-    //todo just use region data from pointer to cache the result of this checkast and then havee a restart point
-    /*runtime_class_to_allocated_object_type(&rc, LoaderName::BootstrapLoader, todo!());
-    todo!();*/
     let value = unsafe { (*value).cast::<StackNativeJavaValue>().read() };
     let value = native_to_new_java_value_rtype(value, CClassName::object().into(), jvm);
     let value = value.unwrap_object();
@@ -204,31 +200,6 @@ pub fn assert_instance_of<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
     assert_eq!(res_int, if expected { 1 } else { 0 });
     unsafe { (*((*res) as *mut StackNativeJavaValue)).int = res_int };
     IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
-}
-
-#[inline(never)]
-pub fn get_static<'gc, 'k>(jvm: &'gc JVMState<'gc>, _int_state: &mut JavaExitFrame<'gc, 'k>, _value_ptr: *mut c_void, _field_name: FieldName, _cpdtype_id: CPDTypeID, _return_to_ptr: *const c_void) -> IRVMExitAction {
-    let _get_static = jvm.perf_metrics.vm_exit_get_static();
-    if jvm.exit_tracing_options.tracing_enabled() {
-        eprintln!("GetStatic");
-    }
-    todo!("no longer used");
-    // let cpd_type = jvm.cpdtype_table.read().unwrap().get_cpdtype(cpdtype_id).clone();
-    // let name = cpd_type.unwrap_class_type();
-    // let static_var = get_static_impl(jvm, int_state, name, field_name).unwrap().unwrap();
-    // // let static_var = static_vars_guard.get(field_name);
-    // // todo doesn't handle interfaces and the like
-    // unsafe {
-    //     if libc::rand() < 1_000 {
-    //         todo!();/*int_state.debug_print_stack_trace(jvm);*/
-    //     }
-    // }
-    // unsafe {
-    //     let native_java_value = static_var.as_njv().to_stack_native();
-    //     value_ptr.cast::<StackNativeJavaValue>().write(native_java_value);
-    // }
-    drop(_get_static);
-    IRVMExitAction::RestartAtPtr { ptr: _return_to_ptr }
 }
 
 #[inline(never)]

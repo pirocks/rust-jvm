@@ -4,7 +4,7 @@ use slow_interpreter::interpreter::common::special::instance_of_exit_impl;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::native_util::from_object_new;
 use slow_interpreter::utils::throw_illegal_arg;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
     let int_state = get_interpreter_state(env);
@@ -14,7 +14,7 @@ pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: j
     let type_view = NewJavaValueHandle::from_optional_object(class_object).cast_class().expect("todo").as_type(jvm);
     let type_ = match type_view.try_unwrap_ref_type() {
         None => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, get_throw(env));
         }
         Some(ref_type) => ref_type,
     };

@@ -44,7 +44,6 @@ pub mod ext_class_loader {
     use rust_jvm_common::compressed_classfile::method_names::MethodName;
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::check_initing_or_inited_class;
-    use crate::java_values::{JavaValue};
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::utils::run_static_or_virtual;
@@ -52,12 +51,6 @@ pub mod ext_class_loader {
 
     pub struct ExtClassLoader<'gc> {
         normal_object: AllocatedNormalObjectHandle<'gc>,
-    }
-
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_ext_class_launcher(&self) -> ExtClassLoader<'gc> {
-            ExtClassLoader { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-        }
     }
 
     impl<'gc> ExtClassLoader<'gc> {

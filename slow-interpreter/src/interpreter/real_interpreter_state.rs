@@ -21,29 +21,6 @@ impl InterpreterJavaValue {
         Self::Object(None)
     }
 
-    pub fn from_raw(raw: u64, rtype: RuntimeType) -> Self {
-        match rtype {
-            RuntimeType::IntType => {
-                Self::Int(raw as i32)
-            }
-            RuntimeType::FloatType => {
-                Self::Float(f32::from_bits(raw as u32))
-            }
-            RuntimeType::DoubleType => {
-                Self::Double(f64::from_bits(raw))
-            }
-            RuntimeType::LongType => {
-                Self::Long(raw as i64)
-            }
-            RuntimeType::Ref(_) => {
-                Self::Object(NonNull::new(raw as *mut c_void))
-            }
-            RuntimeType::TopType => {
-                todo!()
-            }
-        }
-    }
-
     pub fn to_new_java_handle<'gc>(self, jvm: &'gc JVMState<'gc>) -> NewJavaValueHandle<'gc> {
         match self {
             InterpreterJavaValue::Int(int) => {

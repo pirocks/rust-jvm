@@ -4,18 +4,11 @@ use crate::{AllocatedHandle, NewAsObjectOrJavaValue, pushable_frame_todo, WasExc
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::{new_object_full, run_constructor};
-use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 
 pub struct IllegalArgumentException<'gc> {
     normal_object: AllocatedHandle<'gc>,
-}
-
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_illegal_argument_exception(&self) -> IllegalArgumentException<'gc> {
-        IllegalArgumentException { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
 }
 
 impl<'gc> AllocatedHandle<'gc> {

@@ -11,11 +11,11 @@ use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
 
 
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
 
 #[no_mangle]
@@ -50,8 +50,8 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *con
         match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
             Ok(res) => res,
             Err(WasException { exception_obj }) => {
-                todo!();
-                return null_mut();
+                *get_throw(env) = Some(WasException { exception_obj });
+                return jclass::invalid_default();
             }
         }
             .unwrap_object().unwrap().as_allocated_obj().into(),

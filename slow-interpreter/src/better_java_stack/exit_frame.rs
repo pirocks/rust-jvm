@@ -39,9 +39,6 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
         Self {
             java_stack: java_stack_guard,
             frame_pointer,
-            // num_locals: todo!(),
-            // max_stack: todo!(),
-            // stack_depth: todo!()
             stack_pointer,
             current_pc,
         }
@@ -131,11 +128,11 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
 
 impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
-        todo!()
+        self.java_stack
     }
 
     fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
+        self.java_stack
     }
 
     fn frame_ref(&self) -> IRFrameRef {
@@ -148,7 +145,7 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
     fn frame_mut(&mut self) -> IRFrameMut {
         IRFrameMut {
             ptr: self.frame_pointer.0,
-            ir_stack: todo!()/*&mut self.java_stack.owned_ir_stack*/,
+            ir_stack: self.java_stack.ir_stack_mut(),
         }
     }
 
@@ -173,12 +170,6 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
 
     fn next_frame_pointer(&self) -> FramePointer {
         FramePointer(self.stack_pointer)
-        /*unsafe {
-            FramePointer(NonNull::new(self.frame_pointer.0.as_ptr()
-                .sub(FRAME_HEADER_END_OFFSET)
-                .sub((self.num_locals as usize * size_of::<NativeJavaValue<'gc>>()) as usize)
-                .sub((self.max_stack as usize * size_of::<NativeJavaValue<'gc>>()) as usize)).unwrap())
-        }*/
     }
 
     fn debug_assert(&self) {

@@ -8,42 +8,39 @@ use std::fs::File;
 use std::io::{Cursor, Write};
 use std::mem::transmute;
 use std::ptr::null_mut;
-use std::sync::{Arc};
+use std::sync::Arc;
+
+use itertools::Itertools;
 use libc::rand;
 use wtf8::Wtf8Buf;
+
+use classfile_parser::parse_class_file;
 use classfile_view::view::{ClassBackedView, ClassView};
 use classfile_view::view::ptype_view::PTypeView;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jfieldID, jint, jmethodID, JNI_ERR, JNI_OK, JNIEnv, jobject, jsize, jstring, jvalue};
-
-
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
 use rust_jvm_common::FieldId;
-use rust_jvm_common::loading::{LoaderName};
-
+use rust_jvm_common::loading::LoaderName;
+use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
+use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter_util::new_object;
-use slow_interpreter::java_values::{JavaValue};
-use slow_interpreter::new_java_values::NewJavaValueHandle;
-use slow_interpreter::better_java_stack::frames::PushableFrame;
+use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
+use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo, throw_npe};
-use crate::call::VarargProvider;
-use itertools::Itertools;
-use classfile_parser::parse_class_file;
-use slow_interpreter::define_class_safe::define_class_safe;
-use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
+use crate::call::VarargProvider;
 
 pub mod jni;
 pub mod array;
@@ -150,7 +147,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
     let string: JString = match JavaValue::Object(todo!() /*from_jclass(jvm,str)*/).cast_string() {
-        None => return throw_npe(jvm, /*int_state*/pushable_frame_todo(),todo!()),
+        None => return throw_npe(jvm, /*int_state*/pushable_frame_todo(), todo!()),
         Some(string) => string,
     };
     let char_vec = string.value(jvm);
@@ -186,8 +183,8 @@ unsafe extern "C" fn alloc_object<'gc, 'l>(env: *mut JNIEnv, clazz: jclass) -> j
     let jvm: &'gc JVMState<'gc> = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut temp: OpaqueFrame<'gc, '_> = todo!();
-    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm), false).to_jv().unwrap_object();
-    to_object(res_object)
+    let res_object = new_object(jvm, int_state, &from_jclass(jvm, clazz).as_runtime_class(jvm), false).as_allocated_obj();
+    new_local_ref_public_new(Some(res_object), int_state)
 }
 
 ///ToReflectedMethod
@@ -327,7 +324,7 @@ unsafe extern "C" fn throw_new(env: *mut JNIEnv, clazz: jclass, msg: *const c_ch
                 Err(_) => return -2,
             }
                 .to_string()
-        }else {
+        } else {
             "".to_string()
         };
         let java_string = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(rust_string)) {

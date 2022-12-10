@@ -78,13 +78,6 @@ impl JavaVMStateWrapperInner {
                 return exit_impls::allocate_object_array(jvm, int_state.unwrap(), *type_, *len, *return_to_ptr, *res_address);
             }
             RuntimeVMExitInput::LoadClassAndRecompile { .. } => todo!(),
-            RuntimeVMExitInput::RunStaticNative { .. } => {
-                todo!()
-                // return exit_impls::run_static_native(jvm, todo!()/*int_state.unwrap()*/, *method_id, *arg_start, *num_args, *res_ptr, *return_to_ptr);
-            }
-            RuntimeVMExitInput::RunNativeVirtual { .. } => {
-                todo!()
-            }
             RuntimeVMExitInput::TopLevelReturn { return_value } => {
                 return exit_impls::top_level_return(jvm, *return_value);
             }
@@ -152,18 +145,11 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::MonitorExitRegister { obj_ptr, return_to_ptr, pc:_ } => {
                 exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
-            RuntimeVMExitInput::GetStatic { res_value_ptr: value_ptr, field_name, cpdtype_id, return_to_ptr, pc: _ } => {
-                exit_impls::get_static(jvm, int_state.unwrap(), *value_ptr, *field_name, *cpdtype_id, *return_to_ptr)
-            }
             RuntimeVMExitInput::InstanceOf { res, value, cpdtype_id, return_to_ptr, pc: _ } => {
                 exit_impls::instance_of(jvm, int_state.unwrap(), res, value, cpdtype_id, return_to_ptr)
             }
             RuntimeVMExitInput::CheckCast { value, cpdtype_id, return_to_ptr, pc: _ } => {
                 exit_impls::check_cast(&jvm, int_state.unwrap(), value, cpdtype_id, return_to_ptr)
-            }
-            RuntimeVMExitInput::RunNativeSpecial { .. } => {
-                todo!()
-                // exit_impls::run_native_special(jvm, todo!()/*int_state.unwrap()*/, *res_ptr, *arg_start, *method_id, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeInterfaceResolve { return_to_ptr, native_method_restart_point, native_method_res, object_ref, method_shape_id, method_number, interface_id, pc: _ } => {
                 exit_impls::invoke_interface_resolve(jvm, int_state.unwrap(), *return_to_ptr, *native_method_restart_point, *native_method_res, *object_ref, *method_shape_id, *interface_id, *method_number)

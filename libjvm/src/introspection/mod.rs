@@ -70,8 +70,8 @@ unsafe extern "system" fn JVM_GetClassInterfaces<'gc>(env: *mut JNIEnv, cls: jcl
     {
         Ok(interface_vec) => interface_vec,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jobjectArray::invalid_default();
         }
     };
     let whole_array_runtime_class = assert_inited_or_initing_class(jvm, CPDType::array(CClassName::class().into()));
@@ -112,8 +112,8 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
         match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
             Ok(jclass) => jclass,
             Err(WasException { exception_obj }) => {
-                todo!();
-                return null_mut();
+                *get_throw(env) = Some(WasException { exception_obj });
+                return jclass::invalid_default();
             }
         }.full_object_ref().into(),
         int_state,
@@ -153,8 +153,8 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
     let obj_array = match res_array {
         Ok(obj_array) => obj_array,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jobjectArray::invalid_default();
         }
     };
     let res_jv = JavaValue::new_vec_from_vec(
@@ -180,11 +180,8 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
         None => return null_mut(),
     };
     for inner_class in inner_classes.classes() {
-        // dbg!(inner_class.complete_name(&jvm.string_pool).unwrap().0.to_str(&jvm.string_pool));
-        // dbg!(class_name.0.to_str(&jvm.string_pool));
         if inner_class.complete_name(&jvm.string_pool) == Some(class_name) {
             let target_class_name = inner_class.outer_name(&jvm.string_pool);
-            // dbg!(target_class_name.0.to_str(&jvm.string_pool));
             let class = get_or_create_class_object(jvm, target_class_name.into(), int_state).unwrap();
             return to_object_new(Some(class.as_allocated_obj()));
         }
@@ -208,9 +205,9 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
 
     match JString::from_rust(jvm, int_state, signature) {
         Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
-        Err(WasException) => {
-            todo!();
-            null_mut()
+        Err(WasException{ exception_obj }) => {
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jstring::invalid_default()
         }
     }
 }
@@ -250,8 +247,8 @@ unsafe extern "system" fn JVM_GetClassContext<'gc>(env: *mut JNIEnv) -> jobjectA
         .collect::<Result<Vec<_>, WasException<'gc>>>() {
         Ok(jclasses) => jclasses,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jobjectArray::invalid_default();
         }
     };
     new_local_ref_public_new(JavaValue::new_vec_from_vec(jvm, jclasses.iter().map(|handle| handle.as_njv()).collect(), CClassName::class().into()).new_java_value().unwrap_object_alloc(), int_state)
@@ -321,7 +318,7 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
     match Reflection::is_same_class_package(jvm, int_state, from_jclass(jvm, class1), from_jclass(jvm, class2)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             return jboolean::MAX;
         }
     }

@@ -6,12 +6,12 @@ use wtf8::Wtf8Buf;
 
 use jvmti_jni_bindings::{JNIEnv, jobjectArray, jstring};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::native_allocation::AllocationType::CString;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -29,8 +29,8 @@ unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) 
     let jstring = match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(res_string)) {
         Ok(jstring) => jstring,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException { exception_obj });
+            return jstring::invalid_default();
         }
     };
     new_local_ref_public_new(jstring.full_object().as_allocated_obj().into(), int_state)

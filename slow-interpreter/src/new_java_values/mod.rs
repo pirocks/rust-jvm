@@ -239,10 +239,6 @@ impl<'gc, 'l> Debug for NewJavaValue<'gc, 'l> {
 }
 
 impl<'gc, 'l> NewJavaValue<'gc, 'l> {
-    pub fn to_jv(&self) -> JavaValue<'gc> {
-        todo!()
-    }
-
     pub fn unwrap_object(&self) -> Option<NewJVObject<'gc, 'l>> {
         match self {
             NewJavaValue::Null => None,

@@ -128,7 +128,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
     } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
         let jclass = match args[1].cast_class() {
             None => {
-                throw_npe_res()?;
+                throw_npe_res(jvm,int_state)?;
                 unreachable!()
             }
             Some(class) => class,
@@ -160,15 +160,7 @@ fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut 
         None
     } else if &mangled == "Java_sun_misc_Unsafe_fullFence"{
         None
-    } else if &mangled == "Java_sun_misc_Unsafe_getObject" {
-        todo!()
-    } else if &mangled == "Java_sun_misc_Unsafe_getFloat__Ljava_lang_Object_2J"{
-        todo!()
-    } else if &mangled == "Java_sun_misc_Unsafe_getBoolean" {
-        todo!()
     } else if &mangled == "Java_sun_misc_Unsafe_putOrderedLong" {
-        todo!()
-    } else if &mangled == "Java_sun_misc_Unsafe_putFloat__Ljava_lang_Object_2JF"{
         todo!()
     } else {
         dbg!(mangled);

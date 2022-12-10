@@ -6,7 +6,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
 use crate::{AllocatedHandle, JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_objects::get_or_create_class_object;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterJavaValue, RealInterpreterStateGuard};
@@ -63,10 +63,9 @@ pub fn ldc_w<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterp
                     let obj = classes_guard.lookup_live_object_pool(live_object_index);
                     int_state.current_frame_mut().push(obj.new_java_value_handle().to_interpreter_jv());
                 }
-                _ => {
-                    // dbg!(cp);
-                    todo!();/*int_state.inner().debug_print_stack_trace(jvm);*/
-                    // dbg!(&pool_entry);
+                cp => {
+                    dbg!(cp);
+                    int_state.inner().debug_print_stack_trace(jvm);
                     unimplemented!()
                 }
             }

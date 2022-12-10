@@ -47,7 +47,6 @@ pub mod pop;
 pub mod throw;
 pub mod common;
 
-//takes exclusive framepush guard so I know I can mut the frame rip safelyish maybe. todo have a better way of doing this
 pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut JavaInterpreterFrame<'gc, 'l>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     // let should_trace = unsafe { libc::rand() } < 1000000;
     // if should_trace {
@@ -78,28 +77,16 @@ pub fn run_function<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut Ja
     interpreter_state.frame_mut().assert_prev_rip(jvm.java_vm_state.ir.get_top_level_return_ir_pointer().as_ptr());
     assert!((interpreter_state.frame_ref().method_id() == Ok(method_id)));
 
-    if !jvm.instruction_tracing_options.partial_tracing() {
-        // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.push(None);
-    }
     let function_res = jvm.java_vm_state.run_method(jvm, interpreter_state, method_id)?;
-    // assert_eq!(jvm.java_vm_state.assertion_state.lock().unwrap().method_ids.pop().unwrap(), method_id);
-    // jvm.java_vm_state.assertion_state.lock().unwrap().current_before.pop().unwrap();
     //todo bug what if gc happens here
     if !jvm.instruction_tracing_options.partial_tracing() {
         // jvm.java_vm_state.assertion_state.lock().unwrap().current_before = restore_clone;
     }
-    //todo
-    // if interpreter_state.throw().is_some(){
-    //     return Err(WasException{})
-    // }
     let return_type = &method.desc().return_type;
     Ok(match return_type {
         CompressedParsedDescriptorType::VoidType => None,
         return_type => {
             let native_value = StackNativeJavaValue { as_u64: function_res };
-            /*unsafe {
-                eprintln!("{:X}",native_value.as_u64);
-            }*/
             Some(native_to_new_java_value_cpdtype(native_value, *return_type, jvm))
         }
     })

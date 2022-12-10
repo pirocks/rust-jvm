@@ -1,7 +1,6 @@
 use std::fmt;
 use std::fmt::Formatter;
 use std::hash::Hash;
-use std::hash::Hasher;
 use std::sync::Weak;
 
 use crate::classfile::Classfile;
@@ -21,7 +20,7 @@ impl PartialEq for NameReference {
     }
 }
 
-#[derive(Eq)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub enum ClassName {
     Str(String),
 }
@@ -189,27 +188,6 @@ impl ClassName {
     }
 }
 
-impl Hash for ClassName {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write(self.get_referred_name().as_bytes())
-    }
-}
-
-impl PartialEq for ClassName {
-    fn eq(&self, other: &ClassName) -> bool {
-        self.get_referred_name() == other.get_referred_name()
-    }
-}
-
-impl Clone for ClassName {
-    fn clone(&self) -> Self {
-        match self {
-            ClassName::Str(s) => {
-                ClassName::Str(s.clone()) //todo fix
-            }
-        }
-    }
-}
 
 impl fmt::Debug for ClassName {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

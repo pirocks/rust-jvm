@@ -5,14 +5,10 @@ use libc::c_void;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jshort};
 use rust_jvm_common::StackNativeJavaValue;
 
-use crate::{JavaValue, NewJavaValue};
+use crate::{NewJavaValue};
 
 pub trait JavaValueCommon<'gc> {
     fn as_njv(&self) -> NewJavaValue<'gc, '_>;
-
-    fn to_jv(&self) -> JavaValue<'gc> {
-        todo!()
-    }
 
     fn unwrap_bool_strict(&self) -> jboolean {
         match self.as_njv() {
@@ -197,48 +193,5 @@ pub trait JavaValueCommon<'gc> {
         all_zero
     }
 
-
-    // fn to_native(&self) -> NativeJavaValue<'gc> {
-    //     let mut all_zero = NativeJavaValue { as_u64: 0 };
-    //     match self.as_njv() {
-    //         NewJavaValue::Long(long) => {
-    //             all_zero.long = long;
-    //         }
-    //         NewJavaValue::Int(int) => {
-    //             all_zero.int = int;
-    //         }
-    //         NewJavaValue::Short(short) => {
-    //             all_zero.short = short;
-    //         }
-    //         NewJavaValue::Byte(byte) => {
-    //             all_zero.byte = byte;
-    //         }
-    //         NewJavaValue::Boolean(bool) => {
-    //             all_zero.boolean = bool;
-    //         }
-    //         NewJavaValue::Char(char) => {
-    //             all_zero.char = char;
-    //         }
-    //         NewJavaValue::Float(float) => {
-    //             all_zero.float = float;
-    //         }
-    //         NewJavaValue::Double(double) => {
-    //             all_zero.double = double;
-    //         }
-    //         NewJavaValue::Null => {
-    //             all_zero.object = null_mut();
-    //         }
-    //         NewJavaValue::UnAllocObject(_) => {
-    //             todo!()
-    //         }
-    //         NewJavaValue::AllocObject(obj) => {
-    //             all_zero.object = obj.ptr().as_ptr();
-    //         }
-    //         NewJavaValue::Top => {
-    //             all_zero.as_u64 = 0xdddd_dddd_dddd_dddd;
-    //         }
-    //     }
-    //     all_zero
-    // }
 }
 

@@ -2,7 +2,6 @@ use std::hash::{Hash, Hasher};
 
 use itertools::Itertools;
 
-use crate::classfile::{Classfile, MethodInfo};
 use crate::classnames::ClassName;
 
 use crate::compressed_classfile::compressed_descriptors::CFieldDescriptor;
@@ -18,11 +17,6 @@ pub struct MethodDescriptor {
 pub struct MethodDescriptorCache {}
 
 impl MethodDescriptor {
-    pub fn from_legacy(method_info: &MethodInfo, classfile: &Classfile) -> Self {
-        parse_method_descriptor(method_info.descriptor_str(classfile).as_str()).unwrap()
-        //todo get rid of this unwrap and this function
-    }
-
     pub fn jvm_representation(&self) -> String {
         format!("({}){}", self.parameter_types.iter().map(|param| param.jvm_representation()).join(""), self.return_type.jvm_representation())
     }

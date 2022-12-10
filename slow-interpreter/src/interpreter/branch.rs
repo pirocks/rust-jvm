@@ -85,7 +85,6 @@ pub fn ifne<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j
 }
 
 pub fn ifeq<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, offset: i16) -> PostInstructionAction<'gc> {
-    //todo dup
     let val = current_frame.pop(RuntimeType::IntType);
     let succeeds = val.unwrap_int() == 0;
     if succeeds {

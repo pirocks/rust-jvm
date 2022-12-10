@@ -8,7 +8,6 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use crate::{JVMState, NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::static_vars::static_vars;
@@ -17,12 +16,6 @@ use crate::utils::run_static_or_virtual;
 
 pub struct Unsafe<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_unsafe(&self) -> Unsafe<'gc> {
-        Unsafe { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
 }
 
 impl<'gc> Unsafe<'gc> {

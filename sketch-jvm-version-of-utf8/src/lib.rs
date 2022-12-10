@@ -12,8 +12,6 @@ pub struct JVMString {
     pub buf: Vec<u8>,
 }
 
-//todo if issues with this go dumpster diving in history there where some issues merging to master.
-
 impl JVMString {
     pub fn from_regular_string(str: &str) -> Self {
         let buf = str
@@ -51,12 +49,12 @@ impl JVMString {
     }
 
     pub fn to_wtf8(&self) -> Wtf8Buf {
-        PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(true).unwrap().unwrap_wtf8()
+        PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8().unwrap().unwrap_wtf8()
     }
 
     pub fn to_string(&self) -> Result<String, ValidationError> {
-        let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8(false)?;
-        Ok(buf.unwrap_utf8())
+        let buf = PossiblyJVMString { buf: self.buf.clone() }.to_regular_utf8()?;
+        Ok(buf.unwrap_wtf8().into_string().unwrap())
     }
 }
 
@@ -83,14 +81,13 @@ impl PossiblyJVMString {
         Self { buf }
     }
 
-    pub fn validate(self, allow_wtf8: bool) -> Result<JVMString, ValidationError> {
-        self.to_regular_utf8(allow_wtf8)?;
+    pub fn validate(self) -> Result<JVMString, ValidationError> {
+        self.to_regular_utf8()?;
         Ok(JVMString { buf: self.buf })
     }
 
-    fn to_regular_utf8(&self, is_wtf8: bool) -> Result<Utf8OrWtf8, ValidationError> {
-        assert!(is_wtf8);//this parsing only parses to wtf8
-        let mut res = if is_wtf8 { Utf8OrWtf8::new_wtf() } else { Utf8OrWtf8::new_utf() };
+    fn to_regular_utf8(&self) -> Result<Utf8OrWtf8, ValidationError> {
+        let mut res = Utf8OrWtf8::new_wtf();
         let mut buf_iter = self.buf.iter().multipeek();
         loop {
             let x = match buf_iter.next() {
@@ -138,9 +135,6 @@ pub enum Utf8OrWtf8 {
 }
 
 impl Utf8OrWtf8 {
-    pub fn new_utf() -> Self {
-        Self::Utf(String::new())
-    }
     pub fn new_wtf() -> Self {
         Self::Wtf(Wtf8Buf::new())
     }
@@ -156,13 +150,6 @@ impl Utf8OrWtf8 {
         match self {
             Utf8OrWtf8::Wtf(res) => res,
             Utf8OrWtf8::Utf(str) => Wtf8Buf::from_string(str),
-        }
-    }
-
-    pub fn unwrap_utf8(self) -> String {
-        match self {
-            Utf8OrWtf8::Wtf(_) => panic!(),
-            Utf8OrWtf8::Utf(str) => str,
         }
     }
 }

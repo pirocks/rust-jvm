@@ -168,11 +168,6 @@ impl<'gc> JThread<'gc> {
         jvm.monitor_for(self.normal_object.ptr.as_ptr() as *const c_void).notify_all(jvm).unwrap();
     }
 
-    // pub fn object(self) -> crate::new_java_values::AllocatedObject<'gc, 'gc> {
-    //     todo!()
-    // }
-    //
-
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for JThread<'gc> {

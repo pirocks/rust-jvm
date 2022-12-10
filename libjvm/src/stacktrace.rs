@@ -122,7 +122,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     let stack_traces: &Vec<StackTraceElement> = match guard.get(&AllocatedObjectHandleByAddress(throwable_not_null)) {
         Some(x) => x,
         None => {
-            return throw_illegal_arg(jvm, int_state);
+            return throw_illegal_arg(jvm, int_state, get_throw(env));
         }
     };
     match stack_traces.get(index as usize)

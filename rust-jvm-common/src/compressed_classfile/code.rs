@@ -6,7 +6,7 @@ use itertools::Either;
 use wtf8::Wtf8Buf;
 
 use crate::ByteCodeOffset;
-use crate::classfile::{Atype, CPIndex, IInc, LookupSwitch, SameFrame, TableSwitch, Wide};
+use crate::classfile::{Atype, ChopFrame, CPIndex, IInc, LookupSwitch, SameFrame, SameFrameExtended, TableSwitch, Wide};
 use crate::compressed_classfile::{CMethodDescriptor, CompressedClassfileStringPool, CPDType, CPRefType};
 use crate::compressed_classfile::class_names::CClassName;
 use crate::compressed_classfile::compressed_descriptors::CFieldDescriptor;
@@ -1526,18 +1526,8 @@ pub struct CompressedSameLocals1StackItemFrameExtended {
     pub stack: VType,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct CompressedChopFrame {
-    //todo why is this a thing
-    pub offset_delta: u16,
-    pub k_frames_to_chop: u8,
-}
-
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct CompressedSameFrameExtended {
-    //todo why is this is a thing as well, since its same as non-compressed
-    pub offset_delta: u16,
-}
+pub type CompressedChopFrame = ChopFrame;
+pub type CompressedSameFrameExtended = SameFrameExtended;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct CompressedAppendFrame {

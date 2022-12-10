@@ -38,8 +38,6 @@ pub struct GC<'gc> {
     pub memory_region: Mutex<MemoryRegions>,
     //doesn't really need to be atomic usize
     vm_temp_owned_roots: RwLock<HashMap<NonNull<c_void>, AtomicUsize>>,
-    //todo deprecated/ not in use
-    phantom: PhantomData<&'gc ()>,
     pub objects_that_live_for_gc_life: AddOnlyVec<AllocatedNormalObjectHandle<'gc>>,
 }
 
@@ -130,7 +128,6 @@ impl<'gc> GC<'gc> {
         Self {
             memory_region: Mutex::new(MemoryRegions::new(regions)),
             vm_temp_owned_roots: RwLock::new(Default::default()),
-            phantom: PhantomData::default(),
             objects_that_live_for_gc_life: AddOnlyVec::new(),
         }
     }

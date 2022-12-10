@@ -7,14 +7,13 @@ use another_jit_vm::{FramePointerOffset, Register};
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
-use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, GetStatic, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunNativeSpecial, RunNativeVirtual, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::{RawVMExitType, TodoCase};
 
 pub mod register_structs;
@@ -82,14 +81,6 @@ pub enum IRVMExitType {
         restart_point_id: RestartPointID,
         java_pc: ByteCodeOffset,
     },
-    RunStaticNative {
-        //todo should I actually use these args?
-        method_id: MethodId,
-        arg_start_frame_offset: Option<FramePointerOffset>,
-        res_pointer_offset: Option<FramePointerOffset>,
-        num_args: u16,
-        java_pc: ByteCodeOffset,
-    },
     RunStaticNativeNew {
         method_id: MethodId,
         // arg_start_frame_offset: Option<FramePointerOffset>,
@@ -101,20 +92,6 @@ pub enum IRVMExitType {
         // arg_start_frame_offset: Option<FramePointerOffset>,
         // java_pc: ByteCodeOffset,
         // res_pointer_offset: Option<FramePointerOffset>, //goes in rax.
-    },
-    RunNativeVirtual {
-        method_id: MethodId,
-        arg_start_frame_offset: FramePointerOffset,
-        res_pointer_offset: Option<FramePointerOffset>,
-        num_args: u16,
-        java_pc: ByteCodeOffset,
-    },
-    RunNativeSpecial {
-        method_id: MethodId,
-        arg_start_frame_offset: FramePointerOffset,
-        res_pointer_offset: Option<FramePointerOffset>,
-        num_args: u16,
-        java_pc: ByteCodeOffset,
     },
     CompileFunctionAndRecompileCurrent {
         current_method_id: MethodId,
@@ -148,12 +125,6 @@ pub enum IRVMExitType {
     PutStatic {
         field_id: FieldId,
         value: FramePointerOffset,
-        java_pc: ByteCodeOffset,
-    },
-    GetStatic {
-        field_name: FieldName,
-        rc_type: CPDTypeID,
-        res_value: FramePointerOffset,
         java_pc: ByteCodeOffset,
     },
     LogFramePointerOffsetValue {
@@ -217,7 +188,7 @@ pub enum IRVMExitType {
 }
 
 impl IRVMExitType {
-    pub fn gen_assembly(&self, assembler: &mut CodeAssembler, after_exit_label: &mut CodeLabel, registers: &HashSet<Register>) {
+    pub fn gen_assembly(&self, assembler: &mut CodeAssembler, after_exit_label: &mut CodeLabel) {
         match self {
             IRVMExitType::AllocateObjectArray_ { array_type, arr_len, arr_res, java_pc } => {
                 // assembler.int3().unwrap();
@@ -234,30 +205,6 @@ impl IRVMExitType {
                 assembler.mov(LoadClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
                 assembler.mov(LoadClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
                 assembler.mov(LoadClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-            }
-            IRVMExitType::RunStaticNative { method_id, arg_start_frame_offset, res_pointer_offset, num_args, java_pc } => {
-                assert!(registers.contains(&RunStaticNative::METHODID));
-                assert!(registers.contains(&RunStaticNative::RESTART_IP));
-                assert!(registers.contains(&RunStaticNative::NUM_ARGS));
-                assert!(registers.contains(&RunStaticNative::RES));
-                assert!(registers.contains(&RunStaticNative::ARG_START));
-                assembler.mov(rax, RawVMExitType::RunStaticNative as u64).unwrap();
-                assembler.mov(RunStaticNative::METHODID.to_native_64(), *method_id as u64).unwrap();
-                assembler.lea(RunStaticNative::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
-                match arg_start_frame_offset {
-                    None => {
-                        assembler.mov(RunStaticNative::ARG_START.to_native_64(), 0u64).unwrap();
-                    }
-                    Some(arg_start_frame_offset) => {
-                        assembler.lea(RunStaticNative::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
-                    }
-                }
-                assembler.mov(RunStaticNative::NUM_ARGS.to_native_64(), *num_args as u64).unwrap();
-                if let Some(res_pointer_offset) = res_pointer_offset {
-                    assembler.lea(RunStaticNative::RES.to_native_64(), rbp - res_pointer_offset.0).unwrap();
-                }
-                assembler.mov(RunStaticNative::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-                // assembler.mov(RunStaticNative::RES.to_native_64(),).unwrap()
             }
             IRVMExitType::TopLevelReturn => {
                 assembler.mov(TopLevelReturn::RES.to_native_64(), rax).unwrap();
@@ -360,14 +307,6 @@ impl IRVMExitType {
                 assembler.lea(Throw::EXCEPTION_PTR.to_native_64(), rbp - to_throw_obj_offset.0).unwrap();
                 assembler.mov(Throw::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap()
             }
-            IRVMExitType::GetStatic { field_name, rc_type, res_value, java_pc } => {
-                assembler.mov(rax, RawVMExitType::GetStatic as u64).unwrap();
-                assembler.lea(GetStatic::RES_VALUE_PTR.to_native_64(), rbp - res_value.0).unwrap();
-                assembler.mov(GetStatic::FIELD_NAME.to_native_64(), field_name.0.id.0 as u64).unwrap();
-                assembler.mov(GetStatic::CPDTYPE_ID.to_native_64(), rc_type.0 as u64).unwrap();
-                assembler.lea(GetStatic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
-                assembler.mov(GetStatic::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-            }
             IRVMExitType::Todo { java_pc, todo_case } => {
                 assembler.mov(rax, RawVMExitType::Todo as u64).unwrap();
                 assembler.mov(Todo::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
@@ -387,36 +326,6 @@ impl IRVMExitType {
                 assembler.mov(CheckCast::CPDTYPE_ID.to_native_64(), cpdtype.0 as u64).unwrap();
                 assembler.lea(CheckCast::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(CheckCast::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-            }
-            IRVMExitType::RunNativeVirtual { method_id, arg_start_frame_offset, res_pointer_offset, num_args: _, java_pc } => {
-                assembler.mov(rax, RawVMExitType::RunNativeVirtual as u64).unwrap();
-                assembler.lea(RunNativeVirtual::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
-                match res_pointer_offset {
-                    None => {
-                        assembler.xor(RunNativeVirtual::RES_PTR.to_native_64(), RunNativeVirtual::RES_PTR.to_native_64()).unwrap();
-                    }
-                    Some(res_pointer_offset) => {
-                        assembler.lea(RunNativeVirtual::RES_PTR.to_native_64(), rbp - res_pointer_offset.0).unwrap();
-                    }
-                }
-                assembler.mov(RunNativeVirtual::METHODID.to_native_64(), *method_id as u64).unwrap();
-                assembler.lea(RunNativeVirtual::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
-                assembler.mov(RunNativeVirtual::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
-            }
-            IRVMExitType::RunNativeSpecial { method_id, arg_start_frame_offset, res_pointer_offset, num_args: _, java_pc } => {
-                assembler.mov(rax, RawVMExitType::RunNativeSpecial as u64).unwrap();
-                assembler.lea(RunNativeSpecial::ARG_START.to_native_64(), rbp - arg_start_frame_offset.0).unwrap();
-                match res_pointer_offset {
-                    None => {
-                        assembler.xor(RunNativeSpecial::RES_PTR.to_native_64(), RunNativeSpecial::RES_PTR.to_native_64()).unwrap();
-                    }
-                    Some(res_pointer_offset) => {
-                        assembler.lea(RunNativeSpecial::RES_PTR.to_native_64(), rbp - res_pointer_offset.0).unwrap();
-                    }
-                }
-                assembler.mov(RunNativeSpecial::METHODID.to_native_64(), *method_id as u64).unwrap();
-                assembler.lea(RunNativeSpecial::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
-                assembler.mov(RunNativeSpecial::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
             IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_shape_id, interface_id, native_restart_point, native_return_offset, method_number, java_pc } => {
                 assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
@@ -543,15 +452,7 @@ impl IRVMExitType {
             IRVMExitType::InitClassAndRecompile { .. } => {
                 todo!()
             }
-            IRVMExitType::RunStaticNative { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunNativeVirtual { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunNativeSpecial { .. } => {
-                todo!()
-            }
+
             IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => {
                 todo!()
             }
@@ -568,9 +469,6 @@ impl IRVMExitType {
                 todo!()
             }
             IRVMExitType::PutStatic { .. } => {
-                todo!()
-            }
-            IRVMExitType::GetStatic { .. } => {
                 todo!()
             }
             IRVMExitType::LogFramePointerOffsetValue { .. } => {
@@ -659,15 +557,6 @@ impl IRVMExitType {
             IRVMExitType::InitClassAndRecompile { .. } => {
                 HashSet::from([Register(0), InitClassAndRecompile::TO_RECOMPILE, InitClassAndRecompile::CPDTYPE_ID, InitClassAndRecompile::RESTART_POINT_ID])
             }
-            IRVMExitType::RunStaticNative { .. } => {
-                HashSet::from([Register(0), RunStaticNative::RES, RunStaticNative::RESTART_IP, RunStaticNative::ARG_START, RunStaticNative::METHODID, RunStaticNative::NUM_ARGS])
-            }
-            IRVMExitType::RunNativeVirtual { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunNativeSpecial { .. } => {
-                RunNativeSpecial::all_registers()
-            }
             IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => {
                 CompileFunctionAndRecompileCurrent::all_registers()
             }
@@ -685,9 +574,6 @@ impl IRVMExitType {
             }
             IRVMExitType::PutStatic { .. } => {
                 PutStatic::all_registers()
-            }
-            IRVMExitType::GetStatic { .. } => {
-                GetStatic::all_registers()
             }
             IRVMExitType::LogFramePointerOffsetValue { .. } => {
                 todo!()

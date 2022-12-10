@@ -27,11 +27,11 @@ impl<'gc> NewJavaValueHandle<'gc> {
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for JObject<'gc> {
     fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-        todo!()
+        self.normal_object.unwrap_normal_object()
     }
 
     fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-        todo!()
+        self.normal_object.unwrap_normal_object_ref()
     }
 
     fn full_object(self) -> AllocatedHandle<'gc> {

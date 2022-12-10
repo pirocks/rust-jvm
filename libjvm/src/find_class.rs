@@ -33,7 +33,7 @@ use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv, name: *const ::std::os::raw::c_char) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv, name: *const c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let name_str = CStr::from_ptr(name).to_str().unwrap().to_string(); //todo handle utf8 here
@@ -66,13 +66,13 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromClassLoader(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, loader: jobject, throwError: jboolean) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromClassLoader(env: *mut JNIEnv, name: *const c_char, init: jboolean, loader: jobject, throwError: jboolean) -> jclass {
     dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, init: jboolean, from: jclass) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromClass(env: *mut JNIEnv, name: *const c_char, init: jboolean, from: jclass) -> jclass {
     dbg!(CStr::from_ptr(name).to_str().unwrap());
     unimplemented!()
 }

@@ -46,7 +46,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             assembler.cmp(obj_ptr.to_native_64(), 0).unwrap();
             assembler.jne(not_null).unwrap();
             let registers = resolve_exit.registers_to_save();
-            IRVMExitType::NPE { java_pc }.gen_assembly(assembler, &mut not_null, &registers);
+            IRVMExitType::NPE { java_pc }.gen_assembly(assembler, &mut not_null);
             let mut before_exit_label = assembler.create_label();
             VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
             let vtable_ptr_register = Register(3);
@@ -58,7 +58,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let mut fast_resolve_worked = assembler.create_label();
             assembler.jnz(fast_resolve_worked).unwrap();
             let registers = resolve_exit.registers_to_save();
-            resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked, &registers);
+            resolve_exit.gen_assembly(assembler, &mut fast_resolve_worked);
             let mut before_exit_label = assembler.create_label();
             VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut fast_resolve_worked, registers);
             // assembler.set_label(&mut fast_resolve_worked).unwrap();

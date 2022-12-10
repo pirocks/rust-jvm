@@ -124,44 +124,6 @@ impl ExitRegisterStruct for RunSpecialNativeNew {
     }
 }
 
-pub struct RunNativeVirtual;
-
-impl RunNativeVirtual {
-    pub const RES_PTR: Register = Register(2);
-    pub const ARG_START: Register = Register(3);
-    pub const METHODID: Register = Register(4);
-    pub const RESTART_IP: Register = Register(5);
-    pub const JAVA_PC: Register = Register(6);
-}
-
-impl ExitRegisterStruct for RunNativeVirtual {
-    fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::RES_PTR, Self::ARG_START, Self::METHODID, Self::RESTART_IP])
-    }
-}
-
-pub struct RunNativeSpecial;
-
-impl RunNativeSpecial {
-    pub const RES_PTR: Register = Register(2);
-    pub const ARG_START: Register = Register(3);
-    pub const METHODID: Register = Register(4);
-    pub const RESTART_IP: Register = Register(5);
-    pub const JAVA_PC: Register = Register(6);
-}
-
-impl ExitRegisterStruct for RunNativeSpecial {
-    fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0),
-            Self::RES_PTR,
-            Self::ARG_START,
-            Self::METHODID,
-            Self::RESTART_IP,
-            Self::JAVA_PC
-        ])
-    }
-}
-
 pub struct Todo;
 
 impl Todo {
@@ -196,23 +158,6 @@ impl PutStatic {
 impl ExitRegisterStruct for PutStatic {
     fn all_registers() -> HashSet<Register> {
         HashSet::from([Register(0), PutStatic::VALUE_PTR, PutStatic::FIELD_ID, PutStatic::RESTART_IP, Self::JAVA_PC])
-    }
-}
-
-
-pub struct GetStatic;
-
-impl GetStatic {
-    pub const FIELD_NAME: Register = Register(2);
-    pub const RES_VALUE_PTR: Register = Register(3);
-    pub const RESTART_IP: Register = Register(4);
-    pub const CPDTYPE_ID: Register = Register(5);
-    pub const JAVA_PC: Register = Register(6);
-}
-
-impl ExitRegisterStruct for GetStatic {
-    fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::FIELD_NAME, Self::RES_VALUE_PTR, Self::RESTART_IP, Self::CPDTYPE_ID, Self::JAVA_PC])
     }
 }
 

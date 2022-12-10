@@ -21,7 +21,7 @@ use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::java_values::{ExceptionReturn, JavaValue};
-use crate::new_java_values::allocated_objects::{AllocatedHandle};
+use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
@@ -80,10 +80,10 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
     }
 }
 
-pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>() -> Result<T, WasException<'gc>> {
-    todo!();
-    /*let _ = throw_npe::<T>(jvm, int_state);*/
-    Err(WasException { exception_obj: todo!() })
+pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
+    let mut throw = None;
+    let _ = throw_npe::<T>(jvm, int_state, &mut throw);
+    Err(WasException { exception_obj: throw.unwrap().exception_obj })
 }
 
 pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
@@ -121,19 +121,20 @@ pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState
 }
 
 pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
-    let _ = throw_illegal_arg::<T>(jvm, int_state);
-    Err(WasException { exception_obj: todo!() })
+    let mut res = None;
+    let _ = throw_illegal_arg::<T>(jvm, int_state, &mut res);
+    Err(WasException { exception_obj: res.unwrap().exception_obj })
 }
 
-pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> T {
-    let _illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
+pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
+    let illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
         Ok(illegal_arg) => illegal_arg,
         Err(WasException { .. }) => {
             eprintln!("Warning error encountered creating illegal arg exception");
             return T::invalid_default();
         }
     }.object();
-    todo!();// int_state.set_throw(Some(AllocatedHandle::NormalObject(illegal_arg_object)));
+    *throw = Some(WasException { exception_obj: illegal_arg_object.cast_throwable() });
     T::invalid_default()
 }
 
@@ -201,10 +202,10 @@ pub fn run_static_or_virtual<'gc, 'l>(
     }
 }
 
-pub fn unwrap_or_npe<'gc, 'l, T>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException<'gc>> {
+pub fn unwrap_or_npe<'gc, 'l, T>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, to_unwrap: Option<T>) -> Result<T, WasException<'gc>> {
     match to_unwrap {
         None => {
-            throw_npe_res()?;
+            throw_npe_res(jvm, int_state)?;
             unreachable!()
         }
         Some(unwrapped) => Ok(unwrapped),

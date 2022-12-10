@@ -20,10 +20,6 @@ pub struct JThreadGroup<'gc> {
 }
 
 impl<'gc> JavaValue<'gc> {
-    pub fn cast_thread_group(&self) -> JThreadGroup<'gc> {
-        todo!()
-    }
-
     pub fn try_cast_thread_group(&self) -> Option<JThreadGroup<'gc>> {
         todo!()
     }

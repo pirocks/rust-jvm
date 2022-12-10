@@ -51,7 +51,7 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     }
 
     fn debug_assert(&self) {
-        todo!()
+        self.java_stack.debug_assert();
     }
 
     fn frame_iter(&self) -> JavaFrameIterRefNew<'gc, '_> {
@@ -67,11 +67,11 @@ impl<'gc, 'k> HasFrame<'gc> for FrameIterFrameRef<'gc, 'k> {
     }
 
     fn java_stack_ref(&self) -> &JavaStackGuard<'gc> {
-        todo!()
+        self.java_stack
     }
 
     fn java_stack_mut(&mut self) -> &mut JavaStackGuard<'gc> {
-        todo!()
+        todo!("frame iter doesn't really impl this")
     }
 }
 

@@ -14,7 +14,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::StackNativeJavaValue;
 
 
-use crate::{JavaValue, JVMState, NewJavaValue, NewJavaValueHandle};
+use crate::{JVMState, NewJavaValue, NewJavaValueHandle};
 use crate::accessor_ext::AccessorExt;
 use crate::class_loading::assert_loaded_class;
 use crate::java_values::{GcManagedObject};
@@ -132,10 +132,6 @@ impl Drop for AllocatedNormalObjectHandle<'_> {
 }
 
 impl<'gc> AllocatedNormalObjectHandle<'gc> {
-    pub fn to_jv(&self) -> JavaValue<'gc> {
-        todo!()
-    }
-
     pub fn new_java_handle(self) -> NewJavaValueHandle<'gc> {
         NewJavaValueHandle::Object(AllocatedHandle::NormalObject(self))
     }
@@ -236,10 +232,6 @@ impl<'gc> AllocatedHandle<'gc> {
         NewJavaValueHandle::Object(self)
     }
 
-    pub fn to_jv<'any>(&'any self) -> JavaValue<'gc> {
-        todo!()
-    }
-
     pub fn is_array(&self, jvm: &'gc JVMState<'gc>) -> bool {
         let rc = self.runtime_class(jvm);
         rc.cpdtype().is_array()
@@ -251,13 +243,6 @@ impl<'gc> AllocatedHandle<'gc> {
             AllocatedHandle::NormalObject(_) => panic!()
         }
     }
-
-    /*pub fn unwrap_array(&self, jvm: &'gc JVMState<'gc>) -> ArrayWrapper<'gc, '_> {
-        assert!(self.is_array(jvm));
-        ArrayWrapper {
-            allocated_object: self.as_allocated_obj()
-        }
-    }*/
 
     pub fn unwrap_normal_object(self) -> AllocatedNormalObjectHandle<'gc> {
         match self {

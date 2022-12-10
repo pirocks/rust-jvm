@@ -376,7 +376,7 @@ fn gen_vm_exit(assembler: &mut CodeAssembler, exit_type: &IRVMExitType) {
     let mut before_exit_label = assembler.create_label();
     let mut after_exit_label = assembler.create_label();
     let registers = exit_type.registers_to_save();
-    exit_type.gen_assembly(assembler, &mut after_exit_label, &registers);
+    exit_type.gen_assembly(assembler, &mut after_exit_label);
     VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut after_exit_label, registers);
 }
 

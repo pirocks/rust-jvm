@@ -45,7 +45,6 @@ members = [
     "interface-vtable",
     "stage0",
     "inheritance-tree",
-    "native-vec",
     "jvm-args",
     "xtask",
     "thread-signal-handler",

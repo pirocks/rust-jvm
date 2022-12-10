@@ -8,7 +8,6 @@ use crate::{AllocatedHandle, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::{new_object, run_constructor};
-use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
@@ -17,13 +16,6 @@ use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub struct StackTraceElement<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_stack_trace_element(&self) -> StackTraceElement<'gc> {
-        todo!()
-        /*StackTraceElement { normal_object: self.unwrap_object_nonnull() }*/
-    }
 }
 
 impl<'gc> StackTraceElement<'gc> {

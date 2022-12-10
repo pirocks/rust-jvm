@@ -34,7 +34,7 @@ impl<'gc> NewAsObjectOrJavaValue<'gc> for NoSuchMethodError<'gc> {
     }
 
     fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-        todo!()
+        self.normal_object.unwrap_normal_object_ref()
     }
 }
 

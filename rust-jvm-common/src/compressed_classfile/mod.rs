@@ -187,8 +187,8 @@ impl CompressedClassfile {
                         StackMapFrame::SameFrame(sf) => CompressedStackMapFrame::SameFrame(sf.clone()),
                         StackMapFrame::SameLocals1StackItemFrame(SameLocals1StackItemFrame { offset_delta, stack }) => {
                             let stack = VType::from_ptype(stack, LoaderName::BootstrapLoader, pool);
-                            CompressedStackMapFrame::SameLocals1StackItemFrame(CompressedSameLocals1StackItemFrame { offset_delta: *offset_delta, stack })
                             //todo deal with this usage of bootstrap loader
+                            CompressedStackMapFrame::SameLocals1StackItemFrame(CompressedSameLocals1StackItemFrame { offset_delta: *offset_delta, stack })
                         }
                         StackMapFrame::SameLocals1StackItemFrameExtended(SameLocals1StackItemFrameExtended { offset_delta, stack }) => {
                             let stack = CPDType::from_ptype(stack, pool).to_verification_type(LoaderName::BootstrapLoader);

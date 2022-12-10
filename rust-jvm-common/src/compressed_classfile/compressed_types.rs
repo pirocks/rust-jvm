@@ -558,7 +558,6 @@ pub type CMethodDescriptor = CompressedMethodDescriptor;
 #[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct CPDTypeOrderWrapper(pub CPDType);
 
-//todo replace with a derive
 impl Ord for CPDTypeOrderWrapper {
     fn cmp(&self, other: &Self) -> Ordering {
         match self.0 {
@@ -666,7 +665,19 @@ impl Ord for CPDTypeOrderWrapper {
                 CPDType::Class(_) => Ordering::Greater,
                 CPDType::Array { .. } => Ordering::Greater,
             },
-            CPDType::VoidType => todo!(),
+            CPDType::VoidType => match other.0 {
+                CPDType::BooleanType => Ordering::Less,
+                CPDType::ByteType => Ordering::Less,
+                CPDType::ShortType => Ordering::Less,
+                CPDType::CharType => Ordering::Less,
+                CPDType::IntType => Ordering::Less,
+                CPDType::LongType => Ordering::Less,
+                CPDType::FloatType => Ordering::Less,
+                CPDType::DoubleType => Ordering::Less,
+                CPDType::VoidType => Ordering::Equal,
+                CPDType::Class(_) => Ordering::Greater,
+                CPDType::Array { .. } => Ordering::Greater,
+            },
             CPDType::Class(ccn) => match other.0 {
                 CPDType::BooleanType => Ordering::Less,
                 CPDType::ByteType => Ordering::Less,

@@ -24,7 +24,7 @@ use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_init
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::java_values::{ArrayObject, JavaValue, Object};
+use slow_interpreter::java_values::{ArrayObject, ExceptionReturn, JavaValue, Object};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
@@ -32,7 +32,7 @@ use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, 
 
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
 use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::stdlib::java::lang::class::JClass;
@@ -99,8 +99,8 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
     match JVM_GetClassDeclaredConstructors_impl(jvm, int_state, &class_obj.as_runtime_class(jvm), publicOnly > 0, class_type) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            null_mut()
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jobjectArray::invalid_default();
         }
     }
 }

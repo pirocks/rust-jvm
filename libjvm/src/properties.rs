@@ -18,7 +18,7 @@ use slow_interpreter::new_java_values::NewJavaValue;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
-use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         Ok(add_prop(env, p0, "java.home".to_string(), jvm.java_home.to_str().unwrap().to_string())?)
     })() {
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException { exception_obj });
             return null_mut();
         }
         Ok(res) => res,
@@ -81,7 +81,7 @@ unsafe fn add_prop<'gc>(env: *mut JNIEnv, p: jobject, key: String, val: String) 
     let val = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(val))?.intern(jvm, int_state)?;
     let prop_obj = match from_object_new(jvm, p) {
         Some(x) => x,
-        None => return throw_npe_res(),
+        None => return throw_npe_res(jvm, int_state),
     };
     let normal_object_handle = prop_obj.unwrap_normal_object();
     let runtime_class = &normal_object_handle.runtime_class(jvm);
