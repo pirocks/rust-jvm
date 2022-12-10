@@ -35,16 +35,11 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         for (key, value) in jvm.properties.iter() {
             add_prop(env, p0, key.to_string(), value.to_string())?;
         }
-        //-Dio.netty.noUnsafe
         add_prop(env, p0, "sun.boot.library.path".to_string(), format!("/home/francis/Clion/rust-jvm/target/debug/deps:{}", Path::new(&jvm.native_libaries.libjava_path).parent().unwrap().display()))?;
         add_prop(env, p0, "sun.boot.class.path".to_string(), jvm.boot_classpath_string())?;
         add_prop(env, p0, "java.class.path".to_string(), jvm.classpath.classpath_string())?;
         add_prop(env, p0, "java.vm.version".to_string(), "1.8+0+rust-jvm".to_string())?;
         // add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
-        // add_prop(env, p0, "org.slf4j.simpleLogger.defaultLogLevel ".to_string(), "off".to_string())?;
-        add_prop(env, p0, "log4j2.disable.jmx".to_string(), "true".to_string())?;
-        // add_prop(env, p0, "sun.reflect.noInflation".to_string(), "true".to_string());
-        // add_prop(env, p0, "sun.reflect.inflationThreshold".to_string(), "100000000".to_string());
         Ok(add_prop(env, p0, "java.home".to_string(), jvm.java_home.to_str().unwrap().to_string())?)
     })() {
         Err(WasException { exception_obj }) => {
@@ -59,18 +54,6 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
     let properties = prop_obj.cast_properties();
     let table = properties.table(jvm);
     let table_array = table.unwrap_object_nonnull().unwrap_array();
-    // let _ = properties.get_property(jvm, int_state, key).unwrap().unwrap().new_java_value_handle().unwrap_object().unwrap();
-    /*let key = key.new_java_value();
-    let handle = invoke_virtual_method_i(
-        jvm,
-        int_state,
-        md,
-        runtime_class.clone(),
-        meth,
-        vec![NewJavaValue::AllocObject(prop_obj.as_allocated_obj()), key]
-    ).unwrap().unwrap();
-    handle.unwrap_object_nonnull();
-    res*/
     res
 }
 

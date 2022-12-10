@@ -3,7 +3,6 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::channel;
 use libloading::Symbol;
-use wtf8::Wtf8Buf;
 use jvmti_jni_bindings::{JVMTI_THREAD_NORM_PRIORITY};
 use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -15,8 +14,6 @@ use crate::{check_initing_or_inited_class, check_loaded_class, JVMState, MethodR
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::new_object_full;
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;
-use crate::stdlib::java::lang::string::JString;
-use crate::stdlib::java::lang::system::System;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
 use crate::threading::java_thread::JavaThread;

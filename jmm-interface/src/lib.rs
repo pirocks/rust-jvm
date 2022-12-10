@@ -52,7 +52,9 @@ pub unsafe extern "C" fn get_long_attribute(env: *mut JNIEnv, _obj: jobject, att
         jmmLongAttribute_JMM_METHOD_DATA_SIZE_BYTES => todo!(),
         jmmLongAttribute_JMM_CLASS_VERIFY_TOTAL_TIME_MS => todo!(),
         jmmLongAttribute_JMM_SHARED_CLASS_LOADED_COUNT => todo!(),
-        jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT => todo!(),
+        jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_COUNT => {
+            0
+        },
         jmmLongAttribute_JMM_SHARED_CLASS_LOADED_BYTES => todo!(),
         jmmLongAttribute_JMM_SHARED_CLASS_UNLOADED_BYTES => todo!(),
         jmmLongAttribute_JMM_OS_ATTRIBUTE_INDEX => todo!(),
@@ -66,8 +68,8 @@ pub unsafe extern "C" fn get_long_attribute(env: *mut JNIEnv, _obj: jobject, att
 #[allow(non_upper_case_globals)]
 pub unsafe extern "C" fn get_bool_attribute(_env: *mut JNIEnv, att: jmmBoolAttribute) -> jboolean {
     match att {
-        jmmBoolAttribute_JMM_VERBOSE_GC => todo!(),
-        jmmBoolAttribute_JMM_VERBOSE_CLASS => todo!(),
+        jmmBoolAttribute_JMM_VERBOSE_GC => false as jboolean,
+        jmmBoolAttribute_JMM_VERBOSE_CLASS => false as jboolean,
         jmmBoolAttribute_JMM_THREAD_CONTENTION_MONITORING => false as jboolean,
         jmmBoolAttribute_JMM_THREAD_CPU_TIME => false as jboolean,
         jmmBoolAttribute_JMM_THREAD_ALLOCATED_MEMORY => false as jboolean,
