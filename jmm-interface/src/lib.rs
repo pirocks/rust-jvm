@@ -14,7 +14,7 @@ pub unsafe extern "C" fn get_version(_env: *mut JNIEnv) -> jint {
 }
 
 pub unsafe extern "C" fn get_optional_support(_env: *mut JNIEnv, support_ptr: *mut jmmOptionalSupport) -> jint {
-    support_ptr.write(jmmOptionalSupport { _bitfield_align_1: [], _bitfield_1: Default::default() });
+    support_ptr.write(jmmOptionalSupport{ _bitfield_align_1: [], _bitfield_1: jmmOptionalSupport::new_bitfield_1(0,0,0,0,0,0,0,0,0,0) });
     JNI_OK as i32
 }
 

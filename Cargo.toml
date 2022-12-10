@@ -58,5 +58,6 @@ members = [
     "better-nonnull",
     "array-memory-layout",
     "openjdk-test-parser",
-    "sun-misc-unsafe"
+    "sun-misc-unsafe",
+    "remote-frame-push"
 ]
