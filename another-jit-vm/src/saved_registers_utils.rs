@@ -3,7 +3,7 @@ use std::ffi::c_void;
 use crate::Register;
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithIP {
     pub rip: *const c_void,
     pub saved_registers_without_ip: SavedRegistersWithoutIP,
@@ -82,7 +82,7 @@ impl SavedRegistersWithIP {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct SavedRegistersWithoutIP {
     pub rax: u64,
     pub rbx: u64,

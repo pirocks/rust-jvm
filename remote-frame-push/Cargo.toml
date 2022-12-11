@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
+nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
+another-jit-vm = { path = "../another-jit-vm"}
+assert_no_alloc = "1.1.2"
