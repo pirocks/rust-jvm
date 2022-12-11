@@ -153,7 +153,7 @@ pub mod test {
         let other_thread = std::thread::spawn(move || {
             let self_id = pthread_self();
             sender.send(self_id).unwrap();
-            std::thread::sleep(Duration::new(10, 0));
+            std::thread::sleep(Duration::new(1000, 0));
         }).thread();
         let other_thread_id = receiver.recv().unwrap();
         let the_box = box RemoteQueryUnsafe {
@@ -183,6 +183,6 @@ pub mod test {
             },
         };
         remote_frame_push.send_signal(other_thread_id, Box::into_raw(the_box));
-        std::thread::sleep(Duration::new(10, 0));
+        std::thread::sleep(Duration::new(1000, 0));
     }
 }
