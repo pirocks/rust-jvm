@@ -86,6 +86,7 @@ pub mod extra_intrinsics;
 pub mod static_vars;
 pub mod accessor_ext;
 pub mod define_class_safe;
+pub mod remote_frame_push;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
