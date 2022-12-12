@@ -415,6 +415,7 @@ impl<'vm, T> VMState<'vm, T> {
                     r12: 0,
                     r13: 0,
                     r14: 0,
+                    r15: 0,
                     xsave_area: [0; 64],
                 },
             },
