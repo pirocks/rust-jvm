@@ -17,7 +17,6 @@ use nonnull_const::NonNullConst;
 
 use another_jit_vm::{R10_SIGNAL_GUEST_OFFSET_CONST, R11_SIGNAL_GUEST_OFFSET_CONST, R12_SIGNAL_GUEST_OFFSET_CONST, R13_SIGNAL_GUEST_OFFSET_CONST, R14_SIGNAL_GUEST_OFFSET_CONST, R8_SIGNAL_GUEST_OFFSET_CONST, R9_SIGNAL_GUEST_OFFSET_CONST, RAX_SIGNAL_GUEST_OFFSET_CONST, RBP_SIGNAL_GUEST_OFFSET_CONST, RBX_SIGNAL_GUEST_OFFSET_CONST, RCX_SIGNAL_GUEST_OFFSET_CONST, RDI_SIGNAL_GUEST_OFFSET_CONST, RDX_SIGNAL_GUEST_OFFSET_CONST, RIP_NATIVE_OFFSET_CONST, RSI_SIGNAL_GUEST_OFFSET_CONST, RSP_SIGNAL_GUEST_OFFSET_CONST};
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RawVMExitType;
-use rust_jvm_common::opaque_id_table::OpaqueID;
 
 #[cfg(debug_assertions)] // required when disable_release is set (default)
 #[global_allocator]
@@ -42,10 +41,10 @@ pub const EXIT_NUMBER: u64 = RawVMExitType::SavepointRemoteExit as u64;
 #[no_mangle]
 #[allow(named_asm_labels)]
 #[naked]
-pub unsafe fn exit_to_safepoint_check() {
+pub unsafe extern "system" fn exit_to_safepoint_check() {
     //save all registers
     // remote query in r10
-    //doesn't need reentrance b/c signaling is gaurded by a lock
+    //doesn't need reentrance b/c signaling is guarded by a lock
     //but does need to not take any space on stack b/c there might be frames below this one, like exception init frames
     // only needs to save r10 b/c the others will be restored by setcontext?
     //a different save area is needed for handling signals b/c otherwise r10 could overwrite a existing guest r10
@@ -87,8 +86,6 @@ pub unsafe fn exit_to_safepoint_check() {
     __rust_jvm_rip_native_offset_const = const RIP_NATIVE_OFFSET_CONST,
     options(noreturn)
     );
-    // libc::setcontext(remote_query_unsafe.as_ref().unwrap().register_save_area.as_ptr());
-    // unreachable!()
 }
 
 pub struct SignalAccessibleJavaStackData {
@@ -107,22 +104,35 @@ impl SignalAccessibleJavaStackData {
     }
 }
 
-#[derive(Debug)]
-pub enum ThingToPush<'signal_life> {
-    PrevRBP,
-    PrevSP,
-    Data(&'signal_life [u8]),
+//TODO STILL NEED TO PUSH AN OPAQUE FRAME.
+// do it outside of signal handler in the exit handler, b/c its easier that way.
+// will need to save rbp/rsp/rip to enable that.
+// #[derive(Debug)]
+// pub enum ThingToPush<'signal_life> {
+//     PrevRBP,
+//     PrevSP,
+//     Data(&'signal_life [u8]),
+// }
+
+
+pub struct RemoteQuerySafeEnterSafePointCheck{
 }
 
+pub enum RemoteQuerySafeEnterSafePointCheckResult{
+    InGuest,
+    NotInGuest
+}
 
 #[derive(Debug)]
 #[repr(C)]
 pub struct RemoteQueryUnsafe {
     signal_safe_data: NonNullConst<SignalAccessibleJavaStackData>,
-    to_push_opaque_id: OpaqueID,
+    // to_push_opaque_id: OpaqueID,
     register_save_area: MaybeUninit<ucontext_t>,
     new_frame_rip: *const c_void,
     okay_to_free_this: AtomicBool,
+    was_not_in_guest: AtomicBool,
+    was_in_guest: AtomicBool,
 }
 
 impl RemoteQueryUnsafe {
@@ -174,12 +184,15 @@ unsafe fn handler_impl(info: *mut siginfo_t, ucontext: Option<*const ucontext_t>
             stack.write(prev_rip as u64);
             gpregs[REG_RIP as usize] = new_rip;
             gpregs[REG_R10 as usize] = remote_query_pointer as *mut c_void as i64;
-            ucontext.uc_stack.ss_sp = stack as *mut c_void;
+            ucontext.uc_stack.ss_sp = stack as *mut c_void;//todo is this needed?
         } else {
-            todo!()
+            remote_query.was_not_in_guest.store(true,Ordering::SeqCst);
+            remote_query.was_in_guest.store(false,Ordering::SeqCst);
+            remote_query.okay_to_free_this.store(true,Ordering::SeqCst);
+            return;
         }
     }) {
-        eprintln!("panic in signal handler");
+        eprintln!("panic in signal handler");//todo this probably allocates so maybe it should not
         libc::abort();
     }
 }
@@ -187,11 +200,11 @@ unsafe fn handler_impl(info: *mut siginfo_t, ucontext: Option<*const ucontext_t>
 fn in_guest(stack_top: *const c_void, stack_bottom: *const c_void, gpregs: &[greg_t; 23]) -> bool {
     let stack_pointer = gpregs[REG_RSP as usize];
     let frame_pointer = gpregs[REG_RBP as usize];
-    let instruction_pointer = gpregs[REG_RIP as usize];
+    let _instruction_pointer = gpregs[REG_RIP as usize];
     let stack_pointer_in_stack = (stack_pointer as *const c_void) < stack_top && (stack_pointer as *const c_void) > stack_bottom;
     let frame_pointer_in_stack = (frame_pointer as *const c_void) < stack_top && (frame_pointer as *const c_void) > stack_bottom;
     let in_guest = stack_pointer_in_stack && frame_pointer_in_stack;
-    let transitioning = stack_pointer_in_stack ^ frame_pointer_in_stack;
+    let _transitioning = stack_pointer_in_stack ^ frame_pointer_in_stack;
     in_guest
 }
 
@@ -224,11 +237,36 @@ impl RemoteFramePush {
     }
 
     //signal lock very much needed b/c otherwise multiple signals could be recieved at once with consequences for signal register saving.
-    fn send_signal(&self, tid: Pthread, data: *mut RemoteQueryUnsafe<>) {
+    fn send_safepoint_check_signal(&self, tid: Pthread, signal_safe_data: Arc<SignalAccessibleJavaStackData>, _query: RemoteQuerySafeEnterSafePointCheck)-> RemoteQuerySafeEnterSafePointCheckResult {
+        let mut query_unsafe = RemoteQueryUnsafe{
+            signal_safe_data: NonNullConst::new(signal_safe_data.as_ref() as *const SignalAccessibleJavaStackData).unwrap(),
+            // to_push_opaque_id: OpaqueID(0),
+            register_save_area: MaybeUninit::zeroed(),
+            new_frame_rip: exit_to_safepoint_check as *const c_void,
+            okay_to_free_this: AtomicBool::new(false),
+            was_not_in_guest: AtomicBool::new(false),
+            was_in_guest: AtomicBool::new(false),
+        };
         let signal_lock = self.thread_signal_lock(tid);
         let guard = signal_lock.lock().unwrap();
+        let data = (&mut query_unsafe) as *mut RemoteQueryUnsafe;
         pthread_sigqueue(tid, Some(THREAD_PAUSE_SIGNAL), SigVal::Ptr(data as *mut c_void)).unwrap();
-        drop(guard);
+        loop {
+            if query_unsafe.okay_to_free_this.load(Ordering::SeqCst){
+                break;
+            }
+            std::hint::spin_loop();
+        }
+        let was_in_guest = query_unsafe.was_in_guest.load(Ordering::SeqCst);
+        let was_not_in_guest = query_unsafe.was_not_in_guest.load(Ordering::SeqCst);
+        if was_in_guest{
+            assert!(!was_not_in_guest);
+            drop(guard);
+            return RemoteQuerySafeEnterSafePointCheckResult::InGuest;
+        }else {
+            assert!(was_not_in_guest);
+            return RemoteQuerySafeEnterSafePointCheckResult::NotInGuest
+        }
     }
 
     pub fn sigaction_setup() -> Self {
