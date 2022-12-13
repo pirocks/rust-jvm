@@ -2,20 +2,15 @@
 
 use std::any::Any;
 use std::cell::RefCell;
-use std::convert::TryFrom;
 use std::ffi::c_void;
 use std::mem::transmute;
-use std::ptr::null_mut;
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::thread::{Builder, LocalKey, Scope, ScopedJoinHandle};
 
-use nix::sys::signal::{sigaction, SigAction, SigHandler, SigSet};
-use nix::sys::signal::Signal;
 
-use crate::handlers::{handle_event, handle_pause};
-use crate::signal::{pthread_self, pthread_t, SI_QUEUE, siginfo_t};
+use crate::signal::{pthread_self, pthread_t};
 
 // type TID = usize;
 
@@ -42,10 +37,8 @@ impl<'vm> Threads<'vm> {
             }
             THERE_CAN_ONLY_BE_ONE_THREADS = true;
         }
-        let res = Threads { this_thread: &THIS_THREAD, scope };
 
-        res.init_signal_handler();
-        res
+        Threads { this_thread: &THIS_THREAD, scope }
     }
 
     pub fn create_thread(&'vm self, name: Option<String>) -> Thread<'vm> {
@@ -172,33 +165,6 @@ pub enum SignalReason<'vm> {
 pub struct AnEvent {
     pub event_handler: unsafe extern "C" fn(data: *mut c_void),
     pub data: *mut c_void,
-}
-
-impl<'vm> Threads<'vm> {
-    fn init_signal_handler(&self) {
-        unsafe {
-            #[allow(clippy::transmuting_null)]
-                let sa = SigAction::new(SigHandler::SigAction(handler), transmute(0 as libc::c_int), SigSet::empty());
-            sigaction(Signal::SIGUSR1, &sa).unwrap();
-        };
-    }
-}
-
-extern "C" fn handler(signal_number: libc::c_int, siginfo: *mut libc::siginfo_t, _data: *mut libc::c_void) {
-    unsafe {
-        assert_eq!(Signal::try_from(signal_number).unwrap(), Signal::SIGUSR1);
-
-        let siginfo_signals_h = (siginfo as *mut siginfo_t).read();
-        let signal_reason_ptr = siginfo_signals_h._sifields._rt.si_sigval.sival_ptr;
-        assert_ne!(signal_reason_ptr, null_mut());
-        assert_eq!(siginfo_signals_h.si_code, SI_QUEUE);
-        let reason = (signal_reason_ptr as *mut SignalReason).read();
-
-        match reason {
-            SignalReason::Pause(threads) => handle_pause(threads.as_ref().unwrap()),
-            SignalReason::Event(e) => handle_event(e),
-        }
-    }
 }
 
 pub mod handlers;

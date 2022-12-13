@@ -3,28 +3,19 @@
 #![feature(once_cell)]
 //#![feature(asm)]
 #![allow(non_snake_case)]
-#![allow(unused)]
-
+#![allow(unreachable_code)]
 extern crate libc;
 extern crate nix;
 extern crate num_cpus;
 extern crate regex;
 
-use std::borrow::Borrow;
-use std::cell::RefCell;
 use std::cmp::min;
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
 use std::ffi::{c_void, CStr};
-use std::intrinsics::transmute;
-use std::ops::Deref;
 use std::os::raw::{c_char, c_int};
-use std::str::from_utf8;
-use std::thread::Thread;
-use libc::{size_t, strcpy};
+use libc::{size_t};
 use nix::NixPath;
 
-use jvmti_jni_bindings::{__va_list_tag, FILE, getc, JavaVM, jboolean, jbyte, jbyteArray, jclass, jdouble, jfloat, jint, jintArray, jlong, jmethodID, JNI_VERSION_1_8, JNIEnv, jobject, jobjectArray, jsize, jstring, jvalue, JVM_CALLER_DEPTH, JVM_ExceptionTableEntryType, jvm_version_info, sockaddr, vsnprintf};
+use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject, jstring, jvm_version_info, sockaddr, vsnprintf};
 use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
 use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::ptype::PType;
@@ -77,12 +68,12 @@ pub mod sun_reflect_reflection;
 pub mod ensure_deps_used;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetTemporaryDirectory(env: *mut JNIEnv) -> jstring {
+unsafe extern "system" fn JVM_GetTemporaryDirectory(_env: *mut JNIEnv) -> jstring {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ReleaseUTF(utf: *const c_char) {
+unsafe extern "system" fn JVM_ReleaseUTF(_utf: *const c_char) {
     unimplemented!()
 }
 
@@ -96,17 +87,17 @@ unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut c_char, len: c_int) -
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CopySwapMemory(env: *mut JNIEnv, srcObj: jobject, srcOffset: jlong, dstObj: jobject, dstOffset: jlong, size: jlong, elemSize: jlong) {
+unsafe extern "system" fn JVM_CopySwapMemory(env: *mut JNIEnv, srcObj: jobject, srcOffset: jlong, dstObj: jobject, dstOffset: jlong, _size: jlong, _elemSize: jlong) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.debug_print_stack_trace(jvm);
-    srcObj.cast::<c_void>().offset(srcOffset as isize);
-    dstObj.cast::<c_void>().offset(dstOffset as isize);
+    let _ = srcObj.cast::<c_void>().offset(srcOffset as isize);
+    let _ = dstObj.cast::<c_void>().offset(dstOffset as isize);
     todo!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_KnownToNotExist(env: *mut JNIEnv, loader: jobject, classname: *const c_char) -> jboolean {
+unsafe extern "system" fn JVM_KnownToNotExist(_env: *mut JNIEnv, _loader: jobject, _classname: *const c_char) -> jboolean {
     unimplemented!()
 }
 

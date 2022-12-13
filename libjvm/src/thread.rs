@@ -48,7 +48,7 @@ unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exception: jobject) {
+unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, _exception: jobject) {
     //todo do not print ThreadDeath on reaching top of thread
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
@@ -66,7 +66,6 @@ unsafe extern "system" fn JVM_StopThread(env: *mut JNIEnv, thread: jobject, exce
 unsafe extern "system" fn JVM_IsThreadAlive(env: *mut JNIEnv, thread: jobject) -> jboolean {
     let jvm = get_state(env);
 
-    let int_state = get_interpreter_state(env);
     let java_thread = match NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap())
         .cast_thread(jvm)
         .try_get_java_thread(jvm) {
@@ -89,24 +88,23 @@ unsafe extern "system" fn JVM_SuspendThread(env: *mut JNIEnv, thread: jobject) {
 #[no_mangle]
 unsafe extern "system" fn JVM_ResumeThread(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let java_thread = NewJavaValueHandle::Object(from_object_new(jvm, thread).unwrap()).cast_thread(jvm).get_java_thread(jvm);
     let _ = java_thread.resume_thread();
     //javadoc doesn't say anything about error handling so we just don't anything
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetThreadPriority(env: *mut JNIEnv, thread: jobject, prio: jint) {
+unsafe extern "system" fn JVM_SetThreadPriority(_env: *mut JNIEnv, _thread: jobject, _prio: jint) {
     //todo threads not implemented, noop
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Yield(env: *mut JNIEnv, threadClass: jclass) {
+unsafe extern "system" fn JVM_Yield(_env: *mut JNIEnv, _threadClass: jclass) {
     //todo actually do something here maybe
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, millis: jlong) {
+unsafe extern "system" fn JVM_Sleep(_env: *mut JNIEnv, _threadClass: jclass, millis: jlong) {
     //todo handle negative millis
     if millis < 0 {
         unimplemented!()
@@ -116,7 +114,7 @@ unsafe extern "system" fn JVM_Sleep(env: *mut JNIEnv, _threadClass: jclass, mill
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclass) -> jobject {
+unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, _threadClass: jclass) -> jobject {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let current_thread = jvm.thread_state.get_current_thread();
@@ -128,7 +126,7 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, threadClass: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
+unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, _thread: jobject) {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.debug_print_stack_trace(jvm);
@@ -136,9 +134,9 @@ unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, clearInterrupted: jboolean) -> jboolean {
+unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, _clearInterrupted: jboolean) -> jboolean {
+    //todo clearInterrupted??
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let thread_object = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let thread = thread_object.get_java_thread(jvm);
     let guard = thread.thread_status.lock().unwrap();
@@ -146,15 +144,14 @@ unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, c
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, threadClass: jclass, obj: jobject) -> jboolean {
-    let int_state = get_interpreter_state(env);
+unsafe extern "system" fn JVM_HoldsLock(env: *mut JNIEnv, _threadClass: jclass, obj: jobject) -> jboolean {
     let jvm = get_state(env);
     let monitor: Arc<Monitor2> = jvm.monitor_for(from_object_new(jvm, obj).unwrap().ptr().as_ptr());
     monitor.this_thread_holds_lock(jvm) as jboolean
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DumpAllStacks(env: *mut JNIEnv, unused: jclass) {
+unsafe extern "system" fn JVM_DumpAllStacks(_env: *mut JNIEnv, _unused: jclass) {
     unimplemented!()
 }
 
@@ -162,36 +159,36 @@ unsafe extern "system" fn JVM_DumpAllStacks(env: *mut JNIEnv, unused: jclass) {
 unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) -> jobjectArray {
     //the dummy appears b/c stuff gets called from static native fucntion in jni, and someone didn't want to get rid of param and just have a direct function pointer
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let jobjects = jvm
+    let _int_state = get_interpreter_state(env);
+    let _jobjects = jvm
         .thread_state
         .get_all_alive_threads()
         .into_iter()
-        .map(|java_thread| {
+        .map(|_java_thread| {
             JavaValue::Object(todo!() /*java_thread.try_thread_object().map(|jthread| jthread.object())*/)
         })
         .collect::<Vec<_>>();
-    let object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
-    new_local_ref_public(todo!()/*object_array*/, int_state)
+    let _object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
+    new_local_ref_public(todo!()/*object_array*/, _int_state)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetNativeThreadName(env: *mut JNIEnv, jthread: jobject, name: jstring) {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
+unsafe extern "system" fn JVM_SetNativeThreadName(env: *mut JNIEnv, _jthread: jobject, _name: jstring) {
+    let _jvm = get_state(env);
+    let _int_state = get_interpreter_state(env);
     todo!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DumpThreads(env: *mut JNIEnv, threadClass: jclass, threads: jobjectArray) -> jobjectArray {
+unsafe extern "system" fn JVM_DumpThreads(_env: *mut JNIEnv, _threadClass: jclass, _threads: jobjectArray) -> jobjectArray {
     unimplemented!()
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadState: jint) -> jintArray {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let names = match javaThreadState as u32 {
+    let _jvm = get_state(env);
+    let _int_state = get_interpreter_state(env);
+    let _names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
             vec![todo!()]
         }
@@ -229,7 +226,7 @@ unsafe fn GetThreadStateNames_impl<'gc>(env: *mut JNIEnv, javaThreadState: i32) 
     //don't check values for now. They should be correct and from JVM_GetThreadStateValues
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let names = match javaThreadState as u32 {
+    let _names = match javaThreadState as u32 {
         JAVA_THREAD_STATE_NEW => {
             vec![JString::from_rust(jvm, int_state, Wtf8Buf::from_str("NEW"))?]
         }
@@ -253,11 +250,11 @@ unsafe fn GetThreadStateNames_impl<'gc>(env: *mut JNIEnv, javaThreadState: i32) 
         .into_iter()
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
-    let res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
+    let _res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
     Ok(new_local_ref_public(todo!()/*res*/, int_state))
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_CountStackFrames(env: *mut JNIEnv, thread: jobject) -> jint {
+unsafe extern "system" fn JVM_CountStackFrames(_env: *mut JNIEnv, _thread: jobject) -> jint {
     todo!()
 }

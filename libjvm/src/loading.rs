@@ -20,8 +20,8 @@ use slow_interpreter::utils::pushable_frame_todo;use slow_interpreter::rust_jni:
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {
-    let int_state = get_interpreter_state(env);
-    let jvm = get_state(env);
+    let _int_state = get_interpreter_state(env);
+    let _jvm = get_state(env);
     /*let ptype = int_state.current_frame().class_pointer(jvm).cpdtype();
     match get_or_create_class_object(jvm, ptype, pushable_frame_todo()) {
         Ok(class_obj) => to_object(class_obj.to_gc_managed().into()),
@@ -79,15 +79,14 @@ unsafe fn loader_name_to_native_obj<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
 //      * @see   #checkPermission(java.security.Permission) checkPermission
 //      */
 #[no_mangle]
-unsafe extern "system" fn JVM_ClassLoaderDepth(env: *mut JNIEnv) -> jint {
-    let int_state = get_state(env);
+unsafe extern "system" fn JVM_ClassLoaderDepth(_env: *mut JNIEnv) -> jint {
     todo!()
 }
 //todo need to call loadClassInternal when I am loading a class
 //todo and also checkPackageAccess
 
 #[no_mangle]
-unsafe extern "system" fn JVM_LoadClass0(env: *mut JNIEnv, obj: jobject, currClass: jclass, currClassName: jstring) -> jclass {
+unsafe extern "system" fn JVM_LoadClass0(_env: *mut JNIEnv, _obj: jobject, _currClass: jclass, _currClassName: jstring) -> jclass {
     panic!("As far as I can tell this method isn't used by anything so its curious this code is being run");
 }
 

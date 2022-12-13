@@ -41,20 +41,20 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_UnloadLibrary(handle: *mut c_void) {
+unsafe extern "system" fn JVM_UnloadLibrary(_handle: *mut c_void) {
     // let jvm = JVM.as_ref().unwrap();
     // unimplemented!()
     //todo this seems to be actually be called so it should really work
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const ::std::os::raw::c_char) -> *mut c_void {
+unsafe extern "system" fn JVM_FindLibraryEntry(handle: *mut c_void, name: *const c_char) -> *mut c_void {
     if name == null() {
         todo!()
     }
     let name = match PossiblyJVMString::new(CStr::from_ptr(name).to_bytes().to_vec()).validate() {
         Ok(name) => name.to_string_validated(),
-        Err(ValidationError) => return null_mut(),
+        Err(_) => return null_mut(),//todo handle error?
     };
     if !handle.is_null() && &name == "JNI_OnLoad" {
         return handle;

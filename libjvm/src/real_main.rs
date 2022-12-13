@@ -103,9 +103,9 @@ pub fn main_run<'gc>(args: Vec<String>, jvm_ref: &'gc JVMState<'gc>) {
     jvm_ref.java_vm_state.init(jvm_ref);
     unsafe { JVM = Some(transmute(jvm_ref)) }
     jvm_ref.add_class_class_class_object(&jvm_ref.cpdtype_table);
-    let thread_state = &jvm_ref.thread_state;
+    let _thread_state = &jvm_ref.thread_state;
     let main_thread: Arc<JavaThread> = bootstrap_main_thread(jvm_ref, MainThreadStartInfo { args });
-    let main_thread_clone = main_thread.clone();
+    let _main_thread_clone = main_thread.clone();
     // jvm_ref.thread_state.threads.create_thread(Some("stacktracer".to_string())).start_thread(box move |_| unsafe {
     //     loop {
     //         for (jtid, java_thread) in jvm_ref.thread_state.get_all_threads().iter() {
@@ -138,7 +138,6 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         enable_tracing,
         enable_jvmti,
         properties,
-        unittest_mode,
         store_generated_classes,
         debug_print_exceptions,
         assertions_enabled,

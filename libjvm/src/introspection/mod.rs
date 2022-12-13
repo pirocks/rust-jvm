@@ -1,7 +1,7 @@
 use std::arch::x86_64::_mm_testc_pd;
 use std::borrow::Borrow;
 use std::cell::{RefCell, UnsafeCell};
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_int, c_void, CStr};
 use std::ops::Deref;
 use std::os::raw::c_char;
 use std::ptr::null_mut;
@@ -220,7 +220,7 @@ unsafe extern "system" fn JVM_GetClassAccessFlags(env: *mut JNIEnv, cls: jclass)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ClassDepth(env: *mut JNIEnv, name: jstring) -> jint {
+unsafe extern "system" fn JVM_ClassDepth(_env: *mut JNIEnv, _name: jstring) -> jint {
     unreachable!("As far as I can tell this is never actually used. But I guess if you see this I was wrong. ")
 }
 
@@ -274,7 +274,7 @@ pub mod fields;
 pub mod methods;
 
 #[no_mangle]
-pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, depth: ::std::os::raw::c_int) -> jclass {
+pub unsafe extern "system" fn JVM_GetCallerClass(env: *mut JNIEnv, _depth: c_int) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let mut stack = int_state.frame_iter().collect::<Vec<_>>().into_iter();
@@ -325,7 +325,8 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name: *const c_char, init: jboolean, loader: jobject, caller: jclass) -> jclass {
+unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name: *const c_char, init: jboolean, loader: jobject, _caller: jclass) -> jclass {
+    //todo _caller?
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();

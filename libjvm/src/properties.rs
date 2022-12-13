@@ -48,12 +48,6 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         }
         Ok(res) => res,
     };
-    let int_state = get_interpreter_state(env);
-    let prop_obj = from_object_new(jvm, p0).unwrap();
-    let key = JString::from_rust(jvm, int_state, Wtf8Buf::from_string("user.dir".to_string())).unwrap();
-    let properties = prop_obj.cast_properties();
-    let table = properties.table(jvm);
-    let table_array = table.unwrap_object_nonnull().unwrap_array();
     res
 }
 

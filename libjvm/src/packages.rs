@@ -37,6 +37,6 @@ unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetSystemPackages(env: *mut JNIEnv) -> jobjectArray {
+unsafe extern "system" fn JVM_GetSystemPackages(_env: *mut JNIEnv) -> jobjectArray {
     unimplemented!()
 }

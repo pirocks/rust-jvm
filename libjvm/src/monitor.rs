@@ -16,13 +16,15 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
     let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
-    monitor.wait(jvm, int_state, duration);
+    match monitor.wait(jvm, int_state, duration) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
 }
 
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
     monitor.notify(jvm).expect("todo");
@@ -31,7 +33,6 @@ unsafe extern "system" fn JVM_MonitorNotify(env: *mut JNIEnv, obj: jobject) {
 #[no_mangle]
 unsafe extern "system" fn JVM_MonitorNotifyAll(env: *mut JNIEnv, obj: jobject) {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
     monitor.notify_all(jvm).expect("todo");

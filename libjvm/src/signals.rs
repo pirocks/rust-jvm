@@ -5,13 +5,13 @@ use std::os::raw::{c_char, c_void};
 use jvmti_jni_bindings::{jboolean, jint};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RegisterSignal(sig: jint, handler: *mut c_void) -> *mut c_void {
+unsafe extern "system" fn JVM_RegisterSignal(_sig: jint, _handler: *mut c_void) -> *mut c_void {
     //todo unimpl for now
     transmute(0xdeaddeadbeafdead as usize)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RaiseSignal(sig: jint) -> jboolean {
+unsafe extern "system" fn JVM_RaiseSignal(_sig: jint) -> jboolean {
     unimplemented!()
 }
 

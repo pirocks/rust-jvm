@@ -42,7 +42,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
 
     let loader_obj = int_state.frame_iter().next()/*previous_frame()*/.unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
-    let mut guard = jvm.classes.write().unwrap();
+    let guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
@@ -61,7 +61,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
         }
         Some(runtime_class) => runtime_class.clone(),
     };
-    let mut guard = jvm.classes.write().unwrap();
+    let guard = jvm.classes.write().unwrap();
     to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())
 }
 

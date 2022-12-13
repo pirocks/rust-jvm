@@ -65,7 +65,7 @@ fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state:
     let runtime_class = of_class_obj.gc_lifeify().as_runtime_class(jvm);
     let runtime_class_view = runtime_class.view();
     let methods = runtime_class_view.methods().map(|method| (runtime_class.clone(), method.method_i()));
-    let method_class = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
+    let _ = check_initing_or_inited_class(jvm, int_state, CClassName::method().into())?;
     let mut object_array = vec![];
     let methods_owned = methods
         .filter(|(c, i)| {

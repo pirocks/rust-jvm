@@ -2,7 +2,7 @@ use jvmti_jni_bindings::jboolean;
 use slow_interpreter::jvm_state::JVM;
 
 #[no_mangle]
-unsafe extern "system" fn JVM_TraceInstructions(on: jboolean) {
+unsafe extern "system" fn JVM_TraceInstructions(_on: jboolean) {
     eprintln!("Instruction Tracing not supported");
 }
 

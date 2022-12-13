@@ -11,7 +11,8 @@ unsafe extern "system" fn JVM_NativePath(arg1: *mut ::std::os::raw::c_char) -> *
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, flags: jint, mode: jint) -> jint {
+unsafe extern "system" fn JVM_Open(fname: *const ::std::os::raw::c_char, _flags: jint, mode: jint) -> jint {
+    //todo flags?
     libc::open(fname, mode)
 }
 
@@ -31,7 +32,7 @@ unsafe extern "system" fn JVM_Write(fd: jint, buf: *mut ::std::os::raw::c_char, 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Available(fd: jint, pbytes: *mut jlong) -> jint {
+unsafe extern "system" fn JVM_Available(_fd: jint, _pbytes: *mut jlong) -> jint {
     unimplemented!()
 }
 
@@ -46,6 +47,6 @@ unsafe extern "system" fn JVM_Sync(fd: jint) -> jint {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetLength(fd: jint, length: jlong) -> jint {
+unsafe extern "system" fn JVM_SetLength(_fd: jint, _length: jlong) -> jint {
     unimplemented!()
 }

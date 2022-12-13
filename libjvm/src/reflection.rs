@@ -42,12 +42,12 @@ use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{java_value_to_boxed_object, run_static_or_virtual, throw_npe};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_AllocateNewObject(env: *mut JNIEnv, obj: jobject, currClass: jclass, initClass: jclass) -> jobject {
+unsafe extern "system" fn JVM_AllocateNewObject(_env: *mut JNIEnv, _obj: jobject, _currClass: jclass, _initClass: jclass) -> jobject {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_SetClassSigners(env: *mut JNIEnv, cls: jclass, signers: jobjectArray) {
+unsafe extern "system" fn JVM_SetClassSigners(_env: *mut JNIEnv, _cls: jclass, _signers: jobjectArray) {
     unimplemented!()
 }
 
@@ -138,7 +138,7 @@ unsafe extern "system" fn JVM_InvokeMethod<'gc>(env: *mut JNIEnv, method: jobjec
             None
         }
         Some(njv) => {
-            if let NewJavaValue::AllocObject(obj) = njv.as_njv() {
+            if let NewJavaValue::AllocObject(_obj) = njv.as_njv() {
                 njv.unwrap_object()
             } else {
 
@@ -230,6 +230,9 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let obj = new_object(jvm, int_state, &clazz, false);
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
-    run_constructor(jvm, int_state, clazz, full_args, &signature);
+    match run_constructor(jvm, int_state, clazz, full_args, &signature) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)
 }

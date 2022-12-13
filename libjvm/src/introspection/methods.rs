@@ -30,7 +30,7 @@ use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
+unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, _method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let throw = get_throw(env);
@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method:
     let return_type = return_type_jclass.as_type(jvm);
     let parameter_types = method.parameter_types(jvm).into_iter().map(|jclass_| jclass_.as_type(jvm)).collect::<Vec<_>>();
     let view = clazz.view();
-    let res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
+    let _res_method_view = match view.lookup_method(name, &CMethodDescriptor { arg_types: parameter_types, return_type }) {
         None => {
             return throw_illegal_arg(jvm, int_state, throw);
         }
@@ -111,7 +111,6 @@ unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass)
 
 unsafe fn get_method_view<'gc, T: ExceptionReturn>(env: *mut JNIEnv, cb: jclass, method_index: jint, and_then: impl Fn(&MethodView) -> Result<T, WasException<'gc>>) -> Result<T, WasException<'gc>> {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     let method_view = view.method_view_i(method_index as u16);
@@ -225,22 +224,22 @@ unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxNameUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
+unsafe extern "system" fn JVM_GetMethodIxNameUTF(_env: *mut JNIEnv, _cb: jclass, _index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(env: *mut JNIEnv, cb: jclass, index: jint) -> *const c_char {
+unsafe extern "system" fn JVM_GetMethodIxSignatureUTF(_env: *mut JNIEnv, _cb: jclass, _index: jint) -> *const c_char {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(env: *mut JNIEnv, cb: jclass, method_index: jint, entry_index: jint, entry: *mut JVM_ExceptionTableEntryType) {
+unsafe extern "system" fn JVM_GetMethodIxExceptionTableEntry(_env: *mut JNIEnv, _cb: jclass, _method_index: jint, _entry_index: jint, _entry: *mut JVM_ExceptionTableEntryType) {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(env: *mut JNIEnv, cb: jclass, method_index: jint, exceptions: *mut c_ushort) {
+unsafe extern "system" fn JVM_GetMethodIxExceptionIndexes(_env: *mut JNIEnv, _cb: jclass, _method_index: jint, _exceptions: *mut c_ushort) {
     unimplemented!()
 }
 
@@ -264,7 +263,7 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
+unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, _cls: jclass) -> jbyteArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.debug_print_stack_trace(jvm);
@@ -272,17 +271,17 @@ unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jcl
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetFieldIxModifiers(env: *mut JNIEnv, cb: jclass, index: c_int) -> jint {
+unsafe extern "system" fn JVM_GetFieldIxModifiers(_env: *mut JNIEnv, _cb: jclass, _index: c_int) -> jint {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetFieldTypeAnnotations(env: *mut JNIEnv, field: jobject) -> jbyteArray {
+unsafe extern "system" fn JVM_GetFieldTypeAnnotations(_env: *mut JNIEnv, _field: jobject) -> jbyteArray {
     unimplemented!()
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodTypeAnnotations(env: *mut JNIEnv, method: jobject) -> jbyteArray {
+unsafe extern "system" fn JVM_GetMethodTypeAnnotations(_env: *mut JNIEnv, _method: jobject) -> jbyteArray {
     unimplemented!()
 }
 
@@ -300,7 +299,7 @@ unsafe extern "system" fn JVM_IsConstructorIx(env: *mut JNIEnv, cb: jclass, inde
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(env: *mut JNIEnv, cb: jclass, index: c_int) -> jboolean {
+unsafe extern "system" fn JVM_IsVMGeneratedMethodIx(_env: *mut JNIEnv, _cb: jclass, _index: c_int) -> jboolean {
     u8::from(false)
     //todo perhaps check invoke dynamic stuff
 }

@@ -27,7 +27,7 @@ use slow_interpreter::utils::{lookup_line_number, throw_array_out_of_bounds, thr
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 struct OwnedStackEntry<'gc> {
-    declaring_class: Arc<RuntimeClass<'gc>>,
+    _declaring_class: Arc<RuntimeClass<'gc>>,
     line_number: LineNumber,
     class_name_wtf8: Wtf8Buf,
     method_name_wtf8: Wtf8Buf,
@@ -44,12 +44,12 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
     let stack_entry_objs = stacktrace
         .iter()
         .map(|stack_entry| {
-            let declaring_class = match stack_entry.try_class_pointer(jvm) {
+            let _declaring_class = match stack_entry.try_class_pointer(jvm) {
                 Err(IsOpaque{}) => return Ok(None),
                 Ok(declaring_class) => declaring_class,
             };
 
-            let declaring_class_view = declaring_class.view();
+            let declaring_class_view = _declaring_class.view();
             let method_view = declaring_class_view.method_view_i(stack_entry.method_i());
             let file = match declaring_class_view.sourcefile_attr() {
                 None => Wtf8Buf::from_string("unknown_source".to_string()),
@@ -64,13 +64,13 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
             let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
             let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
             let source_file_name_wtf8 = file;
-            Ok(Some(OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
+            Ok(Some(OwnedStackEntry { _declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
         .collect::<Result<Vec<Option<_>>, WasException<'gc>>>()
         .expect("todo")
         .into_iter()
         .flatten()
-        .map(|OwnedStackEntry { declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }| {
+        .map(|OwnedStackEntry { _declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }| {
             let declaring_class_name = JString::from_rust(jvm, int_state, class_name_wtf8)?;
             let method_name = JString::from_rust(jvm, int_state, method_name_wtf8)?;
             let source_file_name = JString::from_rust(jvm, int_state, source_file_name_wtf8)?;

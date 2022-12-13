@@ -16,8 +16,10 @@ use jvmti_jni_bindings::jmmInterface_1_;
 use slow_interpreter::better_java_stack::java_stack_guard::JMM;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_object, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::util::properties::Properties;
 use slow_interpreter::utils::pushable_frame_todo;
@@ -59,14 +61,14 @@ unsafe extern "system" fn JVM_ActiveProcessorCount() -> jint {
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_IsSupportedJNIVersion(version: jint) -> jboolean {
+unsafe extern "system" fn JVM_IsSupportedJNIVersion(_version: jint) -> jboolean {
     //todo for now we support everything?
     true as jboolean
 }
 
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetManagement(version: jint) -> *mut ::std::os::raw::c_void {
+unsafe extern "system" fn JVM_GetManagement(_version: jint) -> *mut ::std::os::raw::c_void {
     eprintln!("Attempt to get jmm which is unsupported");
     JMM.with(|refcell: &RefCell<Option<*mut JMMInterfaceNamedReservedPointers>>| {
         *refcell.borrow().as_ref().unwrap()
@@ -84,25 +86,37 @@ unsafe extern "system" fn JVM_InitAgentProperties(env: *mut JNIEnv, agent_props:
 unsafe fn InitAgentProperties<'gc>(env: *mut JNIEnv, agent_props: jobject) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let props = JavaValue::Object(todo!() /*from_jclass(jvm,agent_props)*/).cast_properties();
+    let props = match from_object_new(jvm, agent_props) {
+        Some(x) => x,
+        None => todo!(),
+    }.cast_properties();
 
-    let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.java.command"))?;
-    let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.java.command"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    match props.set_property(jvm, int_state, sun_java_command, sun_java_command_val) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
 
-    let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.jvm.flags"))?;
-    let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.flags"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    match props.set_property(jvm, int_state, sun_java_command, sun_java_command_val) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
 
-    let sun_java_command = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("sun.jvm.args"))?;
-    let sun_java_command_val = JString::from_rust(jvm, pushable_frame_todo()/*int_state*/, Wtf8Buf::from_str("command line not currently compatible todo"))?;
-    props.set_property(jvm, int_state, sun_java_command, sun_java_command_val);
+    let sun_java_command = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("sun.jvm.args"))?;
+    let sun_java_command_val = JString::from_rust(jvm, int_state, Wtf8Buf::from_str("command line not currently compatible todo"))?;
+    match props.set_property(jvm, int_state, sun_java_command, sun_java_command_val) {
+        Ok(x) => x,
+        Err(_) => todo!(),
+    };
 
     Ok(agent_props)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetVersionInfo(env: *mut JNIEnv, info: *mut jvm_version_info, info_size: usize) {
+unsafe extern "system" fn JVM_GetVersionInfo(_env: *mut JNIEnv, info: *mut jvm_version_info, _info_size: usize) {
     (*info).jvm_version = 8;
     (*info).set_is_attach_supported(0);
     (*info).set_update_version(0);
