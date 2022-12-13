@@ -544,3 +544,15 @@ impl ExitRegisterStruct for RunInterpreted {
         HashSet::from([Register(0), Self::METHOD_ID, Self::RESTART_IP])
     }
 }
+
+pub struct SavepointRemoteExit;
+
+impl SavepointRemoteExit {
+    pub const REMOTE_QUERY_POINTER: Register = Register(6);//should be register 10;
+}
+
+impl ExitRegisterStruct for SavepointRemoteExit {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0)])
+    }
+}

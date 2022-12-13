@@ -15,6 +15,8 @@
 #![feature(allocator_api)]
 #![feature(print_internals)]
 #![feature(fmt_internals)]
+#![feature(naked_functions)]
+#![feature(asm_const)]
 
 extern crate alloc;
 extern crate core;

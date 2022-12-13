@@ -56,6 +56,7 @@ pub enum RawVMExitType {
     RunSpecialNativeNew,
     RunInterpreted,
     AllocateObjectArrayIntrinsic,
+    SavepointRemoteExit
 }
 
 
@@ -517,6 +518,9 @@ impl RuntimeVMExitInput {
                         res_address: register_state.saved_registers_without_ip.get_register(AllocateObjectArrayIntrinsic::RES_PTR) as *mut NonNull<c_void>,
                     }
                 }
+            }
+            RawVMExitType::SavepointRemoteExit => {
+                todo!()
             }
         }
     }

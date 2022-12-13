@@ -259,6 +259,7 @@ pub enum VMExitAction<T: Sized> {
 struct JITContext {
     guest_registers: SavedRegistersWithIP,
     vm_native_saved_registers: SavedRegistersWithIP,
+    guest_signal_saved_registers: SavedRegistersWithIP,
     intrinsic_helpers: IntrinsicHelpers,
 }
 
@@ -359,10 +360,10 @@ impl<'vm, T> VMState<'vm, T> {
         assert_eq!(r13_guest_offset, R13_GUEST_OFFSET_CONST);
         let r14_guest_offset = offset_of!(SavedRegistersWithoutIP, r14) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
         assert_eq!(r14_guest_offset, R14_GUEST_OFFSET_CONST);
-        let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
-        assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
-        let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, vm_native_saved_registers);
-        assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET_CONST);
+        // let xsave_area_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_registers);
+        // assert_eq!(xsave_area_guest_offset, XSAVE_AREA_GUEST_OFFSET_CONST);
+        // let rip_native_offset = offset_of!(SavedRegistersWithIP, rip) + offset_of!(JITContext, vm_native_saved_registers);
+        // assert_eq!(rip_native_offset, RIP_NATIVE_OFFSET_CONST);
         let rax_native_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(rax_native_offset, RAX_NATIVE_OFFSET_CONST);
         let rbx_native_offset = offset_of!(SavedRegistersWithoutIP, rbx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
@@ -393,8 +394,42 @@ impl<'vm, T> VMState<'vm, T> {
         assert_eq!(r13_native_offset, R13_NATIVE_OFFSET_CONST);
         let r14_native_offset = offset_of!(SavedRegistersWithoutIP, r14) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
         assert_eq!(r14_native_offset, R14_NATIVE_OFFSET_CONST);
-        let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
-        assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
+        // let xsave_area_native_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
+        // assert_eq!(xsave_area_native_offset, XSAVE_AREA_NATIVE_OFFSET_CONST);
+
+        let rax_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rax) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rax_signal_guest_offset, RAX_SIGNAL_GUEST_OFFSET_CONST);
+        let rbx_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rbx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rbx_signal_guest_offset, RBX_SIGNAL_GUEST_OFFSET_CONST);
+        let rcx_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rcx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rcx_signal_guest_offset, RCX_SIGNAL_GUEST_OFFSET_CONST);
+        let rdx_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rdx) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rdx_signal_guest_offset, RDX_SIGNAL_GUEST_OFFSET_CONST);
+        let rsi_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rsi) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rsi_signal_guest_offset, RSI_SIGNAL_GUEST_OFFSET_CONST);
+        let rdi_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rdi) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rdi_signal_guest_offset, RDI_SIGNAL_GUEST_OFFSET_CONST);
+        let rbp_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rbp) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rbp_signal_guest_offset, RBP_SIGNAL_GUEST_OFFSET_CONST);
+        let rsp_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, rsp) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(rsp_signal_guest_offset, RSP_SIGNAL_GUEST_OFFSET_CONST);
+        let r8_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r8) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r8_signal_guest_offset, R8_SIGNAL_GUEST_OFFSET_CONST);
+        let r9_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r9) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r9_signal_guest_offset, R9_SIGNAL_GUEST_OFFSET_CONST);
+        let r10_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r10) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r10_signal_guest_offset, R10_SIGNAL_GUEST_OFFSET_CONST);
+        let r11_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r11) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r11_signal_guest_offset, R11_SIGNAL_GUEST_OFFSET_CONST);
+        let r12_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r12) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r12_signal_guest_offset, R12_SIGNAL_GUEST_OFFSET_CONST);
+        let r13_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r13) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r13_signal_guest_offset, R13_SIGNAL_GUEST_OFFSET_CONST);
+        let r14_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, r14) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, guest_signal_saved_registers);
+        assert_eq!(r14_signal_guest_offset, R14_SIGNAL_GUEST_OFFSET_CONST);
+        // let xsave_area_signal_guest_offset = offset_of!(SavedRegistersWithoutIP, xsave_area) + offset_of!(SavedRegistersWithIP, saved_registers_without_ip) + offset_of!(JITContext, vm_native_saved_registers);
+        // assert_eq!(xsave_area_signal_guest_offset, XSAVE_AREA_SIGNAL_GUEST_OFFSET_CONST);
+
         let jit_context = JITContext {
             guest_registers: SavedRegistersWithIP { rip: branch_to as *mut c_void, saved_registers_without_ip: initial_registers },
             vm_native_saved_registers: SavedRegistersWithIP {
@@ -415,11 +450,32 @@ impl<'vm, T> VMState<'vm, T> {
                     r12: 0,
                     r13: 0,
                     r14: 0,
-                    r15: 0,
+                    // r15: 0,
                     xsave_area: [0; 64],
                 },
             },
             //todo need to cache jit context more effectively
+            guest_signal_saved_registers: SavedRegistersWithIP {
+                rip: null_mut(),
+                saved_registers_without_ip: SavedRegistersWithoutIP {
+                    rax: 0,
+                    rbx: 0,
+                    rcx: 0,
+                    rdx: 0,
+                    rsi: 0,
+                    rdi: 0,
+                    rbp: 0,
+                    rsp: 0,
+                    r8: 0,
+                    r9: 0,
+                    r10: 0,
+                    r11: 0,
+                    r12: 0,
+                    r13: 0,
+                    r14: 0,
+                    xsave_area: [0; 64],
+                },
+            },
             intrinsic_helpers: IntrinsicHelpers::new(extra_intrinsics),
         };
         let self_: &'l VMState<'vm, T> = self;
@@ -683,5 +739,24 @@ pub const R13_NATIVE_OFFSET_CONST: usize = 104 + XSAVE_AREA_GUEST_OFFSET_CONST +
 pub const R14_NATIVE_OFFSET_CONST: usize = 112 + XSAVE_AREA_GUEST_OFFSET_CONST + XSAVE_SIZE + 8;
 pub const XSAVE_AREA_NATIVE_OFFSET_CONST: usize = XSAVE_AREA_GUEST_OFFSET_CONST + 120 + XSAVE_SIZE + 8;
 
+
+pub const RIP_SIGNAL_GUEST_OFFSET_CONST: usize = XSAVE_AREA_NATIVE_OFFSET_CONST + XSAVE_SIZE;
+#[allow(clippy::identity_op)]
+pub const RAX_SIGNAL_GUEST_OFFSET_CONST: usize = 0 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RBX_SIGNAL_GUEST_OFFSET_CONST: usize = 8 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RCX_SIGNAL_GUEST_OFFSET_CONST: usize = 16 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RDX_SIGNAL_GUEST_OFFSET_CONST: usize = 24 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RSI_SIGNAL_GUEST_OFFSET_CONST: usize = 32 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RDI_SIGNAL_GUEST_OFFSET_CONST: usize = 40 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RBP_SIGNAL_GUEST_OFFSET_CONST: usize = 48 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const RSP_SIGNAL_GUEST_OFFSET_CONST: usize = 56 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R8_SIGNAL_GUEST_OFFSET_CONST: usize = 64 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R9_SIGNAL_GUEST_OFFSET_CONST: usize = 72 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R10_SIGNAL_GUEST_OFFSET_CONST: usize = 80 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R11_SIGNAL_GUEST_OFFSET_CONST: usize = 88 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R12_SIGNAL_GUEST_OFFSET_CONST: usize = 96 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R13_SIGNAL_GUEST_OFFSET_CONST: usize = 104 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const R14_SIGNAL_GUEST_OFFSET_CONST: usize = 112 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
+pub const XSAVE_AREA_SIGNAL_GUEST_OFFSET_CONST: usize = 120 + RIP_SIGNAL_GUEST_OFFSET_CONST + 8;
 
 pub struct NativeInstructionLocation(pub *const c_void);

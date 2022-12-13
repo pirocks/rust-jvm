@@ -31,7 +31,7 @@ impl SavedRegistersWithIP {
             r12,
             r13,
             r14,
-            r15,
+            // r15,
             xsave_area: _
         } = saved_registers_without_ip;
         if let Some(rax) = rax {
@@ -79,9 +79,9 @@ impl SavedRegistersWithIP {
         if let Some(r14) = r14 {
             self.saved_registers_without_ip.r14 = r14;
         }
-        if let Some(r15) = r15 {
-            self.saved_registers_without_ip.r15 = r15;
-        }
+        // if let Some(r15) = r15 {
+        //     self.saved_registers_without_ip.r15 = r15;
+        // }
     }
 }
 
@@ -103,7 +103,7 @@ pub struct SavedRegistersWithoutIP {
     pub r12: u64,
     pub r13: u64,
     pub r14: u64,
-    pub r15: u64,
+    // pub r15: u64,
     pub xsave_area: [u64; 64],
 }
 
@@ -125,7 +125,7 @@ impl SavedRegistersWithoutIP {
             r12: 0,
             r13: 0,
             r14: 0,
-            r15: 0,
+            // r15: 0,
             xsave_area: [0; 64],
         }
     }
@@ -180,7 +180,7 @@ pub struct SavedRegistersWithoutIPDiff {
     pub r12: Option<u64>,
     pub r13: Option<u64>,
     pub r14: Option<u64>,
-    pub r15: Option<u64>,
+    // pub r15: Option<u64>,
     pub xsave_area: Option<[u64; 64]>,
 }
 
@@ -202,7 +202,7 @@ impl SavedRegistersWithoutIPDiff {
             r12: None,
             r13: None,
             r14: None,
-            r15: None,
+            // r15: None,
             xsave_area: None,
         }
     }
