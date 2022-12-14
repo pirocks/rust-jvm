@@ -15,18 +15,10 @@ use std::os::raw::{c_char, c_int};
 use libc::{size_t};
 use nix::NixPath;
 
-use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject, jstring, jvm_version_info, sockaddr, vsnprintf};
-use rust_jvm_common::classfile::{ACC_INTERFACE, ACC_PUBLIC};
-use rust_jvm_common::classnames::{class_name, ClassName};
-use rust_jvm_common::ptype::PType;
+use jvmti_jni_bindings::{jboolean, jint, jlong, JNIEnv, jobject, jstring};
 use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::interpreter::common::ldc::{load_class_constant_by_type};
-use slow_interpreter::interpreter_util::{new_object, run_constructor};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_object, to_object};
-use slow_interpreter::rust_jni::value_conversion::{native_to_runtime_class, runtime_class_to_native};
 
-use crate::introspection::JVM_GetCallerClass;
 
 //so in theory I need something like this:
 //    asm!(".symver JVM_GetEnclosingMethodInfo JVM_GetEnclosingMethodInfo@@SUNWprivate_1.1");

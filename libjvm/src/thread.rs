@@ -1,41 +1,23 @@
-use std::cell::RefCell;
-use std::collections::hash_map::RandomState;
-use std::collections::HashMap;
-use std::ops::Deref;
 use std::ptr::null_mut;
-use std::rc::Rc;
-use std::sync::{Arc, Condvar, RwLock, RwLockWriteGuard};
+use std::sync::{Arc};
 use std::thread::sleep;
 use std::time::Duration;
-use itertools::Itertools;
 
-use nix::sys::pthread::pthread_self;
-use nix::unistd::gettid;
-use parking_lot::Mutex;
 use wtf8::Wtf8Buf;
 
-use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{_jobject, JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_Available};
-use rust_jvm_common::classnames::ClassName;
+use jvmti_jni_bindings::{JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
 
-use rust_jvm_common::ptype::PType;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::interpreter::run_function;
-use slow_interpreter::interpreter_util::new_object;
-use slow_interpreter::java_values::{JavaValue, Object};
+use slow_interpreter::java_values::{JavaValue};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 
 
 use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
-use slow_interpreter::stack_entry::StackEntry;
+use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
-use slow_interpreter::stdlib::java::lang::thread::JThread;
-use slow_interpreter::stdlib::java::lang::thread_group::JThreadGroup;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::threading::safepoints::Monitor2;
-use slow_interpreter::utils::pushable_frame_todo;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]

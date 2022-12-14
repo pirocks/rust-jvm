@@ -1,14 +1,11 @@
-use std::convert::Infallible;
-use std::ffi::{CStr, CString, OsStr, OsString};
-use std::mem::transmute;
-use std::os::raw::{c_char, c_int, c_void};
+use std::ffi::{CStr, OsString};
+use std::os::raw::{c_char, c_void};
 use std::path::{Path, PathBuf};
 use std::ptr::{null, null_mut};
 use std::str::FromStr;
 
-use jvmti_jni_bindings::{JavaVM, JNI_VERSION_1_8, JNIInvokeInterface_};
-use sketch_jvm_version_of_utf8::{JVMString, PossiblyJVMString, ValidationError};
-use slow_interpreter::jvm_state::{JVM, JVMState};
+use jvmti_jni_bindings::{JNIInvokeInterface_};
+use sketch_jvm_version_of_utf8::{PossiblyJVMString};
 
 use interfaces::invoke_interface::get_state_invoke_interface;
 

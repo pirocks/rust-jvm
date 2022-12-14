@@ -1,17 +1,11 @@
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::mem::transmute;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::sync::{Arc, Mutex, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::thread::Scope;
-use std::time::{Duration, Instant};
+use std::time::{Instant};
 
-use argparse::{ArgumentParser, List, Store, StoreTrue};
 use clap::Parser;
-use itertools::all;
 use raw_cpuid::CpuId;
 
 use classfile_view::view::ClassBackedView;
@@ -28,7 +22,6 @@ use method_table::MethodTable;
 use perf_metrics::PerfMetrics;
 use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
 use runtime_class_stuff::static_fields::AllTheStaticFields;
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
@@ -37,8 +30,6 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::MethodShapeIDs;
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
-use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::better_java_stack::remote_frame::RemoteFrame;
 use slow_interpreter::field_table::FieldTable;
 use slow_interpreter::function_instruction_count::FunctionInstructionExecutionCount;
 use slow_interpreter::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;

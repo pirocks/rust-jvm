@@ -1,53 +1,38 @@
-use std::arch::x86_64::_mm_testc_pd;
-use std::borrow::Borrow;
-use std::cell::{RefCell, UnsafeCell};
-use std::ffi::{c_int, c_void, CStr};
-use std::ops::Deref;
+use std::ffi::{c_int, CStr};
 use std::os::raw::c_char;
 use std::ptr::null_mut;
 
 use by_address::ByAddress;
 use itertools::Itertools;
-use num_cpus::get;
 use wtf8::Wtf8Buf;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::attribute_view::InnerClassesView;
-use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, jio_vfprintf, JNIEnv, jobject, jobjectArray, jstring, JVM_ACC_SYNCHRONIZED, JVM_ExceptionTableEntryType, jvmtiCapabilities};
+use classfile_view::view::{HasAccessFlags};
+use classfile_view::view::ptype_view::{PTypeView};
+use jvmti_jni_bindings::{jboolean, jclass, jint, JNIEnv, jobject, jobjectArray, jstring, JVM_ACC_SYNCHRONIZED};
 use runtime_class_stuff::hidden_fields::HiddenJVMField;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_PUBLIC, ACC_SUPER};
-use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-use rust_jvm_common::descriptor_parser::{parse_field_descriptor, parse_parameter_descriptor};
-use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
-use rust_jvm_common::ptype::{PType, ReferenceType};
+use rust_jvm_common::descriptor_parser::{parse_field_descriptor};
+use rust_jvm_common::loading::{LoaderName};
 use sketch_jvm_version_of_utf8::JVMString;
 use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
 use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
 use slow_interpreter::class_objects::{get_or_create_class_object, get_or_create_class_object_force_loader};
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::ldc::{load_class_constant_by_type};
-use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::java_values::{ArrayObject, ExceptionReturn, JavaValue, Object};
-use slow_interpreter::java_values::Object::Array;
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object, to_object_new};
-use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object_new};
 use slow_interpreter::stdlib::java::lang::class::JClass;
-use slow_interpreter::stdlib::java::lang::class_not_found_exception::ClassNotFoundException;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::reflect::reflection::Reflection;
-use slow_interpreter::utils::{pushable_frame_todo, throw_npe};
+use slow_interpreter::utils::{throw_npe};
 
 pub mod constant_pool;
 pub mod is_x;
@@ -81,7 +66,7 @@ unsafe extern "system" fn JVM_GetClassInterfaces<'gc>(env: *mut JNIEnv, cls: jcl
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassSigners(env: *mut JNIEnv, cls: jclass) -> jobjectArray {
+unsafe extern "system" fn JVM_GetClassSigners(_env: *mut JNIEnv, _cls: jclass) -> jobjectArray {
     null_mut()
     // not supporting class signing atm.
 }
@@ -124,11 +109,10 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -> jint {
-    let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let jclass = from_jclass(jvm, cls);
     let mut res = jclass.as_runtime_class(jvm).view().access_flags() as u32;
-    res &= (!(JVM_ACC_SYNCHRONIZED as u32));
+    res &= !(JVM_ACC_SYNCHRONIZED as u32);
     res as i32
 }
 
@@ -258,7 +242,7 @@ unsafe extern "system" fn JVM_GetClassContext<'gc>(env: *mut JNIEnv) -> jobjectA
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jstring = match JavaValue::Object(todo!() /*from_jclass(jvm,JVM_GetClassName(env, cb))*/).cast_string() {
+    let jstring = match NewJavaValueHandle::Object(from_object_new(jvm,JVM_GetClassName(env, cb)).unwrap()).cast_string() {
         None => return throw_npe(jvm, int_state, get_throw(env)),
         Some(jstring) => jstring,
     };

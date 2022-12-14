@@ -9,6 +9,6 @@ unsafe extern "system" fn JVM_DesiredAssertionStatus(env: *mut JNIEnv, _unused: 
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_AssertionStatusDirectives(env: *mut JNIEnv, _unused: jclass) -> jobject {
+unsafe extern "system" fn JVM_AssertionStatusDirectives(_env: *mut JNIEnv, _unused: jclass) -> jobject {
     unimplemented!()
 }

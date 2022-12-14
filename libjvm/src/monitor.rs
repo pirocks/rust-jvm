@@ -4,9 +4,7 @@ use std::time::Duration;
 use libc::c_void;
 
 use jvmti_jni_bindings::{jlong, JNIEnv, jobject};
-use slow_interpreter::better_java_stack::frames::HasFrame;
 
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]

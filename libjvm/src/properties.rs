@@ -1,28 +1,23 @@
 use std::path::Path;
 use std::ptr::null_mut;
 
-use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use classfile_view::view::ClassView;
 use jvmti_jni_bindings::{JNIEnv, jobject};
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::interpreter::common::invoke::virtual_::invoke_virtual_method_i;
-use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValue;
-use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new};
+use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{pushable_frame_todo, throw_npe_res};
+use slow_interpreter::utils::{throw_npe_res};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]

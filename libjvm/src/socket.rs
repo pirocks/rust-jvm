@@ -2,7 +2,6 @@ use std::ffi::c_void;
 use std::time::Instant;
 
 use nix::errno::Errno::EINTR;
-use nix::sys::socket::setsockopt;
 
 use jvmti_jni_bindings::{jint, sockaddr};
 

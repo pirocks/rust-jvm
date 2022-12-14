@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use sun_misc_unsafe::Java_sun_misc_Unsafe_registerNatives;
 
 #[no_mangle]

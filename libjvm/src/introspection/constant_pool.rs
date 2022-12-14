@@ -1,34 +1,28 @@
-use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_uchar};
-use std::ptr::{null, null_mut};
+use std::ptr::null_mut;
 use std::sync::Arc;
-
-use by_address::ByAddress;
+use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::{ConstantInfoView, InterfaceMethodrefView, MethodrefView};
-use classfile_view::view::method_view::MethodView;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Unicode, JVM_CONSTANT_Utf8, lchmod};
+use jvmti_jni_bindings::{_jobject, jclass, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jobjectArray, jstring, JVM_CONSTANT_Class, JVM_CONSTANT_Double, JVM_CONSTANT_Fieldref, JVM_CONSTANT_Float, JVM_CONSTANT_Integer, JVM_CONSTANT_InterfaceMethodref, JVM_CONSTANT_InvokeDynamic, JVM_CONSTANT_Long, JVM_CONSTANT_MethodHandle, JVM_CONSTANT_Methodref, JVM_CONSTANT_MethodType, JVM_CONSTANT_NameAndType, JVM_CONSTANT_String, JVM_CONSTANT_Utf8};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::classnames::ClassName;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
-use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
-use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
-use slow_interpreter::class_loading::{check_initing_or_inited_class, check_loaded_class};
+use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::jvm_state::JVMState;
-use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new, to_object, to_object_new};
-use slow_interpreter::stdlib::java::lang::reflect::field::Field;
+use slow_interpreter::rust_jni::native_util::{from_jclass, to_object, to_object_new};
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
@@ -52,7 +46,7 @@ unsafe extern "system" fn JVM_GetClassConstantPool(env: *mut JNIEnv, cls: jclass
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject) -> jint {
+unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject) -> jint {
     let jvm = get_state(env);
     let runtime_class = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = runtime_class.view();
@@ -60,7 +54,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetSize(env: *mut JNIEnv, constantPool
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
+unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let throw = get_throw(env);
@@ -81,7 +75,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAt(env: *mut JNIEnv, constantP
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
+unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jclass {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let throw = get_throw(env);
@@ -91,7 +85,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
         return throw_array_out_of_bounds(jvm, int_state, throw, index);
     }
     match view.constant_pool_view(index as usize) {
-        ConstantInfoView::Class(c) => {
+        ConstantInfoView::Class(_c) => {
             let classes_guard = jvm.classes.read().unwrap();
             match classes_guard.get_class_obj(rc.cpdtype(), None /*todo should there be something here*/) {
                 None => null_mut(),
@@ -105,32 +99,31 @@ unsafe extern "system" fn JVM_ConstantPoolGetClassAtIfLoaded(env: *mut JNIEnv, c
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
+unsafe extern "system" fn JVM_ConstantPoolGetMethodAt(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
     match get_method(env, jcpool, index, true) {
         Ok(method) => method,
         Err(WasException { exception_obj }) => {
-            todo!();
-            null_mut()
+            *get_throw(env) = Some(WasException { exception_obj });
+            jobject::invalid_default()
         }
     }
 }
 
 fn get_class_from_type_maybe<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType, load_class: bool) -> Result<Option<Arc<RuntimeClass<'gc>>>, WasException<'gc>> {
     Ok(if load_class {
-        let mut temp: OpaqueFrame<'gc, '_> = todo!();
         Some(check_initing_or_inited_class(jvm, int_state, ptype)?)
     } else {
         match jvm.classes.read().unwrap().get_class_obj(ptype, None /*todo should this be something*/) {
             None => return Ok(None),
-            Some(rc) => Some(JavaValue::Object(todo!() /*rc.into()*/).to_new().cast_class().unwrap().as_runtime_class(jvm)),
+            Some(_) => Some(JavaValue::Object(todo!() /*rc.into()*/).to_new().cast_class().unwrap().as_runtime_class(jvm)),
         }
     })
 }
 
-unsafe fn get_method<'gc>(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException<'gc>> {
+unsafe fn get_method<'gc>(env: *mut JNIEnv, jcpool: jobject, index: i32, load_class: bool) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
@@ -164,24 +157,24 @@ unsafe fn get_method<'gc>(env: *mut JNIEnv, constantPoolOop: jobject, index: i32
         }
     };
 
-    Ok(new_local_ref_public(todo!()/*method_obj.object().to_gc_managed().into()*/, int_state))
+    Ok(new_local_ref_public_new(Some(method_obj.object().as_allocated_obj()), int_state))
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
-    match get_method(env, constantPoolOop, index, false) {
+unsafe extern "system" fn JVM_ConstantPoolGetMethodAtIfLoaded(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
+    match get_method(env, jcpool, index, false) {
         Ok(method) => method,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             null_mut()
         }
     }
 }
 
-unsafe fn get_field<'gc>(env: *mut JNIEnv, constantPoolOop: jobject, index: i32, load_class: bool) -> Result<jobject, WasException<'gc>> {
+unsafe fn get_field<'gc>(env: *mut JNIEnv, jcpool: jobject, index: i32, load_class: bool) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
+    let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
         throw_array_out_of_bounds_res(jvm, int_state, index)?;
@@ -206,22 +199,22 @@ unsafe fn get_field<'gc>(env: *mut JNIEnv, constantPoolOop: jobject, index: i32,
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(env: *mut JNIEnv, constantPoolOop: jobject, _jcpool: jobject, index: jint) -> jobject {
-    match get_field(env, constantPoolOop, index, true) {
+unsafe extern "system" fn JVM_ConstantPoolGetFieldAt(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
+    match get_field(env, jcpool, index, true) {
         Ok(method) => method,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             null_mut()
         }
     }
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, constantPoolOop: jobject, _jcpool: jobject, index: jint) -> jobject {
-    match get_field(env, constantPoolOop, index, false) {
+unsafe extern "system" fn JVM_ConstantPoolGetFieldAtIfLoaded(env: *mut JNIEnv, _constantPoolOop: jobject, jcpool: jobject, index: jint) -> jobject {
+    match get_field(env, jcpool, index, false) {
         Ok(method) => method,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             null_mut()
         }
     }
@@ -260,30 +253,30 @@ unsafe extern "system" fn JVM_ConstantPoolGetMemberRefInfoAt(env: *mut JNIEnv, _
             return throw_illegal_arg(jvm, int_state, throw);
         }
     };
-    let jv_vec = vec![
+    let jv_vec_owned = vec![
         match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class)) {
-            Ok(class) => class.java_value(),
+            Ok(class) => class.new_java_value_handle(),
             Err(WasException { exception_obj }) => {
-                todo!();
+                *throw = Some(WasException { exception_obj });
                 return null_mut();
             }
         },
         match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(name.to_str(&jvm.string_pool))) {
-            Ok(name) => name.java_value(),
+            Ok(name) => name.new_java_value_handle(),
             Err(WasException { exception_obj }) => {
-                todo!();
+                *throw = Some(WasException { exception_obj });
                 return null_mut();
             }
         },
         match JString::from_rust(jvm, int_state, Wtf8Buf::from_string(desc_str.to_str(&jvm.string_pool))) {
-            Ok(desc_str) => desc_str.java_value(),
+            Ok(desc_str) => desc_str.new_java_value_handle(),
             Err(WasException { exception_obj }) => {
-                todo!();
+                *throw = Some(WasException { exception_obj });
                 return null_mut();
             }
         },
     ];
-    new_local_ref_public(todo!()/*JavaValue::new_vec_from_vec(jvm, jv_vec, CClassName::string().into()).unwrap_object()*/, int_state)
+    new_local_ref_public_new(Some(JavaValue::new_vec_from_vec(jvm, jv_vec_owned.iter().map(|owned| owned.as_njv()).collect_vec(), CClassName::string().into()).as_allocated_obj()), int_state)
 }
 
 #[no_mangle]
@@ -366,18 +359,18 @@ unsafe extern "system" fn JVM_ConstantPoolGetStringAt(env: *mut JNIEnv, constant
     }
 }
 
-unsafe fn ConstantPoolGetStringAt_impl<'gc>(env: *mut JNIEnv, _constantPoolOop: *mut _jobject, index: i32) -> Result<jobject, WasException<'gc>> {
+unsafe fn ConstantPoolGetStringAt_impl<'gc>(env: *mut JNIEnv, _constantPoolOop: *mut _jobject, _index: i32) -> Result<jobject, WasException<'gc>> {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    let rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
-    let view = rc.view();
-    if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds_res(jvm, int_state, index)?;
+    let _int_state = get_interpreter_state(env);
+    let _rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
+    let view = _rc.view();
+    if _index >= view.constant_pool_size() as jint {
+        throw_array_out_of_bounds_res(jvm, _int_state, _index)?;
     }
-    match view.constant_pool_view(index as usize) {
-        ConstantInfoView::String(string) => Ok(to_object(todo!()/*JString::from_rust(jvm, pushable_frame_todo(), string.string())?.object().to_gc_managed().into()*/)),
+    match view.constant_pool_view(_index as usize) {
+        ConstantInfoView::String(_string) => Ok(to_object(todo!()/*JString::from_rust(jvm, pushable_frame_todo(), string.string())?.object().to_gc_managed().into()*/)),
         _ => {
-            return throw_illegal_arg_res(jvm, int_state);
+            return throw_illegal_arg_res(jvm, _int_state);
         }
     }
 }
@@ -388,7 +381,7 @@ unsafe extern "system" fn JVM_ConstantPoolGetUTF8At(env: *mut JNIEnv, _constantP
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jstring::invalid_default()
+            return jstring::invalid_default();
         }
     }
 }
@@ -412,7 +405,6 @@ unsafe fn ConstantPoolGetUTF8At_impl<'gc>(env: *mut JNIEnv, _constantPoolOop: jo
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, types: *mut c_uchar) {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     for (i, constant_pool) in (0..view.constant_pool_size()).map(|i| (i, view.constant_pool_view(i))) {
@@ -439,7 +431,6 @@ unsafe extern "system" fn JVM_GetClassCPTypes(env: *mut JNIEnv, cb: jclass, type
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassCPEntriesCount(env: *mut JNIEnv, cb: jclass) -> jint {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     view.constant_pool_size() as i32

@@ -13,6 +13,19 @@ impl<'gc> NewJavaValueHandle<'gc> {
     }
 }
 
+impl<'gc> AllocatedHandle<'gc> {
+    pub fn cast_protection_domain(self) -> ProtectionDomain<'gc> {
+        ProtectionDomain { normal_object: self }
+    }
+}
+
+impl<'gc> AllocatedNormalObjectHandle<'gc> {
+    pub fn cast_protection_domain(self) -> ProtectionDomain<'gc> {
+        ProtectionDomain { normal_object: AllocatedHandle::NormalObject(self)}
+    }
+}
+
+
 impl<'gc> ProtectionDomain<'gc> {}
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for ProtectionDomain<'gc> {

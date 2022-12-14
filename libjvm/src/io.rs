@@ -1,6 +1,6 @@
-use std::ffi::{c_void, CStr};
+use std::ffi::{c_void};
 
-use jvmti_jni_bindings::{fopen, jint, jlong};
+use jvmti_jni_bindings::{jint, jlong};
 
 use crate::util::retry_on_eintr;
 

@@ -1,4 +1,4 @@
-use std::ffi::{c_char, CStr};
+use std::ffi::{c_char};
 use std::fs::File;
 use std::io::{Cursor, Write};
 use std::ptr::null_mut;
@@ -11,25 +11,23 @@ use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
-use slow_interpreter::new_java_values::allocated_objects::AllocatedHandle;
+use slow_interpreter::java_values::{ExceptionReturn};
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object, to_object_new};
+use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const ::std::os::raw::c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject) -> jclass {
+unsafe extern "system" fn JVM_DefineClass(env: *mut JNIEnv, name: *const c_char, loader: jobject, buf: *const jbyte, len: jsize, pd: jobject) -> jclass {
     JVM_DefineClassWithSource(env, name, loader, buf, len, pd, null_mut())
 }
 
 //todo handle source
 //todo what is pd
 #[no_mangle]
-unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, name: *const c_char, loader: jobject, buf: *const jbyte, len: jsize, _pd: jobject, _source: *const c_char) -> jclass {
+unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, _name: *const c_char, loader: jobject, buf: *const jbyte, len: jsize, _pd: jobject, _source: *const c_char) -> jclass {
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
-    let name_string = CStr::from_ptr(name).to_str().unwrap(); //todo handle bad utf8, with to lossy or something
     let loader_name = match from_object_new(jvm, loader) {
         None => LoaderName::BootstrapLoader,
         Some(loader_obj) => loader_obj.cast_class_loader().to_jvm_loader(jvm)

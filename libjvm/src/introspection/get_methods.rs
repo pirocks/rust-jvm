@@ -1,30 +1,21 @@
-use std::cell::RefCell;
-use std::ops::Deref;
 use std::ptr::null_mut;
 
 use itertools::Itertools;
 
-use classfile_view::view::{ClassView, HasAccessFlags};
-use classfile_view::view::method_view::MethodView;
-use classfile_view::view::ptype_view::{PTypeView, ReferenceTypeView};
-use jvmti_jni_bindings::{_jobject, jboolean, jclass, jint, jio_vfprintf, JNIEnv, jobjectArray};
+use classfile_view::view::{HasAccessFlags};
+use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobjectArray};
 use runtime_class_stuff::RuntimeClass;
-use rust_jvm_common::classfile::ACC_PUBLIC;
-use rust_jvm_common::classnames::{class_name, ClassName};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
-use rust_jvm_common::loading::{LoaderIndex, LoaderName};
+use rust_jvm_common::loading::{LoaderName};
 use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
-use slow_interpreter::better_java_stack::opaque_frame::OpaqueFrame;
-use slow_interpreter::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
+use slow_interpreter::class_loading::{check_initing_or_inited_class};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
-use slow_interpreter::interpreter_util::{new_object, run_constructor};
-use slow_interpreter::java_values::{ArrayObject, ExceptionReturn, JavaValue, Object};
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
@@ -33,12 +24,10 @@ use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, 
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_object_new, to_object};
-use slow_interpreter::stack_entry::StackEntry;
+use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
-use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
@@ -55,7 +44,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, publicOnly: u8, loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, publicOnly: u8, _loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
     let class_ptype = of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unsafe {
@@ -113,7 +102,6 @@ fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_s
     }
     let target_classview = &class_obj.view();
     let constructors = target_classview.lookup_method_name(MethodName::constructor_init());
-    let loader = int_state.current_loader(jvm);
     let mut object_array = vec![];
 
     constructors.iter().filter(|m| if publicOnly { m.is_public() } else { true }).for_each(|m| {

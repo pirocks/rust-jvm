@@ -1,46 +1,40 @@
-use std::hint::unreachable_unchecked;
 use std::os::raw::{c_char, c_int, c_uchar, c_ushort};
 use std::ptr::null_mut;
 
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use classfile_parser::parse_validation::ClassfileError::Java9FeatureNotSupported;
-use classfile_view::view::{ClassView, HasAccessFlags};
+use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
-use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType, lchmod};
+use jvmti_jni_bindings::{jboolean, jbyteArray, jclass, jint, JNIEnv, jobject, jobjectArray, JVM_ExceptionTableEntryType};
 use rust_jvm_common::classfile::Code;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-use rust_jvm_common::compressed_classfile::string_pool::CCString;
-use rust_jvm_common::descriptor_parser::MethodDescriptor;
 use slow_interpreter::better_java_stack::frames::HasFrame;
-use slow_interpreter::class_loading::check_initing_or_inited_class;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{ExceptionReturn, JavaValue, Object};
-use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
+use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
-use slow_interpreter::rust_jni::value_conversion::native_to_runtime_class;
+use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::stdlib::java::lang::class::JClass;
-use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, _method: jobject) -> jobjectArray {
+unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let throw = get_throw(env);
-    let method = JavaValue::Object(
-        todo!(), /*Some(match from_jclass(jvm,method) {
-                     None => {
-                         return throw_npe(jvm, int_state);
-                     }
-                     Some(method_obj) => method_obj
-                 })*/
+    let method = NewJavaValueHandle::Object(
+        match from_object_new(jvm, method) {
+            None => {
+                return throw_npe(jvm, int_state, throw);
+            }
+            Some(method_obj) => method_obj
+        }
     )
         .cast_method();
     let clazz = method.get_clazz(jvm).as_runtime_class(jvm);
@@ -103,7 +97,6 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetClassMethodsCount(env: *mut JNIEnv, cb: jclass) -> jint {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let rc = from_jclass(jvm, cb).as_runtime_class(jvm);
     let view = rc.view();
     view.num_methods() as jint

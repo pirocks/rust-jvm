@@ -1,28 +1,20 @@
-use std::borrow::{Borrow, BorrowMut};
 use std::cell::RefCell;
 use std::ffi::c_void;
-use std::ops::Deref;
 use std::process::exit;
 use std::ptr::null_mut;
 use std::sync::RwLock;
 
 use lazy_static::lazy_static;
 use wtf8::Wtf8Buf;
-use jmm_interface::initial_jmm;
 
-use jvmti_jni_bindings::{_jobject, jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
+use jvmti_jni_bindings::{jboolean, jint, JNIEnv, jobject, JVM_INTERFACE_VERSION, jvm_version_info};
 use jvmti_jni_bindings::jmm_interface::JMMInterfaceNamedReservedPointers;
-use jvmti_jni_bindings::jmmInterface_1_;
 use slow_interpreter::better_java_stack::java_stack_guard::JMM;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::JavaValue;
-use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::rust_jni::native_util::{from_object, from_object_new, to_object};
+use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
-use slow_interpreter::stdlib::java::util::properties::Properties;
-use slow_interpreter::utils::pushable_frame_todo;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetInterfaceVersion() -> jint {

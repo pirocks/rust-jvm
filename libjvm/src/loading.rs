@@ -1,22 +1,17 @@
-use std::ptr::null_mut;
-
 use jvmti_jni_bindings::{jclass, jint, JNIEnv, jobject, jstring};
-use rust_jvm_common::loading::{ClassLoadingError, LoaderName};
+use rust_jvm_common::loading::{LoaderName};
 use slow_interpreter::better_java_stack::frames::{HasFrame, PushableFrame};
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
-use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::java_values::{ExceptionReturn, Object};
+use slow_interpreter::java_values::{ExceptionReturn};
 use slow_interpreter::jvm_state::JVMState;
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
-use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, to_object};
-use slow_interpreter::stdlib::java::lang::class_loader::ClassLoader;
+use slow_interpreter::rust_jni::native_util::{from_jclass};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::misc::launcher::ext_class_loader::ExtClassLoader;
-use slow_interpreter::stdlib::sun::misc::launcher::Launcher;
-use slow_interpreter::utils::pushable_frame_todo;use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentLoadedClass(env: *mut JNIEnv) -> jclass {

@@ -1,7 +1,7 @@
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
-use jvmti_jni_bindings::{jclass, jlong, JNIEnv, lchmod};
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use jvmti_jni_bindings::{jclass, jlong, JNIEnv};
+use slow_interpreter::rust_jni::jni_utils::{get_state};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_CurrentTimeMillis(_env: *mut JNIEnv, _ignored: jclass) -> jlong {
