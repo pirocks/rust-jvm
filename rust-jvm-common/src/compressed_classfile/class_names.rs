@@ -1,6 +1,8 @@
 use std::fmt::{Debug, Formatter};
+
 use add_only_static_vec::{AddOnlyId, AddOnlyVecIDType};
-use crate::compressed_classfile::{CompressedClassfileString};
+
+use crate::compressed_classfile::CompressedClassfileString;
 use crate::compressed_classfile::compressed_types::CompressedParsedRefType;
 use crate::compressed_classfile::names::PredefinedStrings::*;
 
@@ -291,16 +293,20 @@ impl CompressedClassName {
         Self::from_raw_id(JAVA_LANG_NO_SUCH_METHOD_ERROR as AddOnlyVecIDType)
     }
 
-    pub const fn direct_byte_buffer() -> Self{
+    pub const fn direct_byte_buffer() -> Self {
         Self::from_raw_id(JAVA_NIO_DIRECT_BYTE_BUFFER as AddOnlyVecIDType)
     }
 
-    pub const fn index_out_bounds_exception() -> Self{
+    pub const fn index_out_bounds_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION as AddOnlyVecIDType)
     }
 
-    pub const fn arithmetic_exception() -> Self{
+    pub const fn arithmetic_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_ARITHMETIC_EXCEPTION as AddOnlyVecIDType)
+    }
+
+    pub const fn interrupted_exception() -> Self {
+        Self::from_raw_id(JAVA_LANG_INTERRUPTED_EXCEPTION as AddOnlyVecIDType)
     }
 }
 

@@ -9,22 +9,22 @@ use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
-pub struct ArithmeticException<'gc> {
+pub struct InterruptedException<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> ArithmeticException<'gc> {
+impl<'gc> InterruptedException<'gc> {
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Self, WasException<'gc>> {
-        let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::arithmetic_exception().into())?;
+        let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::interrupted_exception().into())?;
         let this = new_object(jvm, int_state, &class_not_found_class, false);
         let desc = CMethodDescriptor::void_return(vec![]);
         let args = vec![this.new_java_value()];
         run_constructor(jvm, int_state, class_not_found_class, args, &desc)?;
-        Ok(this.cast_arithmetic_exception())
+        Ok(this.cast_interrupted_exception())
     }
 }
 
-impl<'gc> NewAsObjectOrJavaValue<'gc> for ArithmeticException<'gc> {
+impl<'gc> NewAsObjectOrJavaValue<'gc> for InterruptedException<'gc> {
     fn object(self) -> AllocatedNormalObjectHandle<'gc> {
         self.normal_object
     }
@@ -33,4 +33,5 @@ impl<'gc> NewAsObjectOrJavaValue<'gc> for ArithmeticException<'gc> {
         &self.normal_object
     }
 }
+
 

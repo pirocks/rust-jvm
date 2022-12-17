@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INTERNAL, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
+use jvmti_jni_bindings::{jint, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiError_JVMTI_ERROR_THREAD_NOT_SUSPENDED, jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED};
 
 use slow_interpreter::better_java_stack::native_frame::NativeFrame;
 use slow_interpreter::java_values::JavaValue;
@@ -79,7 +79,7 @@ unsafe fn suspend_thread_impl<'gc, 'l>(thread_object_raw: jthread, jvm: &'gc JVM
         Err(err) => match err {
             SuspendError::AlreadySuspended => jvmtiError_JVMTI_ERROR_THREAD_SUSPENDED,
             SuspendError::NotAlive => jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE,
-            SuspendError::WasException(_) => jvmtiError_JVMTI_ERROR_INTERNAL,
+            // SuspendError::WasException(_) => jvmtiError_JVMTI_ERROR_INTERNAL,
         },
     }
 }

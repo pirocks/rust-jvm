@@ -84,6 +84,7 @@ pub(crate) enum PredefinedStrings {
     JAVA_NIO_DIRECT_BYTE_BUFFER,
     JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION,
     JAVA_LANG_ARITHMETIC_EXCEPTION,
+    JAVA_LANG_INTERRUPTED_EXCEPTION,
     field_annotationData,
     method_and_field_annotationType,
     field_argCounts,
@@ -421,7 +422,8 @@ impl PredefinedStrings {
             method_findConstructor => "findConstructor".to_string(),
             JAVA_NIO_DIRECT_BYTE_BUFFER => "java/nio/DirectByteBuffer".to_string(),
             JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION => "java/lang/IndexOutOfBoundsException".to_string(),
-            JAVA_LANG_ARITHMETIC_EXCEPTION => "java/lang/ArithmeticException".to_string()
+            JAVA_LANG_ARITHMETIC_EXCEPTION => "java/lang/ArithmeticException".to_string(),
+            JAVA_LANG_INTERRUPTED_EXCEPTION => "java/lang/InterruptedException".to_string()
         }
     }
 }

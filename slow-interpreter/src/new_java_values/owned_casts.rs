@@ -12,6 +12,7 @@ use crate::stdlib::java::lang::float::Float;
 use crate::stdlib::java::lang::illegal_argument_exception::IllegalArgumentException;
 use crate::stdlib::java::lang::index_out_of_bounds_exception::IndexOutOfBoundsException;
 use crate::stdlib::java::lang::int::Int;
+use crate::stdlib::java::lang::interrupted_exception::InterruptedException;
 use crate::stdlib::java::lang::invoke::call_site::CallSite;
 use crate::stdlib::java::lang::invoke::lambda_form::basic_type::BasicType;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
@@ -193,6 +194,10 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
 
     fn cast_protection_domain(self) -> ProtectionDomain<'gc> {
         ProtectionDomain { normal_object: self.normal_object() }
+    }
+
+    fn cast_interrupted_exception(self) -> InterruptedException<'gc> {
+        InterruptedException { normal_object: self.normal_object() }
     }
 }
 

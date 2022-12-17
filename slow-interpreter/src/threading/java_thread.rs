@@ -20,7 +20,7 @@ use crate::better_java_stack::frames::{PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::remote_frame::RemoteFrame;
 use crate::interpreter::safepoint_check;
-use crate::new_safe_point_state::{NewSafePointState, ThreadOrBootstrap};
+use crate::new_sync_point_state::{NewSafePointState, ThreadOrBootstrap};
 use crate::rust_jni::jvmti::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
 
@@ -137,11 +137,6 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_terminated()
     }
 
-    // pub fn status_number(&self) -> jint {
-    //     let status_guard = self.thread_status.lock().unwrap();
-    //     self.safepoint_state.get_thread_status_number(status_guard.deref())
-    // }
-
     pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
@@ -170,7 +165,14 @@ impl<'gc> JavaThread<'gc> {
         if self.underlying_thread.is_this_thread() {
             todo!();/*assert_eq!(self.java_tid, int_state.thread().java_tid);*/
             if !_without_self_suspend {
-                safepoint_check(_jvm, pushable_frame_todo()/*int_state*/)?;
+                match safepoint_check(_jvm, pushable_frame_todo()/*int_state*/){
+                    Ok(_) => {
+                        todo!()
+                    }
+                    Err(_) => {
+                        todo!()
+                    }
+                };
             }
         }
         Ok(())
@@ -231,13 +233,17 @@ impl<'gc> JavaThread<'gc> {
     pub fn is_daemon(&self, jvm: &'gc JVMState<'gc>) -> bool{
         self.thread_object.read().unwrap().as_ref().unwrap().daemon(jvm)
     }
+
+    pub fn interrupt_thread(&self) {
+        self.safepoint_state.set_interrupted()
+    }
 }
 
 #[derive(Debug)]
-pub enum SuspendError<'gc> {
+pub enum SuspendError/*<'gc>*/ {
     AlreadySuspended,
     NotAlive,
-    WasException(WasException<'gc>),
+    /*WasException(WasException<'gc>),*/
 }
 
 #[derive(Debug)]
@@ -245,8 +251,8 @@ pub enum ResumeError {
     NotSuspended,
 }
 
-impl<'gc> From<WasException<'gc>> for SuspendError<'gc> {
+/*impl<'gc> From<WasException<'gc>> for SuspendError<'gc> {
     fn from(we: WasException<'gc>) -> Self {
         Self::WasException(we)
     }
-}
+}*/

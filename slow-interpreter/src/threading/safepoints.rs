@@ -379,6 +379,7 @@ impl Monitor2 {
         // }
         let mut guard = self.monitor2_priv.write().unwrap();
         if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned(){
+            guard.waiting_notify.remove(&waiting_notify);
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(waiting_notify);
             to_notify_thread.safepoint_state.set_notified();
         }
@@ -421,11 +422,8 @@ impl Monitor2 {
             if let Err(_) = current_thread.safepoint_state.check(jvm, int_state) {
                 todo!()
             };
-            let mut guard = self.monitor2_priv.write().unwrap();
-            assert!(guard.owner.is_none());
-            guard.waiting_notify.remove(&current_thread.java_tid);
-            guard.owner = Some(current_thread.java_tid);
-            guard.count = prev_count;
+            assert!(!current_thread.safepoint_state.is_waiting_notify());
+            return self.notify_reacquire(jvm,int_state, prev_count);
         } else {
             todo!("throw illegal monitor state")
         }
@@ -439,19 +437,17 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, prev_count: usize) -> Result<(), WasException<'gc>> {
-        todo!()
-        // self.lock(jvm, int_state)?;
-        // let current_thread = jvm.thread_state.get_current_thread();
-        // let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here
-        // guard.count = prev_count;
-        // guard.owner = Some(current_thread.java_tid);
-        // Ok(())
+    pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, prev_count: usize) -> Result<(), WasException<'gc>> {
+        self.lock(jvm, int_state)?;
+        let current_thread = jvm.thread_state.get_current_thread();
+        let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here
+        guard.count = prev_count;
+        guard.owner = Some(current_thread.java_tid);
+        Ok(())
     }
 
     pub fn this_thread_holds_lock<'gc>(&self, jvm: &'gc JVMState<'gc>) -> bool {
-        todo!()
-        // let current_thread = jvm.thread_state.get_current_thread();
-        // self.monitor2_priv.read().unwrap().owner == Some(current_thread.java_tid)
+        let current_thread = jvm.thread_state.get_current_thread();
+        self.monitor2_priv.read().unwrap().owner == Some(current_thread.java_tid)
     }
 }

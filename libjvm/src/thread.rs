@@ -7,7 +7,6 @@ use wtf8::Wtf8Buf;
 
 use jvmti_jni_bindings::{JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
 
-use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{JavaValue};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
@@ -82,6 +81,7 @@ unsafe extern "system" fn JVM_SetThreadPriority(_env: *mut JNIEnv, _thread: jobj
 
 #[no_mangle]
 unsafe extern "system" fn JVM_Yield(_env: *mut JNIEnv, _threadClass: jclass) {
+    std::thread::yield_now();
     //todo actually do something here maybe
 }
 
@@ -92,6 +92,7 @@ unsafe extern "system" fn JVM_Sleep(_env: *mut JNIEnv, _threadClass: jclass, mil
         unimplemented!()
     }
     //todo figure out what threadClass is for
+    //todo this should sleep mechanism in safepoint
     sleep(Duration::from_millis(millis as u64))
 }
 
@@ -108,11 +109,11 @@ unsafe extern "system" fn JVM_CurrentThread(env: *mut JNIEnv, _threadClass: jcla
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, _thread: jobject) {
+unsafe extern "system" fn JVM_Interrupt(env: *mut JNIEnv, thread: jobject) {
     let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
-    int_state.debug_print_stack_trace(jvm);
-    todo!("This seems to need signals or some shit. Seems hard to implement")
+    let thread_object = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
+    let thread = thread_object.get_java_thread(jvm);
+    thread.interrupt_thread();
 }
 
 #[no_mangle]
