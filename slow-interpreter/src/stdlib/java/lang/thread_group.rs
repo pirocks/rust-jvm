@@ -58,7 +58,7 @@ impl<'gc> JThreadGroup<'gc> {
     }
 
     pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
-        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string().expect("thread group null name")
+        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string_maybe_null().expect("thread group null name")
     }
 
     pub fn daemon(&self, jvm: &'gc JVMState<'gc>) -> jboolean {

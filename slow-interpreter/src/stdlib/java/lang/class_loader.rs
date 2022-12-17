@@ -3,20 +3,19 @@ use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::loading::LoaderName;
 
-use crate::{AllocatedHandle, WasException};
+use crate::{WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::java_values::JavaValue;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-use crate::new_java_values::NewJavaValueHandle;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::utils::run_static_or_virtual;
 
 pub struct ClassLoader<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl Clone for ClassLoader<'_> {
@@ -28,24 +27,6 @@ impl Clone for ClassLoader<'_> {
 impl<'gc> JavaValue<'gc> {
     pub fn cast_class_loader(&self) -> ClassLoader<'gc> {
         ClassLoader { normal_object: todo!()/*self.unwrap_object_nonnull()*/ }
-    }
-}
-
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_class_loader(self) -> ClassLoader<'gc> {
-        self.unwrap_object_nonnull().cast_class_loader()
-    }
-}
-
-impl<'gc> AllocatedHandle<'gc> {
-    pub fn cast_class_loader(self) -> ClassLoader<'gc> {
-        ClassLoader { normal_object: self.unwrap_normal_object() }
-    }
-}
-
-impl<'gc> AllocatedNormalObjectHandle<'gc> {
-    pub fn cast_class_loader(self) -> ClassLoader<'gc> {
-        ClassLoader { normal_object: self }
     }
 }
 
@@ -68,8 +49,6 @@ impl<'gc> ClassLoader<'gc> {
         )?.unwrap();
         Ok(res.cast_class().unwrap())
     }
-
-    /*as_object_or_java_value!();*/
 }
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for ClassLoader<'gc> {

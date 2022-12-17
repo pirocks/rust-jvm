@@ -17,7 +17,7 @@ use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 unsafe extern "system" fn JVM_GetSystemPackage(env: *mut JNIEnv, name: jstring) -> jstring {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let class_name_string = NewJavaValueHandle::Object(from_object_new(jvm, name).unwrap()).cast_string().unwrap().to_rust_string(jvm);
+    let class_name_string = NewJavaValueHandle::Object(from_object_new(jvm, name).unwrap()).cast_string_maybe_null().unwrap().to_rust_string(jvm);
     let mut elements = class_name_string.split(|char_| char_ == '.' || char_ == '/').collect_vec();
     elements.pop();
     let res_string = elements.iter().join(".");

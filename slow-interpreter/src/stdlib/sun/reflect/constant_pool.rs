@@ -1,21 +1,16 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
-use crate::{AllocatedHandle, PushableFrame, WasException};
+use crate::{PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::new_object_full;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub struct ConstantPool<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> AllocatedHandle<'gc> {
-    pub fn cast_constant_pool(self) -> ConstantPool<'gc> {
-        ConstantPool { normal_object: self.unwrap_normal_object() }
-    }
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl<'gc> ConstantPool<'gc> {

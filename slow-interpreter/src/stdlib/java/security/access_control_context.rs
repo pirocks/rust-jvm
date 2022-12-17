@@ -1,6 +1,6 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
-use crate::{AllocatedHandle, NewAsObjectOrJavaValue, PushableFrame};
+use crate::{NewAsObjectOrJavaValue, PushableFrame};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter_util::{new_object, run_constructor};
 use crate::java_values::{JavaValue};
@@ -10,7 +10,7 @@ use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::security::protection_domain::ProtectionDomain;
 
 pub struct AccessControlContext<'gc> {
-    normal_object: AllocatedHandle<'gc>,
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl<'gc> AccessControlContext<'gc> {
@@ -26,10 +26,10 @@ impl<'gc> AccessControlContext<'gc> {
 
 impl<'gc> NewAsObjectOrJavaValue<'gc> for AccessControlContext<'gc> {
     fn object(self) -> AllocatedNormalObjectHandle<'gc> {
-        self.normal_object.unwrap_normal_object()
+        self.normal_object
     }
 
     fn object_ref(&self) -> &'_ AllocatedNormalObjectHandle<'gc> {
-        self.normal_object.unwrap_normal_object_ref()
+        &self.normal_object
     }
 }

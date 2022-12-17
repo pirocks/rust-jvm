@@ -60,6 +60,7 @@ use crate::leaked_interface_arrays::InterfaceArrays;
 use crate::loading::Classpath;
 use crate::native_allocation::NativeAllocator;
 use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, AllocatedObjectHandleByAddress};
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, ThreadTracingOptions};
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;

@@ -7,7 +7,6 @@ use crate::interpreter_util::{new_object, run_constructor};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub struct ArithmeticException<'gc> {

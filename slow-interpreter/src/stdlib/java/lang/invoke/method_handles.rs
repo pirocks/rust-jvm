@@ -8,7 +8,6 @@ pub mod lookup {
 
     use crate::better_java_stack::frames::PushableFrame;
     use crate::class_loading::assert_inited_or_initing_class;
-    use crate::java_values::JavaValue;
     use crate::jvm_state::JVMState;
     use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
     use crate::new_java_values::owned_casts::OwnedCastAble;
@@ -24,12 +23,6 @@ pub mod lookup {
     #[derive(Clone)]
     pub struct Lookup<'gc> {
         pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-    }
-
-    impl<'gc> JavaValue<'gc> {
-        pub fn cast_lookup(&self) -> Lookup<'gc> {
-            todo!()
-        }
     }
 
     impl<'gc> Lookup<'gc> {

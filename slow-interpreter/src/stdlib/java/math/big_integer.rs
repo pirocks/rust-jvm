@@ -14,12 +14,6 @@ pub struct BigInteger<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_big_integer(self) -> BigInteger<'gc> {
-        BigInteger { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-    }
-}
-
 impl<'gc> BigInteger<'gc> {
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, jstring: JString<'gc>, radix: jint) -> Result<Self, WasException<'gc>> {
         let big_integer_class = check_initing_or_inited_class(jvm, int_state, CClassName::big_integer().into())?;

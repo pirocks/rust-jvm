@@ -21,6 +21,7 @@ use crate::interpreter_util::{new_object, run_constructor};
 use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
@@ -89,7 +90,7 @@ impl<'gc> JThread<'gc> {
 
     pub fn try_name(&self, jvm: &'gc JVMState<'gc>) -> Option<JString<'gc>> {
         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-        self.normal_object.get_var(jvm, &thread_class, FieldName::field_name()).cast_string()
+        self.normal_object.get_var(jvm, &thread_class, FieldName::field_name()).cast_string_maybe_null()
     }
 
     pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {

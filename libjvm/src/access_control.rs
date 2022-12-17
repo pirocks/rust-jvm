@@ -15,6 +15,7 @@ use slow_interpreter::interpreter::common::invoke::virtual_::{invoke_virtual};
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::{NewJavaValue};
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;

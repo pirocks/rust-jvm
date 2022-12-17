@@ -3,6 +3,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 use crate::{AllocatedHandle, JavaValueCommon, JString, JVMState, NewJavaValueHandle};
 use crate::class_loading::assert_loaded_class;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) -> JString<'gc> {
     let string_class = assert_loaded_class(jvm, CClassName::string().into());
@@ -23,9 +24,9 @@ pub fn intern_safe<'gc>(jvm: &'gc JVMState<'gc>, str_obj: AllocatedHandle<'gc>) 
     match guard.strings.get(&native_string_bytes) {
         None => {
             guard.strings.insert(native_string_bytes, str_obj.duplicate_discouraged());
-            NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap()
+            NewJavaValueHandle::Object(str_obj.into()).cast_string_maybe_null().unwrap()
         }
-        Some(res) => NewJavaValueHandle::Object(res.duplicate_discouraged()).cast_string().unwrap(),
+        Some(res) => NewJavaValueHandle::Object(res.duplicate_discouraged()).cast_string_maybe_null().unwrap(),
     }
 }
 

@@ -129,7 +129,7 @@ impl<'gc> Method<'gc> {
     }
 
     pub fn get_name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
-        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string().expect("methods must have names")
+        self.normal_object.get_var_top_level(jvm, FieldName::field_name()).cast_string_maybe_null().expect("methods must have names")
     }
 
     pub fn parameter_types(&self, jvm: &'gc JVMState<'gc>) -> Vec<JClass<'gc>> {

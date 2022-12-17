@@ -11,12 +11,6 @@ pub struct PreHashedMap<'gc> {
     handle: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> AllocatedHandle<'gc> {
-    pub fn cast_pre_hashed_map(self) -> PreHashedMap<'gc> {
-        PreHashedMap { handle: self.unwrap_normal_object() }
-    }
-}
-
 impl<'gc> PreHashedMap<'gc> {
     pub fn ht(&self, jvm: &'gc JVMState<'gc>) -> Option<Vec<Option<Vec<Option<AllocatedHandle<'gc>>>>>> {
         let current_class_pointer = assert_inited_or_initing_class(jvm, CClassName::pre_hashed_map().into());

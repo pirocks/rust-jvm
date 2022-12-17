@@ -6,21 +6,13 @@ use crate::class_loading::check_initing_or_inited_class;
 use crate::exceptions::WasException;
 use crate::interpreter_util::{new_object_full, run_constructor};
 use crate::jvm_state::JVMState;
-use crate::new_java_values::allocated_objects::{AllocatedHandle, AllocatedNormalObjectHandle};
+use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle};
 use crate::new_java_values::NewJavaValue;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub struct DirectByteBuffer<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl <'gc> AllocatedHandle<'gc> {
-    pub fn cast_direct_byte_buffer(self) -> DirectByteBuffer<'gc> {
-        DirectByteBuffer{
-            normal_object: self.normal_object(),
-        }
-    }
 }
 
 impl<'gc> DirectByteBuffer<'gc> {

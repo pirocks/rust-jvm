@@ -24,13 +24,6 @@ pub struct Constructor<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_constructor(&self) -> Constructor<'gc> {
-        todo!()
-        /*Constructor { normal_object: self.unwrap_object_nonnull() }*/
-    }
-}
-
 impl<'gc> Constructor<'gc> {
     pub fn constructor_object_from_method_view<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView) -> Result<Constructor<'gc>, WasException<'gc>> {
         let clazz = {

@@ -10,20 +10,21 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 
-use crate::{AllocatedHandle, JavaValueCommon, JVMState, NewJavaValue, WasException};
+use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData};
 use crate::interpreter::common::ldc::load_class_constant_by_type;
 use crate::interpreter_util::{new_object, run_constructor};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::NewJavaValueHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::string::JString;
 use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::utils::run_static_or_virtual;
 
 pub struct JClass<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl<'gc> Clone for JClass<'gc> {
@@ -35,18 +36,6 @@ impl<'gc> Clone for JClass<'gc> {
 impl<'gc> NewJavaValueHandle<'gc> {
     pub fn cast_class(self) -> Option<JClass<'gc>> {
         Some(JClass { normal_object: self.unwrap_object()?.unwrap_normal_object() })
-    }
-}
-
-impl<'gc> AllocatedNormalObjectHandle<'gc> {
-    pub fn cast_class(self) -> JClass<'gc> {
-        JClass { normal_object: self }
-    }
-}
-
-impl<'gc> AllocatedHandle<'gc> {
-    pub fn cast_class(self) -> JClass<'gc> {
-        JClass { normal_object: self.unwrap_normal_object() }
     }
 }
 
@@ -130,7 +119,7 @@ impl<'gc> JClass<'gc> {
     pub fn get_name<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
         let class_class = check_initing_or_inited_class(jvm, int_state, CClassName::class().into()).unwrap();
         let res = run_static_or_virtual(jvm, int_state, &class_class, MethodName::method_getName(), &CMethodDescriptor::empty_args(CClassName::string().into()), vec![self.new_java_value()])?;
-        Ok(res.expect("classes are known to have non-null names").cast_string().expect("classes are known to have non-null names"))
+        Ok(res.expect("classes are known to have non-null names").cast_string_maybe_null().expect("classes are known to have non-null names"))
     }
 
     pub fn get_generic_interfaces<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<NewJavaValueHandle<'gc>, WasException<'gc>> {

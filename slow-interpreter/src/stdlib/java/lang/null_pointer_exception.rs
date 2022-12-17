@@ -3,22 +3,17 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 
 
-use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, WasException};
+use crate::{NewAsObjectOrJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::interpreter_util::{new_object, run_constructor};
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::string::JString;
 
 pub struct NullPointerException<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_null_pointer_exception(self) -> NullPointerException<'gc> {
-        NullPointerException { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-    }
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl<'gc> NullPointerException<'gc> {

@@ -11,6 +11,7 @@ use rust_jvm_common::loading::LoaderName;
 use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::from_object_new;

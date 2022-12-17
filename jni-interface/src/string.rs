@@ -93,7 +93,7 @@ pub unsafe extern "C" fn get_string_utflength(env: *mut JNIEnv, str: jstring) ->
             return throw_npe(jvm, int_state,get_throw(env));
         }
     };
-    let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string().unwrap();
+    let jstring = NewJavaValueHandle::Object(str_obj.into()).cast_string_maybe_null().unwrap();
     let rust_str = jstring.to_rust_string(jvm);
     JVMString::from_regular_string(rust_str.as_str()).buf.len() as i32
 }
@@ -121,7 +121,7 @@ unsafe fn get_rust_str<T: ExceptionReturn>(env: *mut JNIEnv, str: jobject, and_t
             return throw_npe(jvm, int_state,get_throw(env));
         }
     };
-    let rust_str = NewJavaValueHandle::Object(str_obj).cast_string().unwrap().to_rust_string(jvm);
+    let rust_str = NewJavaValueHandle::Object(str_obj).cast_string_maybe_null().unwrap().to_rust_string(jvm);
     and_then(rust_str)
 }
 

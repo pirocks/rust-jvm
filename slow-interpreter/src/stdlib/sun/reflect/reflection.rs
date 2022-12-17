@@ -4,7 +4,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
-use crate::{NewAsObjectOrJavaValue, NewJavaValueHandle, PushableFrame, WasException};
+use crate::{NewAsObjectOrJavaValue, PushableFrame, WasException};
 use crate::class_loading::check_initing_or_inited_class;
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
@@ -13,12 +13,6 @@ use crate::utils::run_static_or_virtual;
 
 pub struct Reflection<'gc> {
     normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_reflection(self) -> Reflection<'gc> {
-        Reflection { normal_object: self.unwrap_object_nonnull().unwrap_normal_object() }
-    }
 }
 
 impl<'gc> Reflection<'gc> {

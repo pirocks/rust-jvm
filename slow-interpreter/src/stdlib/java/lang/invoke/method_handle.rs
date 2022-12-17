@@ -5,7 +5,6 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use crate::{JVMState, NewAsObjectOrJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
-use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::stdlib::java::lang::invoke::lambda_form::LambdaForm;
@@ -17,12 +16,6 @@ use crate::utils::run_static_or_virtual;
 #[derive(Clone)]
 pub struct MethodHandle<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> JavaValue<'gc> {
-    pub fn cast_method_handle(&self) -> MethodHandle<'gc> {
-        todo!()
-    }
 }
 
 impl<'gc> MethodHandle<'gc> {

@@ -24,6 +24,7 @@ use slow_interpreter::interpreter::common::ldc::{load_class_constant_by_type};
 use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
@@ -242,7 +243,7 @@ unsafe extern "system" fn JVM_GetClassContext<'gc>(env: *mut JNIEnv) -> jobjectA
 unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *const c_char {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
-    let jstring = match NewJavaValueHandle::Object(from_object_new(jvm,JVM_GetClassName(env, cb)).unwrap()).cast_string() {
+    let jstring = match NewJavaValueHandle::Object(from_object_new(jvm,JVM_GetClassName(env, cb)).unwrap()).cast_string_maybe_null() {
         None => return throw_npe(jvm, int_state, get_throw(env)),
         Some(jstring) => jstring,
     };

@@ -20,7 +20,7 @@ use crate::stdlib::java::NewAsObjectOrJavaValue;
 use crate::utils::run_static_or_virtual;
 
 pub struct JString<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl Clone for JString<'_> {
@@ -32,21 +32,15 @@ impl Clone for JString<'_> {
 }
 
 impl<'gc> JavaValue<'gc> {
-    pub fn cast_string(&self) -> Option<JString<'gc>> {
+    pub fn cast_string_maybe_null(&self) -> Option<JString<'gc>> {
         todo!()
         /*Some(JString { normal_object: self.unwrap_object()? })*/
     }
 }
 
 impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_string(self) -> Option<JString<'gc>> {
+    pub fn cast_string_maybe_null(self) -> Option<JString<'gc>> {
         Some(JString { normal_object: self.unwrap_object()?.unwrap_normal_object() })
-    }
-}
-
-impl<'gc> AllocatedHandle<'gc> {
-    pub fn cast_string(self) -> JString<'gc> {
-        JString { normal_object: self.unwrap_normal_object() }
     }
 }
 
@@ -73,7 +67,7 @@ impl<'gc> JString<'gc> {
         let array = NewJavaValueHandle::Object(jvm.allocate_object(UnAllocatedObject::Array(array_object)));
         // dbg!(array.as_njv().to_handle_discouraged().unwrap_object_nonnull().unwrap_array().array_iterator().map(|elem| elem.unwrap_char_strict()).collect_vec());
         run_constructor(jvm, int_state, string_class, vec![string_object.new_java_value(), array.as_njv()], &CMethodDescriptor::void_return(vec![CPDType::array(CPDType::CharType)]))?;
-        Ok(NewJavaValueHandle::Object(string_object).cast_string().expect("error creating string"))
+        Ok(NewJavaValueHandle::Object(string_object).cast_string_maybe_null().expect("error creating string"))
     }
 
     pub fn intern<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<JString<'gc>, WasException<'gc>> {
@@ -87,7 +81,7 @@ impl<'gc> JString<'gc> {
             &CMethodDescriptor::empty_args(CClassName::string().into()),
             args,
         )?.unwrap();
-        Ok(res.cast_string().expect("error interning strinng"))
+        Ok(res.cast_string_maybe_null().expect("error interning strinng"))
     }
 
     pub fn value(&self, jvm: &'gc JVMState<'gc>) -> Vec<jchar> {

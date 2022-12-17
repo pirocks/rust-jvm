@@ -35,7 +35,7 @@ impl<'gc> MemberName<'gc> {
         let args = vec![self.normal_object.new_java_value()];
         let desc = CMethodDescriptor::empty_args(CClassName::string().into());
         let res = run_static_or_virtual(jvm, int_state, &member_name_class, MethodName::method_getName(), &desc, args)?;
-        Ok(res.unwrap().cast_string())
+        Ok(res.unwrap().cast_string_maybe_null())
     }
 
     pub fn is_static<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<bool, WasException<'gc>> {

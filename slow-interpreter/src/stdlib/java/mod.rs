@@ -55,7 +55,7 @@ pub trait NewAsObjectOrJavaValue<'gc>: Sized {
             return_type: CClassName::string().into(),
         };
         let res = invoke_virtual(jvm, int_state, MethodName::method_toString(), &desc, vec![self.new_java_value()])?.unwrap();
-        Ok(res.cast_string())
+        Ok(res.cast_string_maybe_null())
     }
 }
 

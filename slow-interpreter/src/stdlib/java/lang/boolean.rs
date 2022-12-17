@@ -10,29 +10,15 @@ use crate::interpreter_util::{new_object, run_constructor};
 
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
-use crate::new_java_values::{NewJavaValue, NewJavaValueHandle};
+use crate::new_java_values::{NewJavaValue};
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub struct Boolean<'gc> {
-    normal_object: AllocatedNormalObjectHandle<'gc>,
-}
-
-impl<'gc> AllocatedNormalObjectHandle<'gc> {
-    pub fn cast_boolean(self) -> Boolean<'gc> {
-        Boolean { normal_object: self.normal_object() }
-    }
-}
-
-impl<'gc> NewJavaValueHandle<'gc> {
-    pub fn cast_boolean(self) -> Boolean<'gc> {
-        Boolean { normal_object: self.normal_object() }
-    }
+    pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
 impl<'gc> Boolean<'gc> {
-    //as_object_or_java_value!();
-
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, param: jboolean) -> Result<Boolean<'gc>, WasException<'gc>> {
         let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::boolean().into())?;
         let this = new_object(jvm, int_state, &class_not_found_class, false);

@@ -70,7 +70,7 @@ impl<'gc> Field<'gc> {
 
     pub fn name(&self, jvm: &'gc JVMState<'gc>) -> JString<'gc> {
         let field_rc = assert_inited_or_initing_class(jvm, CClassName::field().into());
-        self.normal_object.get_var(jvm, &field_rc, FieldName::field_name()).cast_string().expect("fields must have names")
+        self.normal_object.get_var(jvm, &field_rc, FieldName::field_name()).cast_string_maybe_null().expect("fields must have names")
     }
 
     pub fn clazz(&self, jvm: &'gc JVMState<'gc>) -> JClass<'gc> {

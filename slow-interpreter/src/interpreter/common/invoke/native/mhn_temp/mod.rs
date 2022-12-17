@@ -63,9 +63,9 @@ pub fn Java_java_lang_invoke_MethodHandleNatives_getMembers<'gc, 'l>(jvm: &'gc J
     //class member is defined on
     let defc = unwrap_or_npe(jvm, int_state, args[0].to_handle_discouraged().cast_class())?;
     //name to lookup on
-    let match_name = args[1].to_handle_discouraged().cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
+    let match_name = args[1].to_handle_discouraged().cast_string_maybe_null().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //signature to lookup on
-    let matchSig = args[2].to_handle_discouraged().cast_string().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
+    let matchSig = args[2].to_handle_discouraged().cast_string_maybe_null().map(|string| string.to_rust_string(jvm)).map(|str| jvm.string_pool.add_name(str, false));
     //flags as defined above
     let matchFlags = args[3].unwrap_int() as u32;
     //caller class for access checks

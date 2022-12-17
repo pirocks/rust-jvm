@@ -14,14 +14,6 @@ pub struct IndexOutOfBoundsException<'gc> {
     pub(crate) normal_object: AllocatedNormalObjectHandle<'gc>,
 }
 
-impl<'gc> AllocatedNormalObjectHandle<'gc> {
-    pub fn cast_index_out_of_bounds_exception(self) -> IndexOutOfBoundsException<'gc>{
-        IndexOutOfBoundsException{
-            normal_object: self.normal_object(),
-        }
-    }
-}
-
 impl<'gc> IndexOutOfBoundsException<'gc> {
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<IndexOutOfBoundsException<'gc>, WasException<'gc>> {
         let class_not_found_class = check_initing_or_inited_class(jvm, int_state, CClassName::index_out_bounds_exception().into())?;

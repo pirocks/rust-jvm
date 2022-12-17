@@ -12,6 +12,7 @@ use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::define_class_safe::define_class_safe;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn};
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};

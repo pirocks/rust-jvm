@@ -9,6 +9,7 @@ use crate::{AllocatedHandle, JavaValueCommon, JVMState};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::HasFrame;
 use crate::java_values::ByAddressAllocatedObject;
+use crate::new_java_values::owned_casts::OwnedCastAble;
 
 pub fn dump_frame_contents<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'l>) {
     unsafe {

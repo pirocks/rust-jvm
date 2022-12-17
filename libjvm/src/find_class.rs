@@ -15,6 +15,7 @@ use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{ExceptionReturn};
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};

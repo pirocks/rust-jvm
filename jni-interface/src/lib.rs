@@ -146,7 +146,7 @@ pub unsafe extern "C" fn get_string_chars(env: *mut JNIEnv, str: jstring, is_cop
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     *is_copy = u8::from(true);
-    let string: JString = match JavaValue::Object(todo!() /*from_jclass(jvm,str)*/).cast_string() {
+    let string: JString = match JavaValue::Object(todo!() /*from_jclass(jvm,str)*/).cast_string_maybe_null() {
         None => return throw_npe(jvm, /*int_state*/pushable_frame_todo(), todo!()),
         Some(string) => string,
     };

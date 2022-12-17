@@ -19,6 +19,7 @@ use slow_interpreter::java_values::{ExceptionReturn, JavaValue};
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::new_java_values::unallocated_objects::{UnAllocatedObject, UnAllocatedObjectArray};
 
 
