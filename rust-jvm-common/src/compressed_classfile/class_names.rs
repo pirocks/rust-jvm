@@ -298,6 +298,10 @@ impl CompressedClassName {
     pub const fn index_out_bounds_exception() -> Self{
         Self::from_raw_id(JAVA_LANG_INDEX_OUT_OF_BOUNDS_EXCEPTION as AddOnlyVecIDType)
     }
+
+    pub const fn arithmetic_exception() -> Self{
+        Self::from_raw_id(JAVA_LANG_ARITHMETIC_EXCEPTION as AddOnlyVecIDType)
+    }
 }
 
 impl From<CompressedClassName> for CompressedParsedRefType {

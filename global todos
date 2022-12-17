@@ -17,3 +17,9 @@ clean up copyMemory and similar addressing mode functions.
 intrinsic getLongVolatile
 
 clean up threading
+
+
+
+registered natives fast path.
+call directly with callq if no interface needed.
+if interface needed find a way to still have direct call even if enter/exit native frame vmexits needed

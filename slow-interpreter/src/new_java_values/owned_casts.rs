@@ -1,5 +1,6 @@
 use crate::{AllocatedHandle, NewJavaValueHandle};
 use crate::new_java_values::allocated_objects::AllocatedNormalObjectHandle;
+use crate::stdlib::java::lang::arithmetic_exception::ArithmeticException;
 use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::invoke::call_site::CallSite;
 use crate::stdlib::java::lang::invoke::lambda_form::basic_type::BasicType;
@@ -98,6 +99,9 @@ pub trait OwnedCastAble<'gc> where Self: Sized {
     }
     fn cast_class_signature(self) -> ClassSignature<'gc> {
         ClassSignature { normal_object: self.normal_object() }
+    }
+    fn cast_arithmetic_exception(self) -> ArithmeticException<'gc>{
+        ArithmeticException{ normal_object: self.normal_object() }
     }
 }
 

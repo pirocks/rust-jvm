@@ -25,3 +25,4 @@ pub mod system;
 pub mod class_cast_exception;
 pub mod no_such_method_exception;
 pub mod index_out_of_bounds_exception;
+pub mod arithmetic_exception;

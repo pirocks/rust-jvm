@@ -6,9 +6,13 @@ use num_traits::Zero;
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::better_java_stack::frames::HasFrame;
+use crate::exceptions::WasException;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
 use crate::jvm_state::JVMState;
+use crate::new_java_values::owned_casts::OwnedCastAble;
+use crate::stdlib::java::lang::arithmetic_exception::ArithmeticException;
+use crate::stdlib::java::NewAsObjectOrJavaValue;
 
 pub fn fmul<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
     let value2 = current_frame.pop(RuntimeType::FloatType).unwrap_float();
@@ -119,7 +123,9 @@ pub fn idiv<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     if value2 == 0 {
-        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
+        let jvm = current_frame.inner().inner().jvm();
+        let throwable = ArithmeticException::new(jvm, current_frame.inner().inner()).expect("Exception creating exception").object().cast_throwable();
+        return PostInstructionAction::Exception { exception: WasException { exception_obj: throwable } };
     }
     current_frame.push(InterpreterJavaValue::Int(((value1 as i64) / (value2 as i64)) as i32));
     PostInstructionAction::Next {}
@@ -142,7 +148,9 @@ pub fn irem<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j
     let value2 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     let value1 = current_frame.pop(RuntimeType::IntType).unwrap_int();
     if value2 == 0 {
-        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
+        let jvm = current_frame.inner().inner().jvm();
+        let throwable = ArithmeticException::new(jvm, current_frame.inner().inner()).expect("Exception creating exception").object().cast_throwable();
+        return PostInstructionAction::Exception { exception: WasException { exception_obj: throwable } };
     }
     current_frame.push(InterpreterJavaValue::Int(value1 % value2));
     PostInstructionAction::Next {}
@@ -213,18 +221,10 @@ pub fn ldiv<'gc, 'j, 'k, 'l>(jvm: &'gc JVMState<'gc>, mut current_frame: Interpr
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     if value2 == 0 {
-        current_frame.inner().inner().debug_print_stack_trace(jvm);
-        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
-        todo!()
+        let throwable = ArithmeticException::new(jvm, current_frame.inner().inner()).expect("Exception creating exception").object().cast_throwable();
+        return PostInstructionAction::Exception { exception: WasException { exception_obj: throwable } };
     }
-    current_frame.push(InterpreterJavaValue::Long(match value1.checked_div(value2) {
-        None => {
-            dbg!(value1);
-            dbg!(value2);
-            todo!()
-        }
-        Some(res) => res
-    }));
+    current_frame.push(InterpreterJavaValue::Long(value1.wrapping_div(value2)));
     PostInstructionAction::Next {}
 }
 
@@ -232,7 +232,9 @@ pub fn lrem<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j
     let value2 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     let value1 = current_frame.pop(RuntimeType::LongType).unwrap_long();
     if value2 == 0 {
-        todo!();/*current_frame.inner().inner().debug_print_stack_trace(jvm);*/
+        let jvm = current_frame.inner().inner().jvm();
+        let throwable = ArithmeticException::new(jvm, current_frame.inner().inner()).expect("Exception creating exception").object().cast_throwable();
+        return PostInstructionAction::Exception { exception: WasException { exception_obj: throwable } };
     }
     current_frame.push(InterpreterJavaValue::Long(value1 % value2));
     PostInstructionAction::Next {}

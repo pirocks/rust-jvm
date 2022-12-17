@@ -221,6 +221,8 @@ impl<'vm> JavaStackGuard<'vm> {
         }
         let res: Result<T, WasException<'vm>> = within_pushed(&mut frame);
         self.notify_frame_pop(next_frame_pointer);
+        let to_drop = unsafe { Box::from_raw(raw_frame_info_pointer as *mut NativeFrameInfo) };
+        drop(to_drop);
         res
     }
 
@@ -251,6 +253,8 @@ impl<'vm> JavaStackGuard<'vm> {
         let mut frame = OpaqueFrame::new_from_frame_pointer(self, next_frame_pointer);
         let res = within_pushed(&mut frame);
         self.notify_frame_pop(next_frame_pointer);
+        let to_drop = unsafe { Box::from_raw(raw_frame_info_pointer as *mut OpaqueFrameInfo) };
+        drop(to_drop);
         //todo zero the rest
         res
     }
