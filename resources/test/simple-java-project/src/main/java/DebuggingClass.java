@@ -153,6 +153,8 @@
 //    }
 //}
 
+import sun.misc.Unsafe;
+
 import java.io.*;
 import java.lang.reflect.*;
 import java.net.HttpURLConnection;
@@ -171,6 +173,7 @@ public class DebuggingClass {
         connection.setReadTimeout(15000);
         connection.setUseCaches(false);
         System.out.println(connection.getResponseMessage());
+        Unsafe.getUnsafe().
         //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));

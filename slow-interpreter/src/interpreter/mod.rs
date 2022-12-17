@@ -279,7 +279,7 @@ fn coerce_integer_types_to<'gc>(handle: NewJavaValueHandle<'gc>, cpdtype: CPDTyp
 }
 
 
-pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
+pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
     thread.safepoint_state.check(jvm, interpreter_state)?;
     Ok(())

@@ -121,8 +121,7 @@ unsafe extern "system" fn JVM_IsInterrupted(env: *mut JNIEnv, thread: jobject, _
     let jvm = get_state(env);
     let thread_object = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let thread = thread_object.get_java_thread(jvm);
-    let guard = thread.thread_status.lock().unwrap();
-    guard.interrupted as jboolean
+    thread.safepoint_state.is_interrupted() as jboolean
 }
 
 #[no_mangle]

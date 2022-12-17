@@ -98,7 +98,7 @@ pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, main_thread_start_inf
     let res = JavaThread::background_new_with_stack(jvm, Some(main_jthread), false, move |main_thread, opaque_frame| {
         *jvm.thread_state.main_thread.write().unwrap() = main_thread.clone().into();
         main_thread.thread_object.read().unwrap().as_ref().unwrap().set_priority(JVMTI_THREAD_NORM_PRIORITY as i32);
-        main_thread.notify_alive(jvm); //is this too early?
+        main_thread.notify_alive(); //is this too early?
         jvm.jvmti_state().map(|jvmti| jvmti.built_in_jdwp.agent_load(jvm, opaque_frame)); // technically this is to late and should have been called earlier, but needs to be on this thread.
         jvm_init_from_main_thread(jvm, opaque_frame);
 
@@ -118,7 +118,7 @@ pub fn bootstrap_main_thread<'vm>(jvm: &'vm JVMState<'vm>, main_thread_start_inf
             Ok(())
         }).unwrap();
         //todo handle exception exit from main
-        main_thread.notify_terminated(jvm);
+        main_thread.notify_terminated();
         Ok(())
     }).expect("todo");
     main_send.send(main_thread_start_info).unwrap();

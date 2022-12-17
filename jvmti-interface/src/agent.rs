@@ -36,7 +36,7 @@ pub unsafe extern "C" fn run_agent_thread<'gc>(env: *mut jvmtiEnv, thread: jthre
         }
 
         jvm.thread_state.set_current_thread(thread.clone());
-        thread.notify_alive(jvm);
+        thread.notify_alive();
 
         // assert!(should_be_nothing.old.is_none());
         jvm.native.jvmti_state.as_ref().unwrap().built_in_jdwp.thread_start(jvm, frame, thread.thread_object());

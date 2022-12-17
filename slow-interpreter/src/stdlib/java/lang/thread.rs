@@ -124,6 +124,11 @@ impl<'gc> JThread<'gc> {
         self.normal_object.set_var(&thread_class, FieldName::field_threadStatus(), NewJavaValue::Int(thread_status));
     }
 
+    pub fn get_thread_status(&self, jvm: &'gc JVMState<'gc>) -> jint {
+        let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
+        self.normal_object.get_var(jvm, &thread_class, FieldName::field_threadStatus()).unwrap_int()
+    }
+
     pub fn new<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, thread_group: JThreadGroup<'gc>, thread_name: String) -> Result<JThread<'gc>, WasException<'gc>> {
         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
         let thread_object = NewJavaValueHandle::Object(AllocatedHandle::NormalObject(new_object(jvm, int_state, &thread_class, false)));

@@ -33,8 +33,6 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-
-
 use stdlib::java::lang::string::JString;
 use stdlib::java::lang::system::System;
 use stdlib::java::NewAsObjectOrJavaValue;
@@ -89,6 +87,7 @@ pub mod static_vars;
 pub mod accessor_ext;
 pub mod define_class_safe;
 pub mod remote_frame_push;
+pub mod new_safe_point_state;
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
@@ -100,10 +99,10 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
     let main = check_loaded_class_force_loader(jvm, int_state, &jvm.config.main_class_name.clone().into(), main_loader).expect("failed to load main class");
     let main = match check_initing_or_inited_class(jvm, int_state, main.cpdtype()) {
         Ok(main) => main,
-        Err(WasException{exception_obj}) => {
+        Err(WasException { exception_obj }) => {
             exception_obj.print_stack_trace(jvm, int_state).expect("exception printing exception");
             panic!("failed to load main class");
-        },
+        }
     };
     check_loaded_class(jvm, int_state, main.cpdtype()).expect("failed to init main class");
     let main_view = main.view();
@@ -126,12 +125,12 @@ pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: 
                     todo!()// int_state.pop_frame(jvm, main_frame_guard, false);
                 }
 
-                return Ok(())
+                return Ok(());
                 // panic!();
             }
             Err(WasException { exception_obj }) => {
                 //todo should be allowing catching in main
-                let exception_string = exception_obj.to_string(jvm,java_native).unwrap().unwrap().to_rust_string(jvm);
+                let exception_string = exception_obj.to_string(jvm, java_native).unwrap().unwrap().to_rust_string(jvm);
                 dbg!(exception_string);
                 exception_obj.print_stack_trace(jvm, java_native).unwrap();
                 dbg!("main exited with exception");

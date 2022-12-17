@@ -2,14 +2,13 @@ use std::ffi::c_void;
 use std::mem::transmute;
 use std::ops::Deref;
 use std::ptr::{NonNull, null_mut};
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::time::Duration;
 
 use num_integer::Integer;
 
 use another_jit_vm::stack::CannotAllocateStack;
 use another_jit_vm_ir::ir_stack::OwnedIRStack;
-use jvmti_jni_bindings::jint;
 use rust_jvm_common::JavaThreadId;
 use thread_signal_handler::{SignalAccessibleJavaStackData};
 use thread_signal_handler::remote_queries::{GetGuestFrameStackInstructionPointer, RemoteQuery, RemoteQueryAnswer};
@@ -17,27 +16,25 @@ use threads::Thread;
 
 use crate::{JVMState, OpaqueFrame, pushable_frame_todo, WasException};
 use crate::better_java_stack::{FramePointer, JavaStack};
-use crate::better_java_stack::frames::{HasFrame};
+use crate::better_java_stack::frames::{PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::remote_frame::RemoteFrame;
 use crate::interpreter::safepoint_check;
+use crate::new_safe_point_state::{NewSafePointState, ThreadOrBootstrap};
 use crate::rust_jni::jvmti::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
-use crate::threading::safepoints::SafePoint;
 
 
 pub struct JavaThread<'vm> {
     pub java_tid: JavaThreadId,
     pub java_stack: Mutex<JavaStack<'vm>>,
     stack_signal_safe_data: Arc<SignalAccessibleJavaStackData>,
-    pub safepoint_state: SafePoint<'vm>,
+    pub safepoint_state: NewSafePointState<'vm>,
     underlying_thread: Thread<'vm>,
     pub(crate) thread_object: RwLock<Option<JThread<'vm>>>,
     pub invisible_to_java: bool,
     jvmti_events_enabled: RwLock<ThreadJVMTIEnabledStatus>,
     pub thread_local_storage: RwLock<*mut c_void>,
-    pub thread_status: Mutex<ThreadStatus>,
-    pub thread_status_change_condvar: Condvar
 }
 
 impl<'gc> JavaThread<'gc> {
@@ -51,9 +48,9 @@ impl<'gc> JavaThread<'gc> {
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
         Ok(JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
             jvm.thread_state.set_current_thread(java_thread.clone());
-            java_thread.notify_alive(jvm);
+            java_thread.notify_alive();
             let res = to_run(java_thread.clone(), opaque_frame);
-            java_thread.notify_terminated(jvm);
+            java_thread.notify_terminated();
             res
         }).unwrap())
     }
@@ -71,9 +68,9 @@ impl<'gc> JavaThread<'gc> {
         java_thread_clone.get_underlying().start_thread(box move |_| {
             JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
                 jvm.thread_state.set_current_thread(java_thread.clone());
-                java_thread.notify_alive(jvm);
+                java_thread.notify_alive();
                 let res = to_run(java_thread.clone(), opaque_frame);
-                java_thread.notify_terminated(jvm);
+                java_thread.notify_terminated();
                 res
             }).unwrap();
         }, box ());
@@ -81,7 +78,7 @@ impl<'gc> JavaThread<'gc> {
     }
 
     pub fn is_alive(&self) -> bool {
-        self.thread_status.lock().unwrap().alive
+        self.safepoint_state.is_alive()
     }
 
     fn new(jvm: &'gc JVMState<'gc>, thread_obj: Option<JThread<'gc>>, invisible_to_java: bool) -> Result<Arc<JavaThread<'gc>>, CannotAllocateStack> {
@@ -106,9 +103,7 @@ impl<'gc> JavaThread<'gc> {
             invisible_to_java,
             jvmti_events_enabled: RwLock::new(ThreadJVMTIEnabledStatus::default()),
             thread_local_storage: RwLock::new(null_mut()),
-            safepoint_state: SafePoint::new(),
-            thread_status: Mutex::new(ThreadStatus { terminated: false, alive: false, interrupted: false }),
-            thread_status_change_condvar: Condvar::new()
+            safepoint_state: NewSafePointState::new(jvm, ThreadOrBootstrap::Bootstrap),
         });
         jvm.thread_state.all_java_threads.write().unwrap().insert(res.java_tid, res.clone());
         Ok(res)
@@ -134,38 +129,23 @@ impl<'gc> JavaThread<'gc> {
         self.thread_object.read().unwrap().clone()
     }
 
-    pub fn notify_alive(&self, jvm: &'gc JVMState<'gc>) {
-        let mut status = self.thread_status.lock().unwrap();
-        status.alive = true;
-        self.update_thread_object(jvm, status)
+    pub fn notify_alive(&self) {
+        self.safepoint_state.set_alive();
     }
 
-    fn update_thread_object(&self, jvm: &'gc JVMState<'gc>, status: MutexGuard<ThreadStatus>) {
-        self.thread_status_change_condvar.notify_all();
-        if self.thread_object.read().unwrap().is_some() {
-            let obj = self.thread_object();
-            obj.set_thread_status(jvm, self.safepoint_state.get_thread_status_number(status.deref()));
-            obj.notify_object_change(jvm);
-        }
+    pub fn notify_terminated(&self) {
+        self.safepoint_state.set_terminated()
     }
 
-    pub fn notify_terminated(&self, jvm: &'gc JVMState<'gc>) {
-        let mut status = self.thread_status.lock().unwrap();
+    // pub fn status_number(&self) -> jint {
+    //     let status_guard = self.thread_status.lock().unwrap();
+    //     self.safepoint_state.get_thread_status_number(status_guard.deref())
+    // }
 
-        status.terminated = true;
-        status.alive = false;
-        self.update_thread_object(jvm, status)
-    }
-
-    pub fn status_number(&self) -> jint {
-        let status_guard = self.thread_status.lock().unwrap();
-        self.safepoint_state.get_thread_status_number(status_guard.deref())
-    }
-
-    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
+    pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {
         unsafe { assert!(self.underlying_thread.is_this_thread()) }
         const NANOS_PER_SEC: u128 = 1_000_000_000u128;
-        assert!(self.safepoint_state.state.lock().unwrap().waiting_monitor_notify.as_ref().is_none());
+        // assert!(self.safepoint_state.state.lock().unwrap().waiting_monitor_notify.as_ref().is_none());
         self.safepoint_state.set_park(time_nanos.map(|time_nanos| {
             let (secs, nanos) = time_nanos.div_mod_floor(&NANOS_PER_SEC);
             Duration::new(secs as u64, nanos as u32)
@@ -173,7 +153,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.check(jvm, int_state)
     }
 
-    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
+    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
         self.safepoint_state.set_unpark();
         self.safepoint_state.check(jvm, int_state)
     }
@@ -182,7 +162,7 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_gc_suspended().unwrap(); //todo should use gc flag for this
     }
 
-    pub unsafe fn suspend_thread<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl HasFrame<'gc>, _without_self_suspend: bool) -> Result<(), SuspendError> {
+    pub unsafe fn suspend_thread<'l>(&self, _jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _without_self_suspend: bool) -> Result<(), SuspendError> {
         if !self.is_alive() {
             return Err(SuspendError::NotAlive);
         }
@@ -196,11 +176,11 @@ impl<'gc> JavaThread<'gc> {
         Ok(())
     }
 
-    pub unsafe fn resume_thread(&self) -> Result<(), ResumeError> {
+    pub fn resume_thread(&self) -> Result<(), ResumeError> {
         self.safepoint_state.set_unsuspended()
     }
 
-    pub unsafe fn gc_resume_thread(&self) -> Result<(), ResumeError> {
+    pub fn gc_resume_thread(&self) -> Result<(), ResumeError> {
         self.safepoint_state.set_gc_unsuspended()
     }
 
@@ -241,29 +221,16 @@ impl<'gc> JavaThread<'gc> {
 
     pub fn wait_thread_exit(&self) {
         loop {
-            let mut thread_status_guard = self.thread_status.lock().unwrap();
-            if !thread_status_guard.alive {
+            self.safepoint_state.wait_thread_exit();
+            if !self.is_alive() {
                 break
             }
-            //todo threads need fixing again
-            if thread_status_guard.alive {
-                //todo this is jank
-                thread_status_guard = self.thread_status_change_condvar.wait_timeout(thread_status_guard, Duration::new(1,0)).unwrap().0;
-            }
-            drop(thread_status_guard);
         }
     }
 
     pub fn is_daemon(&self, jvm: &'gc JVMState<'gc>) -> bool{
         self.thread_object.read().unwrap().as_ref().unwrap().daemon(jvm)
     }
-}
-
-#[derive(Debug)]
-pub struct ThreadStatus {
-    pub terminated: bool,
-    pub alive: bool,
-    pub interrupted: bool,
 }
 
 #[derive(Debug)]

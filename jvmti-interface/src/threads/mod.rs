@@ -3,11 +3,13 @@ use std::ffi::CString;
 use jvmti_jni_bindings::*;
 
 use slow_interpreter::java_values::JavaValue;
+use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::utils::pushable_frame_todo;
 use slow_interpreter::rust_jni::jni_utils::{new_local_ref_public, new_local_ref_public_new};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use crate::universal_error;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::native_util::from_object_new;
 
 #[macro_export]
 macro_rules! get_thread_or_error {
@@ -382,12 +384,15 @@ pub unsafe extern "C" fn get_thread_state(env: *mut jvmtiEnv, thread: jthread, t
     let tracing_guard = jvm.config.tracing.trace_jdwp_function_enter(jvm, "GetThreadState");
     null_check!(thread_state_ptr);
     assert!(jvm.vm_live());
-    let jthread = match JavaValue::Object(todo!() /*from_jclass(jvm,thread)*/).try_cast_thread() {
+    let jthread = match NewJavaValueHandle::Object(match from_object_new(jvm, thread) {
+        Some(x) => x,
+        None => todo!(),
+    }).try_cast_thread(jvm) {
         None => return jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_INVALID_THREAD),
         Some(thread) => thread,
     };
     let thread = jthread.get_java_thread(jvm);
-    let state = thread.status_number();
+    let state = thread.thread_object().get_thread_status(jvm);
     thread_state_ptr.write(state);
     jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
