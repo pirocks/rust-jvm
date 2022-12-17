@@ -49,6 +49,12 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getShort__J(_env: *mut JNIEnv, _t
 }
 
 #[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_getChar__J(_env: *mut JNIEnv, _the_unsafe: jobject, ptr: jlong) -> jchar {
+    let short_ptr: *mut jchar = transmute(ptr);
+    short_ptr.read()
+}
+
+#[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getInt__J(_env: *mut JNIEnv, _the_unsafe: jobject, ptr: jlong) -> jint {
     let int_ptr: *mut i32 = transmute(ptr);
     int_ptr.read()

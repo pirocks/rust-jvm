@@ -18,6 +18,11 @@ pub unsafe extern "system" fn Java_sun_misc_Unsafe_putShortVolatile(_env: *mut J
 }
 
 #[no_mangle]
+pub unsafe extern "system" fn Java_sun_misc_Unsafe_putCharVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jchar) {
+    calc_address(obj, offset).cast::<jchar>().write(val)
+}
+
+#[no_mangle]
 pub unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
     obj.cast::<c_void>().offset(offset as isize).cast::<jint>().write(val)
 }
