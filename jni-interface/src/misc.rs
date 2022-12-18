@@ -26,13 +26,14 @@ use slow_interpreter::better_java_stack::frames::PushableFrame;
 use slow_interpreter::class_loading::{assert_loaded_class, check_initing_or_inited_class};
 use slow_interpreter::interpreter::common::ldc::load_class_constant_by_type;
 use slow_interpreter::interpreter::common::special::inherits_from_cpdtype;
-use slow_interpreter::jvm_state::{JVMState, NativeLibraries};
+use slow_interpreter::jvm_state::{JVMState};
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::utils::throw_npe;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::natives::NativeLibraries;
 
 pub unsafe extern "C" fn ensure_local_capacity(_env: *mut JNIEnv, _capacity: jint) -> jint {
     //we always have ram, blocking on gc.

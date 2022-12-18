@@ -2,7 +2,6 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::iter;
-use std::ops::Deref;
 use std::path::{PathBuf};
 use std::ptr::null_mut;
 use std::rc::Rc;
@@ -13,8 +12,6 @@ use std::time::Instant;
 use bimap::BiMap;
 use by_address::ByAddress;
 use itertools::Itertools;
-use libloading::{Error, Library, Symbol};
-use libloading::os::unix::{RTLD_GLOBAL, RTLD_LAZY};
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use inheritance_tree::bit_vec_path::BitVecPaths;
@@ -22,7 +19,7 @@ use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::InheritanceTree;
 use interface_vtable::ITables;
 use interface_vtable::lookup_cache::InvokeInterfaceLookupCache;
-use jvmti_jni_bindings::{jint, jlong, JNI_VERSION_1_1, jobject};
+use jvmti_jni_bindings::{jlong, jobject};
 use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use method_table::interface_table::InterfaceTable;
 use method_table::MethodTable;
@@ -63,9 +60,10 @@ use crate::new_java_values::allocated_objects::{AllocatedNormalObjectHandle, All
 use crate::new_java_values::owned_casts::OwnedCastAble;
 use crate::new_java_values::unallocated_objects::{ObjectFields, UnAllocatedObjectObject};
 use crate::options::{ExitTracingOptions, InstructionTraceOptions, ThreadTracingOptions};
-use crate::rust_jni::invoke_interface::get_invoke_interface_new;
+use crate::rust_jni::direct_invoke_whitelist::DirectInvokeWhitelist;
 use crate::rust_jni::jvmti::SharedLibJVMTI;
 use crate::rust_jni::mangling::ManglingRegex;
+use crate::rust_jni::natives::NativeLibraries;
 use crate::rust_jni::PerStackInterfaces;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
@@ -116,8 +114,6 @@ pub struct JVMState<'gc> {
     pub resolved_method_handles: RwLock<HashMap<ByAddressAllocatedObject<'gc>, MethodId>>,
     pub include_name_field: AtomicBool,
     pub stacktraces_by_throwable: RwLock<HashMap<AllocatedObjectHandleByAddress<'gc>, Vec<StackTraceElement<'gc>>>>,
-    // pub function_frame_type_data_no_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
-    // pub function_frame_type_data_with_tops: RwLock<HashMap<MethodId, HashMap<ByteCodeOffset, SunkVerifierFrames>>>,
     pub function_frame_type_data: RwLock<FunctionFrameData>,
     pub java_function_frame_data: RwLock<HashMap<MethodId, JavaCompilerMethodAndFrameData>>,
     pub object_monitors: RwLock<HashMap<*const c_void, Arc<Monitor2>>>,
@@ -145,6 +141,7 @@ pub struct JVMState<'gc> {
     pub all_the_static_fields: AllTheStaticFields<'gc>,
     pub java_home: PathBuf,
     pub boot_classpath: Vec<PathBuf>,
+    pub direct_invoke_whitelist: DirectInvokeWhitelist
 }
 
 
@@ -460,66 +457,7 @@ struct LivePoolGetterImpl<'gc> {
     jvm: &'gc JVMState<'gc>,
 }
 
-#[derive(Debug)]
-pub struct NativeLib {
-    pub library: Library,
-}
 
-#[derive(Debug)]
-pub struct NativeLibraries<'gc> {
-    pub libjava_path: PathBuf,
-    pub native_libs: RwLock<HashMap<String, NativeLib>>,
-    pub registered_natives: RwLock<HashMap<ByAddress<Arc<RuntimeClass<'gc>>>, RwLock<HashMap<u16, unsafe extern "C" fn()>>>>,
-}
-
-fn default_on_load(_: *mut *const JNIInvokeInterfaceNamedReservedPointers, _: *mut c_void) -> i32 {
-    JNI_VERSION_1_1 as i32
-}
-
-impl<'gc> NativeLibraries<'gc> {
-    pub unsafe fn load<'l>(&self, jvm: &'gc JVMState<'gc>, path: &PathBuf, name: String) {
-        let onload_fn_ptr = self.get_onload_ptr_and_add(path, name);
-        let interface: *const JNIInvokeInterfaceNamedReservedPointers = get_invoke_interface_new(jvm);
-        onload_fn_ptr(Box::leak(Box::new(interface)) as *mut *const JNIInvokeInterfaceNamedReservedPointers, null_mut());
-        //todo check return res
-    }
-
-    pub unsafe fn get_onload_ptr_and_add(&self, path: &PathBuf, name: String) -> fn(*mut *const JNIInvokeInterfaceNamedReservedPointers, *mut c_void) -> i32 {
-        let lib = Library::new(path, (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
-        let on_load = match lib.get::<fn(vm: *mut *const JNIInvokeInterfaceNamedReservedPointers, reserved: *mut c_void) -> jint>("JNI_OnLoad".as_bytes()) {
-            Ok(x) => Some(x),
-            Err(err) => {
-                if err.to_string().contains(" undefined symbol: JNI_OnLoad") {
-                    None
-                } else {
-                    todo!()
-                }
-            }
-        };
-        let onload_fn_ptr = on_load.map(|on_load| *on_load.deref()).unwrap_or(default_on_load);
-        self.native_libs.write().unwrap().insert(name, NativeLib { library: lib });
-        onload_fn_ptr
-    }
-
-    pub unsafe fn lookup_onload(&self, name: String) -> Result<unsafe extern "system" fn(), LookupError> {
-        let guard = self.native_libs.read().unwrap();
-        let native_lib = guard.get(&name);
-        let result = native_lib.ok_or(LookupError::NoLib)?.library.get("JNI_OnLoad".as_bytes());
-        let symbol: Symbol<unsafe extern "system" fn()> = result?;
-        Ok(*symbol.deref())
-    }
-}
-
-pub enum LookupError {
-    LibLoading(libloading::Error),
-    NoLib,
-}
-
-impl From<libloading::Error> for LookupError {
-    fn from(err: Error) -> Self {
-        LookupError::LibLoading(err)
-    }
-}
 
 impl<'gc> LivePoolGetter for LivePoolGetterImpl<'gc> {
     fn elem_type(&self, _idx: LiveObjectIndex) -> CPRefType {

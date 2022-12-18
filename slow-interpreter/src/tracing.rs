@@ -34,7 +34,7 @@ impl TracingSettings {
         TracingSettings {
             trace_function_end: RwLock::new(false),
             trace_function_start: RwLock::new(false),
-            trace_jni_register: false,
+            trace_jni_register: true,
             _trace_jni_dynamic_link: false,
             // trace_class_loads: false,
             trace_jdwp_events: true,

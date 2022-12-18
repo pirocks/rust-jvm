@@ -200,9 +200,8 @@ pub trait MethodResolver<'gc> {
     fn lookup_method_shape(&self, method_shape: MethodShape) -> MethodShapeID;
     fn lookup_method_number(&self, rc: Arc<RuntimeClass<'gc>>, method_shape: MethodShape) -> MethodNumber;
     fn debug_checkcast_assertions(&self) -> bool;
-    // fn invocation_compilation_threshold(&self) -> u64;
-    // fn invocation_count(&self, method_id: MethodId) -> u64;
     fn compile_interpreted(&self, method_id: MethodId) -> bool;
     fn string_pool(&self) -> &CompressedClassfileStringPool;
     fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType);
+    fn is_direct_invoke(&self, class: Arc<RuntimeClass<'gc>>, method_name: MethodName, desc: CMethodDescriptor) -> Option<unsafe extern "C" fn()>;
 }

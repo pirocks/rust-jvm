@@ -291,8 +291,8 @@ pub fn fneg<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j
 }
 
 pub fn drem<'gc, 'j, 'k, 'l>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>) -> PostInstructionAction<'gc> {
-    let value2 = current_frame.pop(RuntimeType::FloatType).unwrap_double(); //divisor
-    let value1 = current_frame.pop(RuntimeType::FloatType).unwrap_double();
+    let value2 = current_frame.pop(RuntimeType::DoubleType).unwrap_double(); //divisor
+    let value1 = current_frame.pop(RuntimeType::DoubleType).unwrap_double();
     let res = drem_impl(value2, value1);
     current_frame.push(InterpreterJavaValue::Double(res));
     PostInstructionAction::Next {}

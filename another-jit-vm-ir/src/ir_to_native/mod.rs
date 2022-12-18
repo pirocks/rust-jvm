@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::ffi::c_void;
 use std::mem::size_of;
 
-use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r15, rax, rbp, rbx, rdi, rdx, rsi, rsp, xmm0, xmm1, ymm0, ymm1, ymm2, ymm4};
+use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r13, r14, r15, r8, r9, rax, rbp, rbx, rcx, rdi, rdx, rsi, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 
-use another_jit_vm::{Register, VMState};
+use another_jit_vm::{JITContext, Register, VMState};
 use another_jit_vm::code_modification::AssemblerFunctionCallTarget;
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
@@ -635,6 +636,78 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.mov(temp_normal.to_native_64(), 0x8000000000000000u64 as i64).unwrap();
             assembler.vmovq(temp_normal.to_native_64(), temp.to_xmm()).unwrap();
             assembler.vpxor(res.to_xmm(), res.to_xmm(),temp.to_xmm()).unwrap();
+        }
+        IRInstr::CallNativeHelper { to_call, integer_args, integer_res, float_double_args, float_res,  double_res,  } => {
+            let mut integer_args = integer_args.iter();
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(rdi, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(rsi, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(rdx, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(rcx, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(r8, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                assembler.mov(r9, rbp - arg.0).unwrap();
+            }
+            if let Some(arg) = integer_args.next(){
+                todo!();
+            }
+            let mut float_double_args = float_double_args.iter();
+            let mut sse_registers = vec![xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7].into_iter();
+            loop {
+                if let Some((arg, size)) = float_double_args.next(){
+                    let sse_register = sse_registers.next().unwrap();
+                    match size {
+                        _ => {
+                            panic!()
+                        }
+                        Size::X86DWord => {
+                            assembler.movd(sse_register, rbp - arg.0).unwrap();
+                        }
+                        Size::X86QWord => {
+                            assembler.movq(sse_register, rbp - arg.0).unwrap();
+                        }
+                    }
+                }else {
+                    break
+                }
+            }
+            //todo interrupts will need to look at top of this stack for actual rbp and rsp
+            assembler.mov(rax, (*to_call) as *const c_void as i64).unwrap();
+            let old_rsp = r14;
+            let old_rbp = r13;
+            assembler.mov(old_rbp, rbp).unwrap();
+            assembler.mov(old_rsp, rsp).unwrap();
+            assembler.mov(rbp, r15 + offset_of!(JITContext, alt_native_rbp)).unwrap();
+            assembler.mov(rsp, r15 + offset_of!(JITContext, alt_native_rsp)).unwrap();
+            assembler.push(old_rsp).unwrap();
+            assembler.push(old_rbp).unwrap();
+            assembler.push(r15).unwrap();//push twice to maintain stack alignment
+            assembler.push(r15).unwrap();
+            assembler.call(rax).unwrap();
+            assembler.pop(r15).unwrap();
+            assembler.pop(r15).unwrap();
+            assembler.pop(rbp).unwrap();
+            assembler.pop(rsp).unwrap();
+            if let Some(integer_res) = integer_res{
+                assembler.mov(rbp - integer_res.0, rax).unwrap();
+            }
+
+            if let Some(float_res) = float_res{
+                assembler.movd(rbp - float_res.0, xmm0).unwrap();
+            }
+
+            if let Some(double_res) = double_res{
+                assembler.movq(rbp - double_res.0, xmm0).unwrap();
+            }
         }
     }
     None

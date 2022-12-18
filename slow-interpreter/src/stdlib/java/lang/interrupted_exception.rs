@@ -1,5 +1,5 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::check_initing_or_inited_class;
 use crate::exceptions::WasException;

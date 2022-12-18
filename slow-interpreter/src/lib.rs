@@ -89,6 +89,7 @@ pub mod define_class_safe;
 pub mod remote_frame_push;
 pub mod new_sync_point_state;
 
+
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {
     let launcher = Launcher::get_launcher(jvm, int_state).expect("todo");
     let loader_obj = launcher.get_loader(jvm, int_state).expect("todo");

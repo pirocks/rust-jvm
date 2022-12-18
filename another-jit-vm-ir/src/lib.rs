@@ -230,7 +230,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         assert!(initial_registers.rbp > initial_registers.rsp);
         drop(inner_read_guard);
         let ir_stack = handler_extra_data.ir_stack_mut();
-        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, extra_intrinsics, current_implementation, initial_registers);
+        let mut launched_vm = self.native_vm.launch_vm(&ir_stack.native, &ir_stack.extra_stack_for_native_exec, extra_intrinsics, current_implementation, initial_registers);
         handler_extra_data.notify_guest_enter();
         while let Some(vm_exit_event) = launched_vm.next() {
             let exit_input = RuntimeVMExitInput::from_register_state(&vm_exit_event.saved_guest_registers);

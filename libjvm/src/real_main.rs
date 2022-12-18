@@ -34,13 +34,15 @@ use slow_interpreter::field_table::FieldTable;
 use slow_interpreter::function_instruction_count::FunctionInstructionExecutionCount;
 use slow_interpreter::ir_to_java_layer::java_vm_state::JavaVMStateWrapper;
 use slow_interpreter::java_values::GC;
-use slow_interpreter::jvm_state::{Classes, CURRENT_THREAD_INVOKE_INTERFACE, JVM, JVMConfig, JVMState, JVMTIState, Native, NativeLibraries, StringInternment};
+use slow_interpreter::jvm_state::{Classes, CURRENT_THREAD_INVOKE_INTERFACE, JVM, JVMConfig, JVMState, JVMTIState, Native, StringInternment};
 use slow_interpreter::leaked_interface_arrays::InterfaceArrays;
 use slow_interpreter::loading::Classpath;
 use slow_interpreter::native_allocation::NativeAllocator;
 use slow_interpreter::options::{JVMOptions, JVMOptionsStart, SharedLibraryPaths};
+use slow_interpreter::rust_jni::direct_invoke_whitelist::DirectInvokeWhitelist;
 use slow_interpreter::rust_jni::jvmti::SharedLibJVMTI;
 use slow_interpreter::rust_jni::mangling::ManglingRegex;
+use slow_interpreter::rust_jni::natives::NativeLibraries;
 use slow_interpreter::string_exit_cache::StringExitCache;
 use slow_interpreter::threading::java_thread::JavaThread;
 use slow_interpreter::threading::jvm_startup::{bootstrap_main_thread, MainThreadStartInfo};
@@ -226,6 +228,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
         all_the_static_fields,
         java_home,
         boot_classpath,
+        direct_invoke_whitelist: DirectInvokeWhitelist::new(),
     };
     (args, jvm)
 }

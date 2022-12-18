@@ -24,8 +24,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-
-
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
@@ -33,6 +31,7 @@ use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use stage0::compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 
 use crate::class_loading::assert_inited_or_initing_class;
+use crate::interpreter::common::invoke::native::native_method_resolve;
 use crate::ir_to_java_layer::java_stack::OpaqueFrameIdOrMethodID;
 use crate::jit::state::runtime_class_to_allocated_object_type;
 use crate::jvm_state::JVMState;
@@ -190,13 +189,6 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         rc.unwrap_class_class().method_numbers.get(&method_shape).cloned()
     }
 
-    // fn lookup_interface(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
-    //     let classes_guard = self.jvm.classes.read().unwrap();
-    //     let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(&on)?;
-    //     // assert_eq!(loader_name, self.loader);
-    //     Some(self.lookup_interface_impl(name, &desc, rc).unwrap())
-    // }
-
     fn lookup_special(&self, on: &CPDType, name: MethodName, desc: CMethodDescriptor) -> Option<(MethodId, bool)> {
         let classes_guard = self.jvm.classes.read().unwrap();
         let (_loader_name, rc) = classes_guard.get_loader_and_runtime_class(on)?;
@@ -345,8 +337,18 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
     fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType) {
         static_field_address(self.jvm, runtime_class, field_name)
     }
-}
 
+    fn is_direct_invoke(&self, class: Arc<RuntimeClass<'gc>>, method_name: MethodName, desc: CMethodDescriptor) -> Option<unsafe extern "C" fn()> {
+        let class_name = class.unwrap_class_class().class_view.name().unwrap_name();
+        let is_direct = self.jvm.direct_invoke_whitelist.is_direct_invoke_whitelisted(class_name, method_name, desc.clone());
+        if !is_direct {
+            return None
+        }
+        let class_view = class.view();
+        let method_view = class_view.lookup_method(method_name, &desc).unwrap();
+        Some(native_method_resolve(self.jvm, class, &method_view).unwrap())
+    }
+}
 
 
 pub fn static_field_address<'gc, 'l>(jvm: &'gc JVMState<'gc>, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType) {
@@ -355,6 +357,6 @@ pub fn static_field_address<'gc, 'l>(jvm: &'gc JVMState<'gc>, runtime_class: &'l
 
 pub fn static_field_address_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, class_class: &'l RuntimeClassClass<'gc>, field_name: FieldName) -> Option<(&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType)> {
     let class_name = class_class.class_view.name().unwrap_name();
-    let static_field = jvm.all_the_static_fields.get(FieldNameAndClass{ field_name, class_name });
+    let static_field = jvm.all_the_static_fields.get(FieldNameAndClass { field_name, class_name });
     Some((class_class, static_field.raw_address().cast(), static_field.expected_type()))
 }

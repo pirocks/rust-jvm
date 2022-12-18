@@ -226,4 +226,103 @@ impl MethodName {
     pub fn method_freeMemory() -> Self{
         Self::from_raw_id(method_freeMemory)
     }
+
+    pub fn method_getInt() -> Self {
+        Self::from_raw_id(method_getInt)
+    }
+    pub fn method_getObject() -> Self {
+        Self::from_raw_id(method_getObject)
+    }
+    pub fn method_getBoolean() -> Self {
+        Self::from_raw_id(method_getBoolean)
+    }
+    pub fn method_getShort() -> Self {
+        Self::from_raw_id(method_getShort)
+    }
+    pub fn method_getChar() -> Self {
+        Self::from_raw_id(method_getChar)
+    }
+    pub fn method_getFloat() -> Self {
+        Self::from_raw_id(method_getFloat)
+    }
+    pub fn method_getDouble() -> Self {
+        Self::from_raw_id(method_getDouble)
+    }
+
+    pub fn method_putInt() -> Self{
+        Self::from_raw_id(method_putInt)
+    }
+    pub fn method_putObject() -> Self{
+        Self::from_raw_id(method_putObject)
+    }
+    pub fn method_putBoolean() -> Self{
+        Self::from_raw_id(method_putBoolean)
+    }
+    pub fn method_putByte() -> Self{
+        Self::from_raw_id(method_putByte)
+    }
+    pub fn method_putShort() -> Self{
+        Self::from_raw_id(method_putShort)
+    }
+    pub fn method_putChar() -> Self{
+        Self::from_raw_id(method_putChar)
+    }
+    pub fn method_putFloat() -> Self{
+        Self::from_raw_id(method_putFloat)
+    }
+    pub fn method_putDouble() -> Self{
+        Self::from_raw_id(method_putDouble)
+    }
+
+    pub fn method_getObjectVolatile() -> Self{
+        Self::from_raw_id(method_getObjectVolatile)
+    }
+    pub fn method_getBooleanVolatile() -> Self{
+        Self::from_raw_id(method_getBooleanVolatile)
+    }
+    pub fn method_getByteVolatile() -> Self{
+        Self::from_raw_id(method_getByteVolatile)
+    }
+    pub fn method_getShortVolatile() -> Self{
+        Self::from_raw_id(method_getShortVolatile)
+    }
+    pub fn method_getCharVolatile() -> Self{
+        Self::from_raw_id(method_getCharVolatile)
+    }
+    pub fn method_getLongVolatile() -> Self{
+        Self::from_raw_id(method_getLongVolatile)
+    }
+    pub fn method_getFloatVolatile() -> Self{
+        Self::from_raw_id(method_getFloatVolatile)
+    }
+    pub fn method_getDoubleVolatile() -> Self{
+        Self::from_raw_id(method_getDoubleVolatile)
+    }
+    pub fn method_putIntVolatile() -> Self{
+        Self::from_raw_id(method_putIntVolatile)
+    }
+    pub fn method_putObjectVolatile() -> Self{
+        Self::from_raw_id(method_putObjectVolatile)
+    }
+    pub fn method_putBooleanVolatile() -> Self{
+        Self::from_raw_id(method_putBooleanVolatile)
+    }
+    pub fn method_putByteVolatile() -> Self{
+        Self::from_raw_id(method_putByteVolatile)
+    }
+    pub fn method_putShortVolatile() -> Self{
+        Self::from_raw_id(method_putShortVolatile)
+    }
+    pub fn method_putCharVolatile() -> Self{
+        Self::from_raw_id(method_putCharVolatile)
+    }
+    pub fn method_putLongVolatile() -> Self{
+        Self::from_raw_id(method_putLongVolatile)
+    }
+    pub fn method_putFloatVolatile() -> Self{
+        Self::from_raw_id(method_putFloatVolatile)
+    }
+    pub fn method_putDoubleVolatile() -> Self{
+        Self::from_raw_id(method_putDoubleVolatile)
+    }
 }

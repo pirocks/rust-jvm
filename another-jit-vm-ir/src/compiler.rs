@@ -195,6 +195,14 @@ pub enum IRInstr {
         frame_size: usize,
         num_locals: usize,
     },
+    CallNativeHelper{
+        to_call: unsafe extern "C" fn(),
+        integer_args: Vec<FramePointerOffset>,
+        integer_res: Option<FramePointerOffset>,
+        float_double_args: Vec<(FramePointerOffset, Size)>,
+        float_res: Option<FramePointerOffset>,
+        double_res: Option<FramePointerOffset>,
+    },
     CallIntrinsicHelper {
         intrinsic_helper_type: IntrinsicHelperType,
         integer_args: Vec<Register>,
@@ -512,6 +520,9 @@ impl IRInstr {
             }
             IRInstr::NegDouble { .. } => {
                 "NegDouble".to_string()
+            }
+            IRInstr::CallNativeHelper { .. } => {
+                "CallNativeHelper".to_string()
             }
         }
     }

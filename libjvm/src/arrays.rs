@@ -263,14 +263,14 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 
 #[no_mangle]
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, _ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
-    let jvm = get_state(env);
-    let int_state = get_interpreter_state(env);
     let array_elem_type = MemoryRegions::find_object_region_header(NonNull::new(src).unwrap().cast()).array_elem_type.unwrap();
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_elem_type);
     let elem_size = array_layout.elem_size().get() as i32;
     let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
     let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
+        let jvm = get_state(env);
+        let int_state = get_interpreter_state(env);
         *get_throw(env) = Some(WasException { exception_obj: IndexOutOfBoundsException::new(jvm, int_state).unwrap().object().cast_throwable() });
         return;
     }

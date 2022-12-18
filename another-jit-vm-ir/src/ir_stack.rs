@@ -15,13 +15,15 @@ use crate::{HasRBPAndRSP, IRInstructIndex, IRVMState};
 // will have IR instruct for new frame, so IR also knows about frames
 pub struct OwnedIRStack {
     pub native: OwnedNativeStack,
+    pub extra_stack_for_native_exec: OwnedNativeStack,
 }
 
 
 impl<'k> OwnedIRStack {
     pub fn new() -> Result<Self, CannotAllocateStack> {
         Ok(Self {
-            native: OwnedNativeStack::new()?
+            native: OwnedNativeStack::new()?,
+            extra_stack_for_native_exec: OwnedNativeStack::new()?,
         })
     }
 

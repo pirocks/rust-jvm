@@ -256,10 +256,12 @@ pub enum VMExitAction<T: Sized> {
 }
 
 #[repr(C)]
-struct JITContext {
+pub struct JITContext {
     guest_registers: SavedRegistersWithIP,
     vm_native_saved_registers: SavedRegistersWithIP,
     guest_signal_saved_registers: SavedRegistersWithIP,
+    pub alt_native_rsp: NonNull<c_void>,
+    pub alt_native_rbp: NonNull<c_void>,
     intrinsic_helpers: IntrinsicHelpers,
 }
 
@@ -323,7 +325,7 @@ impl<'vm, T> VMState<'vm, T> {
         }
     }
 
-    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
+    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack,extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -476,6 +478,8 @@ impl<'vm, T> VMState<'vm, T> {
                     xsave_area: [0; 64],
                 },
             },
+            alt_native_rsp: extra_stack.mmaped_top,
+            alt_native_rbp: extra_stack.mmaped_top,
             intrinsic_helpers: IntrinsicHelpers::new(extra_intrinsics),
         };
         let self_: &'l VMState<'vm, T> = self;

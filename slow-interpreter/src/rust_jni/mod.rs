@@ -1,19 +1,14 @@
-use std::collections::HashMap;
 use std::mem::transmute;
-use std::ops::{Deref, DerefMut};
+use std::ops::{DerefMut};
 use std::os::raw::c_void;
-use std::path::PathBuf;
 use std::ptr::null_mut;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc};
 
 use libffi::middle::Arg;
 use libffi::middle::Cif;
 use libffi::middle::CodePtr;
 use libffi::middle::Type;
-use libloading::Symbol;
 
-use classfile_view::view::HasAccessFlags;
-use classfile_view::view::method_view::MethodView;
 use jvmti_jni_bindings::{jchar, jobject, jshort};
 use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use jvmti_jni_bindings::jmm_interface::JMMInterfaceNamedReservedPointers;
@@ -27,7 +22,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::native_frame::NativeFrame;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
-use crate::jvm_state::NativeLibraries;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::ffi_arg_holder::ArgBoxesToFree;
 use crate::rust_jni::jni_utils::with_jni_interface;
@@ -43,6 +37,8 @@ pub mod stdarg;
 pub mod jvmti;
 pub mod jni_utils;
 pub mod invoke_interface;
+pub mod natives;
+pub mod direct_invoke_whitelist;
 
 #[derive(Clone)]
 pub struct PerStackInterfaces {
@@ -85,41 +81,6 @@ impl PerStackInterfaces {
     pub fn invoke_interface_mut_raw(&mut self) -> *mut JNIInvokeInterfaceNamedReservedPointers {
         (self.invoke_interface.deref_mut()) as *mut _
     }
-}
-
-
-
-impl<'gc> NativeLibraries<'gc> {
-    pub fn new(libjava: PathBuf) -> NativeLibraries<'gc> {
-        NativeLibraries {
-            libjava_path: libjava,
-            native_libs: Default::default(),
-            registered_natives: RwLock::new(HashMap::new()),
-        }
-    }
-}
-
-pub fn call<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, classfile: Arc<RuntimeClass<'gc>>, method_view: MethodView, args: Vec<NewJavaValue<'gc, 'k>>, md: CMethodDescriptor) -> Result<Option<Option<NewJavaValueHandle<'gc>>>, WasException<'gc>> {
-    let mangled = mangling::mangle(&jvm.mangling_regex,&jvm.string_pool, &method_view);
-    let raw: unsafe extern "C" fn() = unsafe {
-        let libraries_guard = jvm.native_libaries.native_libs.read().unwrap();
-        let possible_symbol = libraries_guard.values().find_map(|native_lib| native_lib.library.get(&mangled.as_bytes()).ok());
-        match possible_symbol {
-            Some(symbol) => {
-                let symbol: Symbol<unsafe extern "C" fn()> = symbol;
-                *symbol.deref()
-            }
-            None => {
-                return Ok(None);
-            }
-        }
-    };
-
-    Ok(if method_view.is_static() {
-        Some(call_impl(jvm, int_state, classfile, args, md, &raw, false)?)
-    } else {
-        Some(call_impl(jvm, int_state, classfile, args, md, &raw, true)?)
-    })
 }
 
 pub fn call_impl<'gc, 'l, 'k>(

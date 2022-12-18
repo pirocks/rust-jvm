@@ -130,7 +130,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg("--scope")
         .arg("--no-block")
         .arg("-p")
-        .arg("RuntimeMaxSec=50")
+        .arg("RuntimeMaxSec=60")
         .arg("-p")
         .arg("MemoryMax=1G")
         .arg("-p")
@@ -166,7 +166,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
     let instant_before = Instant::now();
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
-    match timeout(Duration::from_secs(49), child.wait()).await {
+    match timeout(Duration::from_secs(59), child.wait()).await {
         Err(_) => {
             child.start_kill().unwrap();
             let mut stdout_buf = vec![];
