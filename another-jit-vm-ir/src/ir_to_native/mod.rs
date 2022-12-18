@@ -656,7 +656,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             if let Some(arg) = integer_args.next(){
                 assembler.mov(r9, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(_) = integer_args.next(){
                 todo!();
             }
             let mut float_double_args = float_double_args.iter();
@@ -665,14 +665,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 if let Some((arg, size)) = float_double_args.next(){
                     let sse_register = sse_registers.next().unwrap();
                     match size {
-                        _ => {
-                            panic!()
-                        }
                         Size::X86DWord => {
                             assembler.movd(sse_register, rbp - arg.0).unwrap();
                         }
                         Size::X86QWord => {
                             assembler.movq(sse_register, rbp - arg.0).unwrap();
+                        }
+                        _ => {
+                            panic!()
                         }
                     }
                 }else {

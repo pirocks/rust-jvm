@@ -173,7 +173,7 @@ public class DebuggingClass {
         connection.setReadTimeout(15000);
         connection.setUseCaches(false);
         System.out.println(connection.getResponseMessage());
-        Unsafe.getUnsafe().
+        Unsafe.getUnsafe().notify();
         //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));

@@ -317,6 +317,12 @@ pub struct Monitor2Priv {
     pub waiting_lock: HashSet<JavaThreadId>,
 }
 
+impl Monitor2Priv {
+    pub fn split_borrow_sets_notify_lock(&mut self) -> (&mut HashSet<JavaThreadId>, &mut HashSet<JavaThreadId>) {
+        (&mut self.waiting_notify, &mut self.waiting_lock)
+    }
+}
+
 impl Monitor2 {
     pub fn new(id: MonitorID) -> Self {
         Self {
@@ -393,10 +399,14 @@ impl Monitor2 {
         if jvm.thread_tracing_options.trace_monitor_notify {
             eprintln!("[{}] Notify: {}", current().name().unwrap_or("Unknown Thread"), self.id);
         }
+        let current_thread = jvm.thread_state.get_current_thread();
+        assert_eq!(guard.owner, Some(current_thread.java_tid));
         if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned(){
             guard.waiting_notify.remove(&waiting_notify);
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(waiting_notify);
             to_notify_thread.safepoint_state.set_notified(self.id);
+            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
+            guard.waiting_lock.insert(to_notify_thread.java_tid);
         }
         drop(guard);
         Ok(())
@@ -407,10 +417,14 @@ impl Monitor2 {
         if jvm.thread_tracing_options.trace_monitor_notify_all {
             eprintln!("[{}] Notify All: {}", current().name().unwrap_or("Unknown Thread"), self.id);
         }
-        for thread_id in guard.waiting_notify.drain() {
-            jvm.thread_state.get_thread_by_tid(thread_id).safepoint_state.set_notified(self.id);
+        let (waiting_notify,waiting_lock) = guard.split_borrow_sets_notify_lock();
+        for thread_id in waiting_notify.drain() {
+            let to_notify_thread = jvm.thread_state.get_thread_by_tid(thread_id);
+            to_notify_thread.safepoint_state.set_notified(self.id);
+            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
+            waiting_lock.insert(to_notify_thread.java_tid);
         }
-        assert!(guard.waiting_notify.is_empty());
+        assert!(waiting_notify.is_empty());
         drop(guard);
         Ok(())
     }
@@ -444,9 +458,13 @@ impl Monitor2 {
                 }
                 Ok(Ok(())) => {}
             };
+            let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here
+            assert_eq!(guard.owner, Some(current_thread.java_tid));
+            guard.count = prev_count;
+            guard.owner = Some(current_thread.java_tid);
             // assert!(!current_thread.safepoint_state.is_waiting_notify());
             // assert!(!self.monitor2_priv.write().unwrap().waiting_notify.contains(&current_thread.java_tid));// not true b/c timeout
-            return self.notify_reacquire(jvm,int_state, prev_count);
+            // return self.notify_reacquire(jvm,int_state, prev_count);
         } else {
             todo!("throw illegal monitor state")
         }
@@ -461,7 +479,7 @@ impl Monitor2 {
     }
 
     pub fn notify_reacquire<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, prev_count: usize) -> Result<(), WasException<'gc>> {
-        self.lock(jvm, int_state)?;
+        self.lock(jvm, int_state)?;//todo should already have this lock
         let current_thread = jvm.thread_state.get_current_thread();
         let mut guard = self.monitor2_priv.write().unwrap(); //todo likely race here
         guard.count = prev_count;
