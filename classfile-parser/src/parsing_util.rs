@@ -8,6 +8,9 @@ pub trait ParsingContext {
     fn read8(&mut self) -> Result<u8, ClassfileParsingError>;
     fn read16(&mut self) -> Result<u16, ClassfileParsingError>;
     fn read32(&mut self) -> Result<u32, ClassfileParsingError>;
+    fn read8_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u8, ClassfileParsingError>;
+    fn read16_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u16, ClassfileParsingError>;
+    fn read32_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u32, ClassfileParsingError>;
     fn set_constant_pool(&mut self, constant_pool: Vec<ConstantInfo>);
     fn constant_pool(self) -> Vec<ConstantInfo>;
     fn constant_pool_borrow(&self) -> &Vec<ConstantInfo>;
@@ -20,25 +23,40 @@ pub(crate) struct ReadParsingContext<'l> {
 
 impl ParsingContext for ReadParsingContext<'_> {
     fn read8(&mut self) -> Result<u8, ClassfileParsingError> {
-        let mut buffer = [0; 1];
-        let bytes_read = self.read.read(&mut buffer).map_err(|_| ClassfileParsingError::EOF)?;
-        assert_eq!(bytes_read, 1);
-        Ok(buffer[0])
+        self.read8_append(&mut None)
     }
 
     fn read16(&mut self) -> Result<u16, ClassfileParsingError> {
-        let mut buffer = [0; 2];
-        buffer[0] = self.read8()?;
-        buffer[1] = self.read8()?;
-        Ok(u16::from_be(((buffer[1] as u16) << 8) | buffer[0] as u16))
+        self.read16_append(&mut None)
     }
 
     fn read32(&mut self) -> Result<u32, ClassfileParsingError> {
+        self.read32_append(&mut None)
+    }
+
+    fn read8_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u8, ClassfileParsingError> {
+        let mut buffer = [0; 1];
+        let bytes_read = self.read.read(&mut buffer).map_err(|_| ClassfileParsingError::EOF)?;
+        assert_eq!(bytes_read, 1);
+        if let Some(bytes) = bytes{
+            bytes.push(buffer[0])
+        }
+        Ok(buffer[0])
+    }
+
+    fn read16_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u16, ClassfileParsingError> {
+        let mut buffer = [0; 2];
+        buffer[0] = self.read8_append(bytes)?;
+        buffer[1] = self.read8_append(bytes)?;
+        Ok(u16::from_be(((buffer[1] as u16) << 8) | buffer[0] as u16))
+    }
+
+    fn read32_append(&mut self, bytes: &mut Option<&mut Vec<u8>>) -> Result<u32, ClassfileParsingError> {
         let mut buffer = [0; 4];
-        buffer[0] = self.read8()?;
-        buffer[1] = self.read8()?;
-        buffer[2] = self.read8()?;
-        buffer[3] = self.read8()?;
+        buffer[0] = self.read8_append(bytes)?;
+        buffer[1] = self.read8_append(bytes)?;
+        buffer[2] = self.read8_append(bytes)?;
+        buffer[3] = self.read8_append(bytes)?;
 
         Ok(u32::from_be((buffer[0] as u32) + ((buffer[1] as u32) << 8) + ((buffer[2] as u32) << 16) + ((buffer[3] as u32) << 24)))
     }

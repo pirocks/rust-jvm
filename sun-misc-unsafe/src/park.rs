@@ -42,11 +42,5 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_unpark(env: *mut JNIEnv, _unsafe:
     let jvm = get_state(env);
     let thread_obj = from_object_new(jvm, thread).unwrap().new_java_value_handle().cast_thread(jvm);
     let target_thread = thread_obj.get_java_thread(jvm);
-    let interpreter_state = get_interpreter_state(env);
-    // interpreter_state.debug_print_stack_trace(jvm);
-    // dbg!(target_thread.thread_object().name(jvm).to_rust_string(jvm));
-    match target_thread.unpark(jvm, interpreter_state) {
-        Ok(x) => x,
-        Err(_) => todo!(),
-    };
+    target_thread.unpark();
 }

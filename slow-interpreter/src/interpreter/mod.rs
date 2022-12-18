@@ -281,7 +281,15 @@ fn coerce_integer_types_to<'gc>(handle: NewJavaValueHandle<'gc>, cpdtype: CPDTyp
 
 pub fn safepoint_check<'gc, 'l>(jvm: &'gc JVMState<'gc>, interpreter_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
     let thread = interpreter_state.java_thread().clone();
-    thread.safepoint_state.check(jvm, interpreter_state)?;
+    match thread.safepoint_state.check(jvm, interpreter_state) {
+        Ok(res) => {
+            assert!(res.is_ok());//should never have safepoints from here
+        }
+        Err(_) => {
+            //todo interrupted should clear everything
+            todo!()
+        }
+    }
     Ok(())
 }
 

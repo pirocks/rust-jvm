@@ -130,7 +130,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg("--scope")
         .arg("--no-block")
         .arg("-p")
-        .arg("RuntimeMaxSec=60")
+        .arg("RuntimeMaxSec=120")
         .arg("-p")
         .arg("MemoryMax=1G")
         .arg("-p")
@@ -157,16 +157,17 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn()?;
 
-    let run_string = format!("{} --main {} --java-home {} --classpath {} {} {} --properties {}",
+    let run_string = format!("{} --main {} --java-home {} --classpath {} {} {} --properties {} --properties {}",
                              java_binary.display(), main.to_str().unwrap(), java_home.display(),
                              compiled_file.parent().unwrap().display(), classpath_1.as_str(), classpath_2.as_str(),
-                             format!("test.src={}", source_file.parent().unwrap().display())
+                             format!("test.src={}", source_file.parent().unwrap().display()),
+                             format!("test.classes={}", compiled_file.parent().unwrap().display())
     );
 
     let instant_before = Instant::now();
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
-    match timeout(Duration::from_secs(59), child.wait()).await {
+    match timeout(Duration::from_secs(119), child.wait()).await {
         Err(_) => {
             child.start_kill().unwrap();
             let mut stdout_buf = vec![];

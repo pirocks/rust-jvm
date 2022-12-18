@@ -20,7 +20,7 @@ use crate::better_java_stack::frames::{PushableFrame};
 use crate::better_java_stack::java_stack_guard::JavaStackGuard;
 use crate::better_java_stack::remote_frame::RemoteFrame;
 use crate::interpreter::safepoint_check;
-use crate::new_sync_point_state::{NewSafePointState, ThreadOrBootstrap};
+use crate::new_sync_point_state::{NewSafePointState, ThreadOrBootstrap, TimedOut};
 use crate::rust_jni::jvmti::ThreadJVMTIEnabledStatus;
 use crate::stdlib::java::lang::thread::JThread;
 
@@ -145,12 +145,27 @@ impl<'gc> JavaThread<'gc> {
             let (secs, nanos) = time_nanos.div_mod_floor(&NANOS_PER_SEC);
             Duration::new(secs as u64, nanos as u32)
         }));
-        self.safepoint_state.check(jvm, int_state)
+        match self.safepoint_state.check(jvm, int_state){
+            Ok(possible_timeout) => {
+                match possible_timeout {
+                    Ok(()) => {
+                        return Ok(());
+                    }
+                    Err(TimedOut{}) => {
+                        //need to clear park
+                        todo!()
+                    }
+                }
+            }
+            Err(exception) => {
+                //todo presumably an interrupted exception should clear everything
+                todo!()
+            }
+        }
     }
 
-    pub fn unpark<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
+    pub fn unpark<'l>(&self) {
         self.safepoint_state.set_unpark();
-        self.safepoint_state.check(jvm, int_state)
     }
 
     pub unsafe fn gc_suspend(&self) {

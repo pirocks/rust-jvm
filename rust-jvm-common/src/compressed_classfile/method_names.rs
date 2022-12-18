@@ -325,4 +325,7 @@ impl MethodName {
     pub fn method_putDoubleVolatile() -> Self{
         Self::from_raw_id(method_putDoubleVolatile)
     }
+    pub fn method_fillInStackTrace() -> Self {
+        Self::from_raw_id(method_fillInStackTrace)
+    }
 }

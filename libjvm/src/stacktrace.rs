@@ -5,11 +5,17 @@ use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IsOpaque;
 
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject};
+use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, truncate};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber};
+use rust_jvm_common::classfile::InstructionInfo::ret;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use slow_interpreter::better_java_stack::frames::HasFrame;
+use slow_interpreter::class_loading::assert_loaded_class;
 use slow_interpreter::exceptions::WasException;
+use slow_interpreter::interpreter::common::special::inherits_from;
 use slow_interpreter::new_java_values::allocated_objects::AllocatedObjectHandleByAddress;
 
 use slow_interpreter::rust_jni::jni_utils::get_throw;
@@ -35,16 +41,26 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let stacktrace = int_state.frame_iter().collect_vec();
+    let mut skipping = true;
     let stack_entry_objs = stacktrace
         .iter()
         .map(|stack_entry| {
-            let _declaring_class = match stack_entry.try_class_pointer(jvm) {
+            let declaring_class: Arc<RuntimeClass<'gc>> = match stack_entry.try_class_pointer(jvm) {
                 Err(IsOpaque{}) => return Ok(None),
                 Ok(declaring_class) => declaring_class,
             };
 
-            let declaring_class_view = _declaring_class.view();
+            let declaring_class_view = declaring_class.view();
             let method_view = declaring_class_view.method_view_i(stack_entry.method_i());
+            if skipping{
+                if method_view.name() == MethodName::method_fillInStackTrace() {
+                    return Ok(None);
+                }
+                if inherits_from(jvm, &declaring_class, &assert_loaded_class(jvm, CClassName::throwable().into())){
+                    return Ok(None);
+                }
+                skipping = false;
+            }
             let file = match declaring_class_view.sourcefile_attr() {
                 None => Wtf8Buf::from_string("unknown_source".to_string()),
                 Some(sourcefile) => sourcefile.file(),
@@ -58,7 +74,7 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
             let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
             let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
             let source_file_name_wtf8 = file;
-            Ok(Some(OwnedStackEntry { _declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
+            Ok(Some(OwnedStackEntry { _declaring_class: declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
         .collect::<Result<Vec<Option<_>>, WasException<'gc>>>()
         .expect("todo")

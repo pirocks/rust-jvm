@@ -1,11 +1,14 @@
 use std::collections::HashSet;
 use std::sync::RwLock;
+use std::thread::current;
 use std::time::{Duration, Instant};
+use iced_x86::CC_g::g;
 
 use rust_jvm_common::JavaThreadId;
 
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::jvm_state::JVMState;
+use crate::new_sync_point_state::TimedOut;
 use crate::WasException;
 
 // new approach to safepoints
@@ -335,7 +338,19 @@ impl Monitor2 {
                 guard.waiting_lock.insert(current_thread.java_tid);
                 drop(guard);
                 current_thread.safepoint_state.set_monitor_lock(self.id);
-                current_thread.safepoint_state.check(jvm, int_state).unwrap();
+                match current_thread.safepoint_state.check(jvm, int_state) {
+                    Ok(res) => {
+                        match res {
+                            Ok(()) => {}
+                            Err(TimedOut{}) => {
+                                todo!("locking operations should never time out")
+                            }
+                        }
+                    }
+                    Err(WasException{ exception_obj }) => {
+                        todo!()
+                    }
+                };
                 let mut guard = self.monitor2_priv.write().unwrap();
                 assert_eq!(guard.owner, Some(current_thread.java_tid));
                 assert_eq!(guard.count, 1);
@@ -374,39 +389,37 @@ impl Monitor2 {
     }
 
     pub fn notify<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
-        // if jvm.thread_tracing_options.trace_monitor_notify {
-        //     eprintln!("[{}] Notify: {}", current().name().unwrap_or("Unknown Thread"), self.id);
-        // }
         let mut guard = self.monitor2_priv.write().unwrap();
+        if jvm.thread_tracing_options.trace_monitor_notify {
+            eprintln!("[{}] Notify: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned(){
             guard.waiting_notify.remove(&waiting_notify);
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(waiting_notify);
-            to_notify_thread.safepoint_state.set_notified();
+            to_notify_thread.safepoint_state.set_notified(self.id);
         }
+        drop(guard);
         Ok(())
     }
 
     pub fn notify_all<'gc>(&self, jvm: &'gc JVMState<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
-        for thread_id in guard.waiting_notify.drain() {
-            jvm.thread_state.get_thread_by_tid(thread_id).safepoint_state.set_notified();
+        if jvm.thread_tracing_options.trace_monitor_notify_all {
+            eprintln!("[{}] Notify All: {}", current().name().unwrap_or("Unknown Thread"), self.id);
         }
-        // if jvm.thread_tracing_options.trace_monitor_notify_all {
-        //     eprintln!("[{}] Notify All: {}", current().name().unwrap_or("Unknown Thread"), self.id);
-        // }
-        // let mut guard = self.monitor2_priv.write().unwrap();
-        // for to_notify in guard.waiting_notify.drain() {
-        //     let to_notify_thread = jvm.thread_state.get_thread_by_tid(to_notify);
-        //     to_notify_thread.safepoint_state.set_notified_all();
-        // }
+        for thread_id in guard.waiting_notify.drain() {
+            jvm.thread_state.get_thread_by_tid(thread_id).safepoint_state.set_notified(self.id);
+        }
+        assert!(guard.waiting_notify.is_empty());
+        drop(guard);
         Ok(())
     }
 
     pub fn wait<'gc, 'k>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, wait_duration: Option<Duration>) -> Result<(), WasException<'gc>> {
-        // if jvm.thread_tracing_options.trace_monitor_wait_enter {
-        //     eprintln!("[{}] Monitor Wait: {}", current().name().unwrap_or("Unknown Thread"), self.id);
-        // }
         let mut guard = self.monitor2_priv.write().unwrap();
+        if jvm.thread_tracing_options.trace_monitor_wait_enter {
+            eprintln!("[{}] Monitor Wait: {}", current().name().unwrap_or("Unknown Thread"), self.id);
+        }
         let now = Instant::now();
         let wait_until = wait_duration.map(|wait_duration| match now.checked_add(wait_duration) {
             None => panic!("If you are reading this there something wrong with the amount of time you are calling a wait for"),
@@ -419,10 +432,20 @@ impl Monitor2 {
             guard.waiting_notify.insert(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until);
             drop(guard);
-            if let Err(_) = current_thread.safepoint_state.check(jvm, int_state) {
-                todo!()
+            match current_thread.safepoint_state.check(jvm, int_state) {
+                Err(_) => {
+                    todo!()
+                }
+                Ok(Err(TimedOut{})) => {
+                    let mut guard = self.monitor2_priv.write().unwrap();
+                    guard.waiting_notify.remove(&current_thread.java_tid);
+                    current_thread.safepoint_state.set_notified(self.id);
+                    drop(guard);
+                }
+                Ok(Ok(())) => {}
             };
-            assert!(!current_thread.safepoint_state.is_waiting_notify());
+            // assert!(!current_thread.safepoint_state.is_waiting_notify());
+            // assert!(!self.monitor2_priv.write().unwrap().waiting_notify.contains(&current_thread.java_tid));// not true b/c timeout
             return self.notify_reacquire(jvm,int_state, prev_count);
         } else {
             todo!("throw illegal monitor state")

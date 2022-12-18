@@ -4,6 +4,7 @@ use std::time::Duration;
 use libc::c_void;
 
 use jvmti_jni_bindings::{jlong, JNIEnv, jobject};
+use slow_interpreter::better_java_stack::frames::HasFrame;
 
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 
@@ -13,6 +14,9 @@ unsafe extern "system" fn JVM_MonitorWait(env: *mut JNIEnv, obj: jobject, ms: jl
     let int_state = get_interpreter_state(env);
     assert_ne!(obj, null_mut());
     let monitor = jvm.monitor_for(obj as *const c_void);
+    if ms < 0 {
+        todo!("throw illegal arg")
+    }
     let duration = if ms == 0 { None } else { Some(Duration::from_millis(ms as u64)) };
     match monitor.wait(jvm, int_state, duration) {
         Ok(x) => x,

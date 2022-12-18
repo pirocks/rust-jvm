@@ -150,11 +150,13 @@ impl<'gc> SafePointStateInner<'gc> {
         self.waiting_monitor_notify = Some(MonitorWait { wait_until, monitor });
         self.update_thread_object();
     }
+
     pub fn set_notified(&mut self) {
         assert!(self.waiting_monitor_notify.is_some());
         self.waiting_monitor_notify = None;
         self.update_thread_object();
     }
+
     pub fn set_suspended(&mut self) -> Result<(), SuspendError> {
         if self.suspended{
             todo!()

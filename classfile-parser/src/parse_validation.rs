@@ -595,7 +595,7 @@ impl ValidatorSettings {
     }
 
     fn validate_type_annotation(&self, c: &Classfile, attr: &AttributeEnclosingType, type_annotation: &TypeAnnotation) -> Result<(), ClassfileError> {
-        let TypeAnnotation { target_type, target_path: TypePath { path }, type_index, element_value_pairs } = type_annotation;
+        let TypeAnnotation { target_type, target_path: TypePath { path }, type_index, element_value_pairs, bytes:_ } = type_annotation;
         self.validate_utf8(c, *type_index)?;
         match target_type {
             TargetInfo::TypeParameterTarget { .. } => {}

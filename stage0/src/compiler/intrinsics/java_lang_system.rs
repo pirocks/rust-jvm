@@ -1,11 +1,9 @@
 use std::ffi::c_void;
 use nonnull_const::NonNullConst;
 use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
-use array_memory_layout::layout::ArrayMemoryLayout;
 use gc_memory_layout_common::array_copy_no_validate;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeOffset, MethodId};

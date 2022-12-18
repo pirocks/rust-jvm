@@ -26,6 +26,8 @@ pub struct NewSafePointState<'gc> {
     condvar: Condvar,
 }
 
+pub struct TimedOut{}
+
 impl<'gc> NewSafePointState<'gc> {
     pub fn new(jvm: &'gc JVMState<'gc>, thread_to_update: ThreadOrBootstrap<'gc>) -> Self {
         Self {
@@ -44,7 +46,7 @@ impl<'gc> NewSafePointState<'gc> {
         }
     }
 
-    pub fn check(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), WasException<'gc>> {
+    pub fn check(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<Result<(), TimedOut>, WasException<'gc>> {
         let mut guard = self.inner.lock().unwrap();
         loop {
             if guard.terminate() {
@@ -75,8 +77,7 @@ impl<'gc> NewSafePointState<'gc> {
                         let duration = match park_until.checked_duration_since(Instant::now()) {
                             Some(x) => x,
                             None => {
-                                guard.park_timed_out_set();
-                                continue;
+                                return Ok(Err(TimedOut {}))
                             }
                         };
                         let (guard_tmp, _) = self.condvar.wait_timeout(guard, duration).unwrap();
@@ -90,8 +91,7 @@ impl<'gc> NewSafePointState<'gc> {
                 let duration = match sleep_until.checked_duration_since(Instant::now()) {
                     Some(x) => x,
                     None => {
-                        guard.sleep_timed_out_set();
-                        continue;
+                        return Ok(Err(TimedOut {}))
                     }
                 };
                 let (guard_tmp, _) = self.condvar.wait_timeout(guard, duration).unwrap();
@@ -109,15 +109,14 @@ impl<'gc> NewSafePointState<'gc> {
                 continue;
             }
 
-            if let Some(MonitorWait{ wait_until, .. }) = guard.waiting_monitor_notify() {
+            if let Some(MonitorWait{ wait_until, monitor:_ }) = guard.waiting_monitor_notify() {
                 let duration = match wait_until {
                     None => None,
                     Some(wait_until) => {
                         match wait_until.checked_duration_since(Instant::now()) {
                             Some(duration) => Some(duration),
                             None => {
-                                guard.monitor_wait_timed_out_set();
-                                continue;
+                                return Ok(Err(TimedOut {}))
                             }
                         }
                     }
@@ -135,7 +134,7 @@ impl<'gc> NewSafePointState<'gc> {
                 continue;
             }
 
-            return Ok(());
+            return Ok(Ok(()));
         }
     }
 
@@ -159,9 +158,10 @@ impl<'gc> NewSafePointState<'gc> {
         self.condvar.notify_all();
     }
 
-    pub fn set_notified(&self) {
+    pub fn set_notified(&self, monitor_id: MonitorID) {
         let mut guard = self.inner.lock().unwrap();
-        assert!(guard.waiting_monitor_notify().is_some());
+        // assert!(guard.waiting_monitor_notify().is_some());/// not true b/c timeouts exist
+        // assert_eq!(guard.waiting_monitor_notify().unwrap().monitor, monitor_id);
         guard.set_notified();
         self.condvar.notify_all();
     }

@@ -249,6 +249,7 @@ pub(crate) enum PredefinedStrings {
     method_putLongVolatile,
     method_putFloatVolatile,
     method_putDoubleVolatile,
+    method_fillInStackTrace
 }
 
 impl PredefinedStrings {
@@ -488,6 +489,7 @@ impl PredefinedStrings {
             method_putLongVolatile => "putLongVolatile".to_string(),
             method_putFloatVolatile => "putFloatVolatile".to_string(),
             method_putDoubleVolatile => "putDoubleVolatile".to_string(),
+            method_fillInStackTrace => "fillInStackTrace".to_string()
         }
     }
 }

@@ -256,11 +256,23 @@ unsafe extern "system" fn JVM_GetClassAnnotations(env: *mut JNIEnv, cls: jclass)
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, _cls: jclass) -> jbyteArray {
+unsafe extern "system" fn JVM_GetClassTypeAnnotations(env: *mut JNIEnv, cls: jclass) -> jbyteArray {
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     int_state.debug_print_stack_trace(jvm);
-    unimplemented!()
+    let rc = from_jclass(jvm, cls).as_runtime_class(jvm);
+    let bytes_vec = match rc.unwrap_class_class().class_view.annotations() {
+        Some(x) => x,
+        None => {
+            return null_mut();
+        }
+    };
+    let java_bytes_vec = bytes_vec
+        .into_iter()
+        .map(|byte| NewJavaValue::Byte(byte as i8))
+        .collect_vec();
+    let res = JavaValue::new_vec_from_vec(jvm, java_bytes_vec, CPDType::ByteType);
+    new_local_ref_public_new(Some(res.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

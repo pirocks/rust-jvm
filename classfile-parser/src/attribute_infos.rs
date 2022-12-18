@@ -155,26 +155,26 @@ fn parse_signature(p: &mut dyn ParsingContext) -> Result<AttributeType, Classfil
     Ok(AttributeType::Signature(Signature { signature_index: p.read16()? }))
 }
 
-fn parse_element_value(p: &mut dyn ParsingContext) -> Result<ElementValue, ClassfileParsingError> {
-    let tag = p.read8()? as char;
+fn parse_element_value(p: &mut dyn ParsingContext, bytes: &mut Option<&mut Vec<u8>>) -> Result<ElementValue, ClassfileParsingError> {
+    let tag = p.read8_append(bytes)? as char;
     Ok(match tag {
-        'B' => ElementValue::Byte(p.read16()?),
-        'C' => ElementValue::Char(p.read16()?),
-        'D' => ElementValue::Double(p.read16()?),
-        'F' => ElementValue::Float(p.read16()?),
-        'I' => ElementValue::Int(p.read16()?),
-        'J' => ElementValue::Long(p.read16()?),
-        'S' => ElementValue::Short(p.read16()?),
-        'Z' => ElementValue::Boolean(p.read16()?),
-        's' => ElementValue::String(p.read16()?),
-        'e' => ElementValue::EnumType(parse_enum_const_value(p)?),
-        'c' => ElementValue::Class(ClassInfoIndex { class_info_index: p.read16()? }),
-        '@' => ElementValue::AnnotationType(AnnotationValue { annotation: parse_annotation(p)? }),
+        'B' => ElementValue::Byte(p.read16_append(bytes)?),
+        'C' => ElementValue::Char(p.read16_append(bytes)?),
+        'D' => ElementValue::Double(p.read16_append(bytes)?),
+        'F' => ElementValue::Float(p.read16_append(bytes)?),
+        'I' => ElementValue::Int(p.read16_append(bytes)?),
+        'J' => ElementValue::Long(p.read16_append(bytes)?),
+        'S' => ElementValue::Short(p.read16_append(bytes)?),
+        'Z' => ElementValue::Boolean(p.read16_append(bytes)?),
+        's' => ElementValue::String(p.read16_append(bytes)?),
+        'e' => ElementValue::EnumType(parse_enum_const_value(p, bytes)?),
+        'c' => ElementValue::Class(ClassInfoIndex { class_info_index: p.read16_append(bytes)? }),
+        '@' => ElementValue::AnnotationType(AnnotationValue { annotation: parse_annotation(p, bytes)? }),
         '[' => {
-            let num_values = p.read16()?;
+            let num_values = p.read16_append(bytes)?;
             let mut values = vec![];
             for _ in 0..num_values {
-                values.push(parse_element_value(p)?);
+                values.push(parse_element_value(p, bytes)?);
             }
             ElementValue::ArrayType(ArrayValue { values })
         }
@@ -246,24 +246,24 @@ pub fn element_value_to_bytes(element_value: ElementValue) -> Vec<u8> {
     res
 }
 
-fn parse_enum_const_value(p: &mut dyn ParsingContext) -> Result<EnumConstValue, ClassfileParsingError> {
-    let type_name_index = p.read16()?;
-    let const_name_index = p.read16()?;
+fn parse_enum_const_value(p: &mut dyn ParsingContext, bytes: &mut Option<&mut Vec<u8>>) -> Result<EnumConstValue, ClassfileParsingError> {
+    let type_name_index = p.read16_append(bytes)?;
+    let const_name_index = p.read16_append(bytes)?;
     Ok(EnumConstValue { type_name_index, const_name_index })
 }
 
-fn parse_element_value_pair(p: &mut dyn ParsingContext) -> Result<ElementValuePair, ClassfileParsingError> {
-    let element_name_index = p.read16()?;
-    let value = parse_element_value(p)?;
+fn parse_element_value_pair(p: &mut dyn ParsingContext, bytes: &mut Option<&mut Vec<u8>>) -> Result<ElementValuePair, ClassfileParsingError> {
+    let element_name_index = p.read16_append(bytes)?;
+    let value = parse_element_value(p, bytes)?;
     Ok(ElementValuePair { element_name_index, value })
 }
 
-fn parse_annotation(p: &mut dyn ParsingContext) -> Result<Annotation, ClassfileParsingError> {
-    let type_index = p.read16()?;
-    let num_element_value_pairs = p.read16()?;
+fn parse_annotation(p: &mut dyn ParsingContext, bytes: &mut Option<&mut Vec<u8>>) -> Result<Annotation, ClassfileParsingError> {
+    let type_index = p.read16_append(bytes)?;
+    let num_element_value_pairs = p.read16_append(bytes)?;
     let mut element_value_pairs: Vec<ElementValuePair> = Vec::with_capacity(num_element_value_pairs as usize);
     for _ in 0..num_element_value_pairs {
-        element_value_pairs.push(parse_element_value_pair(p)?);
+        element_value_pairs.push(parse_element_value_pair(p, bytes)?);
     }
     Ok(Annotation { type_index, num_element_value_pairs, element_value_pairs })
 }
@@ -284,7 +284,7 @@ fn parse_runtime_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<Anno
     let num_annotations = p.read16()?;
     let mut annotations = Vec::with_capacity(num_annotations as usize);
     for _ in 0..num_annotations {
-        annotations.push(parse_annotation(p)?);
+        annotations.push(parse_annotation(p, &mut None)?);
     }
     Ok(annotations)
 }
@@ -298,6 +298,7 @@ pub fn runtime_annotations_to_bytes(annotations: Vec<Annotation>) -> Vec<u8> {
     }
     res
 }
+
 
 fn parse_runtime_visible_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_runtime_annotations_impl(p)?;
@@ -316,7 +317,7 @@ fn parse_runtime_parameter_annotations_impl(p: &mut dyn ParsingContext) -> Resul
         let num_annotations = p.read16()?;
         let mut annotations = vec![];
         for _ in 0..num_annotations {
-            annotations.push(parse_annotation(p)?);
+            annotations.push(parse_annotation(p,&mut None )?);
         }
         parameter_annotations.push(annotations);
     }
@@ -353,6 +354,17 @@ fn parse_type_annotations_impl(p: &mut dyn ParsingContext) -> Result<Vec<TypeAnn
     Ok(annotations)
 }
 
+
+pub fn runtime_type_annotations_to_bytes(annotations: Vec<TypeAnnotation>) -> Vec<u8> {
+    let mut res = vec![];
+    let num_annotations = annotations.len() as u16;
+    res.extend_from_slice(&num_annotations.to_be_bytes());
+    for annotation in annotations {
+        res.extend_from_slice(annotation.bytes.as_slice());
+    }
+    res
+}
+
 fn parse_runtime_visible_type_annotations(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
     let annotations = parse_type_annotations_impl(p)?;
     Ok(AttributeType::RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations { annotations }))
@@ -364,46 +376,47 @@ fn parse_runtime_invisible_type_annotations(p: &mut dyn ParsingContext) -> Resul
 }
 
 fn parse_type_annotation(p: &mut dyn ParsingContext) -> Result<TypeAnnotation, ClassfileParsingError> {
-    let target_type_raw = p.read8()?;
+    let mut bytes = vec![];//todo do something about this having to exist
+    let target_type_raw = p.read8_append(&mut Some(&mut bytes))?;
     let target_type = match target_type_raw {
-        0x00 | 0x01 => TargetInfo::TypeParameterTarget { type_parameter_index: p.read8()? },
-        0x10 => TargetInfo::SuperTypeTarget { supertype_index: p.read16()? },
+        0x00 | 0x01 => TargetInfo::TypeParameterTarget { type_parameter_index: p.read8_append(&mut Some(&mut bytes))? },
+        0x10 => TargetInfo::SuperTypeTarget { supertype_index: p.read16_append(&mut Some(&mut bytes))? },
         0x11 | 0x12 => {
-            let type_parameter_index = p.read8()?;
-            let bound_index = p.read8()?;
+            let type_parameter_index = p.read8_append(&mut Some(&mut bytes))?;
+            let bound_index = p.read8_append(&mut Some(&mut bytes))?;
             TargetInfo::TypeParameterBoundTarget { type_parameter_index, bound_index }
         }
         0x13 | 0x14 | 0x15 => TargetInfo::EmptyTarget,
-        0x16 => TargetInfo::FormalParameterTarget { formal_parameter_index: p.read8()? },
-        0x17 => TargetInfo::ThrowsTarget { throws_type_index: p.read16()? },
+        0x16 => TargetInfo::FormalParameterTarget { formal_parameter_index: p.read8_append(&mut Some(&mut bytes))? },
+        0x17 => TargetInfo::ThrowsTarget { throws_type_index: p.read16_append(&mut Some(&mut bytes))? },
         0x40 | 0x41 => {
-            let table_len = p.read16()?;
+            let table_len = p.read16_append(&mut Some(&mut bytes))?;
             let mut table = vec![];
             for _ in 0..table_len {
-                let start_pc = p.read16()?;
-                let length = p.read16()?;
-                let index = p.read16()?;
+                let start_pc = p.read16_append(&mut Some(&mut bytes))?;
+                let length = p.read16_append(&mut Some(&mut bytes))?;
+                let index = p.read16_append(&mut Some(&mut bytes))?;
                 table.push(LocalVarTargetTableEntry { start_pc, length, index })
             }
             TargetInfo::LocalVarTarget { table }
         }
-        0x42 => TargetInfo::CatchTarget { exception_table_entry: p.read16()? },
-        0x43..=0x46 => TargetInfo::OffsetTarget { offset: p.read16()? },
+        0x42 => TargetInfo::CatchTarget { exception_table_entry: p.read16_append(&mut Some(&mut bytes))? },
+        0x43..=0x46 => TargetInfo::OffsetTarget { offset: p.read16_append(&mut Some(&mut bytes))? },
         0x47..=0x4B => {
-            let offset = p.read16()?;
-            let type_argument_index = p.read8()?;
+            let offset = p.read16_append(&mut Some(&mut bytes))?;
+            let type_argument_index = p.read8_append(&mut Some(&mut bytes))?;
             TargetInfo::TypeArgumentTarget { offset, type_argument_index }
         }
         _ => return Err(ClassfileParsingError::WrongTag),
     };
     let target_path = parse_type_path(p)?;
-    let type_index = p.read16()?;
+    let type_index = p.read16_append(&mut Some(&mut bytes))?;
     let mut element_value_pairs = vec![];
-    let num_element_value_pairs = p.read16()?;
+    let num_element_value_pairs = p.read16_append(&mut Some(&mut bytes))?;
     for _ in 0..num_element_value_pairs {
-        element_value_pairs.push(parse_element_value_pair(p)?);
+        element_value_pairs.push(parse_element_value_pair(p,&mut Some(&mut bytes))?);
     }
-    Ok(TypeAnnotation { target_type, target_path, type_index, element_value_pairs })
+    Ok(TypeAnnotation { target_type, target_path, type_index, element_value_pairs, bytes })
 }
 
 fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfileParsingError> {
@@ -418,7 +431,7 @@ fn parse_type_path(p: &mut dyn ParsingContext) -> Result<TypePath, ClassfilePars
 }
 
 fn parse_annotation_default(p: &mut dyn ParsingContext) -> Result<AttributeType, ClassfileParsingError> {
-    let default_value = parse_element_value(p)?;
+    let default_value = parse_element_value(p, &mut None)?;
     Ok(AttributeType::AnnotationDefault(AnnotationDefault { default_value }))
 }
 

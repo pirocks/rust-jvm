@@ -296,6 +296,7 @@ pub struct TypeAnnotation {
     pub target_path: TypePath,
     pub type_index: u16,
     pub element_value_pairs: Vec<ElementValuePair>,
+    pub bytes: Vec<u8>
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

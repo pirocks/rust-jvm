@@ -212,10 +212,10 @@ unsafe extern "system" fn JVM_NewInstanceFromConstructor<'gc>(env: *mut JNIEnv, 
     let mut full_args = vec![obj.new_java_value()];
     full_args.extend(args.iter().map(|handle| handle.as_njv()));
     match run_constructor(jvm, int_state, clazz, full_args, &signature) {
-        Ok(x) => x,
+        Ok(()) => {},
         Err(WasException{ exception_obj }) => {
-            exception_obj.print_stack_trace(jvm,int_state).unwrap();
-            todo!()
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jobject::invalid_default()
         },
     };
     new_local_ref_public_new(Some(obj.as_allocated_obj()), int_state)

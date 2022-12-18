@@ -4,8 +4,8 @@ use std::sync::{Arc, RwLock};
 use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
-use classfile_parser::attribute_infos::runtime_annotations_to_bytes;
-use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations};
+use classfile_parser::attribute_infos::{runtime_annotations_to_bytes, runtime_type_annotations_to_bytes};
+use rust_jvm_common::classfile::{ACC_ABSTRACT, ACC_FINAL, ACC_INTERFACE, ACC_NATIVE, ACC_PRIVATE, ACC_PROTECTED, ACC_PUBLIC, ACC_STATIC, ACC_SYNCHRONIZED, ACC_SYNTHETIC, ACC_VARARGS, AttributeType, Classfile, ConstantKind, RuntimeVisibleAnnotations, RuntimeVisibleTypeAnnotations};
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CompressedParsedRefType, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::CompressedClassfile;
@@ -82,6 +82,7 @@ pub trait ClassView: HasAccessFlags {
     fn enclosing_method_view(&self) -> Option<EnclosingMethodView>;
     fn inner_classes_view(&self) -> Option<InnerClassesView>;
     fn annotations(&self) -> Option<Vec<u8>>;
+    fn type_annotations(&self) -> Option<Vec<u8>>;
 
     fn lookup_field(&self, name: FieldName) -> Option<FieldView>;
 
@@ -218,6 +219,13 @@ impl ClassView for ClassBackedView {
     fn annotations(&self) -> Option<Vec<u8>> {
         self.underlying_class.attributes.iter().find_map(|attr| match &attr.attribute_type {
             AttributeType::RuntimeVisibleAnnotations(RuntimeVisibleAnnotations { annotations }) => Some(runtime_annotations_to_bytes(annotations.clone())),
+            _ => None,
+        })
+    }
+
+    fn type_annotations(&self) -> Option<Vec<u8>> {
+        self.underlying_class.attributes.iter().find_map(|attr| match &attr.attribute_type {
+            AttributeType::RuntimeVisibleTypeAnnotations(RuntimeVisibleTypeAnnotations { annotations }) => Some(runtime_type_annotations_to_bytes(annotations.clone())),
             _ => None,
         })
     }
@@ -361,6 +369,10 @@ impl ClassView for PrimitiveView {
         todo!()
     }
 
+    fn type_annotations(&self) -> Option<Vec<u8>> {
+        todo!()
+    }
+
     fn lookup_field(&self, _name: FieldName) -> Option<FieldView> {
         todo!()
     }
@@ -463,6 +475,10 @@ impl ClassView for ArrayView {
     }
 
     fn annotations(&self) -> Option<Vec<u8>> {
+        todo!()
+    }
+
+    fn type_annotations(&self) -> Option<Vec<u8>> {
         todo!()
     }
 
