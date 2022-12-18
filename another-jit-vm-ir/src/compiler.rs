@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicPtr;
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
@@ -196,7 +197,7 @@ pub enum IRInstr {
         num_locals: usize,
     },
     CallNativeHelper{
-        to_call: unsafe extern "C" fn(),
+        to_call: NonNullConst<c_void>,
         integer_args: Vec<FramePointerOffset>,
         integer_res: Option<FramePointerOffset>,
         float_double_args: Vec<(FramePointerOffset, Size)>,
@@ -211,6 +212,17 @@ pub enum IRInstr {
         float_res: Option<FloatRegister>,
         double_args: Vec<DoubleRegister>,
         double_res: Option<DoubleRegister>,
+    },
+    ArrayElemSizeLookup {
+        ptr: Register,
+        temp_1: Register,
+        temp_2: Register,
+        temp_3: Register,
+        out: Register,
+    },
+    MaxUnsigned{
+        res: Register,
+        other: Register,
     },
     NOP,
     DebuggerBreakpoint,
@@ -523,6 +535,12 @@ impl IRInstr {
             }
             IRInstr::CallNativeHelper { .. } => {
                 "CallNativeHelper".to_string()
+            }
+            IRInstr::ArrayElemSizeLookup { .. } => {
+                "ArrayElemSizeLookup".to_string()
+            }
+            IRInstr::MaxUnsigned { .. } => {
+                "MaxUnsigned".to_string()
             }
         }
     }

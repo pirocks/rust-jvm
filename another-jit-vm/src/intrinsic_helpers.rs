@@ -54,7 +54,7 @@ pub enum IntrinsicHelperType {
     InstanceOf,
     Malloc,
     Free,
-    GetConstantAllocation
+    GetConstantAllocation,
 }
 
 impl IntrinsicHelperType {

@@ -1,4 +1,6 @@
+use std::os::raw::c_void;
 use std::vec;
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
@@ -149,7 +151,7 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
                         num_locals: resolver.num_locals(method_id) as usize,
                     },
                     IRInstr::CallNativeHelper {
-                        to_call: direct_invoke,
+                        to_call: NonNullConst::new(direct_invoke as *const c_void).unwrap() ,
                         integer_args,
                         integer_res,
                         float_double_args: vec![],

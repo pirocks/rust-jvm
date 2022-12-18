@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ffi::c_void;
 use std::mem::size_of;
 
 use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, dword_ptr, eax, qword_ptr, r13, r14, r15, r8, r9, rax, rbp, rbx, rcx, rdi, rdx, rsi, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7, ymm0, ymm1, ymm2, ymm4};
@@ -681,7 +680,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                 }
             }
             //todo interrupts will need to look at top of this stack for actual rbp and rsp
-            assembler.mov(rax, (*to_call) as *const c_void as i64).unwrap();
+            assembler.mov(rax, to_call.as_ptr() as i64).unwrap();
             let old_rsp = r14;
             let old_rbp = r13;
             assembler.mov(old_rbp, rbp).unwrap();
@@ -708,6 +707,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             if let Some(double_res) = double_res{
                 assembler.movq(rbp - double_res.0, xmm0).unwrap();
             }
+        }
+        IRInstr::ArrayElemSizeLookup { .. } => {
+            todo!()
+        }
+        IRInstr::MaxUnsigned { .. } => {
+            todo!()
         }
     }
     None

@@ -1,11 +1,15 @@
 use std::intrinsics::transmute;
+use std::ptr::NonNull;
 use std::sync::Arc;
+use libc::size_t;
 
 use wtf8::Wtf8Buf;
+use array_memory_layout::layout::ArrayMemoryLayout;
 
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jint, jshort};
+use gc_memory_layout_common::memory_regions::MemoryRegions;
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jint, jobject, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber, LineNumberTable};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;

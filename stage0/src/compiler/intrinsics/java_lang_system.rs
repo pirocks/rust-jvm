@@ -1,15 +1,19 @@
+use std::ffi::c_void;
+use nonnull_const::NonNullConst;
 use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, Signed, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use array_memory_layout::layout::ArrayMemoryLayout;
+use gc_memory_layout_common::array_copy_no_validate;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
+use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-use rust_jvm_common::{ByteCodeOffset, MethodId};
+
 use crate::compiler::CompilerLabeler;
 use crate::compiler_common::MethodResolver;
 
@@ -27,7 +31,6 @@ pub fn java_lang_system<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Nativ
     None
 }
 
-#[allow(unreachable_code, unused_variables)]
 pub fn intrinsic_array_copy<'gc>(
     resolver: &impl MethodResolver<'gc>,
     layout: &NativeStackframeMemoryLayout,
@@ -35,7 +38,6 @@ pub fn intrinsic_array_copy<'gc>(
     ir_method_id: IRMethodID,
     labeler: &mut CompilerLabeler,
 ) -> Option<Vec<IRInstr>> {
-    return None;
     let temp = Register(1);
     let src = Register(2);
     let src_pos = Register(3);
@@ -58,28 +60,33 @@ pub fn intrinsic_array_copy<'gc>(
         a: zero,
         size: Size::pointer(),
     });
+    let src_offset = layout.local_var_entry(0);
     res.push(IRInstr::LoadFPRelative {
-        from: layout.local_var_entry(0),
+        from: src_offset,
         to: src,
         size: Size::pointer(),
     });
+    let src_pos_offset = layout.local_var_entry(1);
     res.push(IRInstr::LoadFPRelative {
-        from: layout.local_var_entry(1),
+        from: src_pos_offset,
         to: src_pos,
         size: Size::int(),
     });
+    let dst_offset = layout.local_var_entry(2);
     res.push(IRInstr::LoadFPRelative {
-        from: layout.local_var_entry(2),
+        from: dst_offset,
         to: dst,
         size: Size::pointer(),
     });
+    let dst_pos_offset = layout.local_var_entry(3);
     res.push(IRInstr::LoadFPRelative {
-        from: layout.local_var_entry(3),
+        from: dst_pos_offset,
         to: dst_pos,
         size: Size::int(),
     });
+    let length_offset = layout.local_var_entry(4);
     res.push(IRInstr::LoadFPRelative {
-        from: layout.local_var_entry(4),
+        from: length_offset,
         to: length,
         size: Size::int(),
     });
@@ -114,8 +121,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
     let src_length = Register(7);
-    let array_layout: ArrayMemoryLayout = todo!()/*ArrayMemoryLayout::from_unknown_cpdtype()*/;
-    assert_eq!(array_layout.len_entry_offset(), 0);
+    // assert_eq!(array_layout.len_entry_offset(), 0);
     res.push(IRInstr::Load {
         to: src_length,
         from_address: src,// + len offset
@@ -136,8 +142,7 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
     let dst_length = Register(7);
-    let array_layout: ArrayMemoryLayout = todo!() /*ArrayMemoryLayout::from_unknown_cpdtype()*/;
-    assert_eq!(array_layout.len_entry_offset(), 0);
+    // assert_eq!(array_layout.len_entry_offset(), 0);
     res.push(IRInstr::Load {
         to: dst_length,
         from_address: dst,// + len offset
@@ -159,70 +164,19 @@ pub fn intrinsic_array_copy<'gc>(
         size: Size::int(),
     });
 
-    let array_layout: ArrayMemoryLayout = todo!()/*ArrayMemoryLayout::from_unknown_cpdtype()*/;
-    // assert_eq!(array_layout.elem_0_entry_offset(), 8);
-    // assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
-    let src_address_register = Register(7);
-    res.push(IRInstr::CopyRegister {
-        from: src,
-        to: src_address_register,
-    });
-    res.push(IRInstr::AddConst { res: src_address_register, a: todo!() });
-    res.push(IRInstr::MulConst {
-        res: src_pos,
-        a: array_layout.elem_size().get() as i32,
-        size: Size::pointer(),
-        signed: Signed::Signed,
-    });
-    res.push(IRInstr::Add {
-        res: src_address_register,
-        a: src_pos,
-        size: Size::pointer(),
-    });
-
-    let array_layout: ArrayMemoryLayout = todo!() /*ArrayMemoryLayout::from_unknown_cpdtype()*/;
-    assert_eq!(array_layout.elem_0_entry_offset(), 8);
-    // assert_eq!(array_layout.elem_size(), size_of::<NativeJavaValue>());
-    let dst_address_register = Register(8);
-    res.push(IRInstr::CopyRegister {
-        from: dst,
-        to: dst_address_register,
-    });
-    res.push(IRInstr::AddConst { res: dst_address_register, a: 8 });
-    res.push(IRInstr::MulConst {
-        res: dst_pos,
-        a: array_layout.elem_size().get() as i32,
-        size: Size::pointer(),
-        signed: Signed::Signed,
-    });
-    res.push(IRInstr::Add {
-        res: dst_address_register,
-        a: dst_pos,
-        size: Size::pointer(),
-    });
-
-    res.push(IRInstr::MulConst {
-        res: length,
-        a: array_layout.elem_size().get() as i32,
-        size: Size::pointer(),
-        signed: Signed::Signed, //todo this should probe be not this
-    });
-
     let copy_label = labeler.local_label();
     res.push(IRInstr::BranchToLabel { label: copy_label });
     res.push(IRInstr::Label(IRLabel { name: todo_label }));
     // res.push(IRInstr::DebuggerBreakpoint);
     res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::Todo { java_pc: ByteCodeOffset(0), todo_case: TodoCase::ArrayCopyFailure } });
     res.push(IRInstr::Label(IRLabel { name: copy_label }));
-    // pub fn memmove(dest: *mut c_void, src: *const c_void, n: size_t) -> *mut c_void;
-    res.push(IRInstr::CallIntrinsicHelper {
-        intrinsic_helper_type: IntrinsicHelperType::Memmove,
-        integer_args: vec![dst_address_register, src_address_register, length],
+    res.push(IRInstr::CallNativeHelper {
+        to_call: NonNullConst::new(array_copy_no_validate as *const c_void).unwrap(),
+        integer_args: vec![src_offset, src_pos_offset, dst_offset, dst_pos_offset, length_offset],
         integer_res: None,
-        float_args: vec![],
         float_res: None,
-        double_args: vec![],
         double_res: None,
+        float_double_args: vec![],
     });
     res.push(IRInstr::Return {
         return_val: None,

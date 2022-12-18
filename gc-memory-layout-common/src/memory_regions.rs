@@ -394,6 +394,11 @@ impl MemoryRegions {
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,vtable_ptr)).unwrap();
     }
 
+    pub fn generate_find_array_elem_size(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
+        Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
+        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,array_elem_size)).unwrap();
+    }
+
     pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register, fail_label: CodeLabel) {
         Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
         assembler.test(out.to_native_64(), out.to_native_64()).unwrap();

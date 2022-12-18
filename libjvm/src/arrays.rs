@@ -3,10 +3,10 @@ use std::num::NonZeroU8;
 use std::ptr::{NonNull};
 
 use itertools::Itertools;
-use libc::{size_t};
 
 use array_memory_layout::accessor::Accessor;
 use array_memory_layout::layout::ArrayMemoryLayout;
+use gc_memory_layout_common::array_copy_no_validate;
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use jvmti_jni_bindings::{jclass, jint, jintArray, JNIEnv, jobject, jvalue, JVM_T_BOOLEAN, JVM_T_BYTE, JVM_T_CHAR, JVM_T_DOUBLE, JVM_T_FLOAT, JVM_T_INT, JVM_T_LONG, JVM_T_SHORT};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -265,9 +265,9 @@ unsafe extern "system" fn JVM_NewMultiArray(env: *mut JNIEnv, eltClass: jclass, 
 unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, _ignored: jclass, src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
     let array_elem_type = MemoryRegions::find_object_region_header(NonNull::new(src).unwrap().cast()).array_elem_type.unwrap();
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_elem_type);
-    let elem_size = array_layout.elem_size().get() as i32;
     let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
     let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
+
     if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
         let jvm = get_state(env);
         let int_state = get_interpreter_state(env);
@@ -275,12 +275,6 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, _ignored: jclass, src:
         return;
     }
 
-    let dst = NonNull::new(dst.cast()).unwrap();
-    let src = NonNull::new(src.cast()).unwrap();
-
-    let dst_raw = array_layout.calculate_index_address(dst, dst_pos).inner();
-    let src_raw = array_layout.calculate_index_address(src, src_pos).inner();
-
-    libc::memmove(dst_raw.as_ptr(),
-                  src_raw.as_ptr(), (length * elem_size) as size_t);
+    array_copy_no_validate(src, src_pos, dst, dst_pos, length);
 }
+
