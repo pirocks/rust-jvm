@@ -46,6 +46,7 @@ pub fn intrinsic_array_copy<'gc>(
     let length = Register(6);
     let todo_label = labeler.local_label();
     let mut res = vec![];
+    //todo need to validate array store exception again
     res.push(IRInstr::IRStart {
         temp_register: temp,
         ir_method_id,
