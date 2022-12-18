@@ -214,7 +214,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let mut frame = NativeFrame::new_from_pointer(self, next_frame_pointer, local_vars.len() as u16);
         unsafe {
             let jvm = frame.jvm();
-            if libc::rand() < 100_000 {
+            if libc::rand() < 10_000 {
                 frame.debug_print_stack_trace(jvm);
                 dbg!(jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
             }

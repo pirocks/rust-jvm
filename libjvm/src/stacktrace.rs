@@ -5,12 +5,10 @@ use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IsOpaque;
 
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject, truncate};
+use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber};
-use rust_jvm_common::classfile::InstructionInfo::ret;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::class_loading::assert_loaded_class;

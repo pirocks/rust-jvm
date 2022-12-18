@@ -957,8 +957,22 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
             CompressedInstructionInfo::dup2_x2 => {
                 this_function_ir.extend(dup2_x2(method_frame_data, current_instr_data));
             }
-            other => {
-                dbg!(other);
+            CompressedInstructionInfo::goto_w(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::jsr(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::jsr_w(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::nop => {
+                todo!()
+            }
+            CompressedInstructionInfo::ret(_) => {
+                todo!()
+            }
+            CompressedInstructionInfo::EndOfCode => {
                 todo!()
             }
         }
