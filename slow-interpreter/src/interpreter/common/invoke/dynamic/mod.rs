@@ -3,7 +3,7 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::attribute_view::BootstrapArgView;
 use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, MethodHandleView, MethodrefView, ReferenceInvokeKind};
+use classfile_view::view::constant_info_view::{ConstantInfoView, InvokeSpecial, InvokeStatic, InvokeVirtual, MethodHandleView, MethodrefView, ReferenceInvokeKind};
 use rust_jvm_common::ByteCodeOffset;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
@@ -90,6 +90,12 @@ fn invoke_dynamic_impl<'l, 'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut 
         ReferenceInvokeKind::NewInvokeSpecial(nis) => match nis {
             MethodrefView { .. } => {
                 todo!()
+            }
+        },
+        ReferenceInvokeKind::InvokeVirtual(iv) => {
+            match iv {
+                InvokeVirtual::Interface(_) => todo!(),
+                InvokeVirtual::Method(_) => todo!(),
             }
         }
     };
@@ -203,6 +209,16 @@ fn method_handle_from_method_view<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &
             let method_type = MethodType::from_method_descriptor_string(jvm, int_state, desc, None)?;
             let target_class = JClass::from_type(jvm, int_state, mr.class(&jvm.string_pool).to_cpdtype())?;
             lookup.find_constructor(jvm, int_state, target_class, method_type)?
+        }
+        ReferenceInvokeKind::InvokeVirtual(iv) => {
+            match iv {
+                InvokeVirtual::Interface(_) => {
+                    todo!()
+                }
+                InvokeVirtual::Method(_) => {
+                    todo!()
+                }
+            }
         }
     })
 }

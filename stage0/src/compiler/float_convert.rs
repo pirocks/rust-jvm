@@ -62,6 +62,14 @@ pub fn d2l(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_dat
     ])
 }
 
+pub fn f2l(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
+    array_into_iter([
+        IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: FloatRegister(1) },
+        IRInstr::FloatToLongConvert { to: Register(1), from: FloatRegister(1) },
+        IRInstr::StoreFPRelative { from: Register(1), to: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0), size: Size::long() }
+    ])
+}
+
 pub fn f2d(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_into_iter([
         IRInstr::LoadFPRelativeFloat { from: method_frame_data.operand_stack_entry(current_instr_data.current_index, 0), to: FloatRegister(1) },

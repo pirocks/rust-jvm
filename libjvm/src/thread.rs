@@ -6,6 +6,7 @@ use std::time::Duration;
 use wtf8::Wtf8Buf;
 
 use jvmti_jni_bindings::{JAVA_THREAD_STATE_BLOCKED, JAVA_THREAD_STATE_NEW, JAVA_THREAD_STATE_RUNNABLE, JAVA_THREAD_STATE_TERMINATED, JAVA_THREAD_STATE_TIMED_WAITING, JAVA_THREAD_STATE_WAITING, jboolean, jclass, jint, jintArray, jlong, JNIEnv, jobject, jobjectArray, jstring};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::{JavaValue};
@@ -18,6 +19,8 @@ use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::threading::safepoints::Monitor2;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
+use itertools::Itertools;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_StartThread(env: *mut JNIEnv, thread: jobject) {
@@ -140,17 +143,17 @@ unsafe extern "system" fn JVM_DumpAllStacks(_env: *mut JNIEnv, _unused: jclass) 
 unsafe extern "system" fn JVM_GetAllThreads(env: *mut JNIEnv, _dummy: jclass) -> jobjectArray {
     //the dummy appears b/c stuff gets called from static native fucntion in jni, and someone didn't want to get rid of param and just have a direct function pointer
     let jvm = get_state(env);
-    let _int_state = get_interpreter_state(env);
-    let _jobjects = jvm
+    let int_state = get_interpreter_state(env);
+    let jobjects = jvm
         .thread_state
         .get_all_alive_threads()
         .into_iter()
-        .map(|_java_thread| {
-            JavaValue::Object(todo!() /*java_thread.try_thread_object().map(|jthread| jthread.object())*/)
+        .flat_map(|java_thread| {
+            Some(java_thread.try_thread_object()?.full_object().new_java_value_handle())
         })
         .collect::<Vec<_>>();
-    let _object_array = todo!()/*JavaValue::new_vec_from_vec(jvm, jobjects, CClassName::thread().into()).unwrap_object()*/;
-    new_local_ref_public(todo!()/*object_array*/, _int_state)
+    let object_array = JavaValue::new_vec_from_vec(jvm, jobjects.iter().map(|njvhandle|njvhandle.as_njv()).collect_vec(), CClassName::thread().into());
+    new_local_ref_public_new(Some(object_array.as_allocated_obj()), int_state)
 }
 
 #[no_mangle]

@@ -84,6 +84,7 @@ pub enum IRInstr {
     StoreFPRelativeFloat { from: FloatRegister, to: FramePointerOffset },
     StoreFPRelativeDouble { from: DoubleRegister, to: FramePointerOffset },
     FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
+    FloatToLongConvert { from: FloatRegister, to: Register },
     DoubleToIntegerConvert { from: DoubleRegister, temp: MMRegister, to: Register },
     DoubleToLongConvert { from: DoubleRegister, to: Register },
     FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
@@ -541,6 +542,9 @@ impl IRInstr {
             }
             IRInstr::MaxUnsigned { .. } => {
                 "MaxUnsigned".to_string()
+            }
+            IRInstr::FloatToLongConvert { .. } => {
+                "FloatToLongConvert".to_string()
             }
         }
     }

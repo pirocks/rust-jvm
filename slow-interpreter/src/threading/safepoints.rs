@@ -2,7 +2,6 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use std::thread::current;
 use std::time::{Duration, Instant};
-use iced_x86::CC_g::g;
 
 use rust_jvm_common::JavaThreadId;
 
@@ -404,9 +403,9 @@ impl Monitor2 {
         if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned(){
             guard.waiting_notify.remove(&waiting_notify);
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(waiting_notify);
-            to_notify_thread.safepoint_state.set_notified(self.id);
-            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
             guard.waiting_lock.insert(to_notify_thread.java_tid);
+            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
+            to_notify_thread.safepoint_state.set_notified(self.id);
         }
         drop(guard);
         Ok(())
@@ -417,12 +416,14 @@ impl Monitor2 {
         if jvm.thread_tracing_options.trace_monitor_notify_all {
             eprintln!("[{}] Notify All: {}", current().name().unwrap_or("Unknown Thread"), self.id);
         }
+        let current_thread = jvm.thread_state.get_current_thread();
+        assert_eq!(guard.owner, Some(current_thread.java_tid));
         let (waiting_notify,waiting_lock) = guard.split_borrow_sets_notify_lock();
         for thread_id in waiting_notify.drain() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(thread_id);
-            to_notify_thread.safepoint_state.set_notified(self.id);
-            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
             waiting_lock.insert(to_notify_thread.java_tid);
+            to_notify_thread.safepoint_state.set_monitor_lock(self.id);
+            to_notify_thread.safepoint_state.set_notified(self.id);
         }
         assert!(waiting_notify.is_empty());
         drop(guard);
@@ -443,6 +444,14 @@ impl Monitor2 {
         let prev_count = guard.count;
         if guard.owner == current_thread.java_tid.into() {
             guard.owner = None;
+            //todo dupe with unlock
+            if let Some(to_wake_tid) = guard.waiting_lock.iter().next().cloned() {
+                guard.owner = Some(to_wake_tid);
+                guard.count = 1;
+                guard.waiting_lock.remove(&to_wake_tid);
+                let to_wake = jvm.thread_state.get_thread_by_tid(to_wake_tid);
+                to_wake.safepoint_state.set_monitor_unlocked();
+            }
             guard.waiting_notify.insert(current_thread.java_tid);
             current_thread.safepoint_state.set_waiting_notify(self.id, wait_until);
             drop(guard);
@@ -451,10 +460,13 @@ impl Monitor2 {
                     todo!()
                 }
                 Ok(Err(TimedOut{})) => {
+                    int_state.debug_print_stack_trace(jvm);
+                    println!("timeout {}", std::thread::current().name().unwrap());
                     let mut guard = self.monitor2_priv.write().unwrap();
                     guard.waiting_notify.remove(&current_thread.java_tid);
                     current_thread.safepoint_state.set_notified(self.id);
                     drop(guard);
+                    return self.notify_reacquire(jvm,int_state, prev_count);
                 }
                 Ok(Ok(())) => {}
             };

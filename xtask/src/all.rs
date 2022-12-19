@@ -30,7 +30,7 @@ pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let output_lock = Arc::new(tokio::sync::Mutex::new(()));
     let test_execution_results = futures::stream::iter(parsed_tests.into_iter().map(|parsed| {
         run_parsed(output_lock.clone(), parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
-    })).buffer_unordered(128).collect::<Vec<_>>().await;
+    })).buffer_unordered(64).collect::<Vec<_>>().await;
     summary.sink_test_results(test_execution_results.as_slice());
     Ok(())
 }

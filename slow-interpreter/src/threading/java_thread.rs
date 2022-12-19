@@ -50,7 +50,7 @@ impl<'gc> JavaThread<'gc> {
             jvm.thread_state.set_current_thread(java_thread.clone());
             java_thread.notify_alive();
             let res = to_run(java_thread.clone(), opaque_frame);
-            java_thread.notify_terminated();
+            java_thread.notify_terminated(jvm, opaque_frame);
             res
         }).unwrap())
     }
@@ -70,7 +70,7 @@ impl<'gc> JavaThread<'gc> {
                 jvm.thread_state.set_current_thread(java_thread.clone());
                 java_thread.notify_alive();
                 let res = to_run(java_thread.clone(), opaque_frame);
-                java_thread.notify_terminated();
+                java_thread.notify_terminated(jvm, opaque_frame);
                 res
             }).unwrap();
         }, box ());
@@ -133,8 +133,9 @@ impl<'gc> JavaThread<'gc> {
         self.safepoint_state.set_alive();
     }
 
-    pub fn notify_terminated(&self) {
-        self.safepoint_state.set_terminated()
+    pub fn notify_terminated(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) {
+        self.thread_object().notify_object_change(jvm, int_state);
+        self.safepoint_state.set_terminated();
     }
 
     pub fn park<'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, time_nanos: Option<u128>) -> Result<(), WasException<'gc>> {

@@ -187,7 +187,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::DoubleToLongConvert { from, to } => {
             assembler.cvttsd2si(to.to_native_64(), from.to_xmm()).unwrap();
-            // assembler.movq(to.to_native_64(), temp.to_mm()).unwrap();
+        }
+        IRInstr::FloatToLongConvert { from, to } => {
+            assembler.cvttss2si(to.to_native_64(), from.to_xmm()).unwrap();
         }
         IRInstr::FloatToIntegerConvert { from, temp, to } => {
             assembler.cvtps2pi(temp.to_mm(), from.to_xmm()).unwrap();

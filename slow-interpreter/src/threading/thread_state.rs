@@ -212,14 +212,12 @@ impl<'gc> ThreadState<'gc> {
             .unwrap_or(LoaderName::BootstrapLoader);
         let _java_thread: Arc<JavaThread<'gc>> = JavaThread::background_new_with_stack(jvm, Some(obj), invisible_to_java, move |java_thread, frame| {
             send.send(java_thread.clone()).unwrap();
-            java_thread.notify_alive();
             Self::thread_start_impl(jvm, java_thread, loader_name, frame)
         }).expect("todo");
         recv.recv().unwrap()
     }
 
     fn thread_start_impl<'l>(jvm: &'gc JVMState<'gc>, java_thread: Arc<JavaThread<'gc>>, _loader_name: LoaderName, opaque_frame: &mut OpaqueFrame<'gc, 'l>)  -> Result<(), WasException<'gc>>{
-        let java_thread_clone: Arc<JavaThread<'gc>> = java_thread.clone();
         if let Some(jvmti) = jvm.jvmti_state() {
             jvmti.built_in_jdwp.thread_start(jvm, opaque_frame, java_thread.clone().thread_object())
         }
@@ -234,7 +232,6 @@ impl<'gc> ThreadState<'gc> {
             eprintln!("Exception occurred exiting thread, something is pretty messed up");
             panic!()
         }
-        java_thread_clone.notify_terminated();
         Ok(())
     }
 

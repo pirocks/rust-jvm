@@ -183,7 +183,18 @@ impl MethodHandleView<'_> {
             ReferenceKind::GetStatic => unimplemented!(),
             ReferenceKind::PutField => unimplemented!(),
             ReferenceKind::PutStatic => unimplemented!(),
-            ReferenceKind::InvokeVirtual => unimplemented!(),
+            ReferenceKind::InvokeVirtual => {
+                let reference_idx = self.get_raw().reference_index as usize;
+                let invoke_virtual = match &self.class_view.underlying_class.constant_pool[reference_idx].kind {
+                    ConstantKind::Methodref(_) => InvokeVirtual::Method(MethodrefView { class_view: self.class_view, i: reference_idx }),
+                    ConstantKind::InterfaceMethodref(_) => InvokeVirtual::Interface(InterfaceMethodrefView { class_view: self.class_view, i: reference_idx }),
+                    ck => {
+                        dbg!(ck);
+                        panic!()
+                    }
+                };
+                ReferenceInvokeKind::InvokeVirtual(invoke_virtual)
+            },
             ReferenceKind::InvokeStatic => {
                 assert!(self.class_view.backing_class.major_version >= 52);
                 //if the class file
@@ -233,6 +244,7 @@ impl MethodHandleView<'_> {
 
 pub enum ReferenceInvokeKind<'cl> {
     InvokeStatic(InvokeStatic<'cl>),
+    InvokeVirtual(InvokeVirtual<'cl>),
     InvokeSpecial(InvokeSpecial<'cl>),
     NewInvokeSpecial(MethodrefView<'cl>),
 }
@@ -244,6 +256,12 @@ pub enum InvokeStatic<'cl> {
 }
 
 pub enum InvokeSpecial<'cl> {
+    Interface(InterfaceMethodrefView<'cl>),
+    //todo should this be a thing
+    Method(MethodrefView<'cl>),
+}
+
+pub enum InvokeVirtual<'cl> {
     Interface(InterfaceMethodrefView<'cl>),
     //todo should this be a thing
     Method(MethodrefView<'cl>),

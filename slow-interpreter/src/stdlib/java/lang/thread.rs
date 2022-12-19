@@ -170,8 +170,11 @@ impl<'gc> JThread<'gc> {
         self.normal_object.get_var(jvm,&thread_class, FieldName::field_inheritedAccessControlContext()).cast_thread(jvm)
     }
 
-    pub fn notify_object_change(&self, jvm: &'gc JVMState<'gc>) {
-        jvm.monitor_for(self.normal_object.ptr.as_ptr() as *const c_void).notify_all(jvm).unwrap();
+    pub fn notify_object_change(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) {
+        let monitor = jvm.monitor_for(self.normal_object.ptr.as_ptr() as *const c_void);
+        monitor.lock(jvm, int_state).unwrap();
+        monitor.notify_all(jvm).unwrap();
+        monitor.unlock(jvm, int_state).unwrap();
     }
 
 }
