@@ -1,5 +1,6 @@
 use std::os::raw::c_void;
 use std::vec;
+
 use nonnull_const::NonNullConst;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
@@ -94,10 +95,10 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
                         (Some(layout.local_var_entry(0)), None, None, Size::long())
                     }
                     CompressedParsedDescriptorType::FloatType => {
-                        (None, Some(layout.local_var_entry(0)), None,Size::float())
+                        (None, Some(layout.local_var_entry(0)), None, Size::float())
                     }
                     CompressedParsedDescriptorType::DoubleType => {
-                        (None, None, Some(layout.local_var_entry(0)),Size::double())
+                        (None, None, Some(layout.local_var_entry(0)), Size::double())
                     }
                     CompressedParsedDescriptorType::VoidType => {
                         (None, None, None, Size::pointer())
@@ -125,7 +126,7 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
                         CompressedParsedDescriptorType::Array { .. } => {
                             integer_args.push(layout.local_var_entry(arg_index));
                         }
-                        CompressedParsedDescriptorType::LongType  =>{
+                        CompressedParsedDescriptorType::LongType => {
                             integer_args.push(layout.local_var_entry(arg_index));
                             arg_index += 1;
                         }
@@ -151,10 +152,10 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
                         num_locals: resolver.num_locals(method_id) as usize,
                     },
                     IRInstr::CallNativeHelper {
-                        to_call: NonNullConst::new(direct_invoke as *const c_void).unwrap() ,
+                        to_call: NonNullConst::new(direct_invoke as *const c_void).unwrap(),
                         integer_args,
                         integer_res,
-                        float_double_args: vec![],
+                        float_double_args,
                         float_res,
                         double_res,
                     },

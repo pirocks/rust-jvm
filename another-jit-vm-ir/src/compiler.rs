@@ -358,6 +358,9 @@ impl IRInstr {
                     IRVMExitType::CheckcastFailure { .. } => {
                         "CheckcastFailure"
                     }
+                    IRVMExitType::InvokeDynamic { .. } => {
+                        "InvokeDynamic"
+                    }
                 })
             }
             IRInstr::NPECheck { .. } => {

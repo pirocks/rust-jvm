@@ -185,6 +185,9 @@ pub enum IRVMExitType {
     RunInterpreted {
         method_id: MethodId
     },
+    InvokeDynamic{
+
+    }
 }
 
 impl IRVMExitType {
@@ -423,109 +426,7 @@ impl IRVMExitType {
                 assembler.lea(AllocateObjectArrayIntrinsic::RES_PTR.to_native_64(), rbp - arr_res.0).unwrap();
                 assembler.lea(AllocateObjectArrayIntrinsic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
             }
-        }
-    }
-
-    pub fn to_register_struct(&self) -> impl ExitRegisterStruct {
-        match self {
-            IRVMExitType::AllocateObjectArray_ { .. } => {
-                todo!()
-            }
-            IRVMExitType::MultiAllocateObjectArray_ { .. } => {
-                todo!()
-            }
-            IRVMExitType::AllocateObject { .. } => {
-                todo!()
-            }
-            IRVMExitType::NewString { .. } => {
-                todo!()
-            }
-            IRVMExitType::NewClass { .. } => {
-                todo!()
-            }
-            IRVMExitType::NPE { .. } => {
-                todo!()
-            }
-            IRVMExitType::LoadClassAndRecompile { .. } => {
-                todo!()
-            }
-            IRVMExitType::InitClassAndRecompile { .. } => {
-                todo!()
-            }
-
-            IRVMExitType::CompileFunctionAndRecompileCurrent { .. } => {
-                todo!()
-            }
-            IRVMExitType::TopLevelReturn => {
-                todo!()
-            }
-            IRVMExitType::Todo { .. } => {
-                todo!()
-            }
-            IRVMExitType::InstanceOf { .. } => {
-                todo!()
-            }
-            IRVMExitType::CheckCast { .. } => {
-                todo!()
-            }
-            IRVMExitType::PutStatic { .. } => {
-                todo!()
-            }
-            IRVMExitType::LogFramePointerOffsetValue { .. } => {
-                todo!()
-            }
-            IRVMExitType::LogWholeFrame { .. } => {
-                todo!()
-            }
-            IRVMExitType::TraceInstructionBefore { .. } => {
-                todo!()
-            }
-            IRVMExitType::TraceInstructionAfter { .. } => {
-                todo!()
-            }
-            IRVMExitType::InvokeVirtualResolve { .. } => {
-                InvokeVirtualResolve {}
-            }
-            IRVMExitType::InvokeInterfaceResolve { .. } => {
-                todo!()
-            }
-            IRVMExitType::MonitorEnter { .. } => {
-                todo!()
-            }
-            IRVMExitType::MonitorExit { .. } => {
-                todo!()
-            }
-            IRVMExitType::Throw { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunStaticNativeNew { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunSpecialNativeNew { .. } => {
-                todo!()
-            }
-            IRVMExitType::RunInterpreted { .. } => {
-                todo!()
-            }
-            IRVMExitType::AssertInstanceOf { .. } => {
-                todo!()
-            }
-            IRVMExitType::NewClassRegister { .. } => {
-                todo!()
-            }
-            IRVMExitType::MonitorEnterRegister { .. } => {
-                todo!()
-            }
-            IRVMExitType::MonitorExitRegister { .. } => {
-                todo!()
-            }
-            IRVMExitType::ArrayOutOfBounds { .. } => {
-                todo!()
-            }
-            IRVMExitType::AllocateObjectArrayIntrinsic { .. } => {
-                todo!()
-            }
-            IRVMExitType::CheckcastFailure { .. } => {
+            IRVMExitType::InvokeDynamic { .. } => {
                 todo!()
             }
         }
@@ -631,6 +532,9 @@ impl IRVMExitType {
             }
             IRVMExitType::CheckcastFailure { .. } => {
                 CheckCastFailure::all_registers()
+            }
+            IRVMExitType::InvokeDynamic { .. } => {
+                todo!()
             }
         };
         assert!(res.contains(&Register(0)));

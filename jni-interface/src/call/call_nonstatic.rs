@@ -3,7 +3,8 @@ use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
 use slow_interpreter::exceptions::WasException;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state};
+use slow_interpreter::java_values::ExceptionReturn;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_throw};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
@@ -27,7 +28,7 @@ pub unsafe extern "C" fn call_void_method(env: *mut JNIEnv, obj: jobject, method
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             return;
         }
     };
@@ -38,8 +39,8 @@ pub unsafe extern "C" fn call_byte_method(env: *mut JNIEnv, obj: jobject, method
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jbyte::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jbyte::invalid_default();
         }
     }
         .unwrap()
@@ -50,8 +51,8 @@ pub unsafe extern "C" fn call_boolean_method(env: *mut JNIEnv, obj: jobject, met
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jboolean::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jboolean::invalid_default();
         }
     }
         .unwrap()
@@ -62,8 +63,8 @@ pub unsafe extern "C" fn call_short_method(env: *mut JNIEnv, obj: jobject, metho
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jshort::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jshort::invalid_default();
         }
     }
         .unwrap()
@@ -74,8 +75,8 @@ pub unsafe extern "C" fn call_char_method(env: *mut JNIEnv, obj: jobject, method
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jchar::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jchar::invalid_default();
         }
     }
         .unwrap()
@@ -86,8 +87,8 @@ pub unsafe extern "C" fn call_int_method(env: *mut JNIEnv, obj: jobject, method_
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jint::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jint::invalid_default();
         }
     }
         .unwrap()
@@ -98,8 +99,8 @@ pub unsafe extern "C" fn call_float_method(env: *mut JNIEnv, obj: jobject, metho
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jfloat::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jfloat::invalid_default();
         }
     }
         .unwrap()
@@ -110,8 +111,8 @@ pub unsafe extern "C" fn call_double_method(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jdouble::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jdouble::invalid_default();
         }
     }
         .unwrap()
@@ -122,8 +123,8 @@ pub unsafe extern "C" fn call_long_method(env: *mut JNIEnv, obj: jobject, method
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jlong::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jlong::invalid_default();
         }
     }
         .unwrap()
@@ -134,8 +135,8 @@ pub unsafe extern "C" fn call_object_method_a(env: *mut JNIEnv, obj: jobject, me
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jobject::invalid_default();
         }
     }
         .unwrap()
@@ -148,7 +149,7 @@ pub unsafe extern "C" fn call_void_method_a(env: *mut JNIEnv, obj: jobject, meth
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             return;
         }
     };
@@ -159,8 +160,8 @@ pub unsafe extern "C" fn call_byte_method_a(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jbyte::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jbyte::invalid_default();
         }
     }
         .unwrap()
@@ -172,8 +173,8 @@ pub unsafe extern "C" fn call_boolean_method_a(env: *mut JNIEnv, obj: jobject, m
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jboolean::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jboolean::invalid_default();
         }
     }
         .unwrap()
@@ -185,8 +186,8 @@ pub unsafe extern "C" fn call_short_method_a(env: *mut JNIEnv, obj: jobject, met
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jshort::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jshort::invalid_default();
         }
     }
         .unwrap()
@@ -198,8 +199,8 @@ pub unsafe extern "C" fn call_char_method_a(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jchar::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jchar::invalid_default();
         }
     }
         .unwrap()
@@ -211,8 +212,8 @@ pub unsafe extern "C" fn call_int_method_a(env: *mut JNIEnv, obj: jobject, metho
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jint::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jint::invalid_default();
         }
     }
         .unwrap()
@@ -224,8 +225,8 @@ pub unsafe extern "C" fn call_float_method_a(env: *mut JNIEnv, obj: jobject, met
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jfloat::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jfloat::invalid_default();
         }
     }
         .unwrap()
@@ -237,8 +238,8 @@ pub unsafe extern "C" fn call_double_method_a(env: *mut JNIEnv, obj: jobject, me
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jdouble::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jdouble::invalid_default();
         }
     }
         .unwrap()
@@ -250,8 +251,8 @@ pub unsafe extern "C" fn call_long_method_a(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::Array(args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jlong::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jlong::invalid_default();
         }
     }
         .unwrap()
@@ -263,8 +264,8 @@ pub unsafe extern "C" fn call_object_method_v(env: *mut JNIEnv, obj: jobject, me
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return null_mut();
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jobject::invalid_default();
         }
     }
         .unwrap()
@@ -277,7 +278,7 @@ pub unsafe extern "C" fn call_void_method_v(env: *mut JNIEnv, obj: jobject, meth
     let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
+            *get_throw(env) = Some(WasException{ exception_obj });
             return;
         }
     };
@@ -288,8 +289,8 @@ pub unsafe extern "C" fn call_byte_method_v(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jbyte::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jbyte::invalid_default();
         }
     }
         .unwrap()
@@ -301,8 +302,8 @@ pub unsafe extern "C" fn call_boolean_method_v(env: *mut JNIEnv, obj: jobject, m
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jboolean::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jboolean::invalid_default();
         }
     }
         .unwrap()
@@ -314,8 +315,8 @@ pub unsafe extern "C" fn call_short_method_v(env: *mut JNIEnv, obj: jobject, met
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jshort::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jshort::invalid_default();
         }
     }
         .unwrap()
@@ -327,8 +328,8 @@ pub unsafe extern "C" fn call_char_method_v(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jchar::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jchar::invalid_default();
         }
     }
         .unwrap()
@@ -340,8 +341,8 @@ pub unsafe extern "C" fn call_int_method_v(env: *mut JNIEnv, obj: jobject, metho
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jint::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jint::invalid_default();
         }
     }
         .unwrap()
@@ -353,8 +354,8 @@ pub unsafe extern "C" fn call_float_method_v(env: *mut JNIEnv, obj: jobject, met
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jfloat::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jfloat::invalid_default();
         }
     }
         .unwrap()
@@ -366,8 +367,8 @@ pub unsafe extern "C" fn call_double_method_v(env: *mut JNIEnv, obj: jobject, me
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jdouble::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jdouble::invalid_default();
         }
     }
         .unwrap()
@@ -379,8 +380,8 @@ pub unsafe extern "C" fn call_long_method_v(env: *mut JNIEnv, obj: jobject, meth
     match call_nonstatic_method(env, obj, method_id, VarargProvider::VaList(&mut args)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
-            todo!();
-            return jlong::MAX;
+            *get_throw(env) = Some(WasException{ exception_obj });
+            return jlong::invalid_default();
         }
     }
         .unwrap()

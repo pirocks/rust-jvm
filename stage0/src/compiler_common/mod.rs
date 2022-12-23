@@ -9,7 +9,7 @@ use itertools::Itertools;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID};
-use classfile_view::view::HasAccessFlags;
+use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
@@ -20,6 +20,7 @@ use method_table::MethodTable;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use runtime_class_stuff::{RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::code::{CompressedCode, CompressedInstruction};
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
@@ -46,6 +47,7 @@ pub struct JavaCompilerMethodAndFrameData {
     pub local_vars: usize,
     pub should_synchronize: bool,
     pub is_static: bool,
+    pub this_class: CClassName,
 }
 
 impl JavaCompilerMethodAndFrameData {
@@ -62,6 +64,7 @@ impl JavaCompilerMethodAndFrameData {
             local_vars: code.max_locals as usize,
             should_synchronize: method_view.is_synchronized(),
             is_static: method_view.is_static(),
+            this_class: method_view.classview().name().unwrap_name(),
         }
     }
 

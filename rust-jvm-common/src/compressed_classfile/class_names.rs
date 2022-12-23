@@ -2,8 +2,8 @@ use std::fmt::{Debug, Formatter};
 
 use add_only_static_vec::{AddOnlyId, AddOnlyVecIDType};
 
-use crate::compressed_classfile::CompressedClassfileString;
 use crate::compressed_classfile::compressed_types::CompressedParsedRefType;
+use crate::compressed_classfile::CompressedClassfileString;
 use crate::compressed_classfile::names::PredefinedStrings::*;
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
@@ -307,6 +307,10 @@ impl CompressedClassName {
 
     pub const fn interrupted_exception() -> Self {
         Self::from_raw_id(JAVA_LANG_INTERRUPTED_EXCEPTION as AddOnlyVecIDType)
+    }
+
+    pub const fn strict_math() -> Self {
+        Self::from_raw_id(JAVA_LANG_STRICT_MATH as AddOnlyVecIDType)
     }
 }
 

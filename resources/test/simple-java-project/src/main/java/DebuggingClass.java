@@ -165,15 +165,15 @@ import java.security.*;
 public class DebuggingClass {
 
     public static void main(String[] args) throws Exception {
-        final Object[] objects = {Boolean.valueOf(true), new int[]{1, 45, 6, 4}};
-        System.out.println((Boolean) objects[0]);
-        URL url = new URL("https://www.google.com");
-        HttpURLConnection connection = (HttpURLConnection)url.openConnection();
-        connection.setConnectTimeout(15000);
-        connection.setReadTimeout(15000);
-        connection.setUseCaches(false);
-        System.out.println(connection.getResponseMessage());
-        Unsafe.getUnsafe().notify();
+//        final Object[] objects = {Boolean.valueOf(true), new int[]{1, 45, 6, 4}};
+//        System.out.println((Boolean) objects[0]);
+//        URL url = new URL("https://www.google.com");
+//        HttpURLConnection connection = (HttpURLConnection)url.openConnection();
+//        connection.setConnectTimeout(15000);
+//        connection.setReadTimeout(15000);
+//        connection.setUseCaches(false);
+//        System.out.println(connection.getResponseMessage());
+//        Unsafe.getUnsafe().notify();
         //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
 //        byte[] bytes = new byte[(int) file.length()];
 //        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));

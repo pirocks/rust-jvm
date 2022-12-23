@@ -124,14 +124,14 @@ impl<'gc> NewSafePointState<'gc> {
 
                 let guard_tmp = match duration {
                     None => {
-                        int_state.debug_print_stack_trace(jvm);
-                        println!("wait {}", std::thread::current().name().unwrap());
+                        // int_state.debug_print_stack_trace(jvm);
+                        // println!("wait {}", std::thread::current().name().unwrap());
                         self.condvar.wait(guard).unwrap()
                     }
                     Some(duration) => {
-                        println!("timed wait {} {}", std::thread::current().name().unwrap(), duration.as_secs_f64());
+                        // println!("timed wait {} {}", std::thread::current().name().unwrap(), duration.as_secs_f64());
                         let res = self.condvar.wait_timeout(guard, duration).unwrap().0;
-                        println!("timed wait finish {} {}", std::thread::current().name().unwrap(), duration.as_secs_f64());
+                        // println!("timed wait finish {} {}", std::thread::current().name().unwrap(), duration.as_secs_f64());
                         res
                     }
                 };

@@ -31,14 +31,14 @@ pub fn instruction_is_type_safe_return(env: &Environment, stack_frame: Frame) ->
     match env.return_type {
         VType::VoidType => {}
         _ => {
-            return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
+            return Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
         }
     };
     if stack_frame.flag_this_uninit {
-        return Result::Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
+        return Err(todo!()/*TypeSafetyError::NotSafe("todo messsage".to_string())*/);
     }
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 pub fn type_safe_if_cmp(target: ByteCodeOffset, env: &Environment, stack_frame: Frame, comparison_types: Vec<VType>) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -56,7 +56,7 @@ pub fn instruction_is_type_safe_if_acmpeq(target: ByteCodeOffset, env: &Environm
 pub fn instruction_is_type_safe_goto(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     target_is_type_safe(env, &stack_frame, target)?;
     let exception_frame = exception_stack_frame(stack_frame.locals.clone(), stack_frame.flag_this_uninit);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 #[allow(unreachable_code)]
@@ -65,13 +65,13 @@ pub fn instruction_is_type_safe_ireturn(env: &Environment, stack_frame: Frame) -
     //what should a method return type be?
     match env.return_type {
         VType::IntType => {}
-        _ => return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())*/),
+        _ => return Err(todo!()/*TypeSafetyError::NotSafe("Tried to return not an int with ireturn".to_string())*/),
     }
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::IntType])?;
     let exception_frame = exception_stack_frame(locals, flag);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -81,7 +81,7 @@ pub fn instruction_is_type_safe_areturn(env: &Environment, stack_frame: Frame) -
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![return_type.clone()])?;
     let exception_frame = exception_stack_frame(locals, flag);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 pub fn instruction_is_type_safe_if_icmpeq(target: ByteCodeOffset, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -104,7 +104,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
         _ => panic!(),
     };
     if call_site_name == MethodName::constructor_init() || call_site_name == MethodName::constructor_clinit() {
-        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string())*/);
+        return Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke dynamic in constructor".to_string())*/);
     }
     let operand_arg_list: Vec<VType> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
@@ -118,7 +118,7 @@ pub fn instruction_is_type_safe_invokedynamic(cp: usize, env: &Environment, stac
 #[allow(unreachable_code)]
 pub fn instruction_is_type_safe_invokeinterface(method_name: MethodName, descriptor: &CMethodDescriptor, ref_type: CPRefType, count: usize, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_init() || method_name == MethodName::constructor_clinit() {
-        return Result::Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string())*/);
+        return Err(todo!()/*TypeSafetyError::NotSafe("Tried to invoke interface on constructor".to_string())*/);
     }
     let mut operand_arg_list: Vec<_> = descriptor.arg_types.iter().rev().map(|x| x.to_verification_type(env.class_loader)).collect();
     let return_type = descriptor.return_type.to_verification_type(env.class_loader);
@@ -138,9 +138,9 @@ fn count_is_valid(count: usize, input_frame_stack_map_size: usize, output_frame:
     let len1 = input_frame_stack_map_size;
     let len2 = output_frame.stack_map.len();
     if count == len1 - len2 {
-        Result::Ok(())
+        Ok(())
     } else {
-        Result::Err(unknown_error_verifying!())
+        Err(unknown_error_verifying!())
     }
 }
 
@@ -176,7 +176,7 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
             let next_locals = substitute(&uninit_address, &this_class, locals.as_slice());
             let next_frame = Frame { locals: Rc::new(next_locals), stack_map: next_operand_stack, flag_this_uninit: next_flags };
             passes_protected_check(env, method_class_name, MethodName::constructor_init().0, Descriptor::Method(&parsed_descriptor), &next_frame)?;
-            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+            Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
         VType::UninitializedThis => {
             let this = rewritten_uninitialized_type(&VType::UninitializedThis, env, &ClassWithLoader { class_name: method_class_name, loader: current_class_loader })?;
@@ -185,7 +185,7 @@ fn invoke_special_init(env: &Environment, stack_frame: Frame, method_class_name:
             let next_operand_stack = substitute_operand_stack(&VType::UninitializedThis, &this_class, &operand_stack);
             let next_locals = substitute(&VType::UninitializedThis, &this_class, locals.as_slice());
             let next_frame = Frame { locals: Rc::new(next_locals), stack_map: next_operand_stack, flag_this_uninit };
-            Result::Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
+            Ok(InstructionTypeSafe::Safe(ResultFrames { next_frame, exception_frame }))
         }
         _ => panic!(),
     }
@@ -230,7 +230,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
                     None => unimplemented!(),
                     Some(new_this) => match new_this {
                         MergedCodeInstruction::Instruction(instr) => match &instr.info {
-                            CInstructionInfo::new(class_name) => Result::Ok(ClassWithLoader { class_name: *class_name, loader: env.class_loader.clone() }),
+                            CInstructionInfo::new(class_name) => Ok(ClassWithLoader { class_name: *class_name, loader: env.class_loader.clone() }),
                             _ => panic!(),
                         },
                         MergedCodeInstruction::StackMap(_) => panic!(),
@@ -241,7 +241,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
         VType::UninitializedThis => {
             //todo there needs to be some weird retry logic here/in invoke_special b/c This is not strictly a return value in the prolog class, and there is a more complex
             // version of this branch which would be triggered by verificaion failure for this invoke special.
-            Result::Ok(ClassWithLoader { class_name: env.method.class.class_name.clone(), loader: env.method.class.loader.clone() })
+            Ok(ClassWithLoader { class_name: env.method.class.class_name.clone(), loader: env.method.class.loader.clone() })
         }
         _ => {
             panic!()
@@ -252,7 +252,7 @@ fn rewritten_uninitialized_type(type_: &VType, env: &Environment, _class: &Class
 #[allow(unreachable_code)]
 fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_name: CClassName, method_name: MethodName, parsed_descriptor: &CMethodDescriptor) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if method_name == MethodName::constructor_clinit() {
-        return Result::Err(todo!()/*TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string())*/);
+        return Err(todo!()/*TypeSafetyError::NotSafe("invoke special on clinit is not allowed".to_string())*/);
     }
     let current_class_name = env.method.class.class_name.clone();
     let current_loader = env.method.class.loader.clone();
@@ -268,7 +268,7 @@ fn invoke_special_not_init(env: &Environment, stack_frame: Frame, method_class_n
     operand_arg_list_copy2.push(method_class);
     let next_frame = valid_type_transition(env, operand_arg_list_copy2, return_type, stack_frame)?;
     let exception_frame = exception_stack_frame(locals, flag);
-    Result::Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
+    Ok(InstructionTypeSafe::Safe(ResultFrames { exception_frame, next_frame }))
 }
 
 pub fn instruction_is_type_safe_invokestatic(method_name: MethodName, parsed_descriptor: &CMethodDescriptor, env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
@@ -370,30 +370,30 @@ pub fn instruction_is_type_safe_lreturn(env: &Environment, stack_frame: Frame) -
             let flag = stack_frame.flag_this_uninit;
             can_pop(&env.vf, stack_frame, vec![VType::LongType])?;
             let exception_frame = exception_stack_frame(locals, flag);
-            Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+            Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
         }
-        _ => Result::Err(unknown_error_verifying!()),
+        _ => Err(unknown_error_verifying!()),
     }
 }
 
 pub fn instruction_is_type_safe_dreturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if env.return_type != VType::DoubleType {
-        return Result::Err(unknown_error_verifying!());
+        return Err(unknown_error_verifying!());
     }
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::DoubleType])?;
     let exception_frame = exception_stack_frame(locals, flag);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }
 
 pub fn instruction_is_type_safe_freturn(env: &Environment, stack_frame: Frame) -> Result<InstructionTypeSafe, TypeSafetyError> {
     if env.return_type != VType::FloatType {
-        return Result::Err(unknown_error_verifying!());
+        return Err(unknown_error_verifying!());
     }
     let locals = stack_frame.locals.clone();
     let flag = stack_frame.flag_this_uninit;
     can_pop(&env.vf, stack_frame, vec![VType::FloatType])?;
     let exception_frame = exception_stack_frame(locals, flag);
-    Result::Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
+    Ok(InstructionTypeSafe::AfterGoto(AfterGotoFrames { exception_frame }))
 }

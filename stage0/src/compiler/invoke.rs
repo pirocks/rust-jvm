@@ -1,4 +1,5 @@
 use std::mem::size_of;
+use std::sync::Arc;
 
 use itertools::Either;
 
@@ -6,8 +7,13 @@ use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
+use classfile_view::view::ClassView;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
+use runtime_class_stuff::RuntimeClass;
+use rust_jvm_common::classfile::CPIndex;
+use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
@@ -234,6 +240,39 @@ pub fn invokevirtual<'vm>(
             current_frame_size: method_frame_data.full_frame_size(),
         },
         after_call_restart_point]));
+}
+
+pub fn invokedynamic<'vm>(
+    resolver: &impl MethodResolver<'vm>,
+    method_frame_data: &JavaCompilerMethodAndFrameData,
+    current_instr_data: CurrentInstructionCompilerData,
+    restart_point_generator: &mut RestartPointGenerator,
+    recompile_conditions: &mut MethodRecompileConditions,
+    this_class_name: CClassName,
+    cp: CPIndex,
+) /*-> impl Iterator<Item=IRInstr>*/ {
+    let restart_point_id = restart_point_generator.new_restart_point();
+    let restart_point = IRInstr::RestartPoint(restart_point_id);
+
+    if let Some((this_class,_)) = resolver.lookup_type_inited_initing(&this_class_name.into()) {
+        let this_class_view = this_class.view();
+        let invoke_dynamic = this_class_view.constant_pool_view(cp.into());
+        match invoke_dynamic {
+            ConstantInfoView::InvokeDynamic(invoke_dynamic) => {
+                let bootstrap_method = invoke_dynamic.bootstrap_method();
+                let name_and_type = invoke_dynamic.name_and_type();
+                todo!()
+            }
+            _ => todo!()
+        }
+
+        return todo!()/*Either::Right(array_into_iter([restart_point,
+            IRInstr::VMExit2 {
+                exit_type: IRVMExitType::InvokeDynamic {}
+            }]))
+*/    }else {
+        panic!()
+    }
 }
 
 pub fn invoke_interface<'vm>(

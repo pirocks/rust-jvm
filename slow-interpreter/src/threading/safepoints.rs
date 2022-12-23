@@ -460,8 +460,8 @@ impl Monitor2 {
                     todo!()
                 }
                 Ok(Err(TimedOut{})) => {
-                    int_state.debug_print_stack_trace(jvm);
-                    println!("timeout {}", std::thread::current().name().unwrap());
+                    // int_state.debug_print_stack_trace(jvm);
+                    // println!("timeout {}", std::thread::current().name().unwrap());
                     let mut guard = self.monitor2_priv.write().unwrap();
                     guard.waiting_notify.remove(&current_thread.java_tid);
                     current_thread.safepoint_state.set_notified(self.id);

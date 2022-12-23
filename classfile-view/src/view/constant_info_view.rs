@@ -237,7 +237,9 @@ impl MethodHandleView<'_> {
                 };
                 ReferenceInvokeKind::NewInvokeSpecial(invoke_special)
             },
-            ReferenceKind::InvokeInterface => unimplemented!(),
+            ReferenceKind::InvokeInterface => {
+                todo!()
+            },
         }
     }
 }

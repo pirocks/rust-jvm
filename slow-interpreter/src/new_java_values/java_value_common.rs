@@ -40,7 +40,14 @@ pub trait JavaValueCommon<'gc> {
     }
 
     fn unwrap_short_strict(&self) -> jshort {
-        todo!()
+        match self.as_njv() {
+            NewJavaValue::Short(short) => {
+                short
+            }
+            _ => {
+                panic!()
+            }
+        }
     }
 
     fn unwrap_int_strict(&self) -> jint {

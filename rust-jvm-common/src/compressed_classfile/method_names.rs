@@ -328,4 +328,64 @@ impl MethodName {
     pub fn method_fillInStackTrace() -> Self {
         Self::from_raw_id(method_fillInStackTrace)
     }
+    pub fn method_sqrt() -> Self {
+        Self::from_raw_id(method_sqrt)
+    }
+    pub fn method_sin() -> Self{
+        Self::from_raw_id(method_sin)
+    }
+    pub fn method_cos() -> Self{
+        Self::from_raw_id(method_cos)
+    }
+    pub fn method_tan() -> Self{
+        Self::from_raw_id(method_tan)
+    }
+    pub fn method_asin() -> Self{
+        Self::from_raw_id(method_asin)
+    }
+    pub fn method_acos() -> Self{
+        Self::from_raw_id(method_acos)
+    }
+    pub fn method_atan() -> Self{
+        Self::from_raw_id(method_atan)
+    }
+    pub fn method_exp() -> Self{
+        Self::from_raw_id(method_exp)
+    }
+    pub fn method_log() -> Self{
+        Self::from_raw_id(method_log)
+    }
+    pub fn method_log10() -> Self{
+        Self::from_raw_id(method_log10)
+    }
+    pub fn method_cbrt() -> Self{
+        Self::from_raw_id(method_cbrt)
+    }
+    pub fn method_IEEEremainder() -> Self{
+        Self::from_raw_id(method_IEEEremainder)
+    }
+    pub fn method_atan2() -> Self{
+        Self::from_raw_id(method_atan2)
+    }
+    pub fn method_pow() -> Self{
+        Self::from_raw_id(method_pow)
+    }
+    pub fn method_sinh() -> Self{
+        Self::from_raw_id(method_sinh)
+    }
+    pub fn method_cosh() -> Self{
+        Self::from_raw_id(method_cosh)
+    }
+    pub fn method_tanh() -> Self{
+        Self::from_raw_id(method_tanh)
+    }
+    pub fn method_hypot() -> Self{
+        Self::from_raw_id(method_hypot)
+    }
+    pub fn method_expm1() -> Self{
+        Self::from_raw_id(method_expm1)
+    }
+    pub fn method_log1p() -> Self{
+        Self::from_raw_id(method_log1p)
+    }
 }

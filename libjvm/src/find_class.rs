@@ -76,6 +76,9 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, _loader: jobject
         Some(name_str) => name_str.cast_string(),
     }
         .to_rust_string(jvm);
+    if name_str.as_str() == "int"{
+        int_state.debug_print_stack_trace(jvm);
+    }
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl

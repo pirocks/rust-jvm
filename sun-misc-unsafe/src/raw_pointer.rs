@@ -105,8 +105,14 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_allocateMemory(_env: *mut JNIEnv,
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_getAddress(_env: *mut JNIEnv, _the_unsafe: jobject, address: jlong) -> jlong {
-    address
+    (address as *mut jlong).read()
 }
+
+#[no_mangle]
+unsafe extern "system" fn Java_sun_misc_Unsafe_putAddress(_env: *mut JNIEnv, _the_unsafe: jobject, address: jlong, x: jlong) {
+    (address as *mut jlong).write(x);
+}
+
 
 #[no_mangle]
 unsafe extern "system" fn Java_sun_misc_Unsafe_freeMemory(_env: *mut JNIEnv, _the_unsafe: jobject, ptr: jlong) {

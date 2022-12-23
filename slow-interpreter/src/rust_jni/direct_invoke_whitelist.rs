@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
+use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 pub struct DirectInvokeWhitelist {
@@ -19,7 +20,7 @@ impl DirectInvokeWhitelist {
         Self::double_addressing_natives_volatile(&mut inner);
 
         //ordered and compare and swap among others still needed
-
+        Self::strict_math(&mut inner);
 
         DirectInvokeWhitelist {
             inner,
@@ -28,6 +29,29 @@ impl DirectInvokeWhitelist {
 
     pub fn is_direct_invoke_whitelisted(&self, class: CClassName, method: MethodName, desc: CMethodDescriptor) -> bool {
         self.inner.contains(&(class, method, desc))
+    }
+
+    fn strict_math(inner: &mut HashSet<(CompressedClassName, MethodName, CompressedMethodDescriptor)>) {
+        inner.insert((CClassName::strict_math(), MethodName::method_sqrt(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_sin(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_cos(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_tan(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_asin(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_acos(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_atan(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_exp(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_log(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_log10(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_cbrt(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_IEEEremainder(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType, CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_atan2(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType, CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_pow(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType, CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_sinh(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_cosh(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_tanh(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_hypot(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType, CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_expm1(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
+        inner.insert((CClassName::strict_math(), MethodName::method_log1p(), CompressedMethodDescriptor { arg_types: vec![CompressedParsedDescriptorType::DoubleType], return_type: CompressedParsedDescriptorType::DoubleType }));
     }
 
     fn single_addressing_natives(inner: &mut HashSet<(CompressedClassName, MethodName, CompressedMethodDescriptor)>) {
@@ -132,5 +156,4 @@ impl DirectInvokeWhitelist {
             inner.insert((u, method_name, CMethodDescriptor::void_return(vec![CPDType::object(), CPDType::LongType, to_put])));
         }
     }
-
 }
