@@ -201,6 +201,11 @@ pub enum IRInstr {
     CallNativeHelper {
         to_call: NonNullConst<c_void>,
         integer_args: Vec<FramePointerOffset>,
+        //needed for sign extension to be correct
+        byte_res: Option<FramePointerOffset>,
+        bool_res: Option<FramePointerOffset>,
+        char_res: Option<FramePointerOffset>,
+        short_res: Option<FramePointerOffset>,
         integer_res: Option<FramePointerOffset>,
         float_double_args: Vec<(FramePointerOffset, Size)>,
         float_res: Option<FramePointerOffset>,

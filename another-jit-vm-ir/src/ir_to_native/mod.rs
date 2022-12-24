@@ -196,8 +196,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.movq(temp_3.to_xmm(), temp_1.to_native_64()).unwrap();
             assembler.mov(temp_2.to_native_64(), 0x41dfffffffc00000i64).unwrap();
             assembler.movq(temp_4.to_xmm(), temp_2.to_native_64()).unwrap();
-            assembler.maxsd(from.to_xmm(),temp_3.to_xmm()).unwrap();
-            assembler.minsd(from.to_xmm(),temp_4.to_xmm()).unwrap();
+            assembler.maxsd(from.to_xmm(), temp_3.to_xmm()).unwrap();
+            assembler.minsd(from.to_xmm(), temp_4.to_xmm()).unwrap();
             assembler.cvttsd2si(temp_2.to_native_32(), from.to_xmm()).unwrap();
             assembler.cmovnp(to.to_native_32(), temp_2.to_native_32()).unwrap();
         }
@@ -205,7 +205,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.movd(temp.to_mm(), from.to_native_32()).unwrap();
             assembler.cvtpi2pd(to.to_xmm(), temp.to_mm()).unwrap()
         }
-        IRInstr::DoubleToLongConvert { from, temp_1, temp_2:_, temp_3, temp_4:_, to } => {
+        IRInstr::DoubleToLongConvert { from, temp_1, temp_2: _, temp_3, temp_4: _, to } => {
             //.LCPI0_0:
             //         .quad   0x43dfffffffffffff
             // example::doubletolong:
@@ -220,14 +220,14 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.cvttsd2si(to.to_native_64(), from.to_xmm()).unwrap();
             assembler.mov(temp_1.to_native_64(), 0x43dfffffffffffffi64).unwrap();
             assembler.movq(temp_3.to_xmm(), temp_1.to_native_64()).unwrap();
-            assembler.ucomisd(from.to_xmm(),temp_3.to_xmm()).unwrap();
-            assembler.mov(temp_1.to_native_64(),9223372036854775807i64).unwrap();
-            assembler.cmovbe(temp_1.to_native_64(),to.to_native_64()).unwrap();
-            assembler.xor(to.to_native_32(),to.to_native_32()).unwrap();
-            assembler.ucomisd(from.to_xmm(),from.to_xmm()).unwrap();
-            assembler.cmovnp(to.to_native_64(),temp_1.to_native_64()).unwrap();
+            assembler.ucomisd(from.to_xmm(), temp_3.to_xmm()).unwrap();
+            assembler.mov(temp_1.to_native_64(), 9223372036854775807i64).unwrap();
+            assembler.cmovbe(temp_1.to_native_64(), to.to_native_64()).unwrap();
+            assembler.xor(to.to_native_32(), to.to_native_32()).unwrap();
+            assembler.ucomisd(from.to_xmm(), from.to_xmm()).unwrap();
+            assembler.cmovnp(to.to_native_64(), temp_1.to_native_64()).unwrap();
         }
-        IRInstr::FloatToLongConvert { from, temp_1, temp_2:_, temp_3, temp_4:_, to } => {
+        IRInstr::FloatToLongConvert { from, temp_1, temp_2: _, temp_3, temp_4: _, to } => {
             // .LCPI3_0:
             // .long   0x5effffff
             // example::floattolong:
@@ -246,10 +246,10 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.mov(temp_1.to_native_64(), 9223372036854775807i64).unwrap();
             assembler.cmovbe(temp_1.to_native_64(), to.to_native_64()).unwrap();
             assembler.xor(to.to_native_64(), to.to_native_64()).unwrap();
-            assembler.ucomiss(from.to_xmm(),from.to_xmm()).unwrap();
+            assembler.ucomiss(from.to_xmm(), from.to_xmm()).unwrap();
             assembler.cmovnp(to.to_native_64(), temp_1.to_native_64()).unwrap();
         }
-        IRInstr::FloatToIntegerConvert { from, temp_1, temp_2:_, temp_3, temp_4:_, to } => {
+        IRInstr::FloatToIntegerConvert { from, temp_1, temp_2: _, temp_3, temp_4: _, to } => {
 
             // .LCPI2_0:
             // .long   0x4effffff
@@ -265,7 +265,7 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.cvtss2si(to.to_native_32(), from.to_xmm()).unwrap();
             assembler.mov(temp_1.to_native_32(), 0x4effffff).unwrap();
             assembler.movd(temp_3.to_xmm(), temp_1.to_native_32()).unwrap();
-            assembler.ucomiss(from.to_xmm(),temp_3.to_xmm()).unwrap();
+            assembler.ucomiss(from.to_xmm(), temp_3.to_xmm()).unwrap();
             assembler.mov(temp_1.to_native_32(), 2147483647).unwrap();
             assembler.cmovbe(temp_1.to_native_32(), to.to_native_32()).unwrap();
             assembler.xor(to.to_native_32(), to.to_native_32()).unwrap();
@@ -708,40 +708,40 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         IRInstr::NegFloat { temp_normal, temp, res } => {
             assembler.mov(temp_normal.to_native_32(), 0x80000000u32 as i32).unwrap();
             assembler.vmovd(temp_normal.to_native_32(), temp.to_xmm()).unwrap();
-            assembler.vpxor(res.to_xmm(), res.to_xmm(),temp.to_xmm()).unwrap();
+            assembler.vpxor(res.to_xmm(), res.to_xmm(), temp.to_xmm()).unwrap();
         }
         IRInstr::NegDouble { temp_normal, temp, res } => {
             assembler.mov(temp_normal.to_native_64(), 0x8000000000000000u64 as i64).unwrap();
             assembler.vmovq(temp_normal.to_native_64(), temp.to_xmm()).unwrap();
-            assembler.vpxor(res.to_xmm(), res.to_xmm(),temp.to_xmm()).unwrap();
+            assembler.vpxor(res.to_xmm(), res.to_xmm(), temp.to_xmm()).unwrap();
         }
-        IRInstr::CallNativeHelper { to_call, integer_args, integer_res, float_double_args, float_res,  double_res,  } => {
+        IRInstr::CallNativeHelper { to_call, integer_args, byte_res, bool_res, char_res, short_res, integer_res, float_double_args, float_res, double_res, } => {
             let mut integer_args = integer_args.iter();
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(rdi, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(rsi, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(rdx, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(rcx, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(r8, rbp - arg.0).unwrap();
             }
-            if let Some(arg) = integer_args.next(){
+            if let Some(arg) = integer_args.next() {
                 assembler.mov(r9, rbp - arg.0).unwrap();
             }
-            if let Some(_) = integer_args.next(){
+            if let Some(_) = integer_args.next() {
                 todo!();
             }
             let mut float_double_args = float_double_args.iter();
             let mut sse_registers = vec![xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7].into_iter();
             loop {
-                if let Some((arg, size)) = float_double_args.next(){
+                if let Some((arg, size)) = float_double_args.next() {
                     let sse_register = sse_registers.next().unwrap();
                     match size {
                         Size::X86DWord => {
@@ -754,8 +754,8 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
                             panic!()
                         }
                     }
-                }else {
-                    break
+                } else {
+                    break;
                 }
             }
             //todo interrupts will need to look at top of this stack for actual rbp and rsp
@@ -775,15 +775,35 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
             assembler.pop(r15).unwrap();
             assembler.pop(rbp).unwrap();
             assembler.pop(rsp).unwrap();
-            if let Some(integer_res) = integer_res{
+            if let Some(byte_res) = byte_res {
+                assembler.movsx(rax, al).unwrap();
+                assembler.mov(rbp - byte_res.0, rax).unwrap();
+            }
+
+            if let Some(bool_res) = bool_res {
+                assembler.movzx(rax, al).unwrap();
+                assembler.mov(rbp - bool_res.0, rax).unwrap();
+            }
+
+            if let Some(short_res) = short_res {
+                assembler.movsx(rax, ax).unwrap();
+                assembler.mov(rbp - short_res.0, rax).unwrap();
+            }
+
+            if let Some(char_res) = char_res {
+                assembler.movzx(rax, ax).unwrap();
+                assembler.mov(rbp - char_res.0, rax).unwrap();
+            }
+
+            if let Some(integer_res) = integer_res {
                 assembler.mov(rbp - integer_res.0, rax).unwrap();
             }
 
-            if let Some(float_res) = float_res{
+            if let Some(float_res) = float_res {
                 assembler.movd(rbp - float_res.0, xmm0).unwrap();
             }
 
-            if let Some(double_res) = double_res{
+            if let Some(double_res) = double_res {
                 assembler.movq(rbp - double_res.0, xmm0).unwrap();
             }
         }

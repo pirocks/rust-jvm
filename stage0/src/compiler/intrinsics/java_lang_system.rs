@@ -172,6 +172,10 @@ pub fn intrinsic_array_copy<'gc>(
     res.push(IRInstr::CallNativeHelper {
         to_call: NonNullConst::new(array_copy_no_validate as *const c_void).unwrap(),
         integer_args: vec![src_offset, src_pos_offset, dst_offset, dst_pos_offset, length_offset],
+        byte_res: None,
+        bool_res: None,
+        char_res: None,
+        short_res: None,
         integer_res: None,
         float_res: None,
         double_res: None,

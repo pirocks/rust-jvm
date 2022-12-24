@@ -37,12 +37,12 @@ pub fn gen_intrinsic_ir<'vm>(
     let (desc, method_name, class_name) = resolver.using_method_view_impl(method_id, |method_view| {
         Some((method_view.desc().clone(), method_view.name(), method_view.classview().name().try_unwrap_name()?))//todo handle intrinsics on arrays
     })?;
-
-    if class_name == CClassName::unsafe_() {
-        if let Some(res) = sun_misc_unsafe(resolver, layout, labeler, method_id, ir_method_id, &desc, method_name) {
-            return Some(res);
-        }
-    }
+    //
+    // if class_name == CClassName::unsafe_() {
+    //     if let Some(res) = sun_misc_unsafe(resolver, layout, labeler, method_id, ir_method_id, &desc, method_name) {
+    //         return Some(res);
+    //     }
+    // }
 
     if class_name == CClassName::object() {
         if let Some(res) = java_lang_object(resolver, layout, method_id, ir_method_id, &desc, method_name) {
@@ -79,29 +79,37 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
         }
         Some((class, _loader)) => {
             if let Some(direct_invoke) = resolver.is_direct_invoke(class, method_name, desc.clone()) {
-                let (integer_res, float_res, double_res, res_size) = match desc.return_type {
-                    CompressedParsedDescriptorType::BooleanType |
-                    CompressedParsedDescriptorType::ByteType |
-                    CompressedParsedDescriptorType::ShortType |
-                    CompressedParsedDescriptorType::CharType |
+                let (byte_res, bool_res, short_res, char_res, integer_res, float_res, double_res, res_size) = match desc.return_type {
+                    CompressedParsedDescriptorType::ByteType => {
+                        (Some(layout.local_var_entry(0)), None, None, None, None, None, None, Size::int())
+                    }
+                    CompressedParsedDescriptorType::BooleanType => {
+                        (None, Some(layout.local_var_entry(0)), None, None, None, None, None, Size::int())
+                    }
+                    CompressedParsedDescriptorType::ShortType => {
+                        (None, None, Some(layout.local_var_entry(0)), None, None, None, None, Size::int())
+                    }
+                    CompressedParsedDescriptorType::CharType => {
+                        (None, None, None, Some(layout.local_var_entry(0)), None, None, None, Size::int())
+                    }
                     CompressedParsedDescriptorType::IntType => {
-                        (Some(layout.local_var_entry(0)), None, None, Size::int())
+                        (None, None, None, None, Some(layout.local_var_entry(0)), None, None, Size::int())
                     }
                     CompressedParsedDescriptorType::Class(_) |
                     CompressedParsedDescriptorType::Array { .. } => {
-                        (Some(layout.local_var_entry(0)), None, None, Size::pointer())
+                        (None, None, None, None, Some(layout.local_var_entry(0)), None, None, Size::pointer())
                     }
                     CompressedParsedDescriptorType::LongType => {
-                        (Some(layout.local_var_entry(0)), None, None, Size::long())
+                        (None, None, None, None, Some(layout.local_var_entry(0)), None, None, Size::long())
                     }
                     CompressedParsedDescriptorType::FloatType => {
-                        (None, Some(layout.local_var_entry(0)), None, Size::float())
+                        (None, None, None, None, None, Some(layout.local_var_entry(0)), None, Size::float())
                     }
                     CompressedParsedDescriptorType::DoubleType => {
-                        (None, None, Some(layout.local_var_entry(0)), Size::double())
+                        (None, None, None, None, None, None, Some(layout.local_var_entry(0)), Size::double())
                     }
                     CompressedParsedDescriptorType::VoidType => {
-                        (None, None, None, Size::pointer())
+                        (None, None, None, None, None, None, None, Size::pointer())
                     }
                 };
                 let mut integer_args = vec![];
@@ -154,6 +162,10 @@ fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
                     IRInstr::CallNativeHelper {
                         to_call: NonNullConst::new(direct_invoke as *const c_void).unwrap(),
                         integer_args,
+                        byte_res,
+                        bool_res,
+                        char_res,
+                        short_res,
                         integer_res,
                         float_double_args,
                         float_res,

@@ -151,27 +151,6 @@ pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
         return address_size(resolver, layout, method_id, ir_method_id);
     }
 
-    let get_long = CompressedMethodDescriptor {
-        arg_types: vec![CPDType::LongType],
-        return_type: CompressedParsedDescriptorType::LongType,
-    };
-    if method_name == MethodName::method_getLong() && desc == &get_long {
-        return unsafe_get_long_raw(resolver, layout, method_id, ir_method_id);
-    }
-
-    let get_byte_desc = CompressedMethodDescriptor {
-        arg_types: vec![CPDType::LongType],
-        return_type: CompressedParsedDescriptorType::ByteType,
-    };
-    if method_name == MethodName::method_getByte() && desc == &get_byte_desc {
-        return unsafe_get_byte_raw(resolver, layout, method_id, ir_method_id);
-    }
-
-    let get_int_volatile_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::object(), CPDType::LongType], return_type: CPDType::IntType };
-    if method_name == MethodName::method_getIntVolatile() && desc == &get_int_volatile_desc {
-        return get_int_volatile(resolver, layout, labeler, method_id, ir_method_id);
-    }
-
     let allocate_memory_desc = CompressedMethodDescriptor { arg_types: vec![CPDType::LongType], return_type: CPDType::LongType };
     if method_name == MethodName::method_allocateMemory() && desc == &allocate_memory_desc {
         return unsafe_allocate_memory(resolver, layout, method_id, ir_method_id);
@@ -180,11 +159,6 @@ pub fn sun_misc_unsafe<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Native
     let free_memory_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType]);
     if method_name == MethodName::method_freeMemory() && desc == &free_memory_desc {
         return unsafe_free_memory(resolver, layout, method_id, ir_method_id);
-    }
-
-    let put_long_desc = CompressedMethodDescriptor::void_return(vec![CPDType::LongType, CPDType::LongType]);
-    if method_name == MethodName::method_putLong() && desc == &put_long_desc {
-        return unsafe_put_long(resolver, layout, labeler, method_id, ir_method_id);
     }
 
     None

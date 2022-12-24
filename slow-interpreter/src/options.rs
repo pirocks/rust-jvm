@@ -246,7 +246,7 @@ impl JVMOptions {
             //     combined: "sun/nio/ch/ServerSocketChannelImpl/translateReadyOps".to_string(),
             // },
             // MethodToTrace {
-            //     combined: "java/lang/Math/round".to_string(),
+            //     combined: "BasicByte/relGet".to_string(),
             // },
         ].into_iter());
         let trace_options = InstructionTraceOptions::TraceMethods(trace_set);

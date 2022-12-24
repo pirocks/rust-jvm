@@ -136,48 +136,56 @@ fn main() -> anyhow::Result<()> {
             let javac = javac_location(&config);
             // let to
             let classes = vec![
-                vec!["java/lang/Boolean/Factory"],
-                vec!["java/lang/Boolean/GetBoolean"],
-                vec!["java/lang/Boolean/MakeBooleanComparable"],
-                vec!["java/lang/Boolean/ParseBoolean"],
-                vec!["java/lang/Byte/Decode"],
-                vec!["java/lang/Character/TestIsJavaIdentifierMethods"], //needs perf, specifically big loop needs compilation
-                vec!["java/lang/Long/BitTwiddle"],
-                vec!["java/lang/Long/Decode"],
-                vec!["java/lang/Long/GetLong"],
-                vec!["java/lang/Long/ParsingTest"],
-                // "java/lang/Long/Unsigned", //needs working division by zero
-                // "java/lang/Thread/GenerifyStackTraces", //needs impl dump threads
-                // "java/lang/Thread/HoldsLock",// needs impl holds lock
-                vec!["java/lang/Thread/MainThreadTest"],
-                vec!["java/lang/Thread/ITLConstructor"],// seems to deadlock needs fix
-                vec!["java/lang/Compare"],
-                vec!["java/lang/HashCode"],
-                vec!["java/lang/ToString"],
-                //"java/util/AbstractCollection/ToArrayTest", // needs array store exception checking on arrays to be implemented.
-                vec!["java/util/AbstractCollection/ToString"],
-                // "java/util/AbstractList/CheckForComodification", //ignored by openjdk b/c openjdk std is broken
-                vec!["java/util/AbstractList/FailFastIterator"],
-                vec!["java/util/AbstractList/HasNextAfterException"],
-                vec!["java/util/AbstractMap/AbstractMapClone"],
-                vec!["java/util/AbstractMap/Equals"], // causes an expected npe need to implement npe throwing
-                vec!["java/util/AbstractMap/SimpleEntries"],
-                vec!["java/util/AbstractMap/ToString"],
-                vec!["java/util/AbstractSequentialList/AddAll"],
-                // vec!["java/util/ArrayList/AddAll"],// todo buggy?
-                vec!["java/util/ArrayList/Bug6533203"],
-                vec!["java/util/ArrayList/EnsureCapacity"],
-                // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
-                // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
-                vec!["java/util/Collections/ViewSynch"], //doesn't exit for some reason
-                // vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
-                vec!["java/nio/channels/Selector/SelectorTest", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                // vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                vec!["java/nio/channels/Selector/LotsOfUpdates", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                vec!["java/nio/channels/Selector/SelectWrite", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition
-                vec!["java/nio/channels/Selector/ReadAfterConnect", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
-                vec!["java/nio/channels/Pipe/SelectPipe"]
+                vec!["java/nio/Buffer/Basic",
+                     "java/nio/Buffer/BasicByte",
+                     "java/nio/Buffer/BasicChar",
+                     "java/nio/Buffer/BasicShort",
+                     "java/nio/Buffer/BasicInt",
+                     "java/nio/Buffer/BasicFloat",
+                     "java/nio/Buffer/BasicDouble",
+                     "java/nio/Buffer/BasicLong"]
+                // vec!["java/lang/Boolean/Factory"],
+                // vec!["java/lang/Boolean/GetBoolean"],
+                // vec!["java/lang/Boolean/MakeBooleanComparable"],
+                // vec!["java/lang/Boolean/ParseBoolean"],
+                // vec!["java/lang/Byte/Decode"],
+                // vec!["java/lang/Character/TestIsJavaIdentifierMethods"], //needs perf, specifically big loop needs compilation
+                // vec!["java/lang/Long/BitTwiddle"],
+                // vec!["java/lang/Long/Decode"],
+                // vec!["java/lang/Long/GetLong"],
+                // vec!["java/lang/Long/ParsingTest"],
+                // // "java/lang/Long/Unsigned", //needs working division by zero
+                // // "java/lang/Thread/GenerifyStackTraces", //needs impl dump threads
+                // // "java/lang/Thread/HoldsLock",// needs impl holds lock
+                // vec!["java/lang/Thread/MainThreadTest"],
+                // vec!["java/lang/Thread/ITLConstructor"],// seems to deadlock needs fix
+                // vec!["java/lang/Compare"],
+                // vec!["java/lang/HashCode"],
+                // vec!["java/lang/ToString"],
+                // //"java/util/AbstractCollection/ToArrayTest", // needs array store exception checking on arrays to be implemented.
+                // vec!["java/util/AbstractCollection/ToString"],
+                // // "java/util/AbstractList/CheckForComodification", //ignored by openjdk b/c openjdk std is broken
+                // vec!["java/util/AbstractList/FailFastIterator"],
+                // vec!["java/util/AbstractList/HasNextAfterException"],
+                // vec!["java/util/AbstractMap/AbstractMapClone"],
+                // vec!["java/util/AbstractMap/Equals"], // causes an expected npe need to implement npe throwing
+                // vec!["java/util/AbstractMap/SimpleEntries"],
+                // vec!["java/util/AbstractMap/ToString"],
+                // vec!["java/util/AbstractSequentialList/AddAll"],
+                // // vec!["java/util/ArrayList/AddAll"],// todo buggy?
+                // vec!["java/util/ArrayList/Bug6533203"],
+                // vec!["java/util/ArrayList/EnsureCapacity"],
+                // // "java/util/ArrayList/IteratorMicroBenchmark", //takes long af. though I guess I should fix perf bug
+                // // "java/util/ArrayList/RangeCheckMicroBenchmark"//takes long af. though I guess I should fix perf bug
+                // vec!["java/util/Collections/ViewSynch"], //doesn't exit for some reason
+                // // vec!["java/nio/channels/Selector/BasicConnect", "java/nio/channels/TestServers"],
+                // vec!["java/nio/channels/Selector/SelectorTest", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // // vec!["java/nio/channels/Selector/Connect", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/Selector/LotsOfUpdates", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/Selector/SelectWrite", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition
+                // vec!["java/nio/channels/Selector/ReadAfterConnect", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
+                // vec!["java/nio/channels/Pipe/SelectPipe"]
             ];
             let class_files = classes.into_par_iter().map(|classes| {
                 classes.iter().map(|class| test_resources_base.join(format!("{}.java", class))).collect_vec()
@@ -188,7 +196,7 @@ fn main() -> anyhow::Result<()> {
             let jdk_dir = config.dep_dir.join("jdk8u");
             run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
-        OptsInner::OpenJDKAll {  } => {
+        OptsInner::OpenJDKAll {} => {
             tokio::runtime::Builder::new_multi_thread().max_blocking_threads(256).enable_all().build()?.block_on(async move {
                 all_tests(workspace_dir).await
             })?
@@ -200,12 +208,11 @@ fn main() -> anyhow::Result<()> {
 
 fn run_classes(jdk_dir: PathBuf, compilation_dir: PathBuf, class_files: Vec<CompiledClass>, exclude: HashSet<String>) -> anyhow::Result<()> {
     let classpath = format!("{}/build/linux-x86_64-normal-server-fastdebug/jdk/classes {}/build/linux-x86_64-normal-server-fastdebug/jdk/classes_security", jdk_dir.display(), jdk_dir.display());
-    let libjava = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/lib/amd64/libjava.so");
-
+    let java_home = jdk_dir.join("build/linux-x86_64-normal-server-fastdebug/jdk/");
     class_files.into_iter().try_for_each(|main| {
         if !exclude.contains(&main.name()) {
             let mut args = vec![];
-            args.extend(shell_words::split(format!("run --release -- --main {} --libjava {} --classpath {} {}", main.name(), libjava.display(), compilation_dir.display(), classpath).as_str())?);
+            args.extend(shell_words::split(format!("run --release -- --main {} --java-home {} --classpath {} {}", main.name(), java_home.display(), compilation_dir.display(), classpath).as_str())?);
             Command::new("cargo").args(args).spawn()?.wait()?;
         }
         Ok::<_, anyhow::Error>(())
