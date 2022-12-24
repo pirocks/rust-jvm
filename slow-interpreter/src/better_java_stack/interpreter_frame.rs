@@ -119,7 +119,8 @@ impl<'gc, 'k> HasFrame<'gc> for JavaInterpreterFrame<'gc, 'k> {
     }
 
     fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
-        todo!()
+        let jvm = self.jvm();
+        Ok(jvm.method_table.read().unwrap().try_lookup(self.frame_ref().method_id()?).unwrap().0)
     }
 
     fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {

@@ -1,7 +1,6 @@
 use std::mem::size_of;
 use std::ops::Deref;
 use std::ptr::NonNull;
-use std::sync::Arc;
 
 use libc::c_void;
 
@@ -9,7 +8,6 @@ use another_jit_vm::FramePointerOffset;
 use another_jit_vm_ir::ir_stack::{IRFrameMut, IRFrameRef, IsOpaque};
 use gc_memory_layout_common::frame_layout::FRAME_HEADER_END_OFFSET;
 use java5_verifier::SimplifiedVType;
-use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{ByteCodeOffset, StackNativeJavaValue};
 use rust_jvm_common::vtype::VType;
 
@@ -174,10 +172,6 @@ impl<'gc, 'k> HasFrame<'gc> for JavaExitFrame<'gc, 'k> {
 
     fn debug_assert(&self) {
         self.java_stack.debug_assert();
-    }
-
-    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque> {
-        todo!()
     }
 
     fn try_current_frame_pc(&self) -> Option<ByteCodeOffset> {

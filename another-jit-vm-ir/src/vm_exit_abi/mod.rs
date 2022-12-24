@@ -7,13 +7,14 @@ use another_jit_vm::{FramePointerOffset, Register};
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::classfile::CPIndex;
 
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::compiler::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, InitClassAndRecompile, InstanceOf, InvokeDynamic, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::{RawVMExitType, TodoCase};
 
 pub mod register_structs;
@@ -186,7 +187,10 @@ pub enum IRVMExitType {
         method_id: MethodId
     },
     InvokeDynamic{
-
+        cp_index: CPIndex,
+        java_pc: ByteCodeOffset,
+        res_address: FramePointerOffset,
+        first_arg: FramePointerOffset,
     }
 }
 
@@ -426,8 +430,14 @@ impl IRVMExitType {
                 assembler.lea(AllocateObjectArrayIntrinsic::RES_PTR.to_native_64(), rbp - arr_res.0).unwrap();
                 assembler.lea(AllocateObjectArrayIntrinsic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
             }
-            IRVMExitType::InvokeDynamic { .. } => {
-                todo!()
+            IRVMExitType::InvokeDynamic { cp_index, java_pc, res_address, first_arg } => {
+                assembler.mov(rax, RawVMExitType::InvokeDynamic as u64).unwrap();
+                assembler.mov(InvokeDynamic::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.mov(InvokeDynamic::CP_INDEX.to_native_64(), *cp_index as u64).unwrap();
+                assembler.lea(InvokeDynamic::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
+                assembler.lea(InvokeDynamic::RES_ADDRESS.to_native_64(), rbp - res_address.0).unwrap();
+                assembler.lea(InvokeDynamic::FIRST_ARG.to_native_64(), rbp - first_arg.0).unwrap();
+
             }
         }
     }
@@ -534,7 +544,7 @@ impl IRVMExitType {
                 CheckCastFailure::all_registers()
             }
             IRVMExitType::InvokeDynamic { .. } => {
-                todo!()
+                InvokeDynamic::all_registers()
             }
         };
         assert!(res.contains(&Register(0)));

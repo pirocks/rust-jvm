@@ -1,7 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::{NonNull, null_mut};
-use nonnull_const::NonNullConst;
 
+use nonnull_const::NonNullConst;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
@@ -10,15 +10,14 @@ use another_jit_vm::saved_registers_utils::SavedRegistersWithIP;
 use method_table::interface_table::InterfaceID;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, FieldId, MethodId};
+use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-
-
 use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
 use crate::RestartPointID;
-use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, InitClassAndRecompile, InstanceOf, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
+use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, InitClassAndRecompile, InstanceOf, InvokeDynamic, InvokeInterfaceResolve, InvokeVirtualResolve, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 
 #[derive(FromPrimitive)]
 #[repr(u64)]
@@ -56,7 +55,8 @@ pub enum RawVMExitType {
     RunSpecialNativeNew,
     RunInterpreted,
     AllocateObjectArrayIntrinsic,
-    SavepointRemoteExit
+    SavepointRemoteExit,
+    InvokeDynamic,
 }
 
 
@@ -68,7 +68,7 @@ pub enum TodoCase {
     CheckcastFailure2,
     TableSwitchFallthrough,
     ArrayCopyFailure,
-    Other
+    Other,
 }
 
 #[derive(Debug)]
@@ -127,7 +127,7 @@ pub enum RuntimeVMExitInput {
     },
     ArrayOutOfBounds {
         pc: ByteCodeOffset,
-        index: NonNullConst<c_void>
+        index: NonNullConst<c_void>,
     },
     TopLevelReturn {
         return_value: u64,
@@ -264,6 +264,13 @@ pub enum RuntimeVMExitInput {
     Todo {
         pc: ByteCodeOffset,
         todo_case: TodoCase,
+    },
+    InvokeDynamic {
+        cp_index: CPIndex,
+        pc: ByteCodeOffset,
+        return_to_ptr: *const c_void,
+        res_address: *mut u64,
+        first_arg: *mut u64,
     },
 }
 
@@ -506,7 +513,7 @@ impl RuntimeVMExitInput {
             RawVMExitType::ArrayOutOfBounds => {
                 RuntimeVMExitInput::ArrayOutOfBounds {
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::JAVA_PC) as u16),
-                    index: NonNullConst::new(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::INDEX) as *const c_void).unwrap()
+                    index: NonNullConst::new(register_state.saved_registers_without_ip.get_register(ArrayOutOfBounds::INDEX) as *const c_void).unwrap(),
                 }
             }
             RawVMExitType::AllocateObjectArrayIntrinsic => {
@@ -521,6 +528,15 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::SavepointRemoteExit => {
                 todo!()
+            }
+            RawVMExitType::InvokeDynamic => {
+                RuntimeVMExitInput::InvokeDynamic {
+                    cp_index: register_state.saved_registers_without_ip.get_register(InvokeDynamic::CP_INDEX) as CPIndex,
+                    pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InvokeDynamic::JAVA_PC) as u16),
+                    return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeDynamic::RESTART_IP) as *const c_void,
+                    res_address: register_state.saved_registers_without_ip.get_register(InvokeDynamic::RES_ADDRESS) as *mut u64,
+                    first_arg: register_state.saved_registers_without_ip.get_register(InvokeDynamic::FIRST_ARG) as *mut u64,
+                }
             }
         }
     }
@@ -560,7 +576,8 @@ impl RuntimeVMExitInput {
             RuntimeVMExitInput::ArrayOutOfBounds { pc, .. } => Some(*pc),
             RuntimeVMExitInput::Todo { pc, .. } => Some(*pc),
             RuntimeVMExitInput::AllocateObjectArrayIntrinsic { .. } => None,
-            RuntimeVMExitInput::CheckCastFailure { pc, .. } => Some(*pc)
+            RuntimeVMExitInput::CheckCastFailure { pc, .. } => Some(*pc),
+            RuntimeVMExitInput::InvokeDynamic { pc, .. } => Some(*pc),
         }
     }
 }

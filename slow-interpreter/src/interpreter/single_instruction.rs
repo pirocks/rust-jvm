@@ -339,7 +339,7 @@ pub fn run_single_instruction<'gc, 'l, 'k>(
             PostInstructionAction::Return { res: None }
         }
         CInstructionInfo::invokedynamic(cp) => {
-            invoke_dynamic(jvm, interpreter_state, *cp, current_pc)
+            invoke_dynamic(jvm, interpreter_state, *cp)
         }
         instruct => {
             interpreter_state.inner().debug_print_stack_trace(jvm);

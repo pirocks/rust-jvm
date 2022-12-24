@@ -353,10 +353,11 @@ impl Monitor2 {
                         }
                     }
                     Err(WasException{ exception_obj }) => {
-                        todo!()
+                        todo!("need to clean up lock guard");
+                        return Err(WasException{ exception_obj })
                     }
                 };
-                let mut guard = self.monitor2_priv.write().unwrap();
+                let guard = self.monitor2_priv.write().unwrap();
                 assert_eq!(guard.owner, Some(current_thread.java_tid));
                 assert_eq!(guard.count, 1);
                 assert!(!guard.waiting_lock.contains(&current_thread.java_tid));

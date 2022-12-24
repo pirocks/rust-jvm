@@ -1,5 +1,4 @@
 use std::mem::size_of;
-use std::sync::Arc;
 
 use itertools::Either;
 
@@ -7,17 +6,13 @@ use another_jit_vm::{FramePointerOffset, Register};
 use another_jit_vm_ir::compiler::{IRCallTarget, IRInstr, RestartPointGenerator};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::register_structs::{InvokeInterfaceResolve, InvokeVirtualResolve};
-use classfile_view::view::ClassView;
 use classfile_view::view::constant_info_view::ConstantInfoView;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, FrameHeader};
 use jvmti_jni_bindings::jlong;
-use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
-
-
 use rust_jvm_common::method_shape::MethodShape;
 
 use crate::compiler::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
@@ -247,30 +242,35 @@ pub fn invokedynamic<'vm>(
     method_frame_data: &JavaCompilerMethodAndFrameData,
     current_instr_data: CurrentInstructionCompilerData,
     restart_point_generator: &mut RestartPointGenerator,
-    recompile_conditions: &mut MethodRecompileConditions,
+    _recompile_conditions: &mut MethodRecompileConditions,
     this_class_name: CClassName,
     cp: CPIndex,
-) /*-> impl Iterator<Item=IRInstr>*/ {
+) -> impl Iterator<Item=IRInstr> {
     let restart_point_id = restart_point_generator.new_restart_point();
     let restart_point = IRInstr::RestartPoint(restart_point_id);
 
-    if let Some((this_class,_)) = resolver.lookup_type_inited_initing(&this_class_name.into()) {
+    if let Some((this_class, _)) = resolver.lookup_type_inited_initing(&this_class_name.into()) {
         let this_class_view = this_class.view();
         let invoke_dynamic = this_class_view.constant_pool_view(cp.into());
-        match invoke_dynamic {
+        let num_args = match invoke_dynamic {
             ConstantInfoView::InvokeDynamic(invoke_dynamic) => {
-                let bootstrap_method = invoke_dynamic.bootstrap_method();
                 let name_and_type = invoke_dynamic.name_and_type();
-                todo!()
+                let args = name_and_type.desc_method(resolver.string_pool()).arg_types;
+                args.len()
             }
             _ => todo!()
-        }
+        };
 
-        return todo!()/*Either::Right(array_into_iter([restart_point,
+        return array_into_iter([restart_point,
             IRInstr::VMExit2 {
-                exit_type: IRVMExitType::InvokeDynamic {}
-            }]))
-*/    }else {
+                exit_type: IRVMExitType::InvokeDynamic {
+                    cp_index: cp,
+                    java_pc: current_instr_data.current_offset,
+                    res_address: method_frame_data.operand_stack_entry(current_instr_data.next_index, 0),
+                    first_arg: method_frame_data.operand_stack_entry(current_instr_data.current_index, if num_args == 0 { 0 } else { num_args as u16 - 1 }),//if one arg we want 0th from end
+                }
+            }]);
+    } else {
         panic!()
     }
 }

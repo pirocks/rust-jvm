@@ -31,7 +31,10 @@ pub trait HasFrame<'gc> {
     fn max_stack(&self) -> u16;
     fn next_frame_pointer(&self) -> FramePointer;
     fn debug_assert(&self);
-    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque>;
+    fn class_pointer(&self) -> Result<Arc<RuntimeClass<'gc>>, IsOpaque>{
+        let jvm = self.jvm();
+        Ok(jvm.method_table.read().unwrap().try_lookup(self.frame_ref().method_id()?).unwrap().0)
+    }
     fn try_current_frame_pc(&self) -> Option<ByteCodeOffset>;
 
     fn java_thread(&self) -> Arc<JavaThread<'gc>> {

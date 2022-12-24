@@ -553,6 +553,23 @@ impl SavepointRemoteExit {
 
 impl ExitRegisterStruct for SavepointRemoteExit {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0)])
+        HashSet::from([Register(0), Self::REMOTE_QUERY_POINTER])
+    }
+}
+
+
+pub struct InvokeDynamic;
+
+impl InvokeDynamic {
+    pub const JAVA_PC: Register = Register(6);
+    pub const CP_INDEX: Register = Register(5);
+    pub const RESTART_IP: Register = Register(4);
+    pub const RES_ADDRESS: Register = Register(3);
+    pub const FIRST_ARG: Register = Register(2);
+}
+
+impl ExitRegisterStruct for InvokeDynamic {
+    fn all_registers() -> HashSet<Register> {
+        HashSet::from([Register(0), Self::JAVA_PC, Self::CP_INDEX, Self::RESTART_IP, Self::RES_ADDRESS])
     }
 }

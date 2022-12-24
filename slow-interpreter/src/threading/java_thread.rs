@@ -158,7 +158,7 @@ impl<'gc> JavaThread<'gc> {
                     }
                 }
             }
-            Err(exception) => {
+            Err(WasException{ exception_obj }) => {
                 //todo presumably an interrupted exception should clear everything
                 todo!()
             }

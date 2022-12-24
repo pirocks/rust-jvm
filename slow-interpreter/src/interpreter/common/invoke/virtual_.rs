@@ -284,9 +284,6 @@ pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
     if let Some(res) = jvm.invoke_virtual_lookup_cache.read().unwrap().lookup(c.clone(), method_name, md.clone()) {
         return Ok(res);
     }
-    // dbg!(method_name.0.to_str(&jvm.string_pool));
-    // dbg!(c.cpdtype().jvm_representation(&jvm.string_pool));
-    // dbg!(md.jvm_representation(&jvm.string_pool));
     let all_methods = get_all_methods(jvm, int_state, c.clone(), true)?;
     let (final_target_class, new_i) = all_methods
         .iter()
@@ -313,6 +310,7 @@ pub fn virtual_method_lookup<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut i
         })
         .unwrap_or_else(|| {
             int_state.debug_print_stack_trace(jvm);
+            dbg!(c.cpdtype().jvm_representation(&jvm.string_pool));
             dbg!(method_name.0.to_str(&jvm.string_pool));
             dbg!(md);
             dbg!(c.view().name().unwrap_object_name().0.to_str(&jvm.string_pool));

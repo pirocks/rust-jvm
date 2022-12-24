@@ -1,4 +1,3 @@
-use std::ops::Add;
 use std::sync::{Condvar, Mutex};
 use std::time::{Duration, Instant};
 
@@ -218,7 +217,6 @@ impl<'gc> NewSafePointState<'gc> {
     }
 
     pub fn set_park(&self, time: Option<Duration>) {
-        let park_until = time.map(|time| Instant::now().add(time));
         let mut guard = self.inner.lock().unwrap();
         assert!(guard.waiting_monitor_notify().is_none());
         assert!(guard.waiting_monitor_lock().is_none());

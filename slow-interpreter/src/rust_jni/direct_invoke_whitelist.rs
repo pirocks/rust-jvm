@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::{CClassName, CompressedClassName};
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};

@@ -45,6 +45,9 @@ pub trait Accessor {
     }
 
     fn read_object(&self) -> jobject {
+        if self.expected_type().try_unwrap_ref_type().is_none() {
+            dbg!(self.expected_type());
+        }
         assert!(&self.expected_type().try_unwrap_ref_type().is_some());
         self.read_impl()
     }

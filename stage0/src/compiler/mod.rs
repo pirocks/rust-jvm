@@ -9,13 +9,11 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::ClassView;
-use classfile_view::view::constant_info_view::ConstantInfoView;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
-use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
 use crate::compiler::allocate::{anewarray, multianewarray, new, newarray};
@@ -954,8 +952,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(f2l(method_frame_data, current_instr_data))
             }
             CompressedInstructionInfo::invokedynamic(cp) => {
-                todo!()
-                /*this_function_ir.extend(invokedynamic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, method_frame_data.this_class, *cp));*/
+                this_function_ir.extend(invokedynamic(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, method_frame_data.this_class, *cp));
             }
             CompressedInstructionInfo::dup2_x2 => {
                 this_function_ir.extend(dup2_x2(method_frame_data, current_instr_data));

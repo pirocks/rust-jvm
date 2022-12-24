@@ -7,12 +7,14 @@ use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegis
 use another_jit_vm_ir::{IRInstructIndex, IRVMExitAction};
 use another_jit_vm_ir::compiler::RestartPointID;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::RuntimeVMExitInput;
+use classfile_view::view::constant_info_view::ConstantInfoView;
 use runtime_class_stuff::method_numbers::MethodNumber;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
 use crate::{JavaValue, JVMState, PushableFrame, WasException};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
 use crate::better_java_stack::frames::HasFrame;
+use crate::interpreter::common::invoke::dynamic::invoke_dynamic_impl;
 use crate::interpreter::run_function_interpreted;
 use crate::ir_to_java_layer::exit_impls::multi_allocate_array::multi_allocate_array;
 use crate::ir_to_java_layer::exit_impls::new_run_native::{run_native_special_new, run_native_static_new};
@@ -127,7 +129,7 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::NewClass { type_, res, return_to_ptr, pc: _ } => {
                 exit_impls::new_class(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
             }
-            RuntimeVMExitInput::NewClassRegister { return_to_ptr, res, type_, pc:_ } => {
+            RuntimeVMExitInput::NewClassRegister { return_to_ptr, res, type_, pc: _ } => {
                 exit_impls::new_class_register(jvm, int_state.unwrap(), *type_, *res, *return_to_ptr)
             }
             RuntimeVMExitInput::InvokeVirtualResolve { return_to_ptr, object_ref_ptr, method_shape_id, method_number, .. } => {
@@ -139,10 +141,10 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::MonitorExit { obj_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
-            RuntimeVMExitInput::MonitorEnterRegister { obj_ptr, return_to_ptr, pc:_ } => {
+            RuntimeVMExitInput::MonitorEnterRegister { obj_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::monitor_enter(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
-            RuntimeVMExitInput::MonitorExitRegister { obj_ptr, return_to_ptr, pc:_ } => {
+            RuntimeVMExitInput::MonitorExitRegister { obj_ptr, return_to_ptr, pc: _ } => {
                 exit_impls::monitor_exit(jvm, int_state.unwrap(), *obj_ptr, *return_to_ptr)
             }
             RuntimeVMExitInput::InstanceOf { res, value, cpdtype_id, return_to_ptr, pc: _ } => {
@@ -206,6 +208,35 @@ impl JavaVMStateWrapperInner {
             }
             RuntimeVMExitInput::AllocateObjectArrayIntrinsic { type_, len, return_to_ptr, res_address } => {
                 return exit_impls::allocate_object_array(jvm, int_state.unwrap(), *type_, *len, *return_to_ptr, *res_address);
+            }
+            RuntimeVMExitInput::InvokeDynamic { cp_index, pc, return_to_ptr, res_address, first_arg } => {
+                let int_state = int_state.unwrap();
+                let class_pointer = int_state.class_pointer().unwrap();
+                let class_pointer_view = class_pointer.view();
+                let arg_types = match class_pointer_view.constant_pool_view(*cp_index as usize) {
+                    ConstantInfoView::InvokeDynamic(invoke_dynamic) => {
+                        let name_and_type = invoke_dynamic.name_and_type();
+                        name_and_type.desc_method(&jvm.string_pool).arg_types
+                    }
+                    _ => {
+                        panic!()
+                    }
+                };
+                let mut raw_args = vec![];
+                let mut i = 0;
+                for _ in arg_types {
+                    unsafe {
+                        let nth_local = first_arg.add(i).read();
+                        raw_args.push(nth_local);
+                    }
+                    i += 1;
+                }
+                raw_args.reverse();
+                let res = invoke_dynamic_impl(jvm, int_state, *cp_index, raw_args).expect("todo");
+                if let Some(res) = res {
+                    unsafe { res_address.write(res.to_interpreter_jv().to_raw()); }
+                }
+                return IRVMExitAction::RestartAtPtr { ptr: *return_to_ptr }
             }
         }
     }
