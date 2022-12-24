@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::atomic::AtomicPtr;
+
 use nonnull_const::NonNullConst;
 
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, IRMethodID, MMRegister, Register};
@@ -83,10 +84,10 @@ pub enum IRInstr {
     StoreFPRelative { from: Register, to: FramePointerOffset, size: Size },
     StoreFPRelativeFloat { from: FloatRegister, to: FramePointerOffset },
     StoreFPRelativeDouble { from: DoubleRegister, to: FramePointerOffset },
-    FloatToIntegerConvert { from: FloatRegister, temp: MMRegister, to: Register },
-    FloatToLongConvert { from: FloatRegister, to: Register },
-    DoubleToIntegerConvert { from: DoubleRegister, temp: MMRegister, to: Register },
-    DoubleToLongConvert { from: DoubleRegister, to: Register },
+    FloatToIntegerConvert { from: FloatRegister, temp_1: Register, temp_2: Register, temp_3: FloatRegister, temp_4: FloatRegister, to: Register },
+    FloatToLongConvert { from: FloatRegister, temp_1: Register, temp_2: Register, temp_3: FloatRegister, temp_4: FloatRegister, to: Register },
+    DoubleToIntegerConvert { from: DoubleRegister, temp_1: Register, temp_2: Register, temp_3: DoubleRegister, temp_4: DoubleRegister, to: Register },
+    DoubleToLongConvert { from: DoubleRegister, temp_1: Register, temp_2: Register, temp_3: DoubleRegister, temp_4: DoubleRegister, to: Register },
     FloatToDoubleConvert { from: FloatRegister, to: DoubleRegister },
     DoubleToFloatConvert { from: DoubleRegister, to: FloatRegister },
     IntegerToFloatConvert { to: FloatRegister, temp: MMRegister, from: Register },
@@ -197,7 +198,7 @@ pub enum IRInstr {
         frame_size: usize,
         num_locals: usize,
     },
-    CallNativeHelper{
+    CallNativeHelper {
         to_call: NonNullConst<c_void>,
         integer_args: Vec<FramePointerOffset>,
         integer_res: Option<FramePointerOffset>,
@@ -221,7 +222,7 @@ pub enum IRInstr {
         temp_3: Register,
         out: Register,
     },
-    MaxUnsigned{
+    MaxUnsigned {
         res: Register,
         other: Register,
     },

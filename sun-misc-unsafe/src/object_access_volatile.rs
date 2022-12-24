@@ -1,4 +1,3 @@
-use std::ffi::c_void;
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, JNIEnv, jobject, jshort};
 use crate::double_register_addressing::calc_address;
 
@@ -24,7 +23,7 @@ pub unsafe extern "system" fn Java_sun_misc_Unsafe_putCharVolatile(_env: *mut JN
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_sun_misc_Unsafe_putIntVolatile(_env: *mut JNIEnv, _the_unsafe: jobject, obj: jobject, offset: jlong, val: jint) {
-    obj.cast::<c_void>().offset(offset as isize).cast::<jint>().write(val)
+    calc_address(obj, offset).cast::<jint>().write(val)
 }
 
 #[no_mangle]

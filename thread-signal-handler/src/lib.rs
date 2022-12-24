@@ -2,7 +2,7 @@ use std::mem::MaybeUninit;
 use std::ptr::{NonNull, null_mut};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use assert_no_alloc::*;
+// use assert_no_alloc::*;
 use libc::{c_int, c_void, siginfo_t, sigset_t, sigwaitinfo};
 use nix::sys::signal::{SigmaskHow, Signal, sigprocmask, SigSet};
 

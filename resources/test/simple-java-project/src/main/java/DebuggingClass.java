@@ -164,7 +164,39 @@ import java.security.*;
 
 public class DebuggingClass {
 
+    public static long round(double var0, boolean debug) {
+        long var2 = Double.doubleToRawLongBits(var0);
+        if(debug){
+            System.out.println("var2:" + var2);
+        }
+        long var4 = (var2 & 9218868437227405312L) >> 52;
+        long var6 = 1074L - var4;
+        if(debug){
+            System.out.println("var6:" + var6);
+        }
+        if ((var6 & -64L) == 0L) {
+            long var8 = var2 & 4503599627370495L | 4503599627370496L;
+            if(debug){
+                System.out.println("var8:"+ var8);
+            }
+            if (var2 < 0L) {
+                var8 = -var8;
+            }
+
+            return (var8 >> (int)var6) + 1L >> 1;
+        } else {
+            if (debug){
+                System.out.println("var0:" + var0);
+            }
+            return (long)var0;
+        }
+    }
+
     public static void main(String[] args) throws Exception {
+        for (int i = 0; i < 50; i++) {
+            DebuggingClass.round(Double.NaN,false);
+        }
+        System.out.println(DebuggingClass.round(Double.NaN, true));
 //        final Object[] objects = {Boolean.valueOf(true), new int[]{1, 45, 6, 4}};
 //        System.out.println((Boolean) objects[0]);
 //        URL url = new URL("https://www.google.com");

@@ -144,6 +144,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
                         dbg!(name.0.to_str(string_pool));
                         dbg!(desc.jvm_representation(string_pool));
                         //todo I bet this is needs to go looking in interfaces as well
+                        //todo needs to handle link_to_static etc.
                         todo!()
 
                     },
