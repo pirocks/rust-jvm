@@ -1,5 +1,6 @@
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use crate::{JVMState, WasException};
+use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::new_java_values::owned_casts::OwnedCastAble;
@@ -10,7 +11,13 @@ pub fn athrow<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInter
         // let value = interpreter_state.int_state.as_mut().unwrap().call_stack.last_mut().unwrap().operand_stack.pop().unwrap();
         value.to_new_java_handle(jvm)
     };
-    let allocated_handle = exception_obj.unwrap_object_nonnull();
+    let allocated_handle = match exception_obj.unwrap_object() {
+        Some(x) => x,
+        None => {
+            int_state.inner().debug_print_stack_trace(jvm);
+            todo!();
+        },
+    };
 
     //todo checkcast not array
     PostInstructionAction::Exception { exception: WasException { exception_obj: allocated_handle.cast_throwable() } }

@@ -136,7 +136,18 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         let method_view = match view.lookup_method(name, &desc) {
             Some(x) => x,
             None => {
-                let super_name = view.super_name().unwrap();
+                let super_name = match view.super_name() {
+                    Some(x) => x,
+                    None => {
+                        let string_pool = self.jvm.string_pool;
+                        dbg!(on.jvm_representation(string_pool));
+                        dbg!(name.0.to_str(string_pool));
+                        dbg!(desc.jvm_representation(string_pool));
+                        //todo I bet this is needs to go looking in interfaces as well
+                        todo!()
+
+                    },
+                };
                 assert_inited_or_initing_class(self.jvm, super_name.clone().into());
                 return self.lookup_static(super_name.into(), name, desc);
             }

@@ -15,9 +15,9 @@ use crate::remote_queries::{GetGuestFrameStackInstructionPointer, RemoteQuerySaf
 pub mod signal_safety;
 pub mod remote_queries;
 
-#[cfg(debug_assertions)] // required when disable_release is set (default)
-#[global_allocator]
-static A: AllocDisabler = AllocDisabler;
+// #[cfg(debug_assertions)] // required when disable_release is set (default)
+// #[global_allocator]
+// static A: AllocDisabler = AllocDisabler;
 
 pub struct SignalAccessibleJavaStackData {
     stack_top: *const c_void,
@@ -50,9 +50,9 @@ pub extern "C" fn handler(sig: c_int, info: *mut siginfo_t, ucontext: *mut c_voi
             eprintln!("unexpected signal");
             libc::abort()
         }
-        assert_no_alloc(|| {
+        // assert_no_alloc(|| {
             handler_impl(info, Some(ucontext as *const ucontext_t))
-        });
+        // });
     };
 }
 
