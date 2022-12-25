@@ -39,7 +39,7 @@ pub fn gen_intrinsic_ir<'vm>(
     })?;
 
     if class_name == CClassName::unsafe_() {
-        if let Some(res) = sun_misc_unsafe(resolver, layout, labeler, method_id, ir_method_id, &desc, method_name) {
+        if let Some(res) = sun_misc_unsafe(resolver, layout, method_id, ir_method_id, &desc, method_name) {
             return Some(res);
         }
     }

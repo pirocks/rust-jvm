@@ -1,0 +1,13 @@
+[package]
+name = "java-lang-invoke-method-handle-natives"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+slow-interpreter = { path = "../slow-interpreter" }
+classfile-view = { path = "../classfile-view" }
+runtime-class-stuff = { path = "../runtime-class-stuff" }
+rust-jvm-common = { path = "../rust-jvm-common" }
+itertools = "0.10"

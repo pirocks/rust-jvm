@@ -1,0 +1,10 @@
+[package]
+name = "sun-misc-perf"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+jvmti-jni-bindings = { path = "../jvmti-jni-bindings" }
+slow-interpreter = { path = "../slow-interpreter" }
+rust-jvm-common = { path = "../rust-jvm-common" }

@@ -8,12 +8,12 @@ use jvmti_jni_bindings::{JVM_REF_invokeSpecial, JVM_REF_invokeStatic, JVM_REF_in
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CPRefType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
+use rust_jvm_common::mhn_consts::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use rust_jvm_common::runtime_type::RuntimeType;
 
 use crate::{JavaValueCommon, JVMState, NewAsObjectOrJavaValue, NewJavaValue, StackEntryPush, WasException};
 use crate::better_java_stack::frames::{PushableFrame};
 use crate::interpreter::{PostInstructionAction, run_function};
-use crate::interpreter::common::invoke::native::mhn_temp::{REFERENCE_KIND_MASK, REFERENCE_KIND_SHIFT};
 use crate::interpreter::common::invoke::native::run_native_method;
 use crate::interpreter::real_interpreter_state::RealInterpreterStateGuard;
 use crate::java_values::{ByAddressAllocatedObject};

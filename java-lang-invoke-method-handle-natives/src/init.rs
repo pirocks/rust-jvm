@@ -1,36 +1,62 @@
 use itertools::Either;
-
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use jvmti_jni_bindings::{jclass, JNIEnv, jobject};
 use rust_jvm_common::classfile::{ACC_FINAL, ACC_NATIVE, ACC_STATIC, ACC_SYNTHETIC, ACC_VARARGS, REF_INVOKE_INTERFACE, REF_INVOKE_SPECIAL, REF_INVOKE_STATIC, REF_INVOKE_VIRTUAL};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
+use rust_jvm_common::mhn_consts::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
+use slow_interpreter::better_java_stack::frames::PushableFrame;
+use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::exceptions::WasException;
+use slow_interpreter::jvm_state::JVMState;
+use slow_interpreter::new_java_values::NewJavaValue;
+use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
+use slow_interpreter::rust_jni::native_util::from_object_new;
+use slow_interpreter::stdlib::java::lang::member_name::MemberName;
+use slow_interpreter::stdlib::java::lang::object::JObject;
+use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
+use slow_interpreter::stdlib::java::lang::reflect::method::Method;
+use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 
+#[no_mangle]
+unsafe extern "system"  fn Java_java_lang_invoke_MethodHandleNatives_init(env: *mut JNIEnv, _: jclass, member_name: jobject, target: jobject) {
+    let jvm = get_state(env);
+    let int_state = get_interpreter_state(env);
+    let mname = match from_object_new(jvm, member_name) {
+        None => {
+            todo!()
+        }
+        Some(mname) => {
+            mname.cast_member_name()
+        }
+    };
+    let target = match from_object_new(jvm, target) {
+        None => {
+            todo!()
+        }
+        Some(target) => {
+            target.cast_object()
+        }
+    };
+    if let Err(WasException{ exception_obj }) = mhn_init(jvm, int_state, mname, target){
+        *get_throw(env) = Some(WasException{ exception_obj });
+    }
+}
 
-use crate::{JVMState, NewJavaValue, WasException};
-use crate::better_java_stack::frames::PushableFrame;
-use crate::class_loading::check_initing_or_inited_class;
-use crate::interpreter::common::invoke::native::mhn_temp::{IS_CONSTRUCTOR, IS_METHOD, REFERENCE_KIND_SHIFT};
-use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stdlib::java::lang::member_name::MemberName;
-use crate::stdlib::java::lang::reflect::constructor::Constructor;
-use crate::stdlib::java::lang::reflect::method::Method;
-use crate::stdlib::java::NewAsObjectOrJavaValue;
-
-pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, args: Vec<NewJavaValue<'gc, '_>>) -> Result<(), WasException<'gc>> {
+pub fn mhn_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, target: JObject<'gc>) -> Result<(), WasException<'gc>> {
     //two params, is a static function.
-    let mname = args[0].to_handle_discouraged().cast_member_name();
-    let target = args[1].to_handle_discouraged();
-    let target_object = target.cast_object();
-    let to_string = target_object.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm);
+
+    let to_string = target.to_string(jvm, int_state)?.unwrap().to_rust_string(jvm);
     let assertion_case = match to_string.as_str() {
-        "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => InitAssertionCase::CHECK_EXACT_TYPE.into(),
+        "static void java.lang.invoke.Invokers.checkExactType(java.lang.Object,java.lang.Object)" => InitAssertionCase::CheckExactType.into(),
         _ => None,
     };
-    let res = init(jvm, int_state, mname.clone(), target_object.new_java_value(), Either::Left(None), false);
+    let res = init(jvm, int_state, mname.clone(), target.new_java_value(), Either::Left(None), false);
     if let Some(case) = assertion_case {
         match case {
-            InitAssertionCase::CHECK_EXACT_TYPE => {
+            InitAssertionCase::CheckExactType => {
                 assert_eq!(mname.get_flags(jvm), 100728840);
                 assert_eq!(mname.get_clazz(jvm).gc_lifeify().as_type(jvm).unwrap_class_type(), CClassName::invokers());
             }
@@ -40,7 +66,7 @@ pub fn MHN_init<'l, 'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableF
 }
 
 pub enum InitAssertionCase {
-    CHECK_EXACT_TYPE,
+    CheckExactType,
 }
 
 pub fn init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, mname: MemberName<'gc>, target: NewJavaValue<'gc, '_>, view: Either<Option<&MethodView>, Option<&FieldView>>, synthetic: bool) -> Result<(), WasException<'gc>> {
@@ -61,47 +87,47 @@ pub fn init<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame
 
 /*
 // unofficial modifier flags, used by HotSpot:
-    static final int BRIDGE    = 0x00000040;//todo tf is a bridge method
-    static final int VARARGS   = 0x00000080;
-    static final int SYNTHETIC = 0x00001000;
-    static final int ANNOTATION= 0x00002000;
-    static final int ENUM      = 0x00004000;
+static final int BRIDGE    = 0x00000040;//todo tf is a bridge method
+static final int VARARGS   = 0x00000080;
+static final int SYNTHETIC = 0x00001000;
+static final int ANNOTATION= 0x00002000;
+static final int ENUM      = 0x00004000;
 
-    static final int
-                MN_IS_METHOD           = 0x00010000, // method (not constructor)
-                MN_IS_CONSTRUCTOR      = 0x00020000, // constructor
-                MN_IS_FIELD            = 0x00040000, // field
-                MN_IS_TYPE             = 0x00080000, // nested type
-                MN_CALLER_SENSITIVE    = 0x00100000, // @CallerSensitive annotation detected
-                MN_REFERENCE_KIND_SHIFT = 24, // refKind
-                MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
-                // The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:
-                MN_SEARCH_SUPERCLASSES = 0x00100000,
-                MN_SEARCH_INTERFACES   = 0x00200000;
+static final int
+            MN_IS_METHOD           = 0x00010000, // method (not constructor)
+            MN_IS_CONSTRUCTOR      = 0x00020000, // constructor
+            MN_IS_FIELD            = 0x00040000, // field
+            MN_IS_TYPE             = 0x00080000, // nested type
+            MN_CALLER_SENSITIVE    = 0x00100000, // @CallerSensitive annotation detected
+            MN_REFERENCE_KIND_SHIFT = 24, // refKind
+            MN_REFERENCE_KIND_MASK = 0x0F000000 >> MN_REFERENCE_KIND_SHIFT,
+            // The SEARCH_* bits are not for MN.flags but for the matchFlags argument of MHN.getMembers:
+            MN_SEARCH_SUPERCLASSES = 0x00100000,
+            MN_SEARCH_INTERFACES   = 0x00200000;
 
-         /**
-         * Access modifier flags.
-         */
-        static final char
-            ACC_PUBLIC                 = 0x0001,
-            ACC_PRIVATE                = 0x0002,
-            ACC_PROTECTED              = 0x0004,
-            ACC_STATIC                 = 0x0008,
-            ACC_FINAL                  = 0x0010,
-            ACC_SYNCHRONIZED           = 0x0020,
-            ACC_VOLATILE               = 0x0040,
-            ACC_TRANSIENT              = 0x0080,
-            ACC_NATIVE                 = 0x0100,
-            ACC_INTERFACE              = 0x0200,
-            ACC_ABSTRACT               = 0x0400,
-            ACC_STRICT                 = 0x0800,
-            ACC_SYNTHETIC              = 0x1000,
-            ACC_ANNOTATION             = 0x2000,
-            ACC_ENUM                   = 0x4000,
-            // aliases:
-            ACC_SUPER                  = ACC_SYNCHRONIZED,
-            ACC_BRIDGE                 = ACC_VOLATILE,
-            ACC_VARARGS                = ACC_TRANSIENT;
+     /**
+     * Access modifier flags.
+     */
+    static final char
+        ACC_PUBLIC                 = 0x0001,
+        ACC_PRIVATE                = 0x0002,
+        ACC_PROTECTED              = 0x0004,
+        ACC_STATIC                 = 0x0008,
+        ACC_FINAL                  = 0x0010,
+        ACC_SYNCHRONIZED           = 0x0020,
+        ACC_VOLATILE               = 0x0040,
+        ACC_TRANSIENT              = 0x0080,
+        ACC_NATIVE                 = 0x0100,
+        ACC_INTERFACE              = 0x0200,
+        ACC_ABSTRACT               = 0x0400,
+        ACC_STRICT                 = 0x0800,
+        ACC_SYNTHETIC              = 0x1000,
+        ACC_ANNOTATION             = 0x2000,
+        ACC_ENUM                   = 0x4000,
+        // aliases:
+        ACC_SUPER                  = ACC_SYNCHRONIZED,
+        ACC_BRIDGE                 = ACC_VOLATILE,
+        ACC_VARARGS                = ACC_TRANSIENT;
 */
 
 /// the method view param here and elsewhere is only passed when resolving

@@ -158,6 +158,7 @@ impl DirectInvokeWhitelist {
     }
 
     fn compare_and_swap(inner: &mut HashSet<(CompressedClassName, MethodName, CompressedMethodDescriptor)>) {
+        let u = CClassName::unsafe_();
         let methods = vec![
             (MethodName::method_compareAndSwapInt(), CPDType::IntType),
             (MethodName::method_compareAndSwapObject(), CPDType::object()),
