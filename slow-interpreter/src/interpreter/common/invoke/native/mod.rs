@@ -10,15 +10,13 @@ use classfile_view::view::method_view::MethodView;
 use runtime_class_stuff::RuntimeClass;
 
 use crate::{JVMState, NewJavaValue, WasException};
-use crate::better_java_stack::frames::PushableFrame;
+use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
-use crate::class_loading::{assert_inited_or_initing_class, check_initing_or_inited_class};
-use crate::interpreter::common::invoke::native::unsafe_temp::shouldBeInitialized;
+use crate::class_loading::{assert_inited_or_initing_class};
 use crate::interpreter::monitor_for_function;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::{call_impl, mangling};
 use crate::stack_entry::StackEntryPush;
-use crate::utils::throw_npe_res;
 
 pub fn correct_args<'gc, 'l>(args: &'l [NewJavaValue<'gc, 'l>]) -> Vec<NewJavaValue<'gc, 'l>> {
     let mut res = vec![];
@@ -64,24 +62,18 @@ pub fn run_native_method<'gc, 'l, 'k>(
             m.lock(jvm, native_frame).unwrap();
         }
 
-        let result = match native_method_resolve(jvm, class.clone(), &method) {
+        let res_fn = match native_method_resolve(jvm, class.clone(), &method) {
             None => {
-                match special_call_overrides(jvm, native_frame, &class.view().method_view_i(method_i), args) {
-                    Ok(res) => res,
-                    Err(WasException { exception_obj }) => return Err(WasException { exception_obj }),
-                }
+                let mangled = mangling::mangle(&jvm.mangling_regex, &jvm.string_pool, &method);
+                //todo actually impl these at some point
+                dbg!(mangled);
+                native_frame.debug_print_stack_trace(jvm);
+                panic!()
             }
-            Some(res_fn) => {
-                match call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static()) {
-                    Ok(call_res) => call_res,
-                    Err(WasException { exception_obj }) => {
-                        return Err(WasException { exception_obj });
-                    }
-                }
-            }
+            Some(res_fn) => res_fn
         };
 
-        Ok(result)
+        call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static())
     };
     match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
                                       within_frame) {
@@ -117,30 +109,3 @@ pub fn native_method_resolve<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeCla
         }
     }
 }
-
-
-fn special_call_overrides<'gc, 'l, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, method_view: &MethodView, args: Vec<NewJavaValue<'gc, 'k>>) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
-    let mangled = mangling::mangle(&jvm.mangling_regex, &jvm.string_pool, method_view);
-    //todo actually impl these at some point
-    Ok(if &mangled == "Java_sun_misc_Unsafe_shouldBeInitialized" {
-        //todo this isn't totally correct b/c there's a distinction between initialized and initializing.
-        shouldBeInitialized(jvm, int_state, args)?.into()
-    } else if &mangled == "Java_sun_misc_Unsafe_ensureClassInitialized" {
-        let jclass = match args[1].cast_class() {
-            None => {
-                throw_npe_res(jvm, int_state)?;
-                unreachable!()
-            }
-            Some(class) => class,
-        };
-        let ptype = jclass.as_runtime_class(jvm).cpdtype();
-        check_initing_or_inited_class(jvm, int_state, ptype)?;
-        None
-    } else {
-        dbg!(mangled);
-        int_state.debug_print_stack_trace(jvm);
-        panic!()
-    })
-}
-
-pub mod unsafe_temp;

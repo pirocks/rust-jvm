@@ -14,6 +14,8 @@ pub mod define_class;
 pub mod park;
 pub mod double_register_addressing;
 pub mod fences;
+pub mod initializing;
+
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_sun_misc_Unsafe_registerNatives(_env: *mut JNIEnv, _cb: jclass) {
