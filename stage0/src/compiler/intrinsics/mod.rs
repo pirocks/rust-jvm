@@ -37,12 +37,12 @@ pub fn gen_intrinsic_ir<'vm>(
     let (desc, method_name, class_name) = resolver.using_method_view_impl(method_id, |method_view| {
         Some((method_view.desc().clone(), method_view.name(), method_view.classview().name().try_unwrap_name()?))//todo handle intrinsics on arrays
     })?;
-    //
-    // if class_name == CClassName::unsafe_() {
-    //     if let Some(res) = sun_misc_unsafe(resolver, layout, labeler, method_id, ir_method_id, &desc, method_name) {
-    //         return Some(res);
-    //     }
-    // }
+
+    if class_name == CClassName::unsafe_() {
+        if let Some(res) = sun_misc_unsafe(resolver, layout, labeler, method_id, ir_method_id, &desc, method_name) {
+            return Some(res);
+        }
+    }
 
     if class_name == CClassName::object() {
         if let Some(res) = java_lang_object(resolver, layout, method_id, ir_method_id, &desc, method_name) {

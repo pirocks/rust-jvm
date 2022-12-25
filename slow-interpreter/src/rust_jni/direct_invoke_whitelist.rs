@@ -17,8 +17,9 @@ impl DirectInvokeWhitelist {
         Self::double_addressing_natives(&mut inner);
         Self::single_addressing_natives(&mut inner);
         Self::double_addressing_natives_volatile(&mut inner);
+        Self::compare_and_swap(&mut inner);
+        //ordered among others still needed
 
-        //ordered and compare and swap among others still needed
         Self::strict_math(&mut inner);
 
         DirectInvokeWhitelist {
@@ -153,6 +154,20 @@ impl DirectInvokeWhitelist {
 
         for (method_name, to_put) in put_methods {
             inner.insert((u, method_name, CMethodDescriptor::void_return(vec![CPDType::object(), CPDType::LongType, to_put])));
+        }
+    }
+
+    fn compare_and_swap(inner: &mut HashSet<(CompressedClassName, MethodName, CompressedMethodDescriptor)>) {
+        let methods = vec![
+            (MethodName::method_compareAndSwapInt(), CPDType::IntType),
+            (MethodName::method_compareAndSwapObject(), CPDType::object()),
+            (MethodName::method_compareAndSwapLong(), CPDType::LongType),
+        ];
+        for (method_name, to_swap) in methods {
+            inner.insert((u, method_name, CMethodDescriptor{
+                arg_types: vec![CPDType::object(), CPDType::LongType, to_swap, to_swap],
+                return_type: CompressedParsedDescriptorType::BooleanType,
+            }));
         }
     }
 }
