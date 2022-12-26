@@ -6,7 +6,6 @@ use rust_jvm_common::{ByteCodeOffset, MethodId};
 //todo fix instanceof/checkcast
 //todo fix class loaders
 //todo make a get object class fast path
-//todo fix repeated native lookup overhead
 
 //todo maybe an r15 offset consts makes sense here as well
 
