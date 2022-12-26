@@ -10,7 +10,7 @@ use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassClass};
 use rust_jvm_common::classfile::Classfile;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::loading::{ClassLoadingError, ClassWithLoader, LoaderName};
-use stage0::compiler_common::frame_data::SunkVerifierFrames;
+use compiler_common::frame_data::SunkVerifierFrames;
 use verification::{VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 use crate::better_java_stack::frames::PushableFrame;

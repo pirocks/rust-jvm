@@ -18,7 +18,7 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 
 use rust_jvm_common::loading::{ClassLoadingError, LivePoolGetter, LoaderName};
-use stage0::compiler_common::frame_data::SunkVerifierFrames;
+use compiler_common::frame_data::SunkVerifierFrames;
 use verification::{ClassFileGetter, VerifierContext, verify};
 use verification::verifier::TypeSafetyError;
 

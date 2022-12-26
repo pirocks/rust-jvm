@@ -13,7 +13,7 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::method_shape::MethodShapeID;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
-use crate::compiler::RestartPointID;
+use crate::RestartPointID;
 use crate::vm_exit_abi::register_structs::{AllocateObject, AllocateObjectArray, AllocateObjectArrayIntrinsic, ArrayOutOfBounds, AssertInstanceOf, CheckCast, CheckCastFailure, CompileFunctionAndRecompileCurrent, ExitRegisterStruct, InitClassAndRecompile, InstanceOf, InvokeDynamic, InvokeInterfaceResolve, InvokeVirtualResolve, LoadClassAndRecompile, LogFramePointerOffsetValue, LogWholeFrame, MonitorEnter, MonitorEnterRegister, MonitorExit, MonitorExitRegister, MultiAllocateArray, NewClass, NewClassRegister, NewString, NPE, PutStatic, RunInterpreted, RunSpecialNativeNew, RunStaticNative, RunStaticNativeNew, Throw, Todo, TopLevelReturn, TraceInstructionAfter, TraceInstructionBefore};
 use crate::vm_exit_abi::runtime_input::{RawVMExitType, TodoCase};
 

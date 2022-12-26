@@ -9,7 +9,7 @@ use another_jit_vm::Register;
 use another_jit_vm::stack::OwnedNativeStack;
 
 use crate::{IRInstr, IRInstructIndex, IRMethodID, IRStackMut, IRVMExitAction, IRVMExitEvent, IRVMExitType, IRVMState, RuntimeVMExitInput};
-use crate::compiler::RestartPointGenerator;
+use crate::RestartPointGenerator;
 use crate::ir_stack::{FRAME_HEADER_END_OFFSET, IRStackMut, OwnedIRStack};
 
 #[test]

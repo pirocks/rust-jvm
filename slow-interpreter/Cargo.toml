@@ -23,6 +23,8 @@ add-only-static-vec = { path = "../add-only-static-vec" }
 perf-metrics = { path = "../perf-metrics" }
 java5-verifier = { path = "../java5-verifier" }
 stage0 = { path = "../stage0" }
+stage1 = { path = "../stage1" }
+compiler-common = { path = "../compiler-common" }
 libffi = { version = "3", features = ["system"] }
 libloading = { git = 'https://github.com/pirocks/rust_libloading.git' }
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }

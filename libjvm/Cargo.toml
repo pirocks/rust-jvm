@@ -25,6 +25,7 @@ inheritance-tree = { path = "../inheritance-tree" }
 method-table = { path = "../method-table" }
 perf-metrics = { path = "../perf-metrics" }
 stage0 = { path = "../stage0" }
+compiler-common = { path = "../compiler-common" }
 vtable = { path = "../vtable" }
 interface-vtable = { path = "../interface-vtable" }
 jmm-interface = { path = "../jmm-interface" }

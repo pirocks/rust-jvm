@@ -13,7 +13,8 @@ use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use interface_vtable::generate_itable_access;
 
-use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID, Size};
+use crate::{gen_vm_exit, IRInstr, IRInstructIndex, IRVMExitType, LabelName, RestartPointID};
+use crate::compiler::Size;
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
 use crate::ir_to_native::call::{ir_call, ir_function_start, ir_return};
 use crate::ir_to_native::integer_arithmetic::{ir_add, ir_div, ir_mod, ir_sub, mul, mul_const, sign_extend, zero_extend};

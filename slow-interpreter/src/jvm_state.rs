@@ -39,9 +39,9 @@ use rust_jvm_common::method_shape::{MethodShape, MethodShapeIDs, ShapeOrderWrapp
 use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
-use stage0::compiler::RecompileConditions;
-use stage0::compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
-use stage0::compiler_common::JavaCompilerMethodAndFrameData;
+use stage0::RecompileConditions;
+use compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
+use compiler_common::JavaCompilerMethodAndFrameData;
 use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
 use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;

@@ -5,7 +5,8 @@ use gc_memory_layout_common::memory_regions::MemoryRegions;
 use rust_jvm_common::ByteCodeOffset;
 use vtable::generate_vtable_access;
 
-use crate::{gen_vm_exit, InvokeVirtualResolve, IRVMExitType, Size};
+use crate::{gen_vm_exit, InvokeVirtualResolve, IRVMExitType};
+use crate::compiler::Size;
 
 pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exit_type: &IRVMExitType, possibly_null: Register) {
     let mut after_exit_label = assembler.create_label();

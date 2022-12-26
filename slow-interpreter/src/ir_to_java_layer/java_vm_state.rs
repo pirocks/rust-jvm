@@ -12,8 +12,8 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use stage0::compiler::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
-use stage0::compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use stage0::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
+use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 
 use crate::{JVMState, MethodResolverImpl};
 use crate::better_java_stack::exit_frame::JavaExitFrame;

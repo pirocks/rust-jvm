@@ -26,7 +26,6 @@ use ir_stack::OPAQUE_FRAME_SIZE;
 use rust_jvm_common::MethodId;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
-use crate::compiler::{BitwiseLogicType, FloatCompareMode, IRCallTarget, Signed, Size};
 use crate::ir_stack::OwnedIRStack;
 use crate::ir_to_native::single_ir_to_native;
 use crate::vm_exit_abi::IRVMExitType;

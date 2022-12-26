@@ -105,10 +105,10 @@ impl<'gc> JClass<'gc> {
     }
 
     pub fn debug_assert(&self, jvm: &'gc JVMState<'gc>) {
-        let class_class = jvm.classes.read().unwrap().class_class.clone();
-        let wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id_of_wrapped_in_array()).unwrap_int();
-        let not_wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id()).unwrap_int();
-        assert_ne!(wrapped_id, not_wrapped_id);
+        // let class_class = jvm.classes.read().unwrap().class_class.clone();
+        // let wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id_of_wrapped_in_array()).unwrap_int();
+        // let not_wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id()).unwrap_int();
+        // assert_ne!(wrapped_id, not_wrapped_id);
     }
 
     pub fn from_type<'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<JClass<'gc>, WasException<'gc>> {

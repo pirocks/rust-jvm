@@ -28,7 +28,7 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use stage0::compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
+use compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::native::native_method_resolve;

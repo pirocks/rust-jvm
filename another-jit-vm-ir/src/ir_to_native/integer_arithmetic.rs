@@ -1,8 +1,8 @@
 use iced_x86::code_asm::{al, ax, CodeAssembler, dl, dx, eax, edx, rax, rbx, rcx, rdx};
 
 use another_jit_vm::Register;
+use crate::compiler::{Signed, Size};
 
-use crate::{Signed, Size};
 use crate::ir_to_native::integer_compare::div_rem_common;
 
 pub fn ir_add(assembler: &mut CodeAssembler, res: Register, a: Register, size: Size) {

@@ -58,5 +58,6 @@ members = [
     "openjdk-test-parser",
     "sun-misc-unsafe",
     "java-lang-invoke-method-handle-natives",
-    "sun-misc-perf"
+    "sun-misc-perf",
+    "stage1"
 ]

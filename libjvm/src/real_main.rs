@@ -48,8 +48,8 @@ use slow_interpreter::threading::java_thread::JavaThread;
 use slow_interpreter::threading::jvm_startup::{bootstrap_main_thread, MainThreadStartInfo};
 use slow_interpreter::threading::thread_state::ThreadState;
 use slow_interpreter::tracing::TracingSettings;
-use stage0::compiler::RecompileConditions;
-use stage0::compiler_common::frame_data::FunctionFrameData;
+use stage0::RecompileConditions;
+use compiler_common::frame_data::FunctionFrameData;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
 use vtable::VTables;
 

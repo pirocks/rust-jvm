@@ -28,7 +28,7 @@ use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use rust_jvm_common::runtime_type::RuntimeType;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use stage0::compiler_common::MethodResolver;
+use compiler_common::MethodResolver;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};

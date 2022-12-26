@@ -1,8 +1,8 @@
 use iced_x86::code_asm::{al, ax, CodeAssembler, eax, rax, rbx, rcx, rdx};
 
 use another_jit_vm::Register;
+use crate::compiler::{Signed, Size};
 
-use crate::{Signed, Size};
 
 pub fn int_compare(assembler: &mut CodeAssembler, res: Register, value1: Register, value2: Register, temp1: Register, temp2: Register, temp3: Register, size: Size) {
     match size {

@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::compressed_descriptors::{CFieldDescri
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 use rust_jvm_common::runtime_type::RuntimeType;
-use stage0::compiler::fields::recursively_find_field_number_and_type;
+use stage0::fields::recursively_find_field_number_and_type;
 
 use crate::{check_initing_or_inited_class, JVMState, NewJavaValueHandle, WasException};
 use crate::accessor_ext::AccessorExt;

@@ -50,13 +50,13 @@ impl<'gc> ThreadState<'gc> {
     }
 
     pub(crate) fn debug_assert(&self, jvm: &'gc JVMState<'gc>){
-        self.all_java_threads.read().unwrap().values().for_each(|thread|{
-            let normal_object = match thread.thread_object.read().unwrap().as_ref() {
-                Some(x) => x,
-                None => return,
-            }.normal_object.duplicate_discouraged();
-            normal_object.new_java_handle().cast_thread(jvm);
-        });
+        // self.all_java_threads.read().unwrap().values().for_each(|thread|{
+        //     let normal_object = match thread.thread_object.read().unwrap().as_ref() {
+        //         Some(x) => x,
+        //         None => return,
+        //     }.normal_object.duplicate_discouraged();
+        //     normal_object.new_java_handle().cast_thread(jvm);
+        // });
     }
 
     pub(crate) fn debug_assertions<'l>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _loader_obj: ClassLoader<'gc>) {
