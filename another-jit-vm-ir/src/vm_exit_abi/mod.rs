@@ -1,7 +1,9 @@
 use std::collections::HashSet;
+use std::ffi::c_void;
 use std::num::NonZeroU8;
 
 use iced_x86::code_asm::{CodeAssembler, CodeLabel, qword_ptr, rax, rbp};
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::{FramePointerOffset, Register};
 use method_table::interface_table::InterfaceID;
@@ -84,12 +86,14 @@ pub enum IRVMExitType {
     },
     RunStaticNativeNew {
         method_id: MethodId,
+        resolved_fn_ptr: NonNullConst<c_void>
         // arg_start_frame_offset: Option<FramePointerOffset>,
         // java_pc: ByteCodeOffset,
         // res_pointer_offset: Option<FramePointerOffset>, //goes in rax.
     },
     RunSpecialNativeNew {
         method_id: MethodId,
+        resolved_fn_ptr: NonNullConst<c_void>
         // arg_start_frame_offset: Option<FramePointerOffset>,
         // java_pc: ByteCodeOffset,
         // res_pointer_offset: Option<FramePointerOffset>, //goes in rax.
@@ -378,16 +382,16 @@ impl IRVMExitType {
                 assembler.lea(MultiAllocateArray::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
                 assembler.mov(MultiAllocateArray::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
-            IRVMExitType::RunStaticNativeNew { method_id } => {
+            IRVMExitType::RunStaticNativeNew { method_id, resolved_fn_ptr } => {
                 assembler.mov(rax, RawVMExitType::RunStaticNativeNew as u64).unwrap();
                 assembler.mov(RunStaticNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
-                // assembler.mov(RunStaticNativeNew::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.mov(RunStaticNativeNew::RESOLVED_FN_PTR.to_native_64(), resolved_fn_ptr.as_ptr() as i64).unwrap();
                 assembler.lea(RunStaticNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
             }
-            IRVMExitType::RunSpecialNativeNew { method_id } => {
+            IRVMExitType::RunSpecialNativeNew { method_id, resolved_fn_ptr } => {
                 assembler.mov(rax, RawVMExitType::RunSpecialNativeNew as u64).unwrap();
                 assembler.mov(RunSpecialNativeNew::METHOD_ID.to_native_64(), *method_id as u64).unwrap();
-                // assembler.mov(RunSpecialNativeNew::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
+                assembler.mov(RunSpecialNativeNew::RESOLVED_FN_PTR.to_native_64(), resolved_fn_ptr.as_ptr() as i64).unwrap();
                 assembler.lea(RunSpecialNativeNew::RETURN_TO_PTR.to_native_64(), qword_ptr(*after_exit_label)).unwrap();
             }
             IRVMExitType::RunInterpreted { method_id } => {

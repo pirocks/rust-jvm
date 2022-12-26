@@ -131,7 +131,7 @@ fn invoke_virtual_method_i_impl<'gc, 'l>(
         return Ok(todo!());
     }
     if target_method.is_native() {
-        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args, None) {
             Ok(res) => {
                 Ok(res)
             }

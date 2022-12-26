@@ -1,9 +1,11 @@
+use std::mem::transmute;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use by_address::ByAddress;
 use libc::c_void;
 use libloading::Symbol;
+use nonnull_const::NonNullConst;
 
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
@@ -12,7 +14,7 @@ use runtime_class_stuff::RuntimeClass;
 use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::better_java_stack::native_frame::NativeFrame;
-use crate::class_loading::{assert_inited_or_initing_class};
+use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::monitor_for_function;
 use crate::new_java_values::NewJavaValueHandle;
 use crate::rust_jni::{call_impl, mangling};
@@ -48,6 +50,7 @@ pub fn run_native_method<'gc, 'l, 'k>(
     class: Arc<RuntimeClass<'gc>>,
     method_i: u16,
     args: Vec<NewJavaValue<'gc, 'k>>,
+    expected: Option<NonNullConst<c_void>>,
 ) -> Result<Option<NewJavaValueHandle<'gc>>, WasException<'gc>> {
     let view = &class.view();
     assert_inited_or_initing_class(jvm, view.type_());
@@ -62,21 +65,26 @@ pub fn run_native_method<'gc, 'l, 'k>(
             m.lock(jvm, native_frame).unwrap();
         }
 
-        let res_fn = match native_method_resolve(jvm, class.clone(), &method) {
-            None => {
-                let mangled = mangling::mangle(&jvm.mangling_regex, &jvm.string_pool, &method);
-                //todo actually impl these at some point
-                dbg!(mangled);
-                native_frame.debug_print_stack_trace(jvm);
-                panic!()
+
+        let res_fn = if let Some(expected) = expected {
+            unsafe { transmute::<_, unsafe extern "C" fn()>(expected.as_ptr()) }
+        } else {
+            match native_method_resolve(jvm, class.clone(), &method) {
+                None => {
+                    let mangled = mangling::mangle(&jvm.mangling_regex, &jvm.string_pool, &method);
+                    //todo actually impl these at some point
+                    dbg!(mangled);
+                    native_frame.debug_print_stack_trace(jvm);
+                    panic!()
+                }
+                Some(res_fn) => res_fn
             }
-            Some(res_fn) => res_fn
         };
 
         call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static())
     };
     int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
-                                      within_frame)
+                                within_frame)
 }
 
 pub fn native_method_resolve<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, method: &MethodView) -> Option<unsafe extern "C" fn()> {

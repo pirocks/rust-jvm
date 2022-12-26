@@ -169,11 +169,11 @@ impl JavaVMStateWrapperInner {
             } => {
                 multi_allocate_array(jvm, int_state.unwrap(), *elem_type, *num_arrays, *len_start, *return_to_ptr, *res_address)
             }
-            RuntimeVMExitInput::RunNativeSpecialNew { method_id, return_to_ptr } => {
-                run_native_special_new(jvm, int_state, *method_id, *return_to_ptr)
+            RuntimeVMExitInput::RunNativeSpecialNew { method_id, resolved_fn_ptr, return_to_ptr } => {
+                run_native_special_new(jvm, int_state, *method_id, *return_to_ptr, *resolved_fn_ptr)
             }
-            RuntimeVMExitInput::RunNativeStaticNew { method_id, return_to_ptr } => {
-                run_native_static_new(jvm, int_state, *method_id, *return_to_ptr)
+            RuntimeVMExitInput::RunNativeStaticNew { method_id, resolved_fn_ptr, return_to_ptr } => {
+                run_native_static_new(jvm, int_state, *method_id, *return_to_ptr, *resolved_fn_ptr)
             }
             RuntimeVMExitInput::RunInterpreted { method_id, return_to_ptr } => {
                 let int_state = int_state.unwrap();

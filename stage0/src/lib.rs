@@ -18,7 +18,6 @@ use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
 use rust_jvm_common::compressed_classfile::code::{CompressedInstructionInfo, CompressedLdc2W, CompressedLdcW};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
-
 use crate::allocate::{anewarray, multianewarray, new, newarray};
 use crate::arithmetic::{iadd, idiv, iinc, imul, ineg, irem, isub, ladd, lcmp, ldiv, lmul, lneg, lrem, lsub};
 use crate::array_load::{aaload, baload, caload, daload, faload, iaload, laload, saload};
@@ -205,14 +204,21 @@ pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler,
         num_locals: resolver.num_locals(method_id) as usize,
     }];
     let desc = resolver.lookup_method_desc(method_id);
+    let fn_ptr = resolver.resolve_native_method_pointer(method_id);
     if resolver.is_static(method_id) {
         res.push(IRInstr::VMExit2 {
             exit_type: IRVMExitType::RunStaticNativeNew {
                 method_id,
+                resolved_fn_ptr: fn_ptr,
             }
         });
     } else {
-        res.push(IRInstr::VMExit2 { exit_type: IRVMExitType::RunSpecialNativeNew { method_id } });
+        res.push(IRInstr::VMExit2 {
+            exit_type: IRVMExitType::RunSpecialNativeNew {
+                method_id,
+                resolved_fn_ptr: fn_ptr,
+            }
+        });
     }
     res.push(IRInstr::Return {
         return_val: if desc.return_type.is_void() {
@@ -398,7 +404,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
                 this_function_ir.extend(invokevirtual(resolver, method_frame_data, current_instr_data, &mut restart_point_generator, recompile_conditions, *method_name, descriptor, *classname_ref_type))
             }
             CompressedInstructionInfo::putstatic { name, desc, target_class } => {
-                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name,*desc))
+                this_function_ir.extend(putstatic(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, *target_class, *name, *desc))
             }
             CompressedInstructionInfo::anewarray(elem_type) => {
                 this_function_ir.extend(anewarray(resolver, method_frame_data, &current_instr_data, &mut restart_point_generator, recompile_conditions, elem_type))

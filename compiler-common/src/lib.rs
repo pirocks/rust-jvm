@@ -6,6 +6,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicPtr;
 
 use itertools::Itertools;
+use nonnull_const::NonNullConst;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID};
@@ -300,4 +301,5 @@ pub trait MethodResolver<'gc> {
     fn string_pool(&self) -> &CompressedClassfileStringPool;
     fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType);
     fn is_direct_invoke(&self, class: Arc<RuntimeClass<'gc>>, method_name: MethodName, desc: CMethodDescriptor) -> Option<unsafe extern "C" fn()>;
+    fn resolve_native_method_pointer(&self, method_id: MethodId) -> NonNullConst<c_void>;
 }

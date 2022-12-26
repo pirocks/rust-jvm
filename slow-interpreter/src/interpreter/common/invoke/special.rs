@@ -80,7 +80,7 @@ pub fn invoke_special_impl<'k, 'gc, 'l>(
         dbg!(target_m.name());
         unimplemented!()
     } else if target_m.is_native() {
-        run_native_method(jvm, int_state, final_target_class, target_m_i, input_args)
+        run_native_method(jvm, int_state, final_target_class, target_m_i, input_args, None)
     } else {
         let mut args = vec![];
         let max_locals = target_m.code_attribute().unwrap().max_locals;

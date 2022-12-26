@@ -81,7 +81,7 @@ pub fn intrinsic_get_class<'gc>(resolver: &impl MethodResolver<'gc>, layout: &Na
         IRInstr::GetClassOrExit {
             object_ref: layout.local_var_entry(0),
             res: Register(0),
-            get_class_exit: IRVMExitType::RunSpecialNativeNew { method_id },
+            get_class_exit: IRVMExitType::RunSpecialNativeNew { method_id, resolved_fn_ptr: resolver.resolve_native_method_pointer(method_id) },
         },
         IRInstr::Return {
             return_val: Some(Register(0)),

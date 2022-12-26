@@ -101,12 +101,13 @@ pub struct RunStaticNativeNew;
 impl RunStaticNativeNew {
     pub const METHOD_ID: Register = Register(2);
     pub const RETURN_TO_PTR: Register = Register(3);
+    pub const RESOLVED_FN_PTR: Register = Register(4);
     // pub const JAVA_PC: Register = Register(4);
 }
 
 impl ExitRegisterStruct for RunStaticNativeNew {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR/*, Self::JAVA_PC*/])
+        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR/*, Self::JAVA_PC*/, Self::RESOLVED_FN_PTR])
     }
 }
 
@@ -115,12 +116,13 @@ pub struct RunSpecialNativeNew;
 impl RunSpecialNativeNew {
     pub const METHOD_ID: Register = Register(2);
     pub const RETURN_TO_PTR: Register = Register(3);
+    pub const RESOLVED_FN_PTR: Register = Register(4);
     // pub const JAVA_PC: Register = Register(4);
 }
 
 impl ExitRegisterStruct for RunSpecialNativeNew {
     fn all_registers() -> HashSet<Register> {
-        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR/*, Self::JAVA_PC*/])
+        HashSet::from([Register(0), Self::METHOD_ID, Self::RETURN_TO_PTR/*, Self::JAVA_PC*/,Self::RESOLVED_FN_PTR])
     }
 }
 

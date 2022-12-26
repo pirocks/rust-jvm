@@ -3,12 +3,14 @@ use std::ptr::NonNull;
 use std::sync::Arc;
 use std::sync::atomic::AtomicPtr;
 
+use nonnull_const::NonNullConst;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::IRMethodID;
 use array_memory_layout::accessor::Accessor;
 use classfile_view::view::HasAccessFlags;
 use classfile_view::view::method_view::MethodView;
+use compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use gc_memory_layout_common::memory_regions::{AllocatedTypeID, RegionHeader};
 use inheritance_tree::ClassID;
@@ -28,7 +30,6 @@ use rust_jvm_common::cpdtype_table::CPDTypeID;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
-use compiler_common::{MethodResolver, PartialYetAnotherLayoutImpl, YetAnotherLayoutImpl};
 
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::native::native_method_resolve;
@@ -146,8 +147,7 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
                         //todo I bet this is needs to go looking in interfaces as well
                         //todo needs to handle link_to_static etc.
                         todo!()
-
-                    },
+                    }
                 };
                 assert_inited_or_initing_class(self.jvm, super_name.clone().into());
                 return self.lookup_static(super_name.into(), name, desc);
@@ -354,11 +354,19 @@ impl<'gc> MethodResolver<'gc> for MethodResolverImpl<'gc> {
         let class_name = class.unwrap_class_class().class_view.name().unwrap_name();
         let is_direct = self.jvm.direct_invoke_whitelist.is_direct_invoke_whitelisted(class_name, method_name, desc.clone());
         if !is_direct {
-            return None
+            return None;
         }
         let class_view = class.view();
         let method_view = class_view.lookup_method(method_name, &desc).unwrap();
         Some(native_method_resolve(self.jvm, class, &method_view).unwrap())
+    }
+
+    fn resolve_native_method_pointer(&self, method_id: MethodId) -> NonNullConst<c_void> {
+        let (rc, method_i) = self.jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
+        let class_view = rc.view();
+        let method_view = class_view.method_view_i(method_i);
+        let fn_ptr = native_method_resolve(self.jvm, rc, &method_view).unwrap();
+        NonNullConst::new(fn_ptr as *const c_void).unwrap()
     }
 }
 

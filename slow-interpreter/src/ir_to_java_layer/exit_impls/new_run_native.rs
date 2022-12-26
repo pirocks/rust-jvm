@@ -1,6 +1,7 @@
 use std::ffi::c_void;
 
 use itertools::Itertools;
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::Register;
 use another_jit_vm::saved_registers_utils::{SavedRegistersWithIPDiff, SavedRegistersWithoutIPDiff};
@@ -19,7 +20,7 @@ use crate::ir_to_java_layer::exit_impls::throw_impl;
 use crate::java_values::native_to_new_java_value_rtype;
 
 #[inline(never)]
-pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void, resolved_fn_ptr: NonNullConst<c_void>) -> IRVMExitAction {
     //todo need to use this frame instead of pushing a new one
     let int_state = int_state.unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
@@ -41,7 +42,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
         args.push(native_to_new_java_value_rtype(nth_local, rtype, jvm));
         i += 1;
     }
-    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec(), Some(resolved_fn_ptr)) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
             return throw_impl(jvm, int_state, exception_obj, true);
@@ -59,7 +60,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
 }
 
 #[inline(never)]
-pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
+pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void, resolved_fn_ptr: NonNullConst<c_void>) -> IRVMExitAction {
     let int_state = int_state.unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
@@ -77,7 +78,7 @@ pub fn run_native_static_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option
         }
         i += 1;
     }
-    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec()) {
+    let res = match run_native_method(jvm, int_state, rc, method_i, args.iter().map(|handle| handle.as_njv()).collect_vec(), Some(resolved_fn_ptr)) {
         Ok(x) => x,
         Err(WasException { exception_obj }) => {
             return throw_impl(jvm, int_state, exception_obj, true);

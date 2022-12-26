@@ -250,11 +250,12 @@ pub enum RuntimeVMExitInput {
     },
     RunNativeSpecialNew {
         method_id: MethodId,
+        resolved_fn_ptr: NonNullConst<c_void>,
         return_to_ptr: *const c_void,
     },
     RunNativeStaticNew {
         method_id: MethodId,
-        // pc: ByteCodeOffset,
+        resolved_fn_ptr: NonNullConst<c_void>,
         return_to_ptr: *const c_void,
     },
     RunInterpreted {
@@ -484,6 +485,7 @@ impl RuntimeVMExitInput {
             RawVMExitType::RunStaticNativeNew => {
                 RuntimeVMExitInput::RunNativeStaticNew {
                     method_id: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::METHOD_ID) as MethodId,
+                    resolved_fn_ptr: NonNullConst::new(register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RESOLVED_FN_PTR) as *const c_void).unwrap(),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RETURN_TO_PTR) as *const c_void,
                     // pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::JAVA_PC) as u16),
                 }
@@ -491,6 +493,7 @@ impl RuntimeVMExitInput {
             RawVMExitType::RunSpecialNativeNew => {
                 RuntimeVMExitInput::RunNativeSpecialNew {
                     method_id: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::METHOD_ID) as MethodId,
+                    resolved_fn_ptr: NonNullConst::new(register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RESOLVED_FN_PTR) as *const c_void).unwrap(),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(RunStaticNativeNew::RETURN_TO_PTR) as *const c_void,
                 }
             }

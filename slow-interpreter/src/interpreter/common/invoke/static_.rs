@@ -147,7 +147,7 @@ pub fn invoke_static_impl<'l, 'gc>(
             };
         });
     } else {
-        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args) {
+        return match run_native_method(jvm, interpreter_state, target_class, target_method_i, args, None) {
             Ok(res) => {
                 Ok(res)
             }
