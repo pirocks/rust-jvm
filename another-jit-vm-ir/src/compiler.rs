@@ -198,6 +198,9 @@ pub enum IRInstr {
         frame_size: usize,
         num_locals: usize,
     },
+    GetThread {
+        res_register: Register
+    },
     CallNativeHelper {
         to_call: NonNullConst<c_void>,
         integer_args: Vec<FramePointerOffset>,
@@ -554,6 +557,9 @@ impl IRInstr {
             }
             IRInstr::FloatToLongConvert { .. } => {
                 "FloatToLongConvert".to_string()
+            }
+            IRInstr::GetThread { .. } => {
+                "GetThread".to_string()
             }
         }
     }

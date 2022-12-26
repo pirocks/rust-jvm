@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 use std::mem::transmute;
-use std::ptr::NonNull;
+use std::ptr::{NonNull};
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use itertools::Itertools;
@@ -35,6 +35,7 @@ pub struct JavaStackGuard<'vm> {
     guard: Option<MutexGuard<'vm, JavaStack<'vm>>>,
     jvm: &'vm JVMState<'vm>,
     pub java_thread: Arc<JavaThread<'vm>>,
+    pub thread_obj_cache: Option<NonNull<c_void>>,
     _current_frame_pointer: FramePointer,
 }
 
@@ -86,11 +87,13 @@ impl<'vm> JavaStackGuard<'vm> {
             panic!()
         }
         let mmapped_top = guard.owned_ir_stack.native.mmaped_top;
+        let thread_obj_cache = java_thread.try_thread_object().map(|thread_object|thread_object.normal_object.ptr);
         let mut res = Self {
             stack,
             guard: Some(guard),
             jvm,
             java_thread,
+            thread_obj_cache,
             _current_frame_pointer: FramePointer(mmapped_top),
         };
         let mut opaque_frame = OpaqueFrame::new_from_empty_stack(&mut res);
@@ -99,22 +102,25 @@ impl<'vm> JavaStackGuard<'vm> {
     }
 
     pub fn new_from_prev_with_new_frame_pointer(old: Self, new_frame_pointer: FramePointer) -> Self {
-        let Self { stack, guard, jvm, java_thread, _current_frame_pointer:_ } = old;
+        let Self { stack, guard, jvm, java_thread, thread_obj_cache, _current_frame_pointer:_ } = old;
         Self {
             stack,
             guard,
             jvm,
             java_thread,
+            thread_obj_cache,
             _current_frame_pointer: new_frame_pointer,
         }
     }
 
     pub fn new_remote_with_frame_pointer(jvm: &'vm JVMState<'vm>, stack: &'vm Mutex<JavaStack<'vm>>, java_thread: Arc<JavaThread<'vm>>, new_frame_pointer: FramePointer) -> Self {
+        let thread_obj_cache = java_thread.thread_object().normal_object.ptr;
         Self {
             stack,
             guard: Some(stack.lock().unwrap()),
             jvm,
             java_thread,
+            thread_obj_cache: Some(thread_obj_cache),
             _current_frame_pointer: new_frame_pointer,
         }
     }

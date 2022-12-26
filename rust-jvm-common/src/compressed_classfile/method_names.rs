@@ -388,4 +388,7 @@ impl MethodName {
     pub fn method_log1p() -> Self{
         Self::from_raw_id(method_log1p)
     }
+    pub fn method_currentThread() -> Self {
+        Self::from_raw_id(method_currentThread)
+    }
 }

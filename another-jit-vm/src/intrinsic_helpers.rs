@@ -88,8 +88,9 @@ impl IntrinsicHelperType {
     }
 }
 
+#[repr(C)]
 pub struct ThreadLocalIntrinsicHelpers{
-    current_thread_obj: NonNullMut<c_void>
+    pub current_thread_obj: NonNullMut<c_void>
 }
 
 impl ThreadLocalIntrinsicHelpers {

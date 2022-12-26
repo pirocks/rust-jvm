@@ -271,6 +271,7 @@ pub(crate) enum PredefinedStrings {
     method_hypot,
     method_expm1,
     method_log1p,
+    method_currentThread,
 }
 
 impl PredefinedStrings {
@@ -532,6 +533,7 @@ impl PredefinedStrings {
             method_hypot => "hypot".to_string(),
             method_expm1 => "expm1".to_string(),
             method_log1p => "log1p".to_string(),
+            method_currentThread => "currentThread".to_string()
         }
     }
 }

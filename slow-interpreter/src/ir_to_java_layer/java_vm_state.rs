@@ -87,9 +87,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
         if frame_ir_method_id != ir_method_id {
             frame_to_run_on.set_ir_method_id(ir_method_id);
         }
-        let this_thread_raw_ptr = jvm.thread_state.get_current_thread().thread_object().normal_object.ptr;
         let res = int_state.within_guest(|java_stack_guard, rbp_and_rsp| {
-            match self.ir.run_method(extra_intrinsics(this_thread_raw_ptr.into()), ir_method_id, rbp_and_rsp, java_stack_guard) {
+            match self.ir.run_method(extra_intrinsics(java_stack_guard.thread_obj_cache.unwrap()), ir_method_id, rbp_and_rsp, java_stack_guard) {
                 Ok(res) => {
                     // eprintln!("{}",jvm.method_table.read().unwrap().lookup_method_string(method_id, &jvm.string_pool));
                     Ok(res)

@@ -56,6 +56,12 @@ pub fn gen_intrinsic_ir<'vm>(
         }
     }
 
+    if class_name == CClassName::thread() {
+        if method_name == MethodName::method_currentThread() && desc == CompressedMethodDescriptor::empty_args(CClassName::thread().into()){
+            return java_lang_thread_current_thread(resolver, layout, method_id, ir_method_id);
+        }
+    }
+
     let get_component_type_desc = CompressedMethodDescriptor::empty_args(CPDType::class());
     if method_name == MethodName::method_getComponentType() && desc == get_component_type_desc && class_name == CClassName::class() {
         if let Some(res) = get_component_type_intrinsic(resolver, layout, method_id, ir_method_id) {
@@ -70,6 +76,29 @@ pub fn gen_intrinsic_ir<'vm>(
     }
 
     return direct_invoke_check(resolver, layout, desc, method_name, class_name, method_id, ir_method_id);
+}
+
+fn java_lang_thread_current_thread<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
+    return Some(vec![
+        IRInstr::IRStart {
+            temp_register: Register(2),
+            ir_method_id,
+            method_id,
+            frame_size: layout.full_frame_size(),
+            num_locals: resolver.num_locals(method_id) as usize,
+        },
+        IRInstr::GetThread {
+            res_register: Register(0),
+        },
+        IRInstr::Return {
+            return_val: Some(Register(0)),
+            temp_register_1: Register(1),
+            temp_register_2: Register(2),
+            temp_register_3: Register(3),
+            temp_register_4: Register(4),
+            frame_size: layout.full_frame_size(),
+        },
+    ]);
 }
 
 fn direct_invoke_check<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, desc: CMethodDescriptor, method_name: MethodName, class_name: CClassName, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {

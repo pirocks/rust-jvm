@@ -6,7 +6,7 @@ use memoffset::offset_of;
 
 use another_jit_vm::{JITContext, Register, VMState};
 use another_jit_vm::code_modification::AssemblerFunctionCallTarget;
-use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
+use another_jit_vm::intrinsic_helpers::{IntrinsicHelperType, ThreadLocalIntrinsicHelpers};
 use gc_memory_layout_common::memory_regions::MemoryRegions;
 use gc_memory_layout_common::memory_regions::RegionHeader;
 use inheritance_tree::ClassID;
@@ -813,6 +813,9 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::MaxUnsigned { .. } => {
             todo!()
+        }
+        IRInstr::GetThread { res_register } => {
+            assembler.mov(res_register.to_native_64(), r15 + offset_of!(JITContext,thread_local_intrinsic_data) + offset_of!(ThreadLocalIntrinsicHelpers,current_thread_obj)).unwrap();
         }
     }
     None
