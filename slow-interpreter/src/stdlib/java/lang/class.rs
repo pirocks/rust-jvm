@@ -10,7 +10,7 @@ use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 use rust_jvm_common::cpdtype_table::CPDTypeTable;
 
-use crate::{JavaValueCommon, JVMState, NewJavaValue, WasException};
+use crate::{JVMState, NewJavaValue, WasException};
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::{check_initing_or_inited_class, ClassIntrinsicsData};
 use crate::interpreter::common::ldc::load_class_constant_by_type;

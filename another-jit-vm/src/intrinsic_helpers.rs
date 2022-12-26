@@ -2,6 +2,7 @@ use std::ffi::c_void;
 use std::ptr::null_mut;
 
 use memoffset::offset_of;
+use nonnull_const::NonNullMut;
 
 use crate::JITContext;
 
@@ -13,8 +14,10 @@ extern "C" fn dremd(a: f64, b: f64) -> f64 {
     a % b
 }
 
+#[derive(Copy, Clone)]
 pub struct ExtraIntrinsicHelpers {
     pub constant_size_allocation: *const c_void,
+    pub current_thread_obj: NonNullMut<c_void>
 }
 
 #[repr(C)]
@@ -30,10 +33,10 @@ pub struct IntrinsicHelpers {
 }
 
 impl IntrinsicHelpers {
-    pub fn new(extra: ExtraIntrinsicHelpers) -> IntrinsicHelpers {
+    pub fn new(extra: &ExtraIntrinsicHelpers) -> IntrinsicHelpers {
         let ExtraIntrinsicHelpers {
-            constant_size_allocation
-        } = extra;
+            constant_size_allocation, current_thread_obj:_
+        } = *extra;
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
             fremf: fremf as *const c_void,
@@ -81,6 +84,18 @@ impl IntrinsicHelperType {
             IntrinsicHelperType::GetConstantAllocation => {
                 offset_of!(IntrinsicHelpers,constant_size_allocation)
             }
+        }
+    }
+}
+
+pub struct ThreadLocalIntrinsicHelpers{
+    current_thread_obj: NonNullMut<c_void>
+}
+
+impl ThreadLocalIntrinsicHelpers {
+    pub fn new(extra: &ExtraIntrinsicHelpers) -> ThreadLocalIntrinsicHelpers{
+        ThreadLocalIntrinsicHelpers{
+            current_thread_obj: extra.current_thread_obj,
         }
     }
 }

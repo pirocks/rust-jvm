@@ -192,7 +192,6 @@ impl<'vm> JavaStackGuard<'vm> {
             method_id,
             loader,
             native_local_refs,
-            // local_vars: local_vars.iter().map(|njv|njv.to_native()).collect(),
             operand_stack: operand_stack.iter().map(|njv| njv.to_stack_native()).collect(),
         };
         let raw_frame_info_pointer = Box::into_raw(box native_frame_info);

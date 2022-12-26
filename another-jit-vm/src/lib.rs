@@ -18,10 +18,11 @@ use std::sync::RwLock;
 use iced_x86::code_asm::{al, AsmRegister16, AsmRegister32, AsmRegister64, AsmRegister8, AsmRegisterMm, AsmRegisterXmm, bl, bx, cl, CodeAssembler, CodeLabel, cx, dl, dx, eax, ebx, ecx, edx, mm0, mm1, mm2, mm3, mm4, mm5, mm6, mm7, qword_ptr, r10, r10b, r10d, r10w, r11, r11b, r11d, r11w, r12, r12b, r12d, r12w, r13, r13b, r13d, r13w, r14, r14b, r14d, r14w, r15, r8, r8b, r8d, r8w, r9, r9b, r9d, r9w, rax, rbp, rbx, rcx, rdx, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 use libc::{MAP_ANONYMOUS, MAP_NORESERVE, MAP_PRIVATE, PROT_EXEC, PROT_READ, PROT_WRITE};
 use memoffset::offset_of;
+use nonnull_const::{NonNullConst, NonNullMut};
 use rangemap::RangeMap;
 
 use crate::code_modification::CodeModificationHandle;
-use crate::intrinsic_helpers::{ExtraIntrinsicHelpers, IntrinsicHelpers};
+use crate::intrinsic_helpers::{ExtraIntrinsicHelpers, IntrinsicHelpers, ThreadLocalIntrinsicHelpers};
 use crate::saved_registers_utils::{SavedRegistersWithIP, SavedRegistersWithIPDiff, SavedRegistersWithoutIP};
 use crate::stack::OwnedNativeStack;
 
@@ -263,6 +264,7 @@ pub struct JITContext {
     pub alt_native_rsp: NonNull<c_void>,
     pub alt_native_rbp: NonNull<c_void>,
     intrinsic_helpers: IntrinsicHelpers,
+    thread_local_intrinsic_data: ThreadLocalIntrinsicHelpers,
 }
 
 trait ExitHandlerType<'vm, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm;
@@ -325,7 +327,7 @@ impl<'vm, T> VMState<'vm, T> {
         }
     }
 
-    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack,extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
+    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -480,7 +482,8 @@ impl<'vm, T> VMState<'vm, T> {
             },
             alt_native_rsp: extra_stack.mmaped_top,
             alt_native_rbp: extra_stack.mmaped_top,
-            intrinsic_helpers: IntrinsicHelpers::new(extra_intrinsics),
+            intrinsic_helpers: IntrinsicHelpers::new(&extra_intrinsics),
+            thread_local_intrinsic_data: ThreadLocalIntrinsicHelpers::new(&extra_intrinsics),
         };
         let self_: &'l VMState<'vm, T> = self;
         let iterator: LaunchedVM<'vm, 'l, T> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, pending_exit: false };
@@ -508,22 +511,9 @@ impl<'vm, T> VMState<'vm, T> {
             "push r15",
             //save all registers to avoid breaking stuff
             "mov r15, {0}",
-            // "mov [r15 + {__rust_jvm_rax_native_offset_const}], rax",
             "mov [r15 + {__rust_jvm_rbx_native_offset_const}], rbx",// llvm doesn't like out rb for some reason
-            // "mov [r15 + {__rust_jvm_rcx_native_offset_const}], rcx",
-            // "mov [r15 + {__rust_jvm_rdx_native_offset_const}], rdx",
-            // "mov [r15 + {__rust_jvm_rsi_native_offset_const}], rsi",
-            // "mov [r15 + {__rust_jvm_rdi_native_offset_const}], rdi",
             "mov [r15 + {__rust_jvm_rbp_native_offset_const}], rbp",
             "mov [r15 + {__rust_jvm_rsp_native_offset_const}], rsp",
-            // "mov [r15 + {__rust_jvm_r8_native_offset_const}], r8",
-            // "mov [r15 + {__rust_jvm_r9_native_offset_const}], r9",
-            // "mov [r15 + {__rust_jvm_r10_native_offset_const}], r10",
-            // "mov [r15 + {__rust_jvm_r11_native_offset_const}], r11",
-            // "mov [r15 + {__rust_jvm_r12_native_offset_const}], r12",
-            // "mov [r15 + {__rust_jvm_r13_native_offset_const}], r13",
-            // "mov [r15 + {__rust_jvm_r14_native_offset_const}], r14",
-            // "xsave [r15 + {__rust_jvm_xsave_area_native_offset_const}]",
             "lea rax, [rip+__rust_jvm_internal_after_enter]",
             "mov [r15 + {__rust_jvm_rip_native_offset_const}], rax",
             //load expected register values
@@ -542,24 +532,11 @@ impl<'vm, T> VMState<'vm, T> {
             "mov r12,[r15 + {__rust_jvm_r12_guest_offset_const}]",
             "mov r13,[r15 + {__rust_jvm_r13_guest_offset_const}]",
             "mov r14,[r15 + {__rust_jvm_r14_guest_offset_const}]",
-            // "xrstor [r15 + {__rust_jvm_xsave_area_guest_offset_const}]",
             "jmp qword ptr [r15 + {__rust_jvm_rip_guest_offset_const}]",
             "__rust_jvm_internal_after_enter:",
-            // "mov rax, [r15 + {__rust_jvm_rax_native_offset_const}]",
             "mov rbx, [r15 + {__rust_jvm_rbx_native_offset_const}]",
-            // "mov rcx, [r15 + {__rust_jvm_rcx_native_offset_const}]",
-            // "mov rdx, [r15 + {__rust_jvm_rdx_native_offset_const}]",
-            // "mov rsi, [r15 + {__rust_jvm_rsi_native_offset_const}]",
-            // "mov rdi, [r15 + {__rust_jvm_rdi_native_offset_const}]",
             "mov rbp, [r15 + {__rust_jvm_rbp_native_offset_const}]",
             "mov rsp, [r15 + {__rust_jvm_rsp_native_offset_const}]",
-            // "mov r8, [r15 + {__rust_jvm_r8_native_offset_const}]",
-            // "mov r9, [r15 + {__rust_jvm_r9_native_offset_const}]",
-            // "mov r10, [r15 + {__rust_jvm_r10_native_offset_const}]",
-            // "mov r11, [r15 + {__rust_jvm_r11_native_offset_const}]",
-            // "mov r12, [r15 + {__rust_jvm_r12_native_offset_const}]",
-            // "mov r13, [r15 + {__rust_jvm_r13_native_offset_const}]",
-            // "mov r14, [r15 + {__rust_jvm_r14_native_offset_const}]",
             "pop r15",
             in(reg) jit_context_pointer,
             __rust_jvm_rip_guest_offset_const = const RIP_GUEST_OFFSET_CONST,
@@ -578,41 +555,50 @@ impl<'vm, T> VMState<'vm, T> {
             __rust_jvm_r12_guest_offset_const = const R12_GUEST_OFFSET_CONST,
             __rust_jvm_r13_guest_offset_const = const R13_GUEST_OFFSET_CONST,
             __rust_jvm_r14_guest_offset_const = const R14_GUEST_OFFSET_CONST,
-            // __rust_jvm_xsave_area_guest_offset_const = const XSAVE_AREA_GUEST_OFFSET_CONST,
             __rust_jvm_rip_native_offset_const = const RIP_NATIVE_OFFSET_CONST,
-            // __rust_jvm_rax_native_offset_const = const RAX_NATIVE_OFFSET_CONST,
             __rust_jvm_rbx_native_offset_const = const RBX_NATIVE_OFFSET_CONST,
-            // __rust_jvm_rcx_native_offset_const = const RCX_NATIVE_OFFSET_CONST,
-            // __rust_jvm_rdx_native_offset_const = const RDX_NATIVE_OFFSET_CONST,
-            // __rust_jvm_rsi_native_offset_const = const RSI_NATIVE_OFFSET_CONST,
-            // __rust_jvm_rdi_native_offset_const = const RDI_NATIVE_OFFSET_CONST,
             __rust_jvm_rbp_native_offset_const = const RBP_NATIVE_OFFSET_CONST,
             __rust_jvm_rsp_native_offset_const = const RSP_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r8_native_offset_const = const R8_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r9_native_offset_const = const R9_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r10_native_offset_const = const R10_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r11_native_offset_const = const R11_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r12_native_offset_const = const R12_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r13_native_offset_const = const R13_NATIVE_OFFSET_CONST,
-            // __rust_jvm_r14_native_offset_const = const R14_NATIVE_OFFSET_CONST,
-            // __rust_jvm_xsave_area_native_offset_const = const XSAVE_AREA_NATIVE_OFFSET_CONST,
-            out("ymm0") _,
-            out("ymm1") _,
-            out("ymm2") _,
-            out("ymm3") _,
-            out("ymm4") _,
-            out("ymm5") _,
-            out("ymm6") _,
-            out("ymm8") _,
-            out("ymm9") _,
-            out("ymm10") _,
-            out("ymm11") _,
-            out("ymm12") _,
-            out("ymm13") _,
-            out("ymm14") _,
-            out("ymm15") _,
+            out("zmm0") _,
+            out("zmm1") _,
+            out("zmm2") _,
+            out("zmm3") _,
+            out("zmm4") _,
+            out("zmm5") _,
+            out("zmm6") _,
+            out("zmm8") _,
+            out("zmm9") _,
+            out("zmm10") _,
+            out("zmm11") _,
+            out("zmm12") _,
+            out("zmm13") _,
+            out("zmm14") _,
+            out("zmm15") _,
+            out("zmm16") _,
+            out("zmm17") _,
+            out("zmm18") _,
+            out("zmm19") _,
+            out("zmm20") _,
+            out("zmm21") _,
+            out("zmm22") _,
+            out("zmm23") _,
+            out("zmm24") _,
+            out("zmm25") _,
+            out("zmm26") _,
+            out("zmm27") _,
+            out("zmm28") _,
+            out("zmm29") _,
+            out("zmm30") _,
+            out("zmm31") _,
+            out("k0") _,
+            out("k1") _,
+            out("k2") _,
+            out("k3") _,
+            out("k4") _,
+            out("k5") _,
+            out("k6") _,
+            out("k7") _,
             out("rax") _,
-            // out("rbx") _,
             out("rcx") _,
             out("rdx") _,
             out("rsi") _,
@@ -624,8 +610,6 @@ impl<'vm, T> VMState<'vm, T> {
             out("r12") _,
             out("r13") _,
             out("r14") _,
-            // out("ymm14") _,
-            // out("ymm15") _,
             )
         }
         // eprintln!("GOING OUT AT: rbp:{:?} rsp:{:?} rip:{:?}", jit_context.guest_registers.saved_registers_without_ip.rbp, jit_context.guest_registers.saved_registers_without_ip.rsp, jit_context.guest_registers.rip);
