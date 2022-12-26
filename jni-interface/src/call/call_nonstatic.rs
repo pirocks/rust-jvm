@@ -2,23 +2,30 @@ use std::ffi::VaList;
 use std::ptr::null_mut;
 
 use jvmti_jni_bindings::{jboolean, jbyte, jchar, jdouble, jfloat, jint, jlong, jmethodID, JNIEnv, jobject, jshort, jvalue};
+use method_table::from_jmethod_id;
 use slow_interpreter::exceptions::WasException;
 use slow_interpreter::java_values::ExceptionReturn;
-use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_throw};
+use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public_new;
 use crate::call::{call_nonstatic_method, VarargProvider};
 
 pub unsafe extern "C" fn call_object_method(env: *mut JNIEnv, obj: jobject, method_id: jmethodID, mut l: ...) -> jobject {
-    let res = match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
+    let res = match match call_nonstatic_method(env, obj, method_id, VarargProvider::Dots(&mut l)) {
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             todo!();
             return null_mut();
         }
+    } {
+        Some(x) => x,
+        None => {
+            let jvm = get_state(env);
+            dbg!(jvm.method_table.read().unwrap().lookup_method_string(from_jmethod_id(method_id), jvm.string_pool));
+            panic!()
+        },
     }
-        .unwrap()
         .unwrap_object();
     let interpreter_state = get_interpreter_state(env);
     new_local_ref_public_new(res.as_ref().map(|handle| handle.as_allocated_obj()), interpreter_state)

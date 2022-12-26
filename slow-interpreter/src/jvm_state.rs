@@ -2,7 +2,7 @@ use std::cell::{OnceCell, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::iter;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, RwLock};
@@ -14,6 +14,8 @@ use by_address::ByAddress;
 use itertools::Itertools;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
+use compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
+use compiler_common::JavaCompilerMethodAndFrameData;
 use inheritance_tree::bit_vec_path::BitVecPaths;
 use inheritance_tree::class_ids::ClassIDs;
 use inheritance_tree::InheritanceTree;
@@ -40,8 +42,6 @@ use rust_jvm_common::opaque_id_table::OpaqueIDs;
 use rust_jvm_common::vtype::VType;
 use sketch_jvm_version_of_utf8::wtf8_pool::Wtf8Pool;
 use stage0::RecompileConditions;
-use compiler_common::frame_data::{FunctionFrameData, SunkVerifierFrames};
-use compiler_common::JavaCompilerMethodAndFrameData;
 use verification::{ClassFileGetter, OperandStack, VerifierContext, verify};
 use verification::verifier::Frame;
 use vtable::lookup_cache::InvokeVirtualLookupCache;
@@ -141,7 +141,7 @@ pub struct JVMState<'gc> {
     pub all_the_static_fields: AllTheStaticFields<'gc>,
     pub java_home: PathBuf,
     pub boot_classpath: Vec<PathBuf>,
-    pub direct_invoke_whitelist: DirectInvokeWhitelist
+    pub direct_invoke_whitelist: DirectInvokeWhitelist,
 }
 
 
@@ -209,8 +209,14 @@ impl<'gc> Classes<'gc> {
         Some(obj)
     }
 
-    pub fn get_class_obj_from_runtime_class(&self, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
-        self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())).unwrap().clone().owned_inner()
+    pub fn get_class_obj_from_runtime_class(&self, jvm: &'gc JVMState<'gc>, runtime_class: Arc<RuntimeClass<'gc>>) -> AllocatedNormalObjectHandle<'gc> {
+        match self.class_object_pool.get_by_right(&ByAddress(runtime_class.clone())) {
+            Some(x) => x,
+            None => {
+                dbg!(runtime_class.cpdtype().jvm_representation(jvm.string_pool));
+                panic!()
+            }
+        }.clone().owned_inner()
     }
 
     pub fn classes_gc_roots<'specific_gc_life>(&'specific_gc_life self) -> impl Iterator<Item=&'specific_gc_life AllocatedNormalObjectHandle<'gc>> + 'specific_gc_life {
@@ -272,7 +278,7 @@ impl<'gc> Classes<'gc> {
 
 impl<'gc> JVMState<'gc> {
     pub fn boot_classpath_string(&self) -> String {
-        self.boot_classpath.iter().map(|path|path.to_str().unwrap()).join(":")
+        self.boot_classpath.iter().map(|path| path.to_str().unwrap()).join(":")
     }
 
     pub fn sink_function_verification_date(&self, verification_types: &HashMap<u16, HashMap<ByteCodeOffset, Frame>>, rc: Arc<RuntimeClass<'gc>>) {
@@ -456,7 +462,6 @@ pub struct JVMTIState {
 struct LivePoolGetterImpl<'gc> {
     jvm: &'gc JVMState<'gc>,
 }
-
 
 
 impl<'gc> LivePoolGetter for LivePoolGetterImpl<'gc> {
