@@ -75,15 +75,8 @@ pub fn run_native_method<'gc, 'l, 'k>(
 
         call_impl(jvm, native_frame, class.clone(), args, method.desc().clone(), &res_fn, !method.is_static())
     };
-    match int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
-                                      within_frame) {
-        Ok(res) => {
-            Ok(res)
-        }
-        Err(WasException { exception_obj }) => {
-            Err(WasException { exception_obj })
-        }
-    }
+    int_state.push_frame_native(StackEntryPush::new_native_frame(jvm, class.clone(), method_i as u16, corrected_args),
+                                      within_frame)
 }
 
 pub fn native_method_resolve<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, method: &MethodView) -> Option<unsafe extern "C" fn()> {

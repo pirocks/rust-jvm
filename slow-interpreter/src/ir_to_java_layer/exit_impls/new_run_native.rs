@@ -20,6 +20,7 @@ use crate::java_values::native_to_new_java_value_rtype;
 
 #[inline(never)]
 pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Option<&mut JavaExitFrame<'vm, 'k>>, method_id: MethodId, return_to_ptr: *const c_void) -> IRVMExitAction {
+    //todo need to use this frame instead of pushing a new one
     let int_state = int_state.unwrap();
     let (rc, method_i) = jvm.method_table.read().unwrap().try_lookup(method_id).unwrap();
     let view = rc.view();
@@ -48,6 +49,7 @@ pub fn run_native_special_new<'vm, 'k>(jvm: &'vm JVMState<'vm>, int_state: Optio
     };
     let mut diff = SavedRegistersWithoutIPDiff::no_change();
     diff.add_change(Register(0), res.map(|handle| unsafe { handle.to_stack_native().as_u64 }).unwrap_or(0));
+    //todo what if gc after this function returns such that the handle gets collected
     IRVMExitAction::RestartWithRegisterState {
         diff: SavedRegistersWithIPDiff {
             rip: Some(return_to_ptr),
