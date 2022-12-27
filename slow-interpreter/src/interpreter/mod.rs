@@ -148,7 +148,7 @@ pub fn run_function_interpreted<'l, 'gc>(jvm: &'gc JVMState<'gc>, interpreter_st
     let should_sync = if method.is_synchronized() {
         if method.is_static() {
             //todo
-            let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(rc.clone());
+            let class_obj = jvm.classes.read().unwrap().get_class_obj_from_runtime_class(jvm,rc.clone());
             let monitor = jvm.monitor_for(class_obj.ptr.as_ptr() as *const c_void);
             monitor.lock(jvm, real_interpreter_state.inner()).unwrap();
             Some(monitor)

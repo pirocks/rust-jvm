@@ -52,7 +52,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
         Some(runtime_class) => runtime_class.clone(),
     };
     let guard = jvm.classes.write().unwrap();
-    to_object_new(guard.get_class_obj_from_runtime_class(runtime_class.clone()).as_allocated_obj().into())
+    to_object_new(guard.get_class_obj_from_runtime_class(jvm, runtime_class.clone()).as_allocated_obj().into())
 }
 
 #[no_mangle]
