@@ -84,33 +84,6 @@ impl AllocatedObjectType {
         }
     }
 
-    /*pub fn size(&self) -> usize {
-        match self {
-            AllocatedObjectType::Class { size, .. } => {
-                if *size == 0 {
-                    return 1;
-                }
-                *size
-            }
-            AllocatedObjectType::ObjectArray { len, .. } => {
-                let array_layout = ArrayMemoryLayout::from_cpdtype(CClassName::object().into());
-                let res = array_layout.array_size(*len);
-                if res == 0 {
-                    panic!()
-                } else {
-                    res
-                }
-            }
-            AllocatedObjectType::PrimitiveArray { len, primitive_type, .. } => {
-                let array_layout = ArrayMemoryLayout::from_cpdtype(*primitive_type);
-                array_layout.array_size(*len)
-            }
-            AllocatedObjectType::Raw { size } => {
-                *size
-            }
-        }
-    }*/
-
     pub fn as_cpdtype(&self) -> CPDType {
         match self {
             AllocatedObjectType::Class { name, .. } => {

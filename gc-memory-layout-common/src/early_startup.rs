@@ -2,8 +2,8 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::num::NonZeroUsize;
 use std::ptr::NonNull;
-use crate::memory_regions::RegionHeader;
 
+use crate::memory_regions::RegionHeader;
 
 pub const MEGABYTE: usize = 1024 * 1024;
 pub const GIGABYTE: usize = 1024 * MEGABYTE;
@@ -13,11 +13,11 @@ pub const MAX_REGIONS_SIZE: usize = 8 * TERABYTE;
 pub const MAX_REGIONS_SIZE_SIZE: usize = 43;
 static_assertions::const_assert_eq!(1usize << MAX_REGIONS_SIZE_SIZE, MAX_REGIONS_SIZE);
 
-pub const SMALL_REGION_SIZE_SIZE: usize = 6;
-pub const SMALL_REGION_SIZE: usize = 64;
+pub const SMALL_REGION_SIZE_SIZE: usize = 12;
+pub const SMALL_REGION_SIZE: usize = 4096;
 static_assertions::const_assert_eq!(1 << SMALL_REGION_SIZE_SIZE, SMALL_REGION_SIZE);
-pub const MEDIUM_REGION_SIZE_SIZE: usize = 12;
-pub const MEDIUM_REGION_SIZE: usize = 4096;
+pub const MEDIUM_REGION_SIZE_SIZE: usize = 15;
+pub const MEDIUM_REGION_SIZE: usize = 32768;
 static_assertions::const_assert_eq!(1 << MEDIUM_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE);
 pub const LARGE_REGION_SIZE_SIZE: usize = 20;
 pub const LARGE_REGION_SIZE: usize = MEGABYTE;
@@ -35,13 +35,9 @@ pub struct Regions {
     pub extra_large_regions: NonNull<c_void>,
 }
 
-unsafe impl Send for Regions{
+unsafe impl Send for Regions {}
 
-}
-
-unsafe impl Sync for Regions{
-
-}
+unsafe impl Sync for Regions {}
 
 impl Regions {
     pub fn base_regions_address(&self, region: Region) -> NonNull<c_void> {
@@ -129,17 +125,15 @@ pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
     res
 }
 
-pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
-    // dbg!(ptr as *mut c_void);
-    let shifted = ptr >> MAX_REGIONS_SIZE_SIZE;
-    //1 3 5 7
-    let i = ((shifted - 1) >> 1) + 1;
-    //1 2 3 4
-    let base = 1 << i;
-    let shift = (i >> 1) - ((i >> 2) << 1);
-    let res_shift = base + (1 << shift) << 1;
-    assert_eq!(1 << res_shift, region_pointer_to_region(ptr).region_size() as u64);
-    res_shift
+pub extern "C" fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
+    let res = match ptr >> MAX_REGIONS_SIZE_SIZE {
+        1 => SMALL_REGION_SIZE_SIZE,
+        3 => MEDIUM_REGION_SIZE_SIZE,
+        5 => LARGE_REGION_SIZE_SIZE,
+        7 => EXTRA_LARGE_REGION_SIZE_SIZE,
+        _ => panic!()
+    };
+    res as u8
 }
 
 impl Region {
@@ -174,5 +168,41 @@ impl Region {
 
 #[cfg(test)]
 pub mod test {
+    use std::ffi::c_void;
+    use std::ptr::NonNull;
 
+    use crate::early_startup::{EXTRA_LARGE_REGION_BASE, EXTRA_LARGE_REGION_SIZE_SIZE, LARGE_REGION_BASE, LARGE_REGION_SIZE_SIZE, MAX_REGIONS_SIZE, MAX_REGIONS_SIZE_SIZE, MEDIUM_REGION_BASE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size_size, SMALL_REGION_BASE, SMALL_REGION_SIZE_SIZE};
+
+    #[test]
+    pub fn test_region_pointer_to_region_size_size() {
+        unsafe {
+            let a_ptr = NonNull::new((SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
+            let expected = Region::Small;
+            for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
+                assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Small);
+                assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), SMALL_REGION_SIZE_SIZE as u8);
+            }
+
+            let a_ptr = NonNull::new((MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
+            let expected = Region::Medium;
+            for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
+                assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Medium);
+                assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), MEDIUM_REGION_SIZE_SIZE as u8);
+            }
+
+            let a_ptr = NonNull::new((LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
+            let expected = Region::Large;
+            for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
+                assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Large);
+                assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), LARGE_REGION_SIZE_SIZE as u8);
+            }
+
+            let a_ptr = NonNull::new((EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
+            let expected = Region::ExtraLarge;
+            for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
+                assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::ExtraLarge);
+                assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), EXTRA_LARGE_REGION_SIZE_SIZE as u8);
+            }
+        }
+    }
 }
