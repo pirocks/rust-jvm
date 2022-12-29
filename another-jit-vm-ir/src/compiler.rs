@@ -143,15 +143,6 @@ pub enum IRInstr {
     BranchEqualVal { a: Register, const_: u32, label: LabelName, size: Size },
     BoundsCheck { length: Register, index: Register, size: Size, exit: IRVMExitType },
     Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
-    MemCopyForward {
-        src_base_addr: Register,
-        dst_base_addr: Register,
-        len: Register,
-        temp_register_1: Register,
-        temp_register_2: Register,
-        temp_register_3: Register,
-        vector_temp_register: FloatRegister,
-    },
     RestartPoint(RestartPointID),
     VTableLookupOrExit {
         resolve_exit: IRVMExitType,
@@ -524,9 +515,6 @@ impl IRInstr {
             }
             IRInstr::DoubleToFloatConvert { .. } => {
                 "DoubleToFloatConvert".to_string()
-            }
-            IRInstr::MemCopyForward { .. } => {
-                "MemCopy".to_string()
             }
             IRInstr::AddConst { .. } => {
                 "AddConst".to_string()

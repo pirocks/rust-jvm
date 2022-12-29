@@ -2,8 +2,6 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use std::thread::current;
 use std::time::{Duration, Instant};
-use iced_x86::ConditionCode::g;
-
 use rust_jvm_common::JavaThreadId;
 
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};

@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::null_mut;
 
 use memoffset::offset_of;
-use nonnull_const::{NonNullConst, NonNullMut};
+use nonnull_const::{NonNullMut};
 
 use crate::JITContext;
 
