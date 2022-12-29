@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use std::thread::current;
 use std::time::{Duration, Instant};
+use iced_x86::ConditionCode::g;
 
 use rust_jvm_common::JavaThreadId;
 
@@ -383,6 +384,7 @@ impl Monitor2 {
                         guard.waiting_lock.remove(&to_wake_tid);
                         let to_wake = jvm.thread_state.get_thread_by_tid(to_wake_tid);
                         to_wake.safepoint_state.set_monitor_unlocked();
+                        drop(guard)
                     }
                 }
             } else {

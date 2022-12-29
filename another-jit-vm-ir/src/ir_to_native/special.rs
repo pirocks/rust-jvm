@@ -1,12 +1,14 @@
 use iced_x86::code_asm::{CodeAssembler, rax, rbp};
 
 use another_jit_vm::{Register, VMState};
-use gc_memory_layout_common::memory_regions::MemoryRegions;
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
+use gc_memory_layout_common::memory_regions::{find_vtable_ptr, MemoryRegions};
 use rust_jvm_common::ByteCodeOffset;
 use vtable::generate_vtable_access;
 
 use crate::{gen_vm_exit, InvokeVirtualResolve, IRVMExitType};
-use crate::compiler::Size;
+use crate::compiler::{IRInstr, Size};
+use crate::ir_to_native::{ir_call_intrinsic_helper, single_ir_to_native};
 
 pub fn npe_check(assembler: &mut CodeAssembler, temp_register: Register, npe_exit_type: &IRVMExitType, possibly_null: Register) {
     let mut after_exit_label = assembler.create_label();
@@ -51,7 +53,8 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let mut before_exit_label = assembler.create_label();
             VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
             let vtable_ptr_register = Register(3);
-            MemoryRegions::generate_find_vtable_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), vtable_ptr_register);
+
+            ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindVTablePtr,&vec![obj_ptr],Some(vtable_ptr_register), &vec![], &None, &vec![], &None );
             let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4
             assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
             generate_vtable_access(assembler, *method_number, vtable_ptr_register, Register(1), address_register);

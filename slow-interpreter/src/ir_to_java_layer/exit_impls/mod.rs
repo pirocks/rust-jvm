@@ -29,6 +29,7 @@ use rust_jvm_common::method_shape::{MethodShape, MethodShapeID};
 use rust_jvm_common::runtime_type::RuntimeType;
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 use compiler_common::MethodResolver;
+use gc_memory_layout_common::memory_regions::MemoryRegions;
 use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
@@ -242,7 +243,7 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
     // like surely I need to start at the classname specified in the bytecode
     let memory_region_guard = jvm.gc.memory_region.lock().unwrap();
     let maybe_non_null = NonNull::new(unsafe { (object_ref_ptr as *const *mut c_void).read() });
-    let vtable = memory_region_guard.find_type_vtable(maybe_non_null.unwrap()).unwrap();
+    let vtable = MemoryRegions::find_type_vtable(maybe_non_null.unwrap()).unwrap();
     let vtable_lookup_res = VTable::lookup(vtable, method_number);
     //todo actually use vtable lookup res
     let res = match vtable_lookup_res {

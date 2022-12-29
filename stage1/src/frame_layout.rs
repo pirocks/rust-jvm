@@ -8,6 +8,16 @@ pub struct Stage1FrameLayout {
     value_statues_mappings: Vec<(ByteCodeOffset, ValueStatusChange)>,
 }
 
+impl Stage1FrameLayout{
+    pub fn compute_layout(&self) {
+        todo!()
+        /*let current = ComputedStage1FrameLayoutAtOffset{};
+        for (offset, status_change) in self.value_statues_mappings {
+
+        }*/
+    }
+}
+
 pub enum ValueMapping {
     Pointer(PointerValue),
     Long(LongValue),

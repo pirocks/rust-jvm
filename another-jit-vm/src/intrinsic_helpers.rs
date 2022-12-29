@@ -2,7 +2,7 @@ use std::ffi::c_void;
 use std::ptr::null_mut;
 
 use memoffset::offset_of;
-use nonnull_const::NonNullMut;
+use nonnull_const::{NonNullConst, NonNullMut};
 
 use crate::JITContext;
 
@@ -17,7 +17,9 @@ extern "C" fn dremd(a: f64, b: f64) -> f64 {
 #[derive(Copy, Clone)]
 pub struct ExtraIntrinsicHelpers {
     pub constant_size_allocation: *const c_void,
-    pub current_thread_obj: NonNullMut<c_void>
+    pub current_thread_obj: NonNullMut<c_void>,
+    pub find_vtable_ptr: *const c_void,
+    pub find_itable_ptr: *const c_void,
 }
 
 #[repr(C)]
@@ -30,12 +32,16 @@ pub struct IntrinsicHelpers {
     malloc: *const c_void,
     free: *const c_void,
     constant_size_allocation: *const c_void,
+    find_vtable_ptr: *const c_void,
+    find_itable_ptr: *const c_void,
 }
 
 impl IntrinsicHelpers {
     pub fn new(extra: &ExtraIntrinsicHelpers) -> IntrinsicHelpers {
         let ExtraIntrinsicHelpers {
-            constant_size_allocation, current_thread_obj:_
+            constant_size_allocation, current_thread_obj: _,
+            find_vtable_ptr,
+            find_itable_ptr
         } = *extra;
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
@@ -45,11 +51,13 @@ impl IntrinsicHelpers {
             malloc: libc::malloc as *const c_void,
             free: libc::free as *const c_void,
             constant_size_allocation,
+            find_vtable_ptr,
+            find_itable_ptr
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub enum IntrinsicHelperType {
     Memmove,
     FRemF,
@@ -58,6 +66,8 @@ pub enum IntrinsicHelperType {
     Malloc,
     Free,
     GetConstantAllocation,
+    FindVTablePtr,
+    FindITablePtr,
 }
 
 impl IntrinsicHelperType {
@@ -84,18 +94,24 @@ impl IntrinsicHelperType {
             IntrinsicHelperType::GetConstantAllocation => {
                 offset_of!(IntrinsicHelpers,constant_size_allocation)
             }
+            IntrinsicHelperType::FindVTablePtr => {
+                offset_of!(IntrinsicHelpers,find_vtable_ptr)
+            }
+            IntrinsicHelperType::FindITablePtr => {
+                offset_of!(IntrinsicHelpers,find_itable_ptr)
+            }
         }
     }
 }
 
 #[repr(C)]
-pub struct ThreadLocalIntrinsicHelpers{
-    pub current_thread_obj: NonNullMut<c_void>
+pub struct ThreadLocalIntrinsicHelpers {
+    pub current_thread_obj: NonNullMut<c_void>,
 }
 
 impl ThreadLocalIntrinsicHelpers {
-    pub fn new(extra: &ExtraIntrinsicHelpers) -> ThreadLocalIntrinsicHelpers{
-        ThreadLocalIntrinsicHelpers{
+    pub fn new(extra: &ExtraIntrinsicHelpers) -> ThreadLocalIntrinsicHelpers {
+        ThreadLocalIntrinsicHelpers {
             current_thread_obj: extra.current_thread_obj,
         }
     }

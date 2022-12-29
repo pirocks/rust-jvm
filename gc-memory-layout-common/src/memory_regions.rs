@@ -388,15 +388,18 @@ pub struct BaseAddressAndMask {
     pub base_address: *mut c_void,
 }
 
+pub extern "C" fn find_vtable_ptr(ptr_in: NonNull<c_void>) -> *mut c_void{
+    MemoryRegions::find_type_vtable(ptr_in).map(|inner|inner.as_ptr() as *mut c_void).unwrap_or(null_mut())
+}
+
+pub extern "C" fn find_itable_ptr(ptr_in: NonNull<c_void>) -> *mut c_void{
+    MemoryRegions::find_type_itable(ptr_in).map(|inner|inner.as_ptr() as *mut c_void).unwrap_or(null_mut())
+}
+
 impl MemoryRegions {
     pub fn generate_find_vtable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
         Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
         assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,vtable_ptr)).unwrap();
-    }
-
-    pub fn generate_find_array_elem_size(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
-        Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
-        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,array_elem_size)).unwrap();
     }
 
     pub fn generate_find_itable_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register, fail_label: CodeLabel) {
@@ -475,11 +478,11 @@ impl MemoryRegions {
         unsafe { (masked as *mut c_void as *mut RegionHeader).as_mut().unwrap() }
     }
 
-    pub fn find_type_vtable(&self, ptr: NonNull<c_void>) -> Option<NonNull<RawNativeVTable>> {
+    pub fn find_type_vtable(ptr: NonNull<c_void>) -> Option<NonNull<RawNativeVTable>> {
         NonNull::new(MemoryRegions::find_object_region_header(ptr).vtable_ptr)
     }
 
-    pub fn find_type_itable(&self, ptr: NonNull<c_void>) -> Option<NonNull<ITableRaw>> {
+    pub fn find_type_itable(ptr: NonNull<c_void>) -> Option<NonNull<ITableRaw>> {
         NonNull::new(MemoryRegions::find_object_region_header(ptr).itable_ptr)
     }
 
