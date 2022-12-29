@@ -49,7 +49,7 @@ impl<'gc> ThreadState<'gc> {
         }
     }
 
-    pub(crate) fn debug_assert(&self, jvm: &'gc JVMState<'gc>){
+    pub(crate) fn debug_assert(&self, _jvm: &'gc JVMState<'gc>){
         // self.all_java_threads.read().unwrap().values().for_each(|thread|{
         //     let normal_object = match thread.thread_object.read().unwrap().as_ref() {
         //         Some(x) => x,

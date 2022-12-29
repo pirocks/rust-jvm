@@ -3,11 +3,12 @@ use std::ptr::NonNull;
 use iced_x86::code_asm::{CodeAssembler, dword_ptr, rbp, ymm0, ymm1, ymm2, ymm4};
 use memoffset::offset_of;
 use another_jit_vm::{FramePointerOffset, Register, VMState};
-use gc_memory_layout_common::memory_regions::MemoryRegions;
+use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use crate::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::memory_regions::RegionHeader;
+use crate::ir_to_native::native_call::ir_call_intrinsic_helper;
 
 pub(crate) fn instance_of_interface(assembler: &mut CodeAssembler, target_interface_id: &ClassID, object_ref: &FramePointerOffset, return_val: &Register) {
     let obj_ptr = Register(0);
@@ -18,7 +19,7 @@ pub(crate) fn instance_of_interface(assembler: &mut CodeAssembler, target_interf
     assembler.je(instance_of_fail).unwrap();
     let interface_list_base_pointer = Register(3);
     let interface_list_base_pointer_len = Register(5);
-    MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), interface_list_base_pointer.clone());
+    ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindObjectHeader, &vec![obj_ptr], Some(interface_list_base_pointer), &vec![], &None, &vec![], &None);
     assembler.mov(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list_len)).unwrap();
     assembler.mov(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + offset_of!(RegionHeader,interface_ids_list)).unwrap();
     assembler.lea(interface_list_base_pointer_len.to_native_64(), interface_list_base_pointer.to_native_64() + interface_list_base_pointer_len.to_native_64() * size_of::<ClassID>()).unwrap();
@@ -50,7 +51,7 @@ pub(crate) fn instance_of_class(assembler: &mut CodeAssembler, inheritance_path:
     assembler.cmp(obj_ptr.to_native_64(), 0).unwrap();
     assembler.je(instance_of_fail).unwrap();
     let object_inheritance_path_pointer = Register(3);
-    MemoryRegions::generate_find_object_region_header(assembler, obj_ptr, Register(1), Register(2), Register(4), object_inheritance_path_pointer);
+    ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindObjectHeader, &vec![obj_ptr], Some(object_inheritance_path_pointer), &vec![], &None, &vec![], &None);
     assembler.mov(object_inheritance_path_pointer.to_native_64(), object_inheritance_path_pointer.to_native_64() + offset_of!(RegionHeader,inheritance_bit_path_ptr)).unwrap();
     assembler.cmp(object_inheritance_path_pointer.to_native_64(), 0).unwrap();
     assembler.je(instance_of_exit_label).unwrap();

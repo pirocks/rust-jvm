@@ -169,10 +169,10 @@ pub(crate) fn ir_call_intrinsic_helper(assembler: &mut CodeAssembler, intrinsic_
             assembler.movdqa(double_res.to_xmm(), xmm0).unwrap();
         }
         IntrinsicHelperType::GetConstantAllocation => todo!(),
-        IntrinsicHelperType::FindVTablePtr => {
-            one_integer_in_and_one_out(assembler, intrinsic_helper_type, integer_args, integer_res);
-        }
-        IntrinsicHelperType::FindITablePtr => {
+        IntrinsicHelperType::FindVTablePtr |
+        IntrinsicHelperType::FindITablePtr |
+        IntrinsicHelperType::FindObjectHeader |
+        IntrinsicHelperType::FindClassPtr => {
             one_integer_in_and_one_out(assembler, intrinsic_helper_type, integer_args, integer_res);
         }
     }

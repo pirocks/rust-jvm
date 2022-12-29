@@ -209,7 +209,7 @@ impl JavaVMStateWrapperInner {
             RuntimeVMExitInput::AllocateObjectArrayIntrinsic { type_, len, return_to_ptr, res_address } => {
                 return exit_impls::allocate_object_array(jvm, int_state.unwrap(), *type_, *len, *return_to_ptr, *res_address);
             }
-            RuntimeVMExitInput::InvokeDynamic { cp_index, pc, return_to_ptr, res_address, first_arg } => {
+            RuntimeVMExitInput::InvokeDynamic { cp_index, pc:_, return_to_ptr, res_address, first_arg } => {
                 let int_state = int_state.unwrap();
                 let class_pointer = int_state.class_pointer().unwrap();
                 let class_pointer_view = class_pointer.view();

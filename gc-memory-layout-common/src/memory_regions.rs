@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
-use memoffset::offset_of;
 use nonnull_const::{NonNullConst};
 
 use another_jit_vm::Register;
@@ -388,33 +387,8 @@ pub struct BaseAddressAndMask {
     pub base_address: *mut c_void,
 }
 
-pub extern "C" fn find_vtable_ptr(ptr_in: *mut c_void) -> *mut c_void{
-    MemoryRegions::find_type_vtable(match NonNull::new(ptr_in) {
-        Some(x) => x,
-        None => return null_mut(),
-    }).map(|inner|inner.as_ptr() as *mut c_void).unwrap_or(null_mut())
-}
-
-pub extern "C" fn find_itable_ptr(ptr_in: *mut c_void) -> *mut c_void{
-    MemoryRegions::find_type_itable(match NonNull::new(ptr_in) {
-        Some(x) => x,
-        None => return null_mut(),
-    }).map(|inner|inner.as_ptr() as *mut c_void).unwrap_or(null_mut())
-}
-
-pub extern "C" fn find_class_ptr(ptr_in: *mut c_void) -> *mut c_void{
-    MemoryRegions::find_class_ptr_cache(match NonNull::new(ptr_in) {
-        Some(x) => x,
-        None => return null_mut(),
-    }).map(|inner|inner.as_ptr() as *mut c_void).unwrap_or(null_mut())
-}
 
 impl MemoryRegions {
-    pub fn generate_find_class_ptr(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
-        Self::generate_find_object_region_header(assembler, ptr, temp_1, temp_2, temp_3, out);
-        assembler.mov(out.to_native_64(), out.to_native_64() + offset_of!(RegionHeader,class_pointer_cache)).unwrap();
-    }
-
     pub fn generate_find_object_region_header(assembler: &mut CodeAssembler, ptr: Register, temp_1: Register, temp_2: Register, temp_3: Register, out: Register) {
         //from compiled region_pointer_to_region_size
         //let as_u64 = ptr.as_ptr() as u64;
@@ -489,6 +463,14 @@ impl MemoryRegions {
 
     pub fn find_class_ptr_cache(ptr: NonNull<c_void>) -> Option<NonNull<_jobject>>{
         NonNull::new(MemoryRegions::find_object_region_header(ptr).class_pointer_cache)
+    }
+
+    pub fn find_object_region_header_raw(ptr: NonNull<c_void>) -> *mut RegionHeader {
+        let as_u64 = ptr.as_ptr() as u64;
+        let region_size = region_pointer_to_region_size_size(as_u64);
+        let region_mask = u64::MAX << region_size;
+        let masked = as_u64 & region_mask;
+        masked as *mut c_void as *mut RegionHeader
     }
 
 

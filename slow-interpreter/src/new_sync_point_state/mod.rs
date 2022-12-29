@@ -98,7 +98,7 @@ impl<'gc> NewSafePointState<'gc> {
                 continue;
             }
 
-            if let Some(joining_thread) = guard.joining_thread() {
+            if let Some(_joining_thread) = guard.joining_thread() {
                 todo!()
             }
 
@@ -162,7 +162,7 @@ impl<'gc> NewSafePointState<'gc> {
         self.condvar.notify_all();
     }
 
-    pub fn set_notified(&self, monitor_id: MonitorID) {
+    pub fn set_notified(&self, _monitor_id: MonitorID) {
         let mut guard = self.inner.lock().unwrap();
         // assert!(guard.waiting_monitor_notify().is_some());/// not true b/c timeouts exist
         // assert_eq!(guard.waiting_monitor_notify().unwrap().monitor, monitor_id);

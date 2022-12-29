@@ -131,7 +131,11 @@ pub extern "C" fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
         3 => MEDIUM_REGION_SIZE_SIZE,
         5 => LARGE_REGION_SIZE_SIZE,
         7 => EXTRA_LARGE_REGION_SIZE_SIZE,
-        _ => panic!()
+        _ => {
+            dbg!(ptr);
+            eprintln!("{:X}", ptr);
+            panic!()
+        }
     };
     res as u8
 }

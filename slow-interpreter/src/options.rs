@@ -199,7 +199,7 @@ impl JVMOptions {
         debug_print_exceptions: bool,
         assertions_enabled: bool,
     ) -> Self {
-        let trace_set = HashSet::from_iter(vec![
+        let trace_set: HashSet<MethodToTrace> = HashSet::from_iter(vec![
             //     /* MethodToTrace {
             //          combined: "com/google/common/base/Preconditions/checkNotNull".to_string(),
             //      },*/
@@ -249,7 +249,7 @@ impl JVMOptions {
             //     combined: "BasicByte/relGet".to_string(),
             // },
         ].into_iter());
-        let trace_options = InstructionTraceOptions::TraceMethods(trace_set);
+        let trace_options = InstructionTraceOptions::TraceNone/*TraceMethods(trace_set)*/;
         let thread_tracing_options = ThreadTracingOptions {
             trace_monitor_wait_enter: true,
             trace_monitor_wait_exit: true,
@@ -285,7 +285,6 @@ impl JVMOptions {
             enable_tracing: false,
             enable_jvmti: false,
             properties: vec![],
-            unittest_mode: false,
             store_generated_classes: false,
             debug_print_exceptions: false,
             assertions_enabled: false,

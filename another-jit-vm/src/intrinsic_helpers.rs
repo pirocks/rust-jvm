@@ -20,6 +20,8 @@ pub struct ExtraIntrinsicHelpers {
     pub current_thread_obj: NonNullMut<c_void>,
     pub find_vtable_ptr: *const c_void,
     pub find_itable_ptr: *const c_void,
+    pub find_class_ptr: *const c_void,
+    pub find_object_region_header: *const c_void,
 }
 
 #[repr(C)]
@@ -34,6 +36,8 @@ pub struct IntrinsicHelpers {
     constant_size_allocation: *const c_void,
     find_vtable_ptr: *const c_void,
     find_itable_ptr: *const c_void,
+    find_class_ptr: *const c_void,
+    find_object_region_header: *const c_void,
 }
 
 impl IntrinsicHelpers {
@@ -41,7 +45,9 @@ impl IntrinsicHelpers {
         let ExtraIntrinsicHelpers {
             constant_size_allocation, current_thread_obj: _,
             find_vtable_ptr,
-            find_itable_ptr
+            find_itable_ptr,
+            find_class_ptr,
+            find_object_region_header
         } = *extra;
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
@@ -52,7 +58,9 @@ impl IntrinsicHelpers {
             free: libc::free as *const c_void,
             constant_size_allocation,
             find_vtable_ptr,
-            find_itable_ptr
+            find_itable_ptr,
+            find_class_ptr,
+            find_object_region_header
         }
     }
 }
@@ -68,6 +76,8 @@ pub enum IntrinsicHelperType {
     GetConstantAllocation,
     FindVTablePtr,
     FindITablePtr,
+    FindClassPtr,
+    FindObjectHeader
 }
 
 impl IntrinsicHelperType {
@@ -99,6 +109,12 @@ impl IntrinsicHelperType {
             }
             IntrinsicHelperType::FindITablePtr => {
                 offset_of!(IntrinsicHelpers,find_itable_ptr)
+            }
+            IntrinsicHelperType::FindClassPtr => {
+                offset_of!(IntrinsicHelpers,find_class_ptr)
+            }
+            IntrinsicHelperType::FindObjectHeader => {
+                offset_of!(IntrinsicHelpers,find_object_region_header)
             }
         }
     }

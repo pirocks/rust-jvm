@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced_x86::code_asm::{al, ax, CodeAssembler, CodeLabel, r15, rbp, rbx};
+use iced_x86::code_asm::{CodeAssembler, CodeLabel, r15, rbp, rbx};
 use memoffset::offset_of;
 
 use another_jit_vm::{JITContext};

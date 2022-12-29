@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::sync::RwLock;
 use std::thread::current;
 use std::time::{Duration, Instant};
+
 use rust_jvm_common::JavaThreadId;
 
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
@@ -346,14 +347,13 @@ impl Monitor2 {
                     Ok(res) => {
                         match res {
                             Ok(()) => {}
-                            Err(TimedOut{}) => {
+                            Err(TimedOut {}) => {
                                 todo!("locking operations should never time out")
                             }
                         }
                     }
-                    Err(WasException{ exception_obj }) => {
-                        todo!("need to clean up lock guard");
-                        return Err(WasException{ exception_obj })
+                    Err(WasException { exception_obj: _ }) => {
+                        todo!("need to clean up lock guard")
                     }
                 };
                 let guard = self.monitor2_priv.write().unwrap();
@@ -368,7 +368,7 @@ impl Monitor2 {
         Ok(())
     }
 
-    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, int_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
+    pub fn unlock<'gc, 'l>(&self, jvm: &'gc JVMState<'gc>, _int_state: &mut impl HasFrame<'gc>) -> Result<(), WasException<'gc>> {
         let mut guard = self.monitor2_priv.write().unwrap();
         let current_thread = jvm.thread_state.get_current_thread();
         if let Some(owner) = guard.owner.as_ref() {
@@ -401,7 +401,7 @@ impl Monitor2 {
         }
         let current_thread = jvm.thread_state.get_current_thread();
         assert_eq!(guard.owner, Some(current_thread.java_tid));
-        if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned(){
+        if let Some(waiting_notify) = guard.waiting_notify.iter().next().cloned() {
             guard.waiting_notify.remove(&waiting_notify);
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(waiting_notify);
             guard.waiting_lock.insert(to_notify_thread.java_tid);
@@ -419,7 +419,7 @@ impl Monitor2 {
         }
         let current_thread = jvm.thread_state.get_current_thread();
         assert_eq!(guard.owner, Some(current_thread.java_tid));
-        let (waiting_notify,waiting_lock) = guard.split_borrow_sets_notify_lock();
+        let (waiting_notify, waiting_lock) = guard.split_borrow_sets_notify_lock();
         for thread_id in waiting_notify.drain() {
             let to_notify_thread = jvm.thread_state.get_thread_by_tid(thread_id);
             waiting_lock.insert(to_notify_thread.java_tid);
@@ -460,14 +460,14 @@ impl Monitor2 {
                 Err(_) => {
                     todo!()
                 }
-                Ok(Err(TimedOut{})) => {
+                Ok(Err(TimedOut {})) => {
                     // int_state.debug_print_stack_trace(jvm);
                     // println!("timeout {}", std::thread::current().name().unwrap());
                     let mut guard = self.monitor2_priv.write().unwrap();
                     guard.waiting_notify.remove(&current_thread.java_tid);
                     current_thread.safepoint_state.set_notified(self.id);
                     drop(guard);
-                    return self.notify_reacquire(jvm,int_state, prev_count);
+                    return self.notify_reacquire(jvm, int_state, prev_count);
                 }
                 Ok(Ok(())) => {}
             };

@@ -3,7 +3,7 @@ use iced_x86::code_asm::{al, ax, CodeAssembler, eax, qword_ptr, r15, rax, rbp, r
 
 use another_jit_vm::{FramePointerOffset, Register, VMState};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
-use gc_memory_layout_common::memory_regions::{MemoryRegions, RegionHeader};
+use gc_memory_layout_common::memory_regions::{RegionHeader};
 use interface_vtable::generate_itable_access;
 use rust_jvm_common::ByteCodeOffset;
 use vtable::generate_vtable_access;
@@ -56,7 +56,7 @@ pub fn vtable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit: &IRVME
             let mut before_exit_label = assembler.create_label();
             VMState::<u64>::gen_vm_exit(assembler, &mut before_exit_label, &mut not_null, registers);
             let vtable_ptr_register = Register(3);
-
+            assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
             ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindVTablePtr,&vec![obj_ptr],Some(vtable_ptr_register), &vec![], &None, &vec![], &None );
             let address_register = InvokeVirtualResolve::ADDRESS_RES;// register 4
             assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
@@ -115,10 +115,9 @@ pub(crate) fn allocate_constant_size(assembler: &mut CodeAssembler, region_heade
 pub(crate) fn get_class_or_exit(assembler: &mut CodeAssembler, object_ref: &FramePointerOffset, res: &Register, get_class_exit: &IRVMExitType) {
     let mut after_exit_label = assembler.create_label();
     let obj_ptr = Register(0);
-    // assembler.int3().unwrap();
     assembler.mov(obj_ptr.to_native_64(), rbp - object_ref.0).unwrap();
     let class_ptr_register = Register(3);
-    MemoryRegions::generate_find_class_ptr(assembler, obj_ptr, Register(1), Register(2), Register(4), class_ptr_register.clone());
+    ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindClassPtr, &vec![obj_ptr], Some(class_ptr_register), &vec![], &None, &vec![], &None);
     assembler.mov(res.to_native_64(), class_ptr_register.to_native_64()).unwrap();
     assembler.test(class_ptr_register.to_native_64(), class_ptr_register.to_native_64()).unwrap();
     assembler.jnz(after_exit_label).unwrap();
@@ -145,7 +144,6 @@ pub(crate) fn itable_lookup_or_exit(assembler: &mut CodeAssembler, resolve_exit:
             let itable_ptr_register = Register(3);
             ir_call_intrinsic_helper(assembler, IntrinsicHelperType::FindITablePtr, &vec![obj_ptr], Some(itable_ptr_register), &vec![], &None, &vec![], &None);
             let address_register = InvokeInterfaceResolve::ADDRESS_RES;// register 4
-            // assembler.int3().unwrap();
             assembler.sub(address_register.to_native_64(), address_register.to_native_64()).unwrap();
             generate_itable_access(assembler, *method_number, *interface_id, itable_ptr_register, Register(5), Register(6), Register(7), address_register);
             assembler.test(address_register.to_native_64(), address_register.to_native_64()).unwrap();
