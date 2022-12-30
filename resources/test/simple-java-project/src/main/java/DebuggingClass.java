@@ -153,111 +153,18 @@
 //    }
 //}
 
-import sun.misc.Unsafe;
-
-import java.io.*;
-import java.lang.reflect.*;
-import java.net.HttpURLConnection;
-import java.net.Proxy;
-import java.net.URL;
-import java.security.*;
+import javax.swing.*;
 
 public class DebuggingClass {
-
-    public static long round(double var0, boolean debug) {
-        long var2 = Double.doubleToRawLongBits(var0);
-        if(debug){
-            System.out.println("var2:" + var2);
-        }
-        long var4 = (var2 & 9218868437227405312L) >> 52;
-        long var6 = 1074L - var4;
-        if(debug){
-            System.out.println("var6:" + var6);
-        }
-        if ((var6 & -64L) == 0L) {
-            long var8 = var2 & 4503599627370495L | 4503599627370496L;
-            if(debug){
-                System.out.println("var8:"+ var8);
-            }
-            if (var2 < 0L) {
-                var8 = -var8;
-            }
-
-            return (var8 >> (int)var6) + 1L >> 1;
-        } else {
-            if (debug){
-                System.out.println("var0:" + var0);
-            }
-            return (long)var0;
-        }
-    }
-
     public static void main(String[] args) throws Exception {
-        for (int i = 0; i < 50; i++) {
-            DebuggingClass.round(Double.NaN,false);
-        }
-        System.out.println(DebuggingClass.round(Double.NaN, true));
-//        final Object[] objects = {Boolean.valueOf(true), new int[]{1, 45, 6, 4}};
-//        System.out.println((Boolean) objects[0]);
-//        URL url = new URL("https://www.google.com");
-//        HttpURLConnection connection = (HttpURLConnection)url.openConnection();
-//        connection.setConnectTimeout(15000);
-//        connection.setReadTimeout(15000);
-//        connection.setUseCaches(false);
-//        System.out.println(connection.getResponseMessage());
-//        Unsafe.getUnsafe().notify();
-        //        final File file = new File(DebuggingClass.class.getResource("ToLowerCase.class").getPath());
-//        byte[] bytes = new byte[(int) file.length()];
-//        final DataInputStream inputStream = new DataInputStream(new FileInputStream(file));
-//        inputStream.readFully(bytes);
-//        System.out.println(Arrays.toString(bytes));
-
-//        for (Method declaredMethod : void.class.getDeclaredMethods()) {
-//            System.out.println(declaredMethod);
-//        }
-//        System.identityHashCode(null);
-//        test(new BackingStoreException("Hi"));
-//        TimeZone tz = TimeZone.getTimeZone("Asia/Taipei");
-//        Locale tzLocale = new Locale("ja");
-//        System.out.println(new Test().getCandidateLocales("sun.util.resources.TimeZoneNames",tzLocale).size());
-//        System.out.println(ResourceBundle.Control.FORMAT_DEFAULT);
-//        System.out.println(Arrays.toString(TimeZoneNameUtility.retrieveDisplayNames(tz.getID(), tzLocale)));
-//        System.out.println(tz.getDisplayName(false, TimeZone.LONG, tzLocale));
-//        System.out.println(Arrays.toString((Object[]) new TimeZoneNames_ja().getObject("Asia/Taipei")));
-//        System.getProperties().forEach((key, val) -> {
-//            System.out.println("key:" + key);
-//            System.out.println("val:" + val);
-//        });
     }
 
-//    private static void extracted() {
-//        final StringBuilder stringBuilder = new StringBuilder();
-//        final char[] zeros = ZEROES.toCharArray();
-//        for (char c : zeros) {
-//            stringBuilder.append((char) ((int) c + 9));
-//        }
-//        System.out.println(zeros.length);
-//        final char[] nines = stringBuilder.toString().toCharArray();
-//        System.out.println(nines.length);
-//        System.out.println(stringBuilder);
-//        matcher(zeros, nines);
-//    }
-//
-//    private static void matcher(char[] zeros, char[] nines) {
-//        for (int i = 0; i < zeros.length; ++i) {
-//            checkArgument(zeros[i] <= nines[i]);
-//            if (i + 1 < zeros.length) {
-//                System.out.println((int)nines[i]);
-//                System.out.println((int)zeros[i + 1]);
-//                checkArgument(nines[i] < zeros[i + 1]);
-//            }
-//        }
-//    }
-//
-//    private static void checkArgument(boolean b) {
-//        if (!b) {
-//            throw new IllegalArgumentException();
-//        }
-//    }
-
+    static class NewThread extends Thread{
+        @Override
+        public void run() {
+            System.out.println(JFrame.getFrames().getClass().getClassLoader());
+            System.out.println(JFrame.class.getClassLoader());
+            System.out.println(A.class.getClassLoader());
+        }
+    }
 }
