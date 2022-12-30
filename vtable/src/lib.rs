@@ -132,9 +132,9 @@ impl<'gc> VTables<'gc> {
         *self.inner.entry(ByAddress(rc.clone())).or_insert_with(|| {
             unsafe {
                 VTABLE_ALLOCS += 1;
-                if VTABLE_ALLOCS % 1_000 == 0 {
-                    dbg!(VTABLE_ALLOCS);
-                }
+                // if VTABLE_ALLOCS % 1_000 == 0 {
+                //     dbg!(VTABLE_ALLOCS);
+                // }
             }
             NonNull::new(Box::into_raw(box RawNativeVTable::new(rc.unwrap_class_class()))).unwrap()
         }

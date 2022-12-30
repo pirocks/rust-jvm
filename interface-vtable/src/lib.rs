@@ -257,9 +257,9 @@ impl<'gc> ITables<'gc> {
         *self.inner.entry(ByAddress(rc.clone())).or_insert_with(|| {
             unsafe {
                 ITABLE_ALLOCS += 1;
-                if ITABLE_ALLOCS % 1_000 == 0 {
-                    dbg!(ITABLE_ALLOCS);
-                }
+                // if ITABLE_ALLOCS % 1_000 == 0 {
+                //     dbg!(ITABLE_ALLOCS);
+                // }
             }
             let interfaces = Self::all_interfaces(&rc);
             let table = ITable::new(interface_table, interfaces.as_slice()).to_raw();

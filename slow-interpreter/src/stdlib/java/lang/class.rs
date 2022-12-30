@@ -104,7 +104,7 @@ impl<'gc> JClass<'gc> {
         self
     }
 
-    pub fn debug_assert(&self, jvm: &'gc JVMState<'gc>) {
+    pub fn debug_assert(&self, _jvm: &'gc JVMState<'gc>) {
         // let class_class = jvm.classes.read().unwrap().class_class.clone();
         // let wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id_of_wrapped_in_array()).unwrap_int();
         // let not_wrapped_id = self.normal_object.get_var_hidden(jvm, &class_class, HiddenJVMField::class_cpdtype_id()).unwrap_int();

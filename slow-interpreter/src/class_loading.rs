@@ -217,9 +217,9 @@ static mut BOOTSRAP_LOAD_COUNT: usize = 0;
 pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     unsafe {
         BOOTSRAP_LOAD_COUNT += 1;
-        if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
-            dbg!(BOOTSRAP_LOAD_COUNT);
-        }
+        // if BOOTSRAP_LOAD_COUNT % 1000 == 0 {
+        //     dbg!(BOOTSRAP_LOAD_COUNT);
+        // }
     }
     let class_intrinsics_data_primitive = ClassIntrinsicsData {
         is_array: false,

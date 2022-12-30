@@ -7,9 +7,10 @@ use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject, jstring};
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::CompressedClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::loading::LoaderName;
+use rust_jvm_common::runtime_type::RuntimeType;
 
 
-use rust_jvm_common::loading::LoaderName::BootstrapLoader;
 use slow_interpreter::better_java_stack::frames::HasFrame;
 use slow_interpreter::class_loading::bootstrap_load;
 use slow_interpreter::class_objects::get_or_create_class_object;
@@ -30,10 +31,11 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     //todo duplication
     let class_name = CompressedClassName(jvm.string_pool.add_name(name_str, true));
 
-    // let loader_obj = int_state.frame_iter().next()/*previous_frame()*/.unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
-    // let current_loader = loader_obj.to_jvm_loader(jvm);
+    let loader_obj = int_state.frame_iter().next().unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
+    let current_loader = loader_obj.to_jvm_loader(jvm);
+    dbg!(current_loader);
     let guard = jvm.classes.write().unwrap();
-    let runtime_class = match guard.loaded_classes_by_type.get(&BootstrapLoader).unwrap().get(&class_name.clone().into()) {
+    let runtime_class = match guard.loaded_classes_by_type.get(&LoaderName::BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {
             drop(guard);
             let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
@@ -45,8 +47,8 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
             };
             let ptype = runtime_class.cpdtype();
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(ptype.clone()).or_insert((BootstrapLoader, runtime_class.clone())); //todo wrong loader?
-            guard.loaded_classes_by_type.entry(BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
+            guard.initiating_loaders.entry(ptype.clone()).or_insert((LoaderName::BootstrapLoader, runtime_class.clone())); //todo wrong loader?
+            guard.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
             runtime_class
         }
         Some(runtime_class) => runtime_class.clone(),
