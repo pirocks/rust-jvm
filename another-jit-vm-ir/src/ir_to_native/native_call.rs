@@ -1,11 +1,14 @@
 use std::ffi::c_void;
+
 use iced_x86::code_asm::{al, ax, CodeAssembler, qword_ptr, r13, r14, r15, r8, r9, rax, rbp, rcx, rdi, rdx, rsi, rsp, xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7};
 use memoffset::offset_of;
 use nonnull_const::NonNullConst;
+
 use another_jit_vm::{DoubleRegister, FloatRegister, FramePointerOffset, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
-use crate::compiler::Size;
 use another_jit_vm::JITContext;
+
+use crate::compiler::Size;
 
 pub(crate) fn call_native_helper(assembler: &mut CodeAssembler, to_call: &NonNullConst<c_void>, integer_args: &Vec<FramePointerOffset>, byte_res: &Option<FramePointerOffset>, bool_res: &Option<FramePointerOffset>, char_res: &Option<FramePointerOffset>, short_res: &Option<FramePointerOffset>, integer_res: &Option<FramePointerOffset>, float_double_args: &Vec<(FramePointerOffset, Size)>, float_res: &Option<FramePointerOffset>, double_res: &Option<FramePointerOffset>) {
     let mut integer_args = integer_args.iter();
@@ -172,6 +175,7 @@ pub(crate) fn ir_call_intrinsic_helper(assembler: &mut CodeAssembler, intrinsic_
         IntrinsicHelperType::FindVTablePtr |
         IntrinsicHelperType::FindITablePtr |
         IntrinsicHelperType::FindObjectHeader |
+        IntrinsicHelperType::FastClone |
         IntrinsicHelperType::FindClassPtr => {
             one_integer_in_and_one_out(assembler, intrinsic_helper_type, integer_args, integer_res);
         }

@@ -152,5 +152,14 @@ impl AllocatedObjectType {
             AllocatedObjectType::RawConstantSize { .. } => None,
         }
     }
+
+    pub fn is_array(&self) -> bool{
+        match self {
+            AllocatedObjectType::Class { .. } => false,
+            AllocatedObjectType::ObjectArray { .. } => true,
+            AllocatedObjectType::PrimitiveArray { .. } => true,
+            AllocatedObjectType::RawConstantSize { .. } => panic!()
+        }
+    }
 }
 

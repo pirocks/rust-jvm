@@ -7,7 +7,7 @@ use libc::size_t;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jint, jobject};
 
-use crate::memory_regions::MemoryRegions;
+use crate::memory_regions::{MemoryRegions};
 
 pub mod frame_layout;
 pub mod memory_regions;

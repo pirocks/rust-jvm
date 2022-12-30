@@ -1,7 +1,7 @@
 use strum_macros::EnumIter;
+
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::{CompressedParsedDescriptorType, CPDType};
-
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, EnumIter)]
@@ -14,6 +14,8 @@ pub enum HiddenFields {
     ClassIsArray,
     ClassCPDTypeID,
     ClassIsInterface,
+    ClassClassID,
+    ClassBitPath,
     WrappedClassCPDTypeID,
 }
 
@@ -33,7 +35,7 @@ impl HiddenJVMField {
         Self::from_raw_id(HiddenFields::ClassIsArray)
     }
 
-    pub fn class_is_interface() -> Self{
+    pub fn class_is_interface() -> Self {
         Self::from_raw_id(HiddenFields::ClassIsInterface)
     }
 
@@ -43,6 +45,14 @@ impl HiddenJVMField {
 
     pub fn class_cpdtype_id_of_wrapped_in_array() -> Self {
         Self::from_raw_id(HiddenFields::WrappedClassCPDTypeID)
+    }
+
+    pub fn class_class_id() -> Self {
+        Self::from_raw_id(HiddenFields::ClassClassID)
+    }
+
+    pub fn class_bit_path_pointer() -> Self {
+        Self::from_raw_id(HiddenFields::ClassBitPath)
     }
 
     pub fn class_hidden_fields() -> Vec<HiddenJVMFieldAndFieldType> {
@@ -66,6 +76,14 @@ impl HiddenJVMField {
             HiddenJVMFieldAndFieldType {
                 name: Self::class_is_interface(),
                 cpdtype: CompressedParsedDescriptorType::BooleanType,
+            },
+            HiddenJVMFieldAndFieldType{
+                name: Self::class_class_id(),
+                cpdtype: CompressedParsedDescriptorType::IntType,
+            },
+            HiddenJVMFieldAndFieldType{
+                name: Self::class_bit_path_pointer(),
+                cpdtype: CompressedParsedDescriptorType::object(),
             }
         ]
     }

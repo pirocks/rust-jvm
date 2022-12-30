@@ -16,7 +16,7 @@ pub unsafe extern "C" fn get_object_class(env: *mut JNIEnv, obj: jobject) -> jcl
     let int_state = get_interpreter_state(env);
     let jvm = get_state(env);
     let unwrapped = from_object_new(jvm, obj).unwrap(); //todo handle npe
-    let object_region_header = MemoryRegions::find_object_region_header(NonNull::new(obj as *mut c_void).unwrap());
+    let object_region_header = MemoryRegions::find_object_region_header_mut(NonNull::new(obj as *mut c_void).unwrap());
     if object_region_header.class_pointer_cache != null_mut() {
         return object_region_header.class_pointer_cache as jclass;
     }

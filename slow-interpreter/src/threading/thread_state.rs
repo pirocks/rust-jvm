@@ -7,12 +7,14 @@ use std::thread::{LocalKey, Scope};
 use itertools::{Itertools};
 
 use jvmti_jni_bindings::{jlong, jrawMonitorID};
+use runtime_class_stuff::hidden_fields::HiddenJVMField;
 use rust_jvm_common::JavaThreadId;
 use rust_jvm_common::loading::LoaderName;
 use threads::Threads;
 
 use crate::{JVMState, OpaqueFrame, PushableFrame, WasException};
 use crate::better_java_stack::thread_remote_read_mechanism::{ThreadSignalBasedInterrupter};
+use crate::hidden_field_constants::{CLASS_BIT_PATH_POINTER_OFFSET, CLASS_CLASS_ID_OFFSET, CLASS_CPDTYPE_ID_OF_WRAPPED_IN_ARRAY_OFFSET, CLASS_CPDTYPE_ID_OFFSET, CLASS_IS_ARRAY_OFFSET, CLASS_IS_INTERFACE_OFFSET};
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::thread::JThread;
 use crate::stdlib::java::lang::thread_group::JThreadGroup;
@@ -59,7 +61,19 @@ impl<'gc> ThreadState<'gc> {
         // });
     }
 
-    pub(crate) fn debug_assertions<'l>(_jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _loader_obj: ClassLoader<'gc>) {
+    fn debug_assert_hidden_field_offsets(jvm: &JVMState) {
+        let read_guard = jvm.classes.read().unwrap();
+        let object_layout = &read_guard.class_class.unwrap_class_class().object_layout;
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_bit_path_pointer()), CLASS_BIT_PATH_POINTER_OFFSET);
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_class_id()), CLASS_CLASS_ID_OFFSET);
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_is_interface()), CLASS_IS_INTERFACE_OFFSET);
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_is_array()), CLASS_IS_ARRAY_OFFSET);
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_cpdtype_id()), CLASS_CPDTYPE_ID_OFFSET);
+        assert_eq!(object_layout.lookup_hidden_field_offset(HiddenJVMField::class_cpdtype_id_of_wrapped_in_array()), CLASS_CPDTYPE_ID_OF_WRAPPED_IN_ARRAY_OFFSET);
+    }
+
+    pub(crate) fn debug_assertions<'l>(jvm: &'gc JVMState<'gc>, _int_state: &mut impl PushableFrame<'gc>, _loader_obj: ClassLoader<'gc>) {
+        Self::debug_assert_hidden_field_offsets(jvm);
         // for _ in 0..100{
         //     let list_cpdtype = CPDType::from_ptype(&PType::from_class(ClassName::Str("java/util/ArrayList".to_string())), &jvm.string_pool);
         //     let list_class_object = get_or_create_class_object(jvm,list_cpdtype,int_state).unwrap();

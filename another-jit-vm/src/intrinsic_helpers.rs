@@ -22,6 +22,7 @@ pub struct ExtraIntrinsicHelpers {
     pub find_itable_ptr: *const c_void,
     pub find_class_ptr: *const c_void,
     pub find_object_region_header: *const c_void,
+    pub clone_fast: *const c_void,
 }
 
 #[repr(C)]
@@ -38,6 +39,7 @@ pub struct IntrinsicHelpers {
     find_itable_ptr: *const c_void,
     find_class_ptr: *const c_void,
     find_object_region_header: *const c_void,
+    clone_fast: *const c_void,
 }
 
 impl IntrinsicHelpers {
@@ -47,7 +49,7 @@ impl IntrinsicHelpers {
             find_vtable_ptr,
             find_itable_ptr,
             find_class_ptr,
-            find_object_region_header
+            find_object_region_header, clone_fast
         } = *extra;
         IntrinsicHelpers {
             memmove: libc::memmove as *const c_void,
@@ -60,7 +62,8 @@ impl IntrinsicHelpers {
             find_vtable_ptr,
             find_itable_ptr,
             find_class_ptr,
-            find_object_region_header
+            find_object_region_header,
+            clone_fast
         }
     }
 }
@@ -77,7 +80,8 @@ pub enum IntrinsicHelperType {
     FindVTablePtr,
     FindITablePtr,
     FindClassPtr,
-    FindObjectHeader
+    FindObjectHeader,
+    FastClone
 }
 
 impl IntrinsicHelperType {
@@ -115,6 +119,9 @@ impl IntrinsicHelperType {
             }
             IntrinsicHelperType::FindObjectHeader => {
                 offset_of!(IntrinsicHelpers,find_object_region_header)
+            }
+            IntrinsicHelperType::FastClone => {
+                offset_of!(IntrinsicHelpers,clone_fast)
             }
         }
     }

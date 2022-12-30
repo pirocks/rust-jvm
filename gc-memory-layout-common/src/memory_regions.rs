@@ -110,10 +110,10 @@ impl VariableRegionHeaderWrapper<'_> {
         assert!(self.inner.region_elem_size.is_none());
         let before_type = self.inner.region_type;
         if self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()) >= self.inner.region_max_ptr.as_ptr() {
-            dbg!(self.inner.current_ptr.load(Ordering::SeqCst));
-            dbg!(self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()));
-            dbg!(self.inner.region_max_ptr.as_ptr());
-            dbg!("to big");
+            // dbg!(self.inner.current_ptr.load(Ordering::SeqCst));
+            // dbg!(self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()));
+            // dbg!(self.inner.region_max_ptr.as_ptr());
+            // dbg!("to big");
             return None;
         }
         let res = loop {
@@ -135,7 +135,7 @@ impl VariableRegionHeaderWrapper<'_> {
         Some(NonNull::new(res).unwrap())
     }
 
-    pub unsafe fn get_allocation(region_header: NonNull<RegionHeader>, size: NonZeroUsize) -> Option<NonNull<c_void>> {
+    pub unsafe fn get_allocation(region_header: NonNullConst<RegionHeader>, size: NonZeroUsize) -> Option<NonNull<c_void>> {
         let region_header_ref = region_header.as_ref();
         Self { inner: region_header_ref }.get_allocation_impl(size)
     }
@@ -362,6 +362,7 @@ impl MemoryRegions {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
                 region_elem_size,
                 array_elem_size: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).elem_size()),
+                is_array: to_allocate_type.allocated_object_type.is_array(),
                 array_elem0_offset: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).elem_0_entry_offset()).unwrap_or(usize::MAX),
                 array_len_offset: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).len_entry_offset()).unwrap_or(usize::MAX),
                 array_elem_type: array_subtype,
@@ -401,7 +402,15 @@ pub struct BaseAddressAndMask {
 
 impl MemoryRegions {
     //todo this lifetime is maybe not right
-    pub fn find_object_region_header<'l>(ptr: NonNull<c_void>) -> &'l mut RegionHeader {
+    pub fn find_object_region_header<'l>(ptr: NonNull<c_void>) -> &'l RegionHeader {
+        let as_u64 = ptr.as_ptr() as u64;
+        let region_size = region_pointer_to_region_size_size(as_u64);
+        let region_mask = u64::MAX << region_size;
+        let masked = as_u64 & region_mask;
+        unsafe { (masked as *mut c_void as *mut RegionHeader).as_ref().unwrap() }
+    }
+
+    pub fn find_object_region_header_mut<'l>(ptr: NonNull<c_void>) -> &'l mut RegionHeader {
         let as_u64 = ptr.as_ptr() as u64;
         let region_size = region_pointer_to_region_size_size(as_u64);
         let region_mask = u64::MAX << region_size;

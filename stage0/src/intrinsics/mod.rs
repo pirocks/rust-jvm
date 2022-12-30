@@ -6,6 +6,7 @@ use nonnull_const::NonNullConst;
 use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use classfile_view::view::{ClassView, HasAccessFlags};
+use compiler_common::MethodResolver;
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
@@ -19,7 +20,6 @@ use crate::intrinsics::java_lang_object::java_lang_object;
 use crate::intrinsics::java_lang_system::java_lang_system;
 use crate::intrinsics::reflect_new_array::reflect_new_array;
 use crate::intrinsics::sun_misc_unsafe::sun_misc_unsafe;
-use compiler_common::MethodResolver;
 
 pub mod sun_misc_unsafe;
 pub mod reflect_new_array;
@@ -45,7 +45,7 @@ pub fn gen_intrinsic_ir<'vm>(
     }
 
     if class_name == CClassName::object() {
-        if let Some(res) = java_lang_object(resolver, layout, method_id, ir_method_id, &desc, method_name) {
+        if let Some(res) = java_lang_object(resolver, labeler, layout, method_id, ir_method_id, &desc, method_name) {
             return Some(res);
         }
     }
@@ -57,7 +57,7 @@ pub fn gen_intrinsic_ir<'vm>(
     }
 
     if class_name == CClassName::thread() {
-        if method_name == MethodName::method_currentThread() && desc == CompressedMethodDescriptor::empty_args(CClassName::thread().into()){
+        if method_name == MethodName::method_currentThread() && desc == CompressedMethodDescriptor::empty_args(CClassName::thread().into()) {
             return java_lang_thread_current_thread(resolver, layout, method_id, ir_method_id);
         }
     }
