@@ -264,6 +264,7 @@ pub struct JITContext {
     pub alt_native_rbp: NonNull<c_void>,
     intrinsic_helpers: IntrinsicHelpers,
     pub thread_local_intrinsic_data: ThreadLocalIntrinsicHelpers,
+    jvm_ptr: *const c_void
 }
 
 trait ExitHandlerType<'vm, ExtraData, T> = Fn(&VMExitEvent, &mut OwnedNativeStack, &mut ExtraData) -> VMExitAction<T> + 'vm;
@@ -326,7 +327,7 @@ impl<'vm, T> VMState<'vm, T> {
         }
     }
 
-    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP) -> LaunchedVM<'vm, 'l, T> {
+    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, jvm_ptr: *const c_void) -> LaunchedVM<'vm, 'l, T> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;
@@ -483,6 +484,7 @@ impl<'vm, T> VMState<'vm, T> {
             alt_native_rbp: extra_stack.mmaped_top,
             intrinsic_helpers: IntrinsicHelpers::new(&extra_intrinsics),
             thread_local_intrinsic_data: ThreadLocalIntrinsicHelpers::new(&extra_intrinsics),
+            jvm_ptr,
         };
         let self_: &'l VMState<'vm, T> = self;
         let iterator: LaunchedVM<'vm, 'l, T> = LaunchedVM { vm_state: self_, jit_context, stack_top: stack.mmaped_top, stack_bottom: stack.mmaped_bottom, pending_exit: false };

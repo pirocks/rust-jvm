@@ -13,6 +13,7 @@ pub enum HiddenFields {
     ClassComponentType,
     ClassIsArray,
     ClassCPDTypeID,
+    ClassIsInterface,
     WrappedClassCPDTypeID,
 }
 
@@ -30,6 +31,10 @@ impl HiddenJVMField {
 
     pub fn class_is_array() -> Self {
         Self::from_raw_id(HiddenFields::ClassIsArray)
+    }
+
+    pub fn class_is_interface() -> Self{
+        Self::from_raw_id(HiddenFields::ClassIsInterface)
     }
 
     pub fn class_cpdtype_id() -> Self {
@@ -58,6 +63,10 @@ impl HiddenJVMField {
                 name: Self::class_cpdtype_id_of_wrapped_in_array(),
                 cpdtype: CompressedParsedDescriptorType::IntType,
             },
+            HiddenJVMFieldAndFieldType {
+                name: Self::class_is_interface(),
+                cpdtype: CompressedParsedDescriptorType::BooleanType,
+            }
         ]
     }
 }

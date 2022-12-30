@@ -26,10 +26,10 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                 for elem in to_clone_array.array_iterator() {
                     new_array.push(elem);
                 }
-                return new_local_ref_public_new(Some(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
+                new_local_ref_public_new(Some(jvm.allocate_object(UnAllocatedObject::Array(UnAllocatedObjectArray {
                     whole_array_runtime_class: o.runtime_class(jvm),
                     elems: new_array.iter().map(|handle| handle.as_njv()).collect(),
-                })).as_allocated_obj()), int_state);
+                })).as_allocated_obj()), int_state)
             } else {
                 let rc = o.unwrap_normal_object_ref().runtime_class(jvm);
                 let owned_copied_fields = copy_fields(jvm, o.unwrap_normal_object_ref(), rc.unwrap_class_class());
@@ -43,7 +43,7 @@ unsafe extern "system" fn JVM_Clone(env: *mut JNIEnv, obj: jobject) -> jobject {
                         hidden_fields,
                     },
                 }));
-                return new_local_ref_public_new(Some(cloned.as_allocated_obj()), int_state);
+                new_local_ref_public_new(Some(cloned.as_allocated_obj()), int_state)
             }
         }
     }

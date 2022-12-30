@@ -2,7 +2,6 @@ use another_jit_vm::{FramePointerOffset, IRMethodID};
 use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 
-//todo fix layout so smallest is actually used
 //todo fix instanceof/checkcast
 //todo fix class loaders
 //todo make a get object class fast path

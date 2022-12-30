@@ -149,7 +149,7 @@ pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
     res
 }
 
-pub extern "C" fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
+pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {
     let res = match ptr >> MAX_REGIONS_SIZE_SIZE {
         1 => SMALL_REGION_SIZE_SIZE,
         3 => MEDIUM_REGION_SIZE_SIZE,
