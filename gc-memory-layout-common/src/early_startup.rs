@@ -99,6 +99,30 @@ impl Region {
             Region::ExtraLarge => Region::ExtraLarge,
         }
     }
+
+    pub fn max(self, other: Region) -> Region{
+        match self {
+            Region::Small => {
+                other
+            }
+            Region::Medium => {
+                match other {
+                    Region::Small => Region::Medium,
+                    _ => other
+                }
+            }
+            Region::Large => {
+                match other {
+                    Region::Small => Region::Large,
+                    Region::Medium => Region::Large,
+                    _ => other,
+                }
+            }
+            Region::ExtraLarge => {
+                Region::ExtraLarge
+            }
+        }
+    }
 }
 
 pub fn region_pointer_to_region(ptr: u64) -> Region {

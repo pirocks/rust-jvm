@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicPtr, Ordering};
 
 use iced_x86::code_asm::{cl, CodeAssembler, ecx, rcx};
-use nonnull_const::{NonNullConst};
+use nonnull_const::NonNullConst;
 
 use another_jit_vm::Register;
 use array_memory_layout::layout::ArrayMemoryLayout;
@@ -111,6 +111,10 @@ impl VariableRegionHeaderWrapper<'_> {
         assert!(self.inner.region_elem_size.is_none());
         let before_type = self.inner.region_type;
         if self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()) >= self.inner.region_max_ptr.as_ptr() {
+            dbg!(self.inner.current_ptr.load(Ordering::SeqCst));
+            dbg!(self.inner.current_ptr.load(Ordering::SeqCst).add(size.get()));
+            dbg!(self.inner.region_max_ptr.as_ptr());
+            dbg!("to big");
             return None;
         }
         let res = loop {
@@ -222,16 +226,24 @@ impl MemoryRegions {
 
     #[inline(never)]
     pub fn allocate_with_size(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> (NonNull<c_void>, NonZeroUsize) {
+        // dbg!(to_allocate_type.size.get());
         let region = match self.find_empty_region_for(to_allocate_type) {
             Err(FindRegionError::NoRegion) => {
+                // dbg!("no region, get new region");
                 //todo need to use bigger region as needed.
-                self.new_region_for(to_allocate_type, None, None, )
+                self.new_region_for(to_allocate_type, None, None)
             }
             Err(FindRegionError::RegionFull { prev_region_size, prev_vtable_ptr }) => {
-                self.new_region_for(to_allocate_type, Some(prev_region_size.bigger()), prev_vtable_ptr)
+                // dbg!("region full find new region");
+                // dbg!(prev_region_size);
+                let new_size = Region::smallest_which_fits(to_allocate_type.size).max(prev_region_size.bigger());
+                self.new_region_for(to_allocate_type, Some(new_size), prev_vtable_ptr)
             }
             Ok(region) => region,
         };
+        // dbg!("region selected");
+        // unsafe { dbg!(region.as_ref().current_ptr.load(Ordering::SeqCst)); }
+        // unsafe { dbg!(region.as_ref().current_ptr.load(Ordering::SeqCst).add(to_allocate_type.size.get())); }
         unsafe { OBJECT_ALLOCS += to_allocate_type.size.get() as u64; }
         let region_type = unsafe { region.as_ref() }.region_type;
         self.current_region_header[region_type.0 as usize].store(region.as_ptr(), Ordering::SeqCst);
@@ -251,7 +263,9 @@ impl MemoryRegions {
         let res_ptr = unsafe {
             match VariableRegionHeaderWrapper::get_allocation(region.into(), size) {
                 Some(x) => x,
-                None => panic!("this allocation failure really shouldn't happen"),
+                None => {
+                    panic!("this allocation failure really shouldn't happen")
+                }
             }
         };
         let after_region_type = MemoryRegions::find_object_region_header(res_ptr).region_type;
@@ -304,7 +318,10 @@ impl MemoryRegions {
     #[inline(never)]
     fn find_empty_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize) -> Result<NonNull<RegionHeader>, FindRegionError> {
         let type_id = self.lookup_or_add_type(to_allocate_type);
+        // dbg!(type_id);
         let (region, index) = self.type_to_region_datas[type_id.0 as usize].last().ok_or(FindRegionError::NoRegion)?;
+        // dbg!(*region);
+        // dbg!(*index);
         let region_header_ptr = self.region_header_at(*region, *index, true);
         //todo race what if region gets fuller after checking for fullness. needs to be handled where I currently panic
         let current_ptr = unsafe { region_header_ptr.as_ref() }.current_ptr.load(Ordering::SeqCst);
@@ -324,6 +341,8 @@ impl MemoryRegions {
 
 
     fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<NonNull<RawNativeVTable>>) -> NonNull<RegionHeader> {
+        //todo this doesn't handle variable size properly at all.
+        //todo uses cached type
         let type_id = self.lookup_or_add_type(&to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
         if let Some(size_override) = size_override {
@@ -350,9 +369,9 @@ impl MemoryRegions {
             region_header_ptr.as_ptr().write(RegionHeader {
                 region_header_magic_2: RegionHeader::REGION_HEADER_MAGIC,
                 region_elem_size,
-                array_elem_size: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).elem_size()),
-                array_elem0_offset: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).elem_0_entry_offset()).unwrap_or(usize::MAX),
-                array_len_offset: array_subtype.map(|array_subtype|ArrayMemoryLayout::from_cpdtype(array_subtype).len_entry_offset()).unwrap_or(usize::MAX),
+                array_elem_size: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).elem_size()),
+                array_elem0_offset: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).elem_0_entry_offset()).unwrap_or(usize::MAX),
+                array_len_offset: array_subtype.map(|array_subtype| ArrayMemoryLayout::from_cpdtype(array_subtype).len_entry_offset()).unwrap_or(usize::MAX),
                 array_elem_type: array_subtype,
                 region_type: type_id,
                 vtable_ptr: to_allocate_type.allocated_object_type.vtable().map(|vtable| vtable.as_ptr()).unwrap_or(null_mut()),
@@ -461,7 +480,7 @@ impl MemoryRegions {
         NonNull::new(MemoryRegions::find_object_region_header(ptr).itable_ptr)
     }
 
-    pub fn find_class_ptr_cache(ptr: NonNull<c_void>) -> Option<NonNull<_jobject>>{
+    pub fn find_class_ptr_cache(ptr: NonNull<c_void>) -> Option<NonNull<_jobject>> {
         NonNull::new(MemoryRegions::find_object_region_header(ptr).class_pointer_cache)
     }
 
