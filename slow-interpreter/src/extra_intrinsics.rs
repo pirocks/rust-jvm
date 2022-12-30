@@ -37,6 +37,8 @@ pub extern "C" fn find_object_region_header(ptr_in: *mut c_void) -> *mut c_void 
     MemoryRegions::find_object_region_header_raw(NonNull::new(ptr_in).unwrap()) as *mut c_void
 }
 
+//todo clone_fast needs to use the most up to date region for cloning instead of less up to date regions otherwise almost all clones fail
+
 unsafe extern "C" fn clone_fast(obj_to_clone: jobject) -> jobject {
     let obj_to_clone = obj_to_clone as *mut c_void;
     let region_header_ptr = NonNullConst::new(MemoryRegions::find_object_region_header_raw(NonNull::new(obj_to_clone).unwrap())).unwrap();
