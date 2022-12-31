@@ -15,13 +15,19 @@ pub struct PendingExit{
 }
 
 pub struct IRCompilerState<'l> {
-    method_frame_data: &'l JavaCompilerMethodAndFrameData,
+    //res:
+    res: Vec<Stage1IRInstr>,
+    //current_position:
     current: Option<IRCompilerPosition>,
+    //method_ids:
     method_id: MethodId,
     ir_method_id: IRMethodID,
-    res: Vec<Stage1IRInstr>,
+    //pending exits:
     pending_exits: Vec<PendingExit>,
-    should_trace_instructions: bool
+    //options:
+    should_trace_instructions: bool,
+    //frame_data
+    method_frame_data: &'l JavaCompilerMethodAndFrameData,
 }
 
 impl <'l> IRCompilerState<'l> {
