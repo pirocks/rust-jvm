@@ -34,6 +34,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     let loader_obj = int_state.frame_iter().next().unwrap().local_get_handle(0, RuntimeType::object()).cast_class_loader();
     let current_loader = loader_obj.to_jvm_loader(jvm);
     dbg!(current_loader);
+    //todo current loader
     let guard = jvm.classes.write().unwrap();
     let runtime_class = match guard.loaded_classes_by_type.get(&LoaderName::BootstrapLoader).unwrap().get(&class_name.clone().into()) {
         None => {

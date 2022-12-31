@@ -153,18 +153,14 @@
 //    }
 //}
 
-import javax.swing.*;
-
 public class DebuggingClass {
+    public static int bad_global_var = 0;
     public static void main(String[] args) throws Exception {
-    }
-
-    static class NewThread extends Thread{
-        @Override
-        public void run() {
-            System.out.println(JFrame.getFrames().getClass().getClassLoader());
-            System.out.println(JFrame.class.getClassLoader());
-            System.out.println(A.class.getClassLoader());
+        for (int i = 0; i < 1000; i++) {
+            if (i % 100 == 1){
+                bad_global_var += i;
+            }
         }
+        System.out.println(bad_global_var);
     }
 }
