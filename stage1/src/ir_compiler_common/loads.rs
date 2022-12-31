@@ -1,7 +1,7 @@
 use another_jit_vm_ir::compiler::Size;
 use crate::ir_compiler_common::{DoubleValueToken, FloatValueToken, IntegerValueToken, IRCompilerState, LongValueToken, PointerValueToken};
 
-impl IRCompilerState {
+impl IRCompilerState<'_> {
     pub fn emit_load_pointer(&mut self, pointer_pointer: PointerValueToken) -> PointerValueToken {
         todo!()
     }

@@ -230,6 +230,8 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                         }),
                     ]
                 } else {
+                    //todo switch to stage1 when working.
+                    let _ = stage1::compile_to_ir(resolver, java_frame_data, method_id, reserved_method_id);
                     compile_to_ir(resolver, &self.labeler, java_frame_data, &mut recompile_conditions, reserved_method_id)
                 };
                 let mut ir_instructions = vec![];

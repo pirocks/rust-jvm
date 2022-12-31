@@ -2,9 +2,9 @@ use std::num::NonZeroUsize;
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use another_jit_vm_ir::compiler::Size;
 use array_memory_layout::layout::ArrayMemoryLayout;
-use compiler_common::{CurrentInstructionCompilerData};
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use crate::ir_compiler_common::special::IRCompilerState;
 use crate::native_compiler_common::{GeneralRegister, GeneralRegisterPart, ValueVectorPosition32, ValueVectorPosition64, VectorRegister};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -21,8 +21,8 @@ pub enum IntegerValue {
     },
     GeneralRegister {
         general_register: GeneralRegister,
-        part: GeneralRegisterPart
-    }
+        part: GeneralRegisterPart,
+    },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -39,8 +39,8 @@ pub enum FloatValue {
     },
     GeneralRegister {
         general_register: GeneralRegister,
-        part: GeneralRegisterPart
-    }
+        part: GeneralRegisterPart,
+    },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -57,7 +57,7 @@ pub enum DoubleValue {
     },
     GeneralRegister {
         general_register: GeneralRegister,
-    }
+    },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -74,7 +74,7 @@ pub enum LongValue {
     },
     GeneralRegister {
         general_register: GeneralRegister,
-    }
+    },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -91,7 +91,7 @@ pub enum PointerValue {
     },
     GeneralRegister {
         general_register: GeneralRegister,
-    }
+    },
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -192,20 +192,20 @@ pub enum Stage1IRInstr {
     },
 }
 
-pub struct IRCompilerState {
-    //will have a bunch of pending vm exits to emit.
-}
-
 pub mod special;
 pub mod loads;
 pub mod stack_loads;
+pub mod stack_stores;
 pub mod exit_checks;
 pub mod branching;
 pub mod addressing;
+pub mod arithmetic;
+pub mod constant;
+pub mod array_loads;
 
 const ONE: NonZeroUsize = NonZeroUsize::new(1).unwrap();
 
-pub fn array_load_impl(compiler: &mut IRCompilerState, current_instr_data: CurrentInstructionCompilerData, arr_sub_type: CPDType){
+pub fn array_load_impl(compiler: &mut IRCompilerState, arr_sub_type: CPDType) {
     let array_layout = ArrayMemoryLayout::from_cpdtype(arr_sub_type);
     let elem_0_offset = array_layout.elem_0_entry_offset();
     let len_offset = array_layout.len_entry_offset();
@@ -213,38 +213,47 @@ pub fn array_load_impl(compiler: &mut IRCompilerState, current_instr_data: Curre
     let index = compiler.emit_stack_load_int(0);
     let array_ref = compiler.emit_stack_load_pointer(1);
     compiler.emit_npe_check(array_ref);
-    let len_pointer = compiler.emit_address_calculate_int(array_ref, index, len_offset,ONE);
+    let len_pointer = compiler.emit_address_calculate_int(array_ref, index, len_offset, ONE);
     let len = compiler.emit_load_int_sign_extend(len_pointer, Size::int());
     compiler.emit_array_bounds_check(len, index);
     let elem_pointer = compiler.emit_address_calculate_int(array_ref, index, elem_0_offset, array_elem_size);
     match arr_sub_type {
         CPDType::BooleanType => {
-            compiler.emit_load_int_zero_extend(elem_pointer, Size::boolean());
+            let res = compiler.emit_load_int_zero_extend(elem_pointer, Size::boolean());
+            compiler.emit_stack_store_int(0, res);
         }
         CPDType::ByteType => {
-            compiler.emit_load_int_sign_extend(elem_pointer, Size::byte());
+            let res = compiler.emit_load_int_sign_extend(elem_pointer, Size::byte());
+            compiler.emit_stack_store_int(0, res);
         }
         CPDType::ShortType => {
-            compiler.emit_load_int_sign_extend(elem_pointer, Size::short());
+            let res = compiler.emit_load_int_sign_extend(elem_pointer, Size::short());
+            compiler.emit_stack_store_int(0, res);
         }
         CPDType::CharType => {
-            compiler.emit_load_int_zero_extend(elem_pointer, Size::short());
+            let res = compiler.emit_load_int_zero_extend(elem_pointer, Size::short());
+            compiler.emit_stack_store_int(0, res);
         }
         CPDType::IntType => {
-            compiler.emit_load_int(elem_pointer);
+            let res = compiler.emit_load_int(elem_pointer);
+            compiler.emit_stack_store_int(0, res);
         }
         CPDType::LongType => {
-            compiler.emit_load_long(elem_pointer);
+            let res = compiler.emit_load_long(elem_pointer);
+            compiler.emit_stack_store_long(0, res);
         }
         CPDType::FloatType => {
-            compiler.emit_load_float(elem_pointer);
+            let res = compiler.emit_load_float(elem_pointer);
+            compiler.emit_stack_store_float(0, res);
         }
         CPDType::DoubleType => {
-            compiler.emit_load_double(elem_pointer);
+            let res = compiler.emit_load_double(elem_pointer);
+            compiler.emit_stack_store_double(0, res);
         }
         CPDType::Class(_) |
         CPDType::Array { .. } => {
-            compiler.emit_load_pointer(elem_pointer);
+            let res = compiler.emit_load_pointer(elem_pointer);
+            compiler.emit_stack_store_pointer(0, res);
         }
         CPDType::VoidType => {
             panic!()
