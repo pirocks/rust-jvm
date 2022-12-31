@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use rust_jvm_common::ByteCodeOffset;
-use crate::{DoubleValue, FloatValue, IntegerValue, LongValue, PointerValue, ValueStatusChange};
+use crate::ir_compiler_common::{DoubleValue, FloatValue, IntegerValue, LongValue, PointerValue, ValueStatusChange};
 
 pub struct Stage1FrameLayout {
     frame_size: usize,

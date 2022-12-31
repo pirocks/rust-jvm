@@ -15,8 +15,8 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::method_shape::MethodShape;
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn invokespecial<'vm>(
     resolver: &impl MethodResolver<'vm>,

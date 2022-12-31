@@ -9,9 +9,9 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CFieldDescriptor;
 use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
 use crate::fields::{field_type_to_register_size, runtime_type_to_size};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn putstatic<'vm>(
     resolver: &impl MethodResolver<'vm>,

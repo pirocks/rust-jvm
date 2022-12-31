@@ -2,7 +2,7 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm::intrinsic_helpers::IntrinsicHelperType;
 use another_jit_vm_ir::compiler::{BitwiseLogicType, IRInstr, IRLabel, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
-use compiler_common::MethodResolver;
+use compiler_common::{CompilerLabeler, MethodResolver};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
@@ -10,7 +10,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::MethodId;
 
-use crate::CompilerLabeler;
 
 pub fn java_lang_object<'gc>(resolver: &impl MethodResolver<'gc>, labeler: &mut CompilerLabeler, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID, desc: &CMethodDescriptor, method_name: MethodName) -> Option<Vec<IRInstr>> {
     if method_name == MethodName::method_hashCode() && desc == &CompressedMethodDescriptor::empty_args(CPDType::IntType) {

@@ -12,8 +12,7 @@ use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMet
 use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
-use crate::CompilerLabeler;
-use compiler_common::MethodResolver;
+use compiler_common::{CompilerLabeler, MethodResolver};
 
 pub fn java_lang_system<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, method_id: MethodId, ir_method_id: IRMethodID, labeler: &mut CompilerLabeler, desc: &CMethodDescriptor, method_name: MethodName, class_name: CClassName) -> Option<Vec<IRInstr>> {
     let identity_hash_code = CompressedMethodDescriptor { arg_types: vec![CClassName::object().into()], return_type: CompressedParsedDescriptorType::IntType };

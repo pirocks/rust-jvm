@@ -6,7 +6,7 @@ use nonnull_const::NonNullConst;
 use another_jit_vm::{FramePointerOffset, IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use classfile_view::view::{ClassView, HasAccessFlags};
-use compiler_common::MethodResolver;
+use compiler_common::{CompilerLabeler, MethodResolver};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_descriptors::CompressedMethodDescriptor;
@@ -14,7 +14,6 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor,
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::MethodId;
 
-use crate::CompilerLabeler;
 use crate::intrinsics::get_component_type::get_component_type_intrinsic;
 use crate::intrinsics::java_lang_object::java_lang_object;
 use crate::intrinsics::java_lang_system::java_lang_system;

@@ -16,9 +16,9 @@ use rust_jvm_common::compressed_classfile::field_names::FieldName;
 
 use rust_jvm_common::runtime_type::RuntimeType;
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
 use crate::instance_of_and_casting::checkcast_impl;
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub const fn field_type_to_register_size(cpd_type: CPDType) -> Size {
     match cpd_type {

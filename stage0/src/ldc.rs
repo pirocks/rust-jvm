@@ -7,8 +7,8 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 use sketch_jvm_version_of_utf8::wtf8_pool::CompressedWtf8String;
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn ldc_string<'vm>(resolver: &impl MethodResolver<'vm>,
                        method_frame_data: &JavaCompilerMethodAndFrameData,

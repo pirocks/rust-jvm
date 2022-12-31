@@ -12,8 +12,8 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, FrameHeader, NativeStackframeMemoryLayout};
 use interface_vtable::ResolvedInterfaceVTableEntry;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use stage0::{compile_to_ir, Labeler, native_to_ir, NeedsRecompileIf};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use stage0::{compile_to_ir, native_to_ir, NeedsRecompileIf};
+use compiler_common::{JavaCompilerMethodAndFrameData, Labeler, MethodResolver};
 
 use crate::{JVMState, MethodResolverImpl};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
@@ -35,7 +35,7 @@ pub struct JavaVMStateWrapper<'vm> {
     // should be per thread
     labeler: Labeler,
     function_call_targets: RwLock<FunctionCallTargetsByFunction>,
-    modication_lock: GlobalCodeEditingLock,
+    modification_lock: GlobalCodeEditingLock,
 }
 
 impl<'vm> JavaVMStateWrapper<'vm> {
@@ -48,7 +48,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
             }),
             labeler: Labeler::new(),
             function_call_targets: RwLock::new(FunctionCallTargetsByFunction::new()),
-            modication_lock: GlobalCodeEditingLock::new(),
+            modification_lock: GlobalCodeEditingLock::new(),
         };
         res
     }
@@ -67,7 +67,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
     pub fn add_top_level_vm_exit(&'vm self) {
         //&IRVMExitEvent, IRStackMut, &IRVMState<'vm, ExtraData>, &mut ExtraData
         let ir_method_id = self.ir.reserve_method_id();
-        let (ir_method_id, restart_points, _) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, ir_method_id, self.modication_lock.acquire());
+        let (ir_method_id, restart_points, _) = self.ir.add_function(vec![IRInstr::VMExit2 { exit_type: IRVMExitType::TopLevelReturn {} }], FRAME_HEADER_END_OFFSET, ir_method_id, self.modification_lock.acquire());
         assert!(restart_points.is_empty());
         self.ir.init_top_level_exit_id(ir_method_id)
     }
@@ -256,7 +256,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                     bytecode_pc_to_start_ir_index,
                 }))
             };
-            let (ir_method_id, restart_points, function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modication_lock.acquire());
+            let (ir_method_id, restart_points, function_call_targets) = self.ir.add_function(ir_instructions, full_frame_size, reserved_method_id, self.modification_lock.acquire());
             self.function_call_targets.write().unwrap().sink_targets(function_call_targets);
             let mut write_guard = self.inner.write().unwrap();
             write_guard.most_up_to_date_ir_method_id_for_method_id.insert(method_id, ir_method_id);
@@ -266,7 +266,7 @@ impl<'vm> JavaVMStateWrapper<'vm> {
                 associated_method_id: method_id,
             });
             let new_address = self.ir.lookup_ir_method_id_pointer(ir_method_id);
-            self.function_call_targets.read().unwrap().update_target(method_id, new_address, self.modication_lock.acquire());
+            self.function_call_targets.read().unwrap().update_target(method_id, new_address, self.modification_lock.acquire());
             if let Some(prev_address) = prev_address {
                 jvm.vtables.lock().unwrap().update_address(prev_address, new_address);
                 jvm.invoke_interface_lookup_cache.write().unwrap().update(method_id, ResolvedInterfaceVTableEntry {

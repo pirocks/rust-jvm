@@ -4,9 +4,8 @@ use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 use rust_jvm_common::MethodId;
-use crate::CompilerLabeler;
 use crate::fields::field_type_to_register_size;
-use compiler_common::MethodResolver;
+use compiler_common::{CompilerLabeler, MethodResolver};
 
 pub fn intrinsic_compare_and_swap_long<'gc>(resolver: &impl MethodResolver<'gc>, layout: &NativeStackframeMemoryLayout, labeler: &mut CompilerLabeler, method_id: MethodId, ir_method_id: IRMethodID) -> Option<Vec<IRInstr>> {
     compare_and_swap_common(resolver, layout, labeler, method_id, ir_method_id, CPDType::LongType)

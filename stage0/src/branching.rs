@@ -4,8 +4,8 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use another_jit_vm_ir::vm_exit_abi::runtime_input::TodoCase;
 use rust_jvm_common::ByteCodeOffset;
 
-use crate::{array_into_iter, CurrentInstructionCompilerData};
-use compiler_common::JavaCompilerMethodAndFrameData;
+use crate::{array_into_iter};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ReferenceComparisonType {

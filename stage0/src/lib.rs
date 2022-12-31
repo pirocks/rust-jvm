@@ -3,15 +3,14 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::repeat;
-use std::sync::atomic::{AtomicU32, Ordering};
 
 use itertools::Either;
 
 use another_jit_vm::{IRMethodID, Register};
-use another_jit_vm_ir::compiler::{IRInstr, IRLabel, LabelName, RestartPointGenerator, Size};
+use another_jit_vm_ir::compiler::{IRInstr, IRLabel, RestartPointGenerator, Size};
 use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use classfile_view::view::ClassView;
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use compiler_common::{CompilerLabeler, CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, Labeler, MethodResolver};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classfile::{IInc, LookupSwitch, TableSwitch, Wide};
@@ -42,58 +41,8 @@ use crate::returns::{areturn, dreturn, freturn, ireturn, lreturn, return_void};
 use crate::static_fields::{getstatic, putstatic};
 use crate::throw::athrow;
 
-pub struct CurrentInstructionCompilerData<'l, 'k> {
-    current_index: ByteCodeIndex,
-    next_index: ByteCodeIndex,
-    current_offset: ByteCodeOffset,
-    compiler_labeler: &'k mut CompilerLabeler<'l>,
-}
 
 
-pub struct Labeler {
-    current_label: AtomicU32,
-}
-
-impl Labeler {
-    pub fn new() -> Self {
-        Self {
-            current_label: AtomicU32::new(0)
-        }
-    }
-
-    pub fn new_label(&self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
-        let current_label = self.current_label.fetch_add(1, Ordering::SeqCst);
-        let res = LabelName(current_label);
-        labels_vec.push(IRLabel { name: res });
-        res
-    }
-}
-
-
-pub struct CompilerLabeler<'l> {
-    labeler: &'l Labeler,
-    labels_vec: Vec<IRLabel>,
-    label_to_index: HashMap<ByteCodeIndex, LabelName>,
-    index_by_bytecode_offset: &'l HashMap<ByteCodeOffset, ByteCodeIndex>,
-}
-
-impl<'l> CompilerLabeler<'l> {
-    pub fn label_at(&mut self, byte_code_offset: ByteCodeOffset) -> LabelName {
-        let byte_code_index = self.index_by_bytecode_offset[&byte_code_offset];
-        let labels_vec = &mut self.labels_vec;
-        let label_to_offset = &mut self.label_to_index;
-        let labeler = self.labeler;
-        *label_to_offset.entry(byte_code_index).or_insert_with(|| {
-            labeler.new_label(labels_vec)
-        })
-    }
-
-    pub fn local_label(&mut self) -> LabelName {
-        let labels_vec = &mut self.labels_vec;
-        let labeler = self.labeler;
-        labeler.new_label(labels_vec)
-    }
-}
 
 pub struct RecompileConditions {
     conditions: HashMap<MethodId, HashSet<NeedsRecompileIf>>,
@@ -185,12 +134,7 @@ impl NeedsRecompileIf {
 pub fn native_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<IRInstr> {
     //todo handle synchronized
     let empty = HashMap::new();
-    let mut compiler_labeler = CompilerLabeler {
-        labeler,
-        labels_vec: vec![],
-        label_to_index: Default::default(),
-        index_by_bytecode_offset: &empty,
-    };
+    let mut compiler_labeler = CompilerLabeler::new(labeler, &empty);
     let layout = NativeStackframeMemoryLayout { num_locals: resolver.num_locals(method_id) };
     if let Some(intrinsic_ir) = gen_intrinsic_ir(resolver, &layout, method_id, ir_method_id, &mut compiler_labeler) {
         return intrinsic_ir;
@@ -248,12 +192,7 @@ pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, labeler: &Labeler
         num_locals: method_frame_data.layout.max_locals as usize,
     })];
 
-    let mut compiler_labeler = CompilerLabeler {
-        labeler,
-        labels_vec: vec![],
-        label_to_index: Default::default(),
-        index_by_bytecode_offset: &method_frame_data.index_by_bytecode_offset,
-    };
+    let mut compiler_labeler = CompilerLabeler::new(labeler, &method_frame_data.index_by_bytecode_offset);
     let mut restart_point_generator = RestartPointGenerator::new();
     let mut prev_offset: Option<ByteCodeOffset> = None;
 

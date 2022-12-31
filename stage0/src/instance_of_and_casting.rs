@@ -6,8 +6,8 @@ use another_jit_vm_ir::vm_exit_abi::IRVMExitType;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn checkcast<'vm>(
     resolver: &impl MethodResolver<'vm>,

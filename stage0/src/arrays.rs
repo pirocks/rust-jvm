@@ -1,8 +1,8 @@
 use another_jit_vm::Register;
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 
-use crate::{array_into_iter, CurrentInstructionCompilerData};
-use compiler_common::JavaCompilerMethodAndFrameData;
+use crate::{array_into_iter};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn arraylength(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_into_iter([

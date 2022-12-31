@@ -9,8 +9,8 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
-use crate::{array_into_iter, CurrentInstructionCompilerData, MethodRecompileConditions, NeedsRecompileIf};
-use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
+use crate::{array_into_iter, MethodRecompileConditions, NeedsRecompileIf};
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData, MethodResolver};
 
 pub fn new<'vm>(resolver: &impl MethodResolver<'vm>,
                 method_frame_data: &JavaCompilerMethodAndFrameData,

@@ -42,6 +42,10 @@ impl Size {
         Self::Byte
     }
 
+    pub const fn boolean() -> Self {
+        Self::Byte
+    }
+
     pub const fn pointer() -> Self {
         Self::X86QWord
     }

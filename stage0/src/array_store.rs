@@ -6,9 +6,9 @@ use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 
 
-use crate::{array_into_iter, CurrentInstructionCompilerData};
+use crate::{array_into_iter};
 use crate::fields::field_type_to_register_size;
-use compiler_common::JavaCompilerMethodAndFrameData;
+use compiler_common::{CurrentInstructionCompilerData, JavaCompilerMethodAndFrameData};
 
 pub fn sastore(method_frame_data: &JavaCompilerMethodAndFrameData, current_instr_data: CurrentInstructionCompilerData) -> impl Iterator<Item=IRInstr> {
     array_store_impl(method_frame_data, current_instr_data, CPDType::ShortType)

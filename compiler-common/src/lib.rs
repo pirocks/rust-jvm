@@ -3,13 +3,14 @@ use std::ffi::c_void;
 use std::mem::size_of;
 use std::ptr::NonNull;
 use std::sync::Arc;
-use std::sync::atomic::AtomicPtr;
+use std::sync::atomic::{AtomicPtr, AtomicU32, Ordering};
 
 use itertools::Itertools;
 use nonnull_const::NonNullConst;
 use wtf8::Wtf8Buf;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID};
+use another_jit_vm_ir::compiler::{IRLabel, LabelName};
 use classfile_view::view::{ClassView, HasAccessFlags};
 use classfile_view::view::method_view::MethodView;
 use gc_memory_layout_common::frame_layout::{FRAME_HEADER_END_OFFSET, NativeStackframeMemoryLayout};
@@ -302,4 +303,67 @@ pub trait MethodResolver<'gc> {
     fn resolve_static_field<'l>(&self, runtime_class: &'l RuntimeClass<'gc>, field_name: FieldName) -> (&'l RuntimeClassClass<'gc>, NonNull<u64>, CPDType);
     fn is_direct_invoke(&self, class: Arc<RuntimeClass<'gc>>, method_name: MethodName, desc: CMethodDescriptor) -> Option<unsafe extern "C" fn()>;
     fn resolve_native_method_pointer(&self, method_id: MethodId) -> NonNullConst<c_void>;
+}
+
+
+pub struct Labeler {
+    current_label: AtomicU32,
+}
+
+impl Labeler {
+    pub fn new() -> Self {
+        Self {
+            current_label: AtomicU32::new(0)
+        }
+    }
+
+    pub fn new_label(&self, labels_vec: &mut Vec<IRLabel>) -> LabelName {
+        let current_label = self.current_label.fetch_add(1, Ordering::SeqCst);
+        let res = LabelName(current_label);
+        labels_vec.push(IRLabel { name: res });
+        res
+    }
+}
+
+
+pub struct CurrentInstructionCompilerData<'l, 'k> {
+    pub current_index: ByteCodeIndex,
+    pub next_index: ByteCodeIndex,
+    pub current_offset: ByteCodeOffset,
+    pub compiler_labeler: &'k mut CompilerLabeler<'l>,
+}
+
+
+pub struct CompilerLabeler<'l> {
+    labeler: &'l Labeler,
+    labels_vec: Vec<IRLabel>,
+    pub label_to_index: HashMap<ByteCodeIndex, LabelName>,
+    pub index_by_bytecode_offset: &'l HashMap<ByteCodeOffset, ByteCodeIndex>,
+}
+
+impl<'l> CompilerLabeler<'l> {
+    pub fn new(labeler: &'l Labeler, index_by_bytecode_offset: &'l HashMap<ByteCodeOffset, ByteCodeIndex>) -> Self{
+        Self{
+            labeler,
+            labels_vec: vec![],
+            label_to_index: Default::default(),
+            index_by_bytecode_offset,
+        }
+    }
+
+    pub fn label_at(&mut self, byte_code_offset: ByteCodeOffset) -> LabelName {
+        let byte_code_index = self.index_by_bytecode_offset[&byte_code_offset];
+        let labels_vec = &mut self.labels_vec;
+        let label_to_offset = &mut self.label_to_index;
+        let labeler = self.labeler;
+        *label_to_offset.entry(byte_code_index).or_insert_with(|| {
+            labeler.new_label(labels_vec)
+        })
+    }
+
+    pub fn local_label(&mut self) -> LabelName {
+        let labels_vec = &mut self.labels_vec;
+        let labeler = self.labeler;
+        labeler.new_label(labels_vec)
+    }
 }

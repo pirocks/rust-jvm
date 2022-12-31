@@ -2,8 +2,7 @@ use another_jit_vm::{IRMethodID, Register};
 use another_jit_vm_ir::compiler::{IRInstr, Size};
 use gc_memory_layout_common::frame_layout::NativeStackframeMemoryLayout;
 use rust_jvm_common::MethodId;
-use crate::CompilerLabeler;
-use compiler_common::MethodResolver;
+use compiler_common::{CompilerLabeler, MethodResolver};
 
 ///#[no_mangle]
 //         unsafe extern "system" fn Java_sun_misc_Unsafe_putLong__JJ(env: *mut JNIEnv, the_unsafe: jobject, ptr: jlong, val: jlong) {
