@@ -136,14 +136,14 @@ fn main() -> anyhow::Result<()> {
             let javac = javac_location(&config);
             // let to
             let classes = vec![
-                vec!["java/nio/Buffer/Basic",
-                     "java/nio/Buffer/BasicByte",
-                     "java/nio/Buffer/BasicChar",
-                     "java/nio/Buffer/BasicShort",
-                     "java/nio/Buffer/BasicInt",
-                     "java/nio/Buffer/BasicFloat",
-                     "java/nio/Buffer/BasicDouble",
-                     "java/nio/Buffer/BasicLong"]
+                // vec!["java/nio/Buffer/Basic",
+                //      "java/nio/Buffer/BasicByte",
+                //      "java/nio/Buffer/BasicChar",
+                //      "java/nio/Buffer/BasicShort",
+                //      "java/nio/Buffer/BasicInt",
+                //      "java/nio/Buffer/BasicFloat",
+                //      "java/nio/Buffer/BasicDouble",
+                //      "java/nio/Buffer/BasicLong"]
                 // vec!["java/lang/Boolean/Factory"],
                 // vec!["java/lang/Boolean/GetBoolean"],
                 // vec!["java/lang/Boolean/MakeBooleanComparable"],
@@ -186,6 +186,13 @@ fn main() -> anyhow::Result<()> {
                 // // vec!["java/nio/channels/SelectionKey/AtomicAttachTest"], //needs transition
                 // vec!["java/nio/channels/Selector/ReadAfterConnect", "java/nio/channels/Selector/ByteServer", "java/nio/channels/TestServers", "java/nio/channels/TestThread"],
                 // vec!["java/nio/channels/Pipe/SelectPipe"]
+                vec!["java/beans/Introspector/memory/Test4508780",
+                     "java/beans/Introspector/memory/SimpleClassLoader",
+                     "java/beans/Introspector/memory/Bean",
+                     "java/beans/Introspector/memory/Bean2",
+                     "java/beans/Introspector/memory/Bean3",
+                     "java/beans/Introspector/memory/Bean4",
+                ]
             ];
             let class_files = classes.into_par_iter().map(|classes| {
                 classes.iter().map(|class| test_resources_base.join(format!("{}.java", class))).collect_vec()
