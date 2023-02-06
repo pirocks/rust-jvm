@@ -59,5 +59,6 @@ members = [
     "sun-misc-unsafe",
     "java-lang-invoke-method-handle-natives",
     "sun-misc-perf",
-    "stage1"
+    "stage1",
+    "build-mechanism"
 ]
