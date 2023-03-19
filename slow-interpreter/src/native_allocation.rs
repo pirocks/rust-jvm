@@ -1,33 +1,27 @@
-use alloc::ffi::CString;
 use std::collections::HashMap;
+use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock};
 
 use jvmti_jni_bindings::jint;
 use sketch_jvm_version_of_utf8::JVMString;
 
 #[derive(Clone)]
 pub enum AllocationType {
-    /*
-    VecLeak,
-    */
-    BoxLeak,
     Malloc,
     CString,
 }
 
 pub struct NativeAllocator {
-    pub(crate) allocations: RwLock<HashMap<usize, AllocationType>>, //todo impl default or something
+    allocations: Mutex<HashMap<usize, AllocationType>>,
 }
 
-unsafe impl Send for NativeAllocator {}
-
 impl NativeAllocator {
-    pub fn new() -> Self{
-        Self{
-            allocations: RwLock::new(HashMap::new())
+    pub fn new() -> Self {
+        Self {
+            allocations: Mutex::new(HashMap::new())
         }
     }
 
@@ -46,21 +40,14 @@ impl NativeAllocator {
 
     pub unsafe fn allocate_malloc(&self, size: libc::size_t) -> *mut c_void {
         let res = libc::malloc(size);
-        let mut guard = self.allocations.write().unwrap();
+        let mut guard = self.allocations.lock().unwrap();
         guard.insert(res as usize, AllocationType::Malloc);
-        res
-    }
-
-    pub fn allocate_box<'life, ElemType>(&self, vec: ElemType) -> &'life mut ElemType {
-        let res = Box::leak(box vec);
-        let mut guard = self.allocations.write().unwrap();
-        guard.insert(res as *mut ElemType as *mut c_void as usize, AllocationType::BoxLeak);
         res
     }
 
     pub unsafe fn allocate_cstring(&self, cstr: CString) -> *mut i8 {
         let res = cstr.into_raw();
-        let mut guard = self.allocations.write().unwrap();
+        let mut guard = self.allocations.lock().unwrap();
         guard.insert(res as *mut c_void as usize, AllocationType::CString);
         res
     }
@@ -81,22 +68,40 @@ impl NativeAllocator {
         if ptr.is_null() {
             return; // this is needed to be correct w/ malloc of zero size
         }
-        let allocation_type = match self.allocations.read().unwrap().get(&(ptr as usize)) {
+        let allocation_type = match self.allocations.lock().unwrap().get(&(ptr as usize)) {
             Some(x) => x,
             None => return,
         }
             .clone();
         match allocation_type {
-            AllocationType::BoxLeak => {
-                unimplemented!()
-            }
             AllocationType::Malloc => {
                 libc::free(ptr);
-                self.allocations.write().unwrap().remove(&(ptr as usize));
             }
             AllocationType::CString => {
                 let _ = CString::from_raw(ptr as *mut i8);
             }
+        }
+        self.allocations.lock().unwrap().remove(&(ptr as usize));
+    }
+}
+
+
+#[cfg(test)]
+pub mod tests {
+    use std::ffi::{c_void, CString};
+    use crate::native_allocation::NativeAllocator;
+
+    #[test]
+    pub fn allocation_round_trip() {
+        unsafe {
+            let allocator = NativeAllocator::new();
+            let res = allocator.allocate_string("test string".to_string());
+            allocator.free(res as *mut c_void);
+            let res = allocator.allocate_cstring(CString::new("test string").unwrap());
+            allocator.free(res as *mut c_void);
+            let res = allocator.allocate_malloc(100);
+            allocator.free(res);
+            assert!(allocator.allocations.lock().unwrap().is_empty());
         }
     }
 }

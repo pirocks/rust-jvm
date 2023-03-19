@@ -18,8 +18,6 @@
 #![feature(naked_functions)]
 #![feature(asm_const)]
 
-extern crate alloc;
-extern crate core;
 
 use std::error::Error;
 use std::sync::Arc;
