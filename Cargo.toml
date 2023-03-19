@@ -60,5 +60,6 @@ members = [
     "java-lang-invoke-method-handle-natives",
     "sun-misc-perf",
     "stage1",
-    "build-mechanism"
+    "build-mechanism",
+    "strict-bi-hashmap"
 ]

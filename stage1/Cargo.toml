@@ -18,6 +18,7 @@ method-table = { path = "../method-table" }
 inheritance-tree = { path = "../inheritance-tree" }
 array-memory-layout = { path = "../array-memory-layout" }
 compiler-common = { path = "../compiler-common" }
+strict-bi-hashmap = { path = "../strict-bi-hashmap" }
 nonnull-const = { git = "https://github.com/pirocks/better-nonnull.git", branch = "master" }
 itertools = "0.10"
 wtf8 = "0.1"

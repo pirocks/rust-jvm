@@ -1,7 +1,11 @@
+use std::collections::{HashMap, HashSet};
 use another_jit_vm::IRMethodID;
 use compiler_common::JavaCompilerMethodAndFrameData;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
-use crate::ir_compiler_common::{PointerValueToken, Stage1IRInstr, TargetLabelID};
+use rust_jvm_common::classnames::ClassName::Str;
+use strict_bi_hashmap::StrictBiHashMap;
+use crate::ir_compiler_common::{BranchToLabelID, PointerValueToken, Stage1IRInstr, TargetLabelID};
+use crate::native_compiler_common::GeneralRegister;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct IRCompilerPosition {
@@ -28,6 +32,9 @@ pub struct IRCompilerState<'l> {
     should_trace_instructions: bool,
     //frame_data
     method_frame_data: &'l JavaCompilerMethodAndFrameData,
+    //label ids:
+    labels: StrictBiHashMap<TargetLabelID, BranchToLabelID>
+
 }
 
 impl <'l> IRCompilerState<'l> {
@@ -46,6 +53,7 @@ impl <'l> IRCompilerState<'l> {
             res: Vec::with_capacity(vec_capacity),
             pending_exits: vec![],
             should_trace_instructions,
+            labels: StrictBiHashMap::new(),
         }
     }
 
@@ -59,6 +67,10 @@ impl <'l> IRCompilerState<'l> {
             method_id: self.method_id,
             frame_size: self.method_frame_data.full_frame_size(),//todo actual frame size needs to be calculated after the fact todo.
         })
+    }
+
+    pub fn emit_native_function_start(&mut self, registers_to_save: HashSet<GeneralRegister>) -> HashMap<GeneralRegister, PointerValueToken>{
+        todo!()
     }
 
     pub fn emit_monitor_enter(&mut self, obj: PointerValueToken) {

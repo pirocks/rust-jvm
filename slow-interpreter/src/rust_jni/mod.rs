@@ -31,7 +31,6 @@ use crate::rust_jni::value_conversion::{to_native, to_native_type};
 pub mod mangling;
 pub mod value_conversion;
 pub mod ffi_arg_holder;
-pub mod dlopen;
 pub mod native_util;
 pub mod jvmti;
 pub mod jni_utils;

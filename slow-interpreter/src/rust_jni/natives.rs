@@ -5,12 +5,12 @@ use std::path::PathBuf;
 use std::ptr::null_mut;
 use std::sync::{Arc, RwLock};
 use by_address::ByAddress;
+use libc::{RTLD_GLOBAL, RTLD_LAZY};
 use libloading::{Library, Symbol};
 use jvmti_jni_bindings::invoke_interface::JNIInvokeInterfaceNamedReservedPointers;
 use jvmti_jni_bindings::{jint, JNI_VERSION_1_1};
 use runtime_class_stuff::RuntimeClass;
 use crate::jvm_state::JVMState;
-use crate::rust_jni::dlopen::{RTLD_GLOBAL, RTLD_LAZY};
 use crate::rust_jni::invoke_interface::get_invoke_interface_new;
 
 #[derive(Debug)]
