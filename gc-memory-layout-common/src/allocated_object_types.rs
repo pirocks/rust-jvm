@@ -158,7 +158,7 @@ impl AllocatedObjectType {
             AllocatedObjectType::Class { .. } => false,
             AllocatedObjectType::ObjectArray { .. } => true,
             AllocatedObjectType::PrimitiveArray { .. } => true,
-            AllocatedObjectType::RawConstantSize { .. } => panic!()
+            AllocatedObjectType::RawConstantSize { .. } => false,
         }
     }
 }

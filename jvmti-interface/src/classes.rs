@@ -90,10 +90,10 @@ pub unsafe extern "C" fn get_class_status(env: *mut jvmtiEnv, klass: jclass, sta
 
 ///Get Loaded Classes
 ///
-///     jvmtiError
-///     GetLoadedClasses(jvmtiEnv* env,
-///                 jint* class_count_ptr,
-///                 jclass** classes_ptr)
+/// jvmtiError
+/// GetLoadedClasses(jvmtiEnv* env,
+///             jint* class_count_ptr,
+///             jclass** classes_ptr)
 ///
 /// Return an array of all classes loaded in the virtual machine.
 /// The number of classes in the array is returned via class_count_ptr, and the array itself via classes_ptr.
@@ -165,11 +165,11 @@ pub unsafe extern "C" fn get_class_signature(env: *mut jvmtiEnv, klass: jclass, 
 
 ///Get Class Methods
 ///
-///     jvmtiError
-///     GetClassMethods(jvmtiEnv* env,
-///                 jclass klass,
-///                 jint* method_count_ptr,
-///                 jmethodID** methods_ptr)
+/// jvmtiError
+/// GetClassMethods(jvmtiEnv* env,
+///             jclass klass,
+///             jint* method_count_ptr,
+///             jmethodID** methods_ptr)
 ///
 /// For the class indicated by klass, return a count of methods via method_count_ptr and a list of method IDs via methods_ptr. The method list contains constructors and static initializers as well as true methods. Only directly declared methods are returned (not inherited methods). An empty method list is returned for array classes and primitive classes (for example, java.lang.Integer.TYPE).
 ///

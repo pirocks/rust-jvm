@@ -215,7 +215,7 @@ mod tests {
         match res {
             ParsedOpenJDKTest::Test { file_type, bug_num, summary, author, .. } => {
                 assert_eq!(file_type, FileType::Java);
-                assert_eq!(bug_num, Some(vec![4645302]));
+                assert_eq!(bug_num, Some("4645302\n*".to_string()));
                 assert_eq!(summary, Some("Socket with OP_WRITE would get selected only once\n*".to_string()));
                 assert_eq!(author, Some("kladko".to_string()));
             }
@@ -237,7 +237,7 @@ mod tests {
         match res {
             ParsedOpenJDKTest::Test { file_type, bug_num, summary, author, .. } => {
                 assert_eq!(file_type, FileType::Java);
-                assert_eq!(bug_num, Some(vec![4902952, 4905407, 4916149, 8057793]));
+                assert_eq!(bug_num, Some("4902952 4905407 4916149 8057793\n *".to_string()));
                 assert_eq!(summary, Some("Tests that the scale of zero is propagated properly and has the
  * proper effect and that setting the scale to zero does not mutate the
  * BigDecimal.

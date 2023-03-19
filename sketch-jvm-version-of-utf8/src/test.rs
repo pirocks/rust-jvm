@@ -19,7 +19,7 @@ const ZERO_BYTES: &[u8] = &[0b00110000u8, 0b11011001u8, 0b10100000u8, 0b11011011
 #[test]
 pub fn zero_bytes_match() {
     let possibly_str = PossiblyJVMString::new(ZERO_BYTES.iter().cloned().collect_vec());
-    assert_eq!(possibly_str.validate(false).unwrap().to_string_validated(), ZEROES);
+    assert_eq!(possibly_str.validate().unwrap().to_string_validated(), ZEROES);
 }
 
 
@@ -28,7 +28,7 @@ const CURSED_BYTES: &[u8] = &[0b11000000,0b10000000,0b01111111,0b11000010,0b1010
 #[test]
 pub fn test_another() {
     let possibly_str = PossiblyJVMString::new(CURSED_BYTES.iter().cloned().collect_vec());
-    let string = possibly_str.to_regular_utf8(true).unwrap().unwrap_wtf8();
+    let string = possibly_str.to_regular_utf8().unwrap().unwrap_wtf8();
     for x in string.code_points() {
         print!("{} ", x.to_u32() as u32);
     }

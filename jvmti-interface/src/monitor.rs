@@ -55,9 +55,9 @@ pub unsafe extern "C" fn create_raw_monitor(env: *mut jvmtiEnv, name: *const c_c
 
 ///Raw Monitor Enter
 ///
-///     jvmtiError
-///     RawMonitorEnter(jvmtiEnv* env,
-///                 jrawMonitorID monitor)
+/// jvmtiError
+/// RawMonitorEnter(jvmtiEnv* env,
+///             jrawMonitorID monitor)
 ///
 /// Gain exclusive ownership of a raw monitor.
 /// The same thread may enter a monitor more then once.
@@ -92,9 +92,9 @@ pub unsafe extern "C" fn raw_monitor_enter(env: *mut jvmtiEnv, monitor_id: jrawM
 
 ///Raw Monitor Exit
 ///
-///     jvmtiError
-///     RawMonitorExit(jvmtiEnv* env,
-///                 jrawMonitorID monitor)
+/// jvmtiError
+/// RawMonitorExit(jvmtiEnv* env,
+///             jrawMonitorID monitor)
 ///
 /// Release exclusive ownership of a raw monitor.
 ///
@@ -202,9 +202,9 @@ pub unsafe extern "C" fn raw_monitor_notify(env: *mut jvmtiEnv, monitor_id: jraw
 
 ///Raw Monitor Notify All
 ///
-///     jvmtiError
-///     RawMonitorNotifyAll(jvmtiEnv* env,
-///                 jrawMonitorID monitor)
+/// jvmtiError
+/// RawMonitorNotifyAll(jvmtiEnv* env,
+///             jrawMonitorID monitor)
 ///
 /// Notify all threads waiting on the raw monitor.
 ///
@@ -236,9 +236,9 @@ pub unsafe extern "C" fn raw_monitor_notify_all(env: *mut jvmtiEnv, monitor_id: 
 
 ///Destroy Raw Monitor
 ///
-///     jvmtiError
-///     DestroyRawMonitor(jvmtiEnv* env,
-///                 jrawMonitorID monitor)
+/// jvmtiError
+/// DestroyRawMonitor(jvmtiEnv* env,
+///             jrawMonitorID monitor)
 ///
 /// Destroy the raw monitor. If the monitor being destroyed has been entered by this thread, it will be exited before it is destroyed.
 /// If the monitor being destroyed has been entered by another thread, an error will be returned and the monitor will not be destroyed.

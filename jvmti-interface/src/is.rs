@@ -6,10 +6,10 @@ use slow_interpreter::rust_jni::native_util::try_from_jclass;
 
 ///Is Array Class
 ///
-///     jvmtiError
-///     IsArrayClass(jvmtiEnv* env,
-///                 jclass klass,
-///                 jboolean* is_array_class_ptr)
+/// jvmtiError
+/// IsArrayClass(jvmtiEnv* env,
+///             jclass klass,
+///             jboolean* is_array_class_ptr)
 ///
 /// Determines whether a class object reference represents an array. The jboolean result is JNI_TRUE if the class is an array, JNI_FALSE otherwise.
 ///
@@ -54,10 +54,10 @@ pub unsafe fn is_array_impl<'gc>(jvm: &'gc JVMState<'gc>, cls: jclass) -> Result
 
 /// Is Interface
 ///
-///     jvmtiError
-///     IsInterface(jvmtiEnv* env,
-///                 jclass klass,
-///                 jboolean* is_interface_ptr)
+/// jvmtiError
+/// IsInterface(jvmtiEnv* env,
+///             jclass klass,
+///             jboolean* is_interface_ptr)
 ///
 /// Determines whether a class object reference represents an jni_interface.
 /// The jboolean result is JNI_TRUE if the "class" is actually an jni_interface, JNI_FALSE otherwise.

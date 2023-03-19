@@ -205,28 +205,24 @@ pub mod test {
     pub fn test_region_pointer_to_region_size_size() {
         unsafe {
             let a_ptr = NonNull::new((SMALL_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
-            let expected = Region::Small;
             for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
                 assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Small);
                 assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), SMALL_REGION_SIZE_SIZE as u8);
             }
 
             let a_ptr = NonNull::new((MEDIUM_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
-            let expected = Region::Medium;
             for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
                 assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Medium);
                 assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), MEDIUM_REGION_SIZE_SIZE as u8);
             }
 
             let a_ptr = NonNull::new((LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
-            let expected = Region::Large;
             for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
                 assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::Large);
                 assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), LARGE_REGION_SIZE_SIZE as u8);
             }
 
             let a_ptr = NonNull::new((EXTRA_LARGE_REGION_BASE << MAX_REGIONS_SIZE_SIZE) as *mut c_void).unwrap().as_ptr();
-            let expected = Region::ExtraLarge;
             for offset in [0u64, 10000u64, 8967550u64, (MAX_REGIONS_SIZE - 1) as u64] {
                 assert_eq!(region_pointer_to_region(a_ptr.offset(offset as isize) as u64), Region::ExtraLarge);
                 assert_eq!(region_pointer_to_region_size_size(a_ptr.offset(offset as isize) as u64), EXTRA_LARGE_REGION_SIZE_SIZE as u8);

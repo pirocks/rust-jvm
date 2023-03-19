@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 pub struct FullNameBuilder {
     group_name: String,
 }
@@ -23,7 +25,14 @@ impl FullNameBuilder {
     }
 }
 
+#[derive(Debug)]
 pub struct BadName;
+
+impl Display for BadName{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Names should not contain .")
+    }
+}
 
 #[derive(Clone, Eq, PartialEq, Hash)]
 pub struct FullName {

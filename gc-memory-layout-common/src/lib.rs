@@ -1,4 +1,5 @@
 #![feature(exclusive_range_pattern)]
+#![feature(once_cell)]
 
 use std::ptr::NonNull;
 
@@ -7,12 +8,14 @@ use libc::size_t;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use jvmti_jni_bindings::{jint, jobject};
 
-use crate::memory_regions::{MemoryRegions};
+use crate::memory_regions::MemoryRegions;
 
 pub mod frame_layout;
 pub mod memory_regions;
 pub mod allocated_object_types;
 pub mod early_startup;
+#[cfg(test)]
+pub mod test;
 
 
 //todo need somewhere better for this

@@ -31,8 +31,6 @@ use crate::object_layout::ObjectLayout;
 use crate::static_fields::{AllTheStaticFields, get_fields_static};
 
 pub mod object_layout;
-#[cfg(test)]
-pub mod test;
 pub mod method_numbers;
 pub mod field_numbers;
 pub mod static_fields;

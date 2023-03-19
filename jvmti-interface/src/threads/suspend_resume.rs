@@ -13,11 +13,11 @@ use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 ///Suspend Thread List
 ///
-///     jvmtiError
-///     SuspendThreadList(jvmtiEnv* env,
-///                 jint request_count,
-///                 const jthread* request_list,
-///                 jvmtiError* results)
+/// jvmtiError
+/// SuspendThreadList(jvmtiEnv* env,
+///             jint request_count,
+///             const jthread* request_list,
+///             jvmtiError* results)
 ///
 /// Suspend the request_count threads specified in the request_list array. Threads may be resumed with ResumeThreadList or ResumeThread.
 /// If the calling thread is specified in the request_list array, this function will not return until some other thread resumes it.
@@ -86,9 +86,9 @@ unsafe fn suspend_thread_impl<'gc, 'l>(thread_object_raw: jthread, jvm: &'gc JVM
 
 ///Suspend Thread
 ///
-///     jvmtiError
-///     SuspendThread(jvmtiEnv* env,
-///                 jthread thread)
+/// jvmtiError
+/// SuspendThread(jvmtiEnv* env,
+///             jthread thread)
 ///
 /// Suspend the specified thread.
 /// If the calling thread is specified, this function will not return until some other thread calls ResumeThread.
@@ -124,9 +124,9 @@ pub unsafe extern "C" fn suspend_thread(env: *mut jvmtiEnv, thread: jthread) -> 
 
 ///Resume Thread
 ///
-///     jvmtiError
-///     ResumeThread(jvmtiEnv* env,
-///                 jthread thread)
+/// jvmtiError
+/// ResumeThread(jvmtiEnv* env,
+///             jthread thread)
 ///
 /// Resume a suspended thread. Any threads currently suspended through a JVM TI suspend function (eg. SuspendThread) or java.lang.Thread.suspend() will resume execution; all other threads are unaffected.
 ///

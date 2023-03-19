@@ -5,10 +5,10 @@ use slow_interpreter::rust_jni::jvmti::{get_state};
 
 ///Get System Property
 ///
-///     jvmtiError
-///     GetSystemProperty(jvmtiEnv* env,
-///                 const char* property,
-///                 char** value_ptr)
+/// jvmtiError
+/// GetSystemProperty(jvmtiEnv* env,
+///             const char* property,
+///             char** value_ptr)
 ///
 /// Return a VM system property value given the property key.
 ///

@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use sha2::Sha512;
-use uuid::Uuid;
 use crate::executor::Executor;
 use crate::fullnames::FullName;
 
@@ -31,6 +28,9 @@ impl BuilderConfig {
             full_name,
             dep_rebuild_conditions,
             artifacts_from_base,
+            build_func: Box::new(|_|{
+                todo!()
+            }),
         };
         self.targets.push(target)
     }
@@ -46,9 +46,6 @@ pub enum RebuildCondition {
     }
 }
 
-impl RebuildCondition{
-    pub fn
-}
 
 pub enum Artifacts{
     Absolute(HashSet<PathBuf>),
@@ -68,7 +65,7 @@ pub trait BuildFunction{
 
 #[cfg(test)]
 pub mod test {
-    use crate::builder_config::{BuilderConfig, FullNameBuilder};
+    use crate::builder_config::{BuilderConfig};
     use crate::fullnames::FullNameBuilder;
 
     #[test]
@@ -76,7 +73,7 @@ pub mod test {
         let full_name_builder = FullNameBuilder::new("uk.co.pirocks.jvm");
         let bootstrap_jdk_download_name = full_name_builder.new_name("jdk download").unwrap();
         let mut build_config = BuilderConfig::new();
-        build_config.add_target(bootstrap_jdk_download_name,||{},|artifact_paths|{})
+        build_config.add_target(bootstrap_jdk_download_name,|_|{},|artifact_paths|{})
 
     }
 }

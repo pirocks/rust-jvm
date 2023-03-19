@@ -154,7 +154,6 @@ impl NativeCPDType {
 pub mod to_native_from_native_test {
     use crate::compressed_classfile::class_names::CClassName;
     use crate::compressed_classfile::CPDType;
-    use crate::compressed_classfile::names::CClassName;
 
     #[test]
     pub fn test_array() {

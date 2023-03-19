@@ -9,17 +9,17 @@ use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 ///Get Thread Group Info
 ///
-///     typedef struct {
-///         jthreadGroup parent;
-///         char* name;
-///         jint max_priority;
-///         jboolean is_daemon;
-///     } jvmtiThreadGroupInfo;
+/// typedef struct {
+///     jthreadGroup parent;
+///     char* name;
+///     jint max_priority;
+///     jboolean is_daemon;
+/// } jvmtiThreadGroupInfo;
 ///
-///     jvmtiError
-///     GetThreadGroupInfo(jvmtiEnv* env,
-///                 jthreadGroup group,
-///                 jvmtiThreadGroupInfo* info_ptr)
+/// jvmtiError
+/// GetThreadGroupInfo(jvmtiEnv* env,
+///             jthreadGroup group,
+///             jvmtiThreadGroupInfo* info_ptr)
 ///
 /// Get information about the thread group. The fields of the jvmtiThreadGroupInfo structure are filled in with details of the specified thread group.
 ///
@@ -73,10 +73,10 @@ pub unsafe extern "C" fn get_thread_group_info(env: *mut jvmtiEnv, group: jthrea
 
 ///Get Top Thread Groups
 ///
-///     jvmtiError
-///     GetTopThreadGroups(jvmtiEnv* env,
-///                 jint* group_count_ptr,
-///                 jthreadGroup** groups_ptr)
+/// jvmtiError
+/// GetTopThreadGroups(jvmtiEnv* env,
+///             jint* group_count_ptr,
+///             jthreadGroup** groups_ptr)
 ///
 /// Return all top-level (parentless) thread groups in the VM.
 ///

@@ -8,10 +8,10 @@ use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 ///Get Object Hash Code
 ///
-///     jvmtiError
-///     GetObjectHashCode(jvmtiEnv* env,
-///                 jobject object,
-///                 jint* hash_code_ptr)
+/// jvmtiError
+/// GetObjectHashCode(jvmtiEnv* env,
+///             jobject object,
+///             jint* hash_code_ptr)
 ///
 /// For the object indicated by object, return via hash_code_ptr a hash code.
 /// This hash code could be used to maintain a hash table of object references, however, on some implementations this can cause significant performance impacts--in most cases tags will be a more efficient means of associating information with objects.

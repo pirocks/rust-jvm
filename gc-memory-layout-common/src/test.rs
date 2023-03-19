@@ -1,17 +1,17 @@
-use std::cell::OnceCell;
 use std::num::NonZeroUsize;
 use std::ptr::{NonNull, null};
+use std::sync::OnceLock;
 use itertools::Itertools;
 
 use libc::c_void;
-use once_cell::sync::OnceCell;
 
 use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
-use gc_memory_layout_common::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
 
-use gc_memory_layout_common::memory_regions::{MemoryRegions};
+use crate::allocated_object_types::{AllocatedObjectType, AllocatedObjectTypeWithSize};
+use crate::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE_SIZE};
+use crate::memory_regions::MemoryRegions;
 
-static REGIONS: OnceCell<Regions> = OnceCell::new();
+static REGIONS: OnceLock<Regions> = OnceLock::new();
 
 #[test]
 pub fn allocate_small() {
@@ -20,9 +20,9 @@ pub fn allocate_small() {
     let size_1 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 1 }, size: NonZeroUsize::new(1).unwrap() };
     let size_2 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 2 }, size: NonZeroUsize::new(8).unwrap() };
     let res_1_1 = memory_regions.allocate(&size_1);
-    let res_1_2 = memory_regions.allocate(&size_1);
+    let _res_1_2 = memory_regions.allocate(&size_1);
     let res_8_1 = memory_regions.allocate(&size_2);
-    let res_8_2 = memory_regions.allocate(&size_2);
+    let _res_8_2 = memory_regions.allocate(&size_2);
     assert_eq!(memory_regions.find_object_allocated_type(res_1_1), &size_1.allocated_object_type);
     assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
     for _ in 0..1000 {
@@ -30,7 +30,7 @@ pub fn allocate_small() {
         assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_1.allocated_object_type);
     }
     let size_3 = AllocatedObjectTypeWithSize { allocated_object_type: AllocatedObjectType::RawConstantSize { id: 3 }, size: NonZeroUsize::new(16).unwrap() };
-    let size_3_allocs = (0..10000).map(|i|{
+    let size_3_allocs = (0..10000).map(|_|{
         let res_1 = memory_regions.allocate(&size_3);
         unsafe { libc::memset(res_1.as_ptr(), 0, 16); }
         assert_eq!(memory_regions.find_object_allocated_type(res_1), &size_3.allocated_object_type);
@@ -57,22 +57,21 @@ pub fn allocate_small() {
     assert_eq!(memory_regions.find_object_allocated_type(res_8_1), &size_2.allocated_object_type);
 }
 
-use gc_memory_layout_common::early_startup::{EXTRA_LARGE_REGION_SIZE_SIZE, get_regions, LARGE_REGION_SIZE_SIZE, MEDIUM_REGION_SIZE_SIZE, Region, region_pointer_to_region, region_pointer_to_region_size, Regions, SMALL_REGION_SIZE_SIZE};
 
 #[test]
 pub fn test_size() {
     let regions = *REGIONS.get_or_init(||get_regions());
     let size = region_pointer_to_region_size(regions.small_regions.as_ptr() as usize as u64) as usize;
-    assert_eq!(size, SMALL_REGION_SIZE_SIZE);
+    assert_eq!(size, 1 << SMALL_REGION_SIZE_SIZE);
 
     let size = region_pointer_to_region_size(regions.medium_regions.as_ptr() as usize as u64) as usize;
-    assert_eq!(size, MEDIUM_REGION_SIZE_SIZE);
+    assert_eq!(size, 1 << MEDIUM_REGION_SIZE_SIZE);
 
     let size = region_pointer_to_region_size(regions.large_regions.as_ptr() as usize as u64) as usize;
-    assert_eq!(size, LARGE_REGION_SIZE_SIZE);
+    assert_eq!(size, 1 << LARGE_REGION_SIZE_SIZE);
 
     let size = region_pointer_to_region_size(regions.extra_large_regions.as_ptr() as usize as u64) as usize;
-    assert_eq!(size, EXTRA_LARGE_REGION_SIZE_SIZE);
+    assert_eq!(size, 1 << EXTRA_LARGE_REGION_SIZE_SIZE);
 }
 
 #[test]

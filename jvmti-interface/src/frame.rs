@@ -16,10 +16,10 @@ use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 /// Get Frame Count
 ///
-///     jvmtiError
-///     GetFrameCount(jvmtiEnv* env,
-///                 jthread thread,
-///                 jint* count_ptr)
+/// jvmtiError
+/// GetFrameCount(jvmtiEnv* env,
+///             jthread thread,
+///             jint* count_ptr)
 ///
 /// Get the number of frames currently in the specified thread's call stack.
 ///
@@ -69,12 +69,12 @@ pub unsafe extern "C" fn get_frame_count(env: *mut jvmtiEnv, thread: jthread, co
 
 ///Get Frame Location
 ///
-///     jvmtiError
-///     GetFrameLocation(jvmtiEnv* env,
-///                 jthread thread,
-///                 jint depth,
-///                 jmethodID* method_ptr,
-///                 jlocation* location_ptr)
+/// jvmtiError
+/// GetFrameLocation(jvmtiEnv* env,
+///             jthread thread,
+///             jint depth,
+///             jmethodID* method_ptr,
+///             jlocation* location_ptr)
 ///
 /// For a Java programming language frame, return the location of the instruction currently executing.
 ///
@@ -150,20 +150,20 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
 
 ///Get Local Variable Table
 ///
-///     typedef struct {
-///         jlocation start_location;
-///         jint length;
-///         char* name;
-///         char* signature;
-///         char* generic_signature;
-///         jint slot;
-///     } jvmtiLocalVariableEntry;
+/// typedef struct {
+///     jlocation start_location;
+///     jint length;
+///     char* name;
+///     char* signature;
+///     char* generic_signature;
+///     jint slot;
+/// } jvmtiLocalVariableEntry;
 ///
-///     jvmtiError
-///     GetLocalVariableTable(jvmtiEnv* env,
-///                 jmethodID method,
-///                 jint* entry_count_ptr,
-///                 jvmtiLocalVariableEntry** table_ptr)
+/// jvmtiError
+/// GetLocalVariableTable(jvmtiEnv* env,
+///             jmethodID method,
+///             jint* entry_count_ptr,
+///             jvmtiLocalVariableEntry** table_ptr)
 ///
 /// Return local variable information.
 ///

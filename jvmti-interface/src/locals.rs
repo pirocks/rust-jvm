@@ -13,12 +13,12 @@ use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
 ///Get Local Variable - Object
 ///
-///     jvmtiError
-///     GetLocalObject(jvmtiEnv* env,
-///                 jthread thread,
-///                 jint depth,
-///                 jint slot,
-///                 jobject* value_ptr)
+/// jvmtiError
+/// GetLocalObject(jvmtiEnv* env,
+///         jthread thread,
+///         jint depth,
+///         jint slot,
+///         jobject* value_ptr)
 ///
 /// This function can be used to retrieve the value of a local variable whose type is Object or a subclass of Object.
 ///
@@ -109,12 +109,12 @@ pub unsafe fn set_local<'gc>(env: *mut jvmtiEnv, thread: jthread, depth: jint, s
 
 ///Get Local Variable - Int
 ///
-///     jvmtiError
-///     GetLocalInt(jvmtiEnv* env,
-///                 jthread thread,
-///                 jint depth,
-///                 jint slot,
-///                 jint* value_ptr)
+/// jvmtiError
+/// GetLocalInt(jvmtiEnv* env,
+///             jthread thread,
+///             jint depth,
+///             jint slot,
+///             jint* value_ptr)
 ///
 /// This function can be used to retrieve the value of a local variable whose type is int, short, char, byte, or boolean.
 ///

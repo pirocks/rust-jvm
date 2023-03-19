@@ -82,10 +82,10 @@ pub unsafe extern "C" fn get_method_declaring_class(env: *mut jvmtiEnv, method: 
 
 ///Is Method Obsolete
 ///
-///     jvmtiError
-///     IsMethodObsolete(jvmtiEnv* env,
-///                 jmethodID method,
-///                 jboolean* is_obsolete_ptr)
+/// jvmtiError
+/// IsMethodObsolete(jvmtiEnv* env,
+///             jmethodID method,
+///             jboolean* is_obsolete_ptr)
 ///
 /// Determine if a method ID refers to an obsolete method version.
 ///
@@ -117,10 +117,10 @@ pub unsafe extern "C" fn is_method_obsolete(env: *mut jvmtiEnv, _method: jmethod
 
 ///Is Method Native
 ///
-///     jvmtiError
-///     IsMethodNative(jvmtiEnv* env,
-///                 jmethodID method,
-///                 jboolean* is_native_ptr)
+/// jvmtiError
+/// IsMethodNative(jvmtiEnv* env,
+///             jmethodID method,
+///             jboolean* is_native_ptr)
 ///
 /// For the method indicated by method, return a value indicating whether the method is native via is_native_ptr
 ///

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 uuid = "1"
 sha2 = "0.10"
+thiserror = "1"

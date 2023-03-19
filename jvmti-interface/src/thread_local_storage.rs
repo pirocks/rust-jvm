@@ -7,10 +7,10 @@ use slow_interpreter::rust_jni::jvmti::{get_state};
 
 ///Get Thread Local Storage
 ///
-///     jvmtiError
-///     GetThreadLocalStorage(jvmtiEnv* env,
-///                 jthread thread,
-///                 void** data_ptr)
+/// jvmtiError
+/// GetThreadLocalStorage(jvmtiEnv* env,
+///             jthread thread,
+///             void** data_ptr)
 ///
 /// Called by the agent to get the value of the JVM TI thread-local storage.
 ///
@@ -47,10 +47,10 @@ pub unsafe extern "C" fn get_thread_local_storage(env: *mut jvmtiEnv, thread: jt
 
 ///Set Thread Local Storage
 ///
-///     jvmtiError
-///     SetThreadLocalStorage(jvmtiEnv* env,
-///                 jthread thread,
-///                 const void* data)
+/// jvmtiError
+/// SetThreadLocalStorage(jvmtiEnv* env,
+///             jthread thread,
+///             const void* data)
 ///
 /// The VM stores a pointer value associated with each environment-thread pair.
 /// This pointer value is called thread-local storage.

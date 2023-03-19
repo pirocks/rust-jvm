@@ -3,10 +3,10 @@ use slow_interpreter::rust_jni::jvmti::{get_state};
 
 ///Get Tag
 ///
-///     jvmtiError
-///     GetTag(jvmtiEnv* env,
-///                 jobject object,
-///                 jlong* tag_ptr)
+/// jvmtiError
+/// GetTag(jvmtiEnv* env,
+///             jobject object,
+///             jlong* tag_ptr)
 ///
 /// Retrieve the tag associated with an object. The tag is a long value typically used to store a unique identifier or pointer to object information. The tag is set with SetTag.
 /// Objects for which no tags have been set return a tag value of zero.
@@ -52,10 +52,10 @@ pub unsafe extern "C" fn get_tag(env: *mut jvmtiEnv, object: jobject, tag_ptr: *
 
 ///Set Tag
 ///
-///     jvmtiError
-///     SetTag(jvmtiEnv* env,
-///                 jobject object,
-///                 jlong tag)
+/// jvmtiError
+/// SetTag(jvmtiEnv* env,
+///             jobject object,
+///             jlong tag)
 ///
 /// Set the tag associated with an object. The tag is a long value typically used to store a unique identifier or pointer to object information. The tag is visible with GetTag.
 ///
