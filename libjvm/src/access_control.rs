@@ -21,7 +21,7 @@ use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::java::security::access_control_context::AccessControlContext;
 use slow_interpreter::stdlib::java::security::protection_domain::ProtectionDomain;
-use slow_interpreter::utils::{throw_npe};
+use slow_interpreter::throw_utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "C" fn JVM_DoPrivileged(env: *mut JNIEnv, _cls: jclass, action: jobject, _context: jobject, _wrapException: jboolean) -> jobject {

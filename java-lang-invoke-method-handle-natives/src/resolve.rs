@@ -35,12 +35,12 @@ pub unsafe extern "system" fn Java_java_lang_invoke_MethodHandleNatives_resolve(
     // and return a brand new object
     match resolve_impl(jvm, int_state, member_name) {
         Ok(res) => {
-            new_local_ref_internal_new(res.full_object_ref(),int_state)
+            new_local_ref_internal_new(res.full_object_ref(), int_state)
         }
         Err(WasException { exception_obj }) => {
-            *get_throw(env) = Some(WasException{ exception_obj });
+            *get_throw(env) = Some(WasException { exception_obj });
             jobject::invalid_default()
-        },
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, ge
 use slow_interpreter::rust_jni::native_util::from_object_new;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::string_intern::intern_safe;
-use slow_interpreter::utils::{throw_npe};
+use slow_interpreter::throw_utils::throw_npe;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InternString(env: *mut JNIEnv, str_unsafe: jstring) -> jstring {

@@ -5,7 +5,7 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::field_view::FieldView;
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jint, jshort};
+use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber, LineNumberTable};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -20,33 +20,28 @@ use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
-use crate::java_values::{ExceptionReturn, JavaValue};
+use crate::java_values::{JavaValue};
 use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
-use crate::new_java_values::owned_casts::OwnedCastAble;
-use crate::stdlib::java::lang::array_out_of_bounds_exception::ArrayOutOfBoundsException;
 use crate::stdlib::java::lang::boolean::Boolean;
 use crate::stdlib::java::lang::byte::Byte;
 use crate::stdlib::java::lang::char::Char;
 use crate::stdlib::java::lang::class::JClass;
 use crate::stdlib::java::lang::double::Double;
 use crate::stdlib::java::lang::float::Float;
-use crate::stdlib::java::lang::illegal_argument_exception::IllegalArgumentException;
 use crate::stdlib::java::lang::int::Int;
 use crate::stdlib::java::lang::long::Long;
-use crate::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::short::Short;
+use crate::throw_utils::throw_npe_res;
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
-    // dbg!(class.view().name().unwrap_name().0.to_str(&jvm.string_pool));
     lookup_method_parsed_impl(jvm, class, name, descriptor)
 }
 
 pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     let view = class.view();
-    // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
     let posible_methods = view.lookup_method_name(name);
     let filtered = posible_methods.into_iter().filter(|m| if m.is_signature_polymorphic() { true } else { m.desc() == descriptor }).collect::<Vec<_>>();
     assert!(filtered.len() <= 1);
@@ -55,9 +50,6 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
             let class_name = match class.view().super_name() {
                 Some(x) => x,
                 None => {
-                    // dbg!(name.0.to_str(&jvm.string_pool));
-                    // dbg!(descriptor.jvm_representation(&jvm.string_pool));
-                    // dbg!(view.name().unwrap_name().0.to_str(&jvm.string_pool));
                     return None;
                 }
             }; //todo is this unwrap safe?
@@ -78,64 +70,6 @@ pub fn lookup_method_parsed_impl<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<Runtim
         }
         Some(method_view) => Some((method_view.method_i(), class.clone())),
     }
-}
-
-pub fn throw_npe_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
-    let mut throw = None;
-    let _ = throw_npe::<T>(jvm, int_state, &mut throw);
-    Err(WasException { exception_obj: throw.unwrap().exception_obj })
-}
-
-pub fn throw_npe<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
-    let npe_object = match NullPointerException::new(jvm, int_state) {
-        Ok(npe) => npe,
-        Err(WasException { .. }) => {
-            panic!("Exception occurred creating exception")
-        }
-    }
-        .object()
-        .cast_throwable();
-    *throw = Some(WasException { exception_obj: npe_object });
-    T::invalid_default()
-}
-
-pub fn throw_array_out_of_bounds_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, index: jint) -> Result<T, WasException<'gc>> {
-    let mut throw = None;
-    let _ = throw_array_out_of_bounds::<T>(jvm, int_state, &mut throw, index);
-    Err(throw.unwrap())
-}
-
-pub fn throw_array_out_of_bounds<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>, index: jint) -> T {
-    let bounds_object = match ArrayOutOfBoundsException::new(jvm, int_state, index) {
-        Ok(npe) => npe,
-        Err(WasException { .. }) => {
-            todo!();
-            eprintln!("Warning error encountered creating Array out of bounds");
-            return T::invalid_default();
-        }
-    }
-        .object()
-        .new_java_handle().unwrap_object_nonnull();
-    *throw = Some(WasException { exception_obj: bounds_object.cast_throwable() });
-    T::invalid_default()
-}
-
-pub fn throw_illegal_arg_res<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<T, WasException<'gc>> {
-    let mut res = None;
-    let _ = throw_illegal_arg::<T>(jvm, int_state, &mut res);
-    Err(WasException { exception_obj: res.unwrap().exception_obj })
-}
-
-pub fn throw_illegal_arg<'gc, 'l, T: ExceptionReturn>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, throw: &mut Option<WasException<'gc>>) -> T {
-    let illegal_arg_object = match IllegalArgumentException::new(jvm, int_state) {
-        Ok(illegal_arg) => illegal_arg,
-        Err(WasException { .. }) => {
-            eprintln!("Warning error encountered creating illegal arg exception");
-            return T::invalid_default();
-        }
-    }.object();
-    *throw = Some(WasException { exception_obj: illegal_arg_object.cast_throwable() });
-    T::invalid_default()
 }
 
 pub fn java_value_to_boxed_object<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, java_value: NewJavaValue<'gc, '_>, expected_type: CompressedParsedDescriptorType) -> Result<Option<AllocatedHandle<'gc>>, WasException<'gc>> {

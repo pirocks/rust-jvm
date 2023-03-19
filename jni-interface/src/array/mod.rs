@@ -12,7 +12,7 @@ use slow_interpreter::new_java_values::{NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::throw_utils::throw_npe;
 
 pub unsafe extern "C" fn get_array_length(env: *mut JNIEnv, array: jarray) -> jsize {
     let jvm = get_state(env);

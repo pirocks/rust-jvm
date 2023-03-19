@@ -1,13 +1,12 @@
 use std::ptr::null_mut;
 use std::sync::Arc;
 
-use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_SLOT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_OPAQUE_FRAME, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
+use jvmti_jni_bindings::{jdouble, jfloat, jint, jlong, jobject, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_THREAD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_TYPE_MISMATCH};
 
 use slow_interpreter::java_values::JavaValue;
 use slow_interpreter::jvm_state::JVMState;
 use slow_interpreter::new_java_values::NewJavaValue;
 use slow_interpreter::rust_jni::jni_utils::new_local_ref_public;
-use slow_interpreter::stack_entry::StackEntry;
 use slow_interpreter::threading::java_thread::JavaThread;
 use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
 
@@ -176,21 +175,22 @@ unsafe fn get_thread_from_obj_or_current<'gc>(jvm: &'gc JVMState<'gc>, thread: j
 }
 
 unsafe fn get_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint, slot: jint) -> Result<JavaValue<'gc>, jvmtiError> {
-    if depth < 0 {
-        return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
-    }
-
-    let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
-    let call_stack = todo!(); //&java_thread.interpreter_state.read().unwrap().call_stack;
-    let stack_frame: &StackEntry = todo!()/*match call_stack.get(call_stack.len() - 1 - depth as usize) {
-        None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
-        Some(entry) => entry,
-    }*/;
-    if stack_frame.is_native() {
-        return Result::Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
-    }
-    let var = stack_frame.local_vars().get(slot as usize).cloned();
-    var.map(Result::Ok).unwrap_or(Result::Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
+    todo!()
+    // if depth < 0 {
+    //     return Err(jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT);
+    // }
+    //
+    // let java_thread = get_thread_from_obj_or_current(jvm, thread)?;
+    // let call_stack = todo!(); //&java_thread.interpreter_state.read().unwrap().call_stack;
+    // let stack_frame: &StackEntry = todo!()/*match call_stack.get(call_stack.len() - 1 - depth as usize) {
+    //     None => return Result::Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
+    //     Some(entry) => entry,
+    // }*/;
+    // if stack_frame.is_native() {
+    //     return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
+    // }
+    // let var = stack_frame.local_vars().get(slot as usize).cloned();
+    // var.map(Ok).unwrap_or(Err(jvmtiError_JVMTI_ERROR_INVALID_SLOT))
 }
 
 unsafe fn set_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint, slot: jint, to_set: NewJavaValue<'gc,'_>) -> Result<(), jvmtiError> {
@@ -202,13 +202,13 @@ unsafe fn set_local_t<'gc>(jvm: &'gc JVMState<'gc>, thread: jthread, depth: jint
     let mut guard = todo!(); //java_thread.interpreter_state.write().unwrap();
     let call_stack = todo!()/*&mut guard.call_stack*/;
     let len: usize = todo!(); //call_stack.len();
-    let stack_frame: &mut StackEntry = todo!()/*match call_stack.get_mut(len - 1 - depth as usize) {
-        None => return Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
-        Some(entry) => entry,
-    }*/;
-    if stack_frame.is_native() {
-        return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
-    }
+    // let stack_frame: &mut StackEntry = todo!()/*match call_stack.get_mut(len - 1 - depth as usize) {
+    //     None => return Err(jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES),
+    //     Some(entry) => entry,
+    // }*/;
+    // if stack_frame.is_native() {
+    //     return Err(jvmtiError_JVMTI_ERROR_OPAQUE_FRAME);
+    // }
     todo!()
     // let var = stack_frame.local_vars_mut().get_mut(slot as usize);
     // match var.map(|jv| *jv = to_set) {

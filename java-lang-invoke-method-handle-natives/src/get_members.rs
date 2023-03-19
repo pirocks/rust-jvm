@@ -24,7 +24,8 @@ use slow_interpreter::stdlib::java::lang::member_name::MemberName;
 use slow_interpreter::stdlib::java::lang::reflect::constructor::Constructor;
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{field_object_from_view, get_all_fields, get_all_methods, throw_illegal_arg_res, unwrap_or_npe};
+use slow_interpreter::throw_utils::throw_illegal_arg_res;
+use slow_interpreter::utils::{field_object_from_view, get_all_fields, get_all_methods, unwrap_or_npe};
 
 /// so this is completely undocumented
 /// supported match flags IS_METHOD | IS_CONSTRUCTOR |  IS_FIELD | SEARCH_SUPERCLASSES | SEARCH_INTERFACES

@@ -11,7 +11,8 @@ use slow_interpreter::rust_jni::native_util::from_object_new;
 use slow_interpreter::stdlib::java::lang::member_name::MemberName;
 use slow_interpreter::stdlib::java::lang::reflect::field::Field;
 use slow_interpreter::stdlib::sun::misc::unsafe_::Unsafe;
-use slow_interpreter::utils::{throw_npe, unwrap_or_npe};
+use slow_interpreter::throw_utils::throw_npe;
+use slow_interpreter::utils::unwrap_or_npe;
 
 #[no_mangle]
 pub unsafe extern "system" fn Java_java_lang_invoke_MethodHandleNatives_objectFieldOffset<'gc, 'l>(env: *mut JNIEnv, _: jclass, member_name: jobject) -> jlong {

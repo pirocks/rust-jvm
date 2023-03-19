@@ -33,7 +33,6 @@ pub mod value_conversion;
 pub mod ffi_arg_holder;
 pub mod dlopen;
 pub mod native_util;
-pub mod stdarg;
 pub mod jvmti;
 pub mod jni_utils;
 pub mod invoke_interface;

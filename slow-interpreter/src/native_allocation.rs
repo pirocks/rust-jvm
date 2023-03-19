@@ -3,7 +3,7 @@ use std::ffi::CString;
 use std::mem::size_of;
 use std::os::raw::c_void;
 use std::ptr::null_mut;
-use std::sync::{Mutex, RwLock};
+use std::sync::Mutex;
 
 use jvmti_jni_bindings::jint;
 use sketch_jvm_version_of_utf8::JVMString;

@@ -21,7 +21,7 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
+use slow_interpreter::throw_utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_illegal_arg_res, throw_npe};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_GetMethodParameters<'gc>(env: *mut JNIEnv, method: jobject) -> jobjectArray {
@@ -59,12 +59,12 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     if from_jclass(jvm, ofClass).as_type(jvm).is_primitive() {
-        return std::ptr::null_mut();
+        return null_mut();
     }
     let view = from_jclass(jvm, ofClass).as_runtime_class(jvm).view();
     let em = view.enclosing_method_view();
     match em {
-        None => std::ptr::null_mut(),
+        None => null_mut(),
         Some(em) => {
             match (|| {
                 let ptype_name = em.class_name(&jvm.string_pool);

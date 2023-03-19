@@ -21,8 +21,9 @@ use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
-use slow_interpreter::utils::{throw_npe};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::throw_utils::throw_npe;
+
 #[no_mangle]
 unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv, name: *const c_char) -> jclass {
     let int_state = get_interpreter_state(env);

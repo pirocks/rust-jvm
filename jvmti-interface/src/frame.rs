@@ -1,18 +1,14 @@
-use std::mem::{size_of, transmute};
+use std::mem::{size_of};
 use std::ptr::null_mut;
 
 use classfile_view::view::HasAccessFlags;
-use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
+use jvmti_jni_bindings::{_jvmtiLineNumberEntry, _jvmtiLocalVariableEntry, jlocation, jmethodID, jthread, jvmtiEnv, jvmtiError, jvmtiError_JVMTI_ERROR_ABSENT_INFORMATION, jvmtiError_JVMTI_ERROR_ILLEGAL_ARGUMENT, jvmtiError_JVMTI_ERROR_INVALID_METHODID, jvmtiError_JVMTI_ERROR_NATIVE_METHOD, jvmtiError_JVMTI_ERROR_NONE, jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE, jvmtiLineNumberEntry, jvmtiLocalVariableEntry};
 use jvmti_jni_bindings::jint;
 use method_table::from_jmethod_id;
-use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::method_names::MethodName;
 
 
-use slow_interpreter::class_loading::assert_inited_or_initing_class;
 use slow_interpreter::rust_jni::native_util::from_object;
-use slow_interpreter::stack_entry::StackEntry;
-use slow_interpreter::rust_jni::jvmti::{get_interpreter_state, get_state};
+use slow_interpreter::rust_jni::jvmti::{get_state};
 
 /// Get Frame Count
 ///
@@ -119,33 +115,34 @@ pub unsafe extern "C" fn get_frame_location(env: *mut jvmtiEnv, thread: jthread,
     if !thread.is_alive() {
         return jvmtiError_JVMTI_ERROR_THREAD_NOT_ALIVE;
     }
-    let read_guard = todo!();
-    let call_stack_guard: Vec<StackEntry> = todo!()/*match read_guard.deref() {
-        /*InterpreterState::LegacyInterpreter { call_stack, .. } => { call_stack }*/
-        InterpreterState::Jit { .. } => todo!(),
-    }*/;
-    let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
-        None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
-        Some(stack_entry) => stack_entry,
-    };
-    let meth_id = match stack_entry.try_method_i() {
-        None => {
-            // so in the event of a completely opaque frame, just say it is Thread.start.
-            // this is not perfect, ideally we would return an error:
-            // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
-            let int_state = get_interpreter_state(env);
-            let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
-            let thread_class_view = thread_class.view();
-            let possible_starts = thread_class_view.lookup_method_name(MethodName::method_start());
-            let thread_start_view = possible_starts.get(0).unwrap();
-            jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
-        }
-        Some(method_i) => jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i),
-    };
-
-    method_ptr.write(transmute(meth_id));
-    location_ptr.write(todo!()/*stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1)*/);
-    jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
+    todo!()
+    // let read_guard = todo!();
+    // let call_stack_guard: Vec<StackEntry> = todo!()/*match read_guard.deref() {
+    //     /*InterpreterState::LegacyInterpreter { call_stack, .. } => { call_stack }*/
+    //     InterpreterState::Jit { .. } => todo!(),
+    // }*/;
+    // let stack_entry = match call_stack_guard.get(call_stack_guard.len() - 1 - depth as usize) {
+    //     None => return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES,
+    //     Some(stack_entry) => stack_entry,
+    // };
+    // let meth_id = match stack_entry.try_method_i() {
+    //     None => {
+    //         // so in the event of a completely opaque frame, just say it is Thread.start.
+    //         // this is not perfect, ideally we would return an error:
+    //         // return jvmtiError_JVMTI_ERROR_NO_MORE_FRAMES
+    //         let int_state = get_interpreter_state(env);
+    //         let thread_class = assert_inited_or_initing_class(jvm, CClassName::thread().into());
+    //         let thread_class_view = thread_class.view();
+    //         let possible_starts = thread_class_view.lookup_method_name(MethodName::method_start());
+    //         let thread_start_view = possible_starts.get(0).unwrap();
+    //         jvm.method_table.write().unwrap().get_method_id(thread_class.clone(), thread_start_view.method_i() as u16)
+    //     }
+    //     Some(method_i) => jvm.method_table.write().unwrap().get_method_id(stack_entry.class_pointer().clone(), method_i),
+    // };
+    //
+    // method_ptr.write(transmute(meth_id));
+    // location_ptr.write(todo!()/*stack_entry.try_pc().map(|x| x as i64).unwrap_or(-1)*/);
+    // jvm.config.tracing.trace_jdwp_function_exit(tracing_guard, jvmtiError_JVMTI_ERROR_NONE)
 }
 
 ///Get Local Variable Table

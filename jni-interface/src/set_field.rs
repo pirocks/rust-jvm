@@ -5,9 +5,9 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jclass, jdouble, jfieldID, jflo
 use slow_interpreter::new_java_values::{NewJavaValue, NewJavaValueHandle};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
-use slow_interpreter::utils::throw_npe;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::static_vars::static_vars;
+use slow_interpreter::throw_utils::throw_npe;
 
 unsafe fn set_field<'gc>(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID, val: NewJavaValue<'gc, '_>) {
     let jvm = get_state(env);

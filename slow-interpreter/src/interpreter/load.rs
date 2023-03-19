@@ -10,7 +10,7 @@ use crate::JVMState;
 use crate::better_java_stack::frames::HasFrame;
 use crate::interpreter::PostInstructionAction;
 use crate::interpreter::real_interpreter_state::{InterpreterFrame, InterpreterJavaValue};
-use crate::utils::throw_array_out_of_bounds_res;
+use crate::throw_utils::throw_array_out_of_bounds_res;
 
 pub fn aload<'gc, 'l, 'k, 'j>(mut current_frame: InterpreterFrame<'gc, 'l, 'k, 'j>, n: u16) -> PostInstructionAction<'gc> {
     let ref_: InterpreterJavaValue = current_frame.local_get(n, RuntimeType::object());
@@ -81,15 +81,17 @@ fn generic_array_load<'gc, 'l, 'k, 'j>(jvm: &'gc JVMState<'gc>, mut current_fram
         None => {
             current_frame.inner().inner().debug_print_stack_trace(jvm);
             panic!()
-        },
+        }
     };
     unsafe {
         let array_len = array_layout.calculate_len_address(array_ptr).as_ptr().read();
         if index < 0 || index >= array_len {
-            return PostInstructionAction::Exception { exception: throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err() };
+            return PostInstructionAction::Exception {
+                exception: throw_array_out_of_bounds_res::<i64>(jvm, current_frame.inner().inner(), index).unwrap_err()
+            };
         }
     }
-    let accessor = array_layout.calculate_index_address(array_ptr,index);
+    let accessor = array_layout.calculate_index_address(array_ptr, index);
     let res: InterpreterJavaValue = accessor.read_interpreter_jv(array_sub_type);
     current_frame.push(res);
     PostInstructionAction::Next {}

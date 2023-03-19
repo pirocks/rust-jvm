@@ -33,7 +33,7 @@ use slow_interpreter::stdlib::java::lang::class::JClass;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::reflect::reflection::Reflection;
-use slow_interpreter::utils::{throw_npe};
+use slow_interpreter::throw_utils::throw_npe;
 
 pub mod constant_pool;
 pub mod is_x;

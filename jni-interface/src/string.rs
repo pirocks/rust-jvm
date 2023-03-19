@@ -18,8 +18,8 @@ use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new}
 use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{throw_npe};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::throw_utils::throw_npe;
 
 pub unsafe extern "C" fn get_string_utfchars(env: *mut JNIEnv, str: jstring, is_copy: *mut jboolean) -> *const c_char {
     get_rust_str(env, str, |rust_str| {

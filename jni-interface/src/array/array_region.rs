@@ -8,7 +8,7 @@ use rust_jvm_common::compressed_classfile::compressed_types::{CPDType};
 use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::throw_utils::throw_npe;
 
 pub unsafe extern "C" fn get_boolean_array_region(env: *mut JNIEnv, array: jbooleanArray, start: jsize, len: jsize, buf: *mut jboolean) {
     array_region_integer_types(env, array, start, len, buf)

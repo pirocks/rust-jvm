@@ -7,9 +7,10 @@ use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
 use slow_interpreter::rust_jni::native_util::from_object_new;
 use slow_interpreter::stdlib::java::lang::class::JClass;
-use slow_interpreter::utils::{throw_npe_res, unwrap_or_npe};
+use slow_interpreter::utils::{unwrap_or_npe};
 use runtime_class_stuff::ClassStatus;
 use slow_interpreter::class_loading::check_initing_or_inited_class;
+use slow_interpreter::throw_utils::throw_npe_res;
 
 //
 //todo this isn't totally correct b/c there's a distinction between initialized and initializing.

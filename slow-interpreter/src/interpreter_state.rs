@@ -17,7 +17,6 @@ pub struct NativeFrameInfo<'gc> {
     pub method_id: usize,
     pub loader: LoaderName,
     pub native_local_refs: Vec<HashSet<jobject>>,
-    // pub local_vars: Vec<NativeJavaValue<'gc>>,
     pub operand_stack: Vec<StackNativeJavaValue<'gc>>,
 }
 

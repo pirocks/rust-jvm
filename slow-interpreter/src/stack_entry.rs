@@ -3,11 +3,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use classfile_view::view::HasAccessFlags;
 use jvmti_jni_bindings::{jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::{MethodId};
-use rust_jvm_common::classfile::CPIndex;
 use rust_jvm_common::loading::LoaderName;
 use rust_jvm_common::opaque_id_table::OpaqueID;
 
@@ -15,25 +13,6 @@ use crate::java_values::{JavaValue};
 use crate::jvm_state::JVMState;
 use crate::NewJavaValue;
 
-#[derive(Copy, Clone, Eq, PartialEq)]
-pub struct RuntimeClassClassId(usize);
-
-/// If the frame is opaque then this data is optional.
-/// This data would typically be present in a native function call, but not be present in JVMTI frames
-#[derive(Debug, Clone)]
-pub struct OpaqueFrameOptional<'gc> {
-    pub class_pointer: Arc<RuntimeClass<'gc>>,
-    pub method_i: CPIndex,
-}
-
-///This data is only present in non-native frames,
-/// program counter is not meaningful in a native frame
-#[derive(Debug, Clone)]
-pub struct NonNativeFrameData {
-    pub pc: u16,
-    //the pc_offset is set by every instruction. branch instructions and others may us it to jump
-    pub pc_offset: i32,
-}
 
 #[derive(Clone)]
 pub struct JavaFramePush<'gc, 'k> {
@@ -104,52 +83,4 @@ impl<'gc, 'k> StackEntryPush<'gc, 'k> {
             native_local_refs: vec![],
         }
     }
-}
-
-
-#[derive(Debug, Clone)]
-pub enum StackEntry {
-    Java {
-        method_id: MethodId,
-    },
-    Native {
-        // a native function call frame
-        method_id: MethodId,
-    },
-    Opaque {
-        opaque_id: OpaqueID,
-    },
-}
-
-impl<'gc> StackEntry {
-    pub fn class_pointer(&self) -> &Arc<RuntimeClass<'gc>> {
-        todo!()
-        /*&match self.opaque_frame_optional.as_ref() {
-            Some(x) => x,
-            None => {
-                unimplemented!()
-            }
-        }
-            .class_pointer*/
-    }
-    pub fn local_vars(&self) -> &Vec<JavaValue<'gc>> {
-        todo!()
-        /*&self.local_vars*/
-    }
-
-
-
-    pub fn try_method_i(&self) -> Option<CPIndex> {
-        todo!()
-        /*self.opaque_frame_optional.as_ref().map(|x| x.method_i)*/
-    }
-
-    pub fn is_native(&self) -> bool {
-        let method_i = match self.try_method_i() {
-            None => return true,
-            Some(i) => i,
-        };
-        self.class_pointer().view().method_view_i(method_i).is_native()
-    }
-
 }

@@ -27,7 +27,8 @@ use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
 use slow_interpreter::stdlib::sun::reflect::constant_pool::ConstantPool;
-use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo, throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
+use slow_interpreter::throw_utils::{throw_array_out_of_bounds, throw_array_out_of_bounds_res, throw_illegal_arg, throw_illegal_arg_res};
+use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo};
 
 //todo lots of duplication here, idk if should fix though
 

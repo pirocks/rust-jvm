@@ -38,7 +38,8 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, from_object, from_obj
 use slow_interpreter::stdlib::java::lang::reflect::method::Method;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo, throw_npe};
+use slow_interpreter::throw_utils::throw_npe;
+use slow_interpreter::utils::{field_object_from_view, pushable_frame_todo};
 
 use crate::call::VarargProvider;
 

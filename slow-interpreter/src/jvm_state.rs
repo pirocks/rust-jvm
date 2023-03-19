@@ -67,7 +67,7 @@ use crate::rust_jni::natives::NativeLibraries;
 use crate::rust_jni::PerStackInterfaces;
 use crate::stdlib::java::lang::class_loader::ClassLoader;
 use crate::stdlib::java::lang::stack_trace_element::StackTraceElement;
-use crate::string_exit_cache::StringExitCache;
+use crate::string_exit_cache::{StringExitCache, StringInternment};
 use crate::threading::safepoints::Monitor2;
 use crate::threading::thread_state::ThreadState;
 use crate::tracing::TracingSettings;
@@ -515,6 +515,3 @@ impl ClassFileGetter for BootstrapLoaderClassGetter<'_, '_> {
     }
 }
 
-pub struct StringInternment<'gc> {
-    pub strings: HashMap<Vec<u16>, AllocatedHandle<'gc>>,
-}

@@ -20,7 +20,8 @@ use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::rust_jni::native_util::{from_object_new};
-use slow_interpreter::utils::{java_value_to_boxed_object, run_static_or_virtual, throw_npe};
+use slow_interpreter::throw_utils::throw_npe;
+use slow_interpreter::utils::{java_value_to_boxed_object, run_static_or_virtual};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_AllocateNewObject(_env: *mut JNIEnv, _obj: jobject, _currClass: jclass, _initClass: jclass) -> jobject {

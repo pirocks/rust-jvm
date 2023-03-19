@@ -23,7 +23,8 @@ use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::stdlib::java::lang::index_out_of_bounds_exception::IndexOutOfBoundsException;
 use slow_interpreter::stdlib::java::lang::null_pointer_exception::NullPointerException;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{java_value_to_boxed_object, throw_array_out_of_bounds, throw_illegal_arg_res, throw_npe, throw_npe_res};
+use slow_interpreter::throw_utils::{throw_array_out_of_bounds, throw_illegal_arg_res, throw_npe, throw_npe_res};
+use slow_interpreter::utils::{java_value_to_boxed_object};
 use crate::reflection::unwrap_boxed_java_value;
 
 #[no_mangle]

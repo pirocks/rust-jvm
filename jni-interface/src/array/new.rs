@@ -11,7 +11,7 @@ use slow_interpreter::new_java_values::unallocated_objects::UnAllocatedObject;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
-use slow_interpreter::utils::throw_npe;
+use slow_interpreter::throw_utils::throw_npe;
 
 pub unsafe extern "C" fn new_object_array(env: *mut JNIEnv, len: jsize, clazz: jclass, init: jobject) -> jobjectArray {
     let jvm = get_state(env);

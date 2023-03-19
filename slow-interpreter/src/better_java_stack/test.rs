@@ -1,25 +1,3 @@
-use std::env;
-use std::mem::transmute;
-use std::path::PathBuf;
-use std::ptr::null_mut;
-use std::sync::{Arc, Mutex};
-use std::thread::Scope;
-
-use another_jit_vm_ir::ir_stack::OwnedIRStack;
-use gc_memory_layout_common::early_startup::get_regions;
-use jvmti_jni_bindings::jobject;
-use rust_jvm_common::compressed_classfile::string_pool::CompressedClassfileStringPool;
-use thread_signal_handler::SignalAccessibleJavaStackData;
-
-
-use crate::{JVMState, StackEntryPush};
-use crate::better_java_stack::{JavaStack, JavaStackGuard};
-use crate::better_java_stack::frames::{HasFrame, PushableFrame};
-use crate::java_values::GC;
-use crate::loading::Classpath;
-use crate::options::JVMOptions;
-use crate::stack_entry::JavaFramePush;
-
 // pub fn with_jvm(xtask: &XTaskConfig, func: impl for<'gc> FnOnce(&'gc JVMState<'gc>)) {
 //     let gc: GC = GC::new(get_regions());
 //     let string_pool = CompressedClassfileStringPool::new();
@@ -40,6 +18,9 @@ use crate::stack_entry::JavaFramePush;
 //         func(jvm);
 //     }
 // }
+
+use std::env;
+use std::path::PathBuf;
 
 fn this_dir() -> PathBuf {
     PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set?"))

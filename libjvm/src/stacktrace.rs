@@ -21,8 +21,9 @@ use slow_interpreter::rust_jni::native_util::{from_object_new, to_object_new};
 use slow_interpreter::stdlib::java::lang::stack_trace_element::StackTraceElement;
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{lookup_line_number, throw_array_out_of_bounds, throw_illegal_arg, throw_npe};
+use slow_interpreter::utils::{lookup_line_number};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::throw_utils::{throw_array_out_of_bounds, throw_illegal_arg, throw_npe};
 
 struct OwnedStackEntry<'gc> {
     _declaring_class: Arc<RuntimeClass<'gc>>,

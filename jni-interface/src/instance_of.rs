@@ -3,8 +3,8 @@ use jvmti_jni_bindings::{jboolean, jclass, JNIEnv, jobject};
 use slow_interpreter::interpreter::common::special::instance_of_exit_impl;
 use slow_interpreter::new_java_values::NewJavaValueHandle;
 use slow_interpreter::rust_jni::native_util::from_object_new;
-use slow_interpreter::utils::throw_illegal_arg;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state, get_throw};
+use slow_interpreter::throw_utils::throw_illegal_arg;
 
 pub unsafe extern "C" fn is_instance_of(env: *mut JNIEnv, obj: jobject, clazz: jclass) -> jboolean {
     let int_state = get_interpreter_state(env);

@@ -17,12 +17,13 @@ use slow_interpreter::new_java_values::java_value_common::JavaValueCommon;
 use slow_interpreter::new_java_values::owned_casts::OwnedCastAble;
 use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new};
 use slow_interpreter::rust_jni::native_util::{from_jclass, from_object_new};
-use slow_interpreter::utils::{get_all_fields, new_field_id, throw_npe, throw_npe_res};
+use slow_interpreter::utils::{get_all_fields, new_field_id};
 use crate::util::class_object_to_runtime_class;
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
 use slow_interpreter::static_vars::static_vars;
 use slow_interpreter::stdlib::java::lang::no_such_method_exception::NoSuchMethodError;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
+use slow_interpreter::throw_utils::{throw_npe, throw_npe_res};
 
 pub unsafe extern "C" fn get_boolean_field(env: *mut JNIEnv, obj: jobject, field_id_raw: jfieldID) -> jboolean {
     let java_value = match get_java_value_field(env, obj, field_id_raw) {

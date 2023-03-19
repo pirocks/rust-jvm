@@ -80,14 +80,14 @@ pub mod exceptions;
 pub mod stdlib;
 pub mod leaked_interface_arrays;
 pub mod string_intern;
-pub mod extra_intrinsics;
 pub mod static_vars;
 pub mod accessor_ext;
 pub mod define_class_safe;
 pub mod remote_frame_push;
 pub mod new_sync_point_state;
-pub mod fast_instance_of_checkcast;
 pub mod hidden_field_constants;
+pub mod throw_utils;
+pub mod intrinsics;
 
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {

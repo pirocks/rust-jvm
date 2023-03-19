@@ -17,8 +17,8 @@ use slow_interpreter::rust_jni::jni_utils::{get_throw, new_local_ref_public_new}
 use slow_interpreter::rust_jni::native_util::{from_object_new};
 use slow_interpreter::stdlib::java::lang::string::JString;
 use slow_interpreter::stdlib::java::NewAsObjectOrJavaValue;
-use slow_interpreter::utils::{throw_npe_res};
 use slow_interpreter::rust_jni::jni_utils::{get_interpreter_state, get_state};
+use slow_interpreter::throw_utils::throw_npe_res;
 
 #[no_mangle]
 unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> jobject {

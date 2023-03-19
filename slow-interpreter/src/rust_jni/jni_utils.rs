@@ -28,7 +28,6 @@ pub fn push_current_native_local_refs(interpreter_state: &mut NativeFrame, to_pu
 }
 
 pub fn current_native_local_refs<'gc, 'l>(interpreter_state: &mut NativeFrame<'gc, 'l>) -> Vec<HashSet<jobject>> {
-    // assert!(interpreter_state.current_frame().is_opaque() || interpreter_state.current_frame().is_native_method());
     interpreter_state.frame_info_mut().native_local_refs.clone()
 }
 
