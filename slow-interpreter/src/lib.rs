@@ -88,6 +88,7 @@ pub mod new_sync_point_state;
 pub mod hidden_field_constants;
 pub mod throw_utils;
 pub mod intrinsics;
+pub mod instance_of_common;
 
 
 pub fn run_main<'gc, 'l>(args: Vec<String>, jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>) -> Result<(), Box<dyn Error>> {

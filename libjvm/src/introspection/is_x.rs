@@ -20,18 +20,9 @@ unsafe extern "system" fn JVM_IsInterface(env: *mut JNIEnv, cls: jclass) -> jboo
     let obj = from_object_new(jvm, cls);
     let runtime_class = NewJavaValueHandle::from_optional_object(obj).cast_class().expect("todo").as_runtime_class(jvm);
     (match runtime_class.deref() {
-        RuntimeClass::Byte => false,
-        RuntimeClass::Boolean => false,
-        RuntimeClass::Short => false,
-        RuntimeClass::Char => false,
-        RuntimeClass::Int => false,
-        RuntimeClass::Long => false,
-        RuntimeClass::Float => false,
-        RuntimeClass::Double => false,
-        RuntimeClass::Void => false,
+        RuntimeClass::Primitive(_) => false,
         RuntimeClass::Array(_) => false,
         RuntimeClass::Object(_) => runtime_class.view().is_interface(),
-        _ => panic!(),
     }) as jboolean
 }
 

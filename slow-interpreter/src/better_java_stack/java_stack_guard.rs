@@ -1,3 +1,4 @@
+use std::backtrace::Backtrace;
 use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::{NonNull};
@@ -280,20 +281,25 @@ impl<'vm> JavaStackGuard<'vm> {
         // println!("Pop: {}", method_name);
         self.assert_interpreter_frame_operand_stack_depths_sorted();
         let mut already_popped = false;
+        let mut last_frame_pointer = vec![];
         loop {
             let last = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last();
             match last {
                 Some((last_frame, _)) => {
-                    if pop_to_inclusive >= *last_frame {
-                        self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.pop().unwrap();
+                    let last_frame = *last_frame;
+                    if pop_to_inclusive >= last_frame {
+                        last_frame_pointer.push(self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.pop().unwrap().0);
                         if already_popped {
-                            todo!("mutli-pop?")
+                            dbg!(last_frame);
+                            dbg!(pop_to_inclusive);
+                            dbg!(&last_frame_pointer);
+                            // todo!("mutli-pop?")
                         }
                         already_popped = true;
                     } else {
-                        if !already_popped{
-                            todo!("no frame to pop");
-                        }
+                        // if !already_popped{
+                        //     todo!("no frame to pop");
+                        // }
                         break;
                     }
                 }
@@ -302,11 +308,26 @@ impl<'vm> JavaStackGuard<'vm> {
         }
     }
 
+    pub(crate) fn unwind_interpreter_data_to(&mut self, to: FramePointer){
+        //todo
+        // loop {
+        //     if let Some((cuurent_frame, _)) = self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.last(){
+        //         if cuurent_frame.0 < to.0{
+        //             self.guard.as_mut().unwrap().interpreter_frame_operand_stack_depths.pop();
+        //         }else { break }
+        //     }
+        // }
+    }
+
     pub(crate) fn notify_frame_push(&mut self, next_frame_pointer: FramePointer) {
         // for _ in 0..self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.len() {
         //     print!(" ");
         // }
         // println!("Push: {}", method_name);
+        if (next_frame_pointer.0.as_ptr() as u64) & 0xfffff == 0xfedf0 {
+            dbg!(next_frame_pointer);
+            println!("{}", Backtrace::force_capture());
+        }
         if let Some((frame_pointer, _)) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last() {
             assert!(*frame_pointer > next_frame_pointer);
         }

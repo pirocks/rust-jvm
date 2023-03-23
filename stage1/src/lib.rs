@@ -1,4 +1,6 @@
 #![feature(const_option)]
+#![feature(once_cell)]
+
 use another_jit_vm::{IRMethodID};
 use another_jit_vm_ir::compiler::Size;
 use array_memory_layout::layout::ArrayMemoryLayout;
@@ -38,7 +40,8 @@ pub mod registers_state{
 
 pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &JavaCompilerMethodAndFrameData, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<Stage1IRInstr> {
     //todo use ir emit functions
-    let mut compiler_state = IRCompilerState::new(method_id, ir_method_id, method_frame_data, false);
+    let c_method_desc = resolver.lookup_method_desc(method_id);
+    let mut compiler_state = IRCompilerState::new(method_id, ir_method_id, method_frame_data, &c_method_desc,false);
     compiler_state.emit_ir_start();
     if method_frame_data.should_synchronize {
         if method_frame_data.is_static {

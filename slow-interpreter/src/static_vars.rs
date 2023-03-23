@@ -8,15 +8,7 @@ use crate::accessor_ext::AccessorExt;
 
 pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc>) -> StaticVarGuard<'gc, 'l> {
     match class {
-        RuntimeClass::Byte => panic!(),
-        RuntimeClass::Boolean => panic!(),
-        RuntimeClass::Short => panic!(),
-        RuntimeClass::Char => panic!(),
-        RuntimeClass::Int => panic!(),
-        RuntimeClass::Long => panic!(),
-        RuntimeClass::Float => panic!(),
-        RuntimeClass::Double => panic!(),
-        RuntimeClass::Void => panic!(),
+        RuntimeClass::Primitive(_) => panic!(),
         RuntimeClass::Array(_) => panic!(),
         RuntimeClass::Object(runtime_class_class) => {
             StaticVarGuard {
@@ -24,7 +16,6 @@ pub fn static_vars<'l, 'gc>(class: &'l RuntimeClass<'gc>, jvm: &'gc JVMState<'gc
                 runtime_class_class,
             }
         }
-        RuntimeClass::Top => panic!(),
     }
 }
 

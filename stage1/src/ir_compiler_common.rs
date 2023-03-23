@@ -1,9 +1,11 @@
 use std::num::NonZeroUsize;
+
 use another_jit_vm::{FramePointerOffset, IRMethodID};
 use another_jit_vm_ir::compiler::Size;
 use array_memory_layout::layout::ArrayMemoryLayout;
 use rust_jvm_common::{ByteCodeOffset, MethodId};
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 use crate::ir_compiler_common::special::IRCompilerState;
 use crate::native_compiler_common::{GeneralRegister, GeneralRegisterPart, ValueVectorPosition32, ValueVectorPosition64, VectorRegister};
 
@@ -159,6 +161,41 @@ pub enum ValueStatusChange {
 // wherever the value in question is.
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum ValueToken {
+    Integer(IntegerValueToken),
+    Float(FloatValueToken),
+    Pointer(PointerValueToken),
+    Long(LongValueToken),
+    Double(DoubleValueToken),
+    Top,
+}
+
+impl ValueToken {
+    pub fn unwrap_pointer(&self) -> PointerValueToken {
+        if let ValueToken::Pointer(pointer) = self{
+            return *pointer
+        }
+        panic!()
+    }
+
+    pub fn unwrap_integer(&self) -> IntegerValueToken {
+        todo!()
+    }
+
+    pub fn unwrap_long(&self) -> LongValueToken {
+        todo!()
+    }
+
+    pub fn unwrap_double(&self) -> DoubleValueToken {
+        todo!()
+    }
+
+    pub fn unwrap_float(&self) -> FloatValueToken {
+        todo!()
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct PointerValueToken(u32);
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -180,6 +217,10 @@ pub struct BranchToLabelID(u32);
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct TargetLabelID(u32);
 
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub(crate) struct TargetLabelIDInternal(u32);
+
+
 pub enum Stage1IRInstr {
     IRStart {
         ir_method_id: IRMethodID,
@@ -189,6 +230,10 @@ pub enum Stage1IRInstr {
     MonitorEnter {
         java_pc: ByteCodeOffset,
         obj: PointerValueToken,
+    },
+    LoadPointer {
+        from: PointerValueToken,
+        to: PointerValueToken,
     },
 }
 

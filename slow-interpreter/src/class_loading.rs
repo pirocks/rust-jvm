@@ -8,7 +8,7 @@ use wtf8::Wtf8Buf;
 
 use classfile_view::view::{ClassBackedView, ClassView, HasAccessFlags};
 use java5_verifier::type_infer;
-use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::{ClassStatus, RuntimeClass, RuntimeClassArray, RuntimeClassClass, RuntimeClassPrimitive};
 use runtime_class_stuff::object_layout::ObjectLayout;
 use rust_jvm_common::classnames::ClassName;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
@@ -42,39 +42,39 @@ use crate::stdlib::java::lang::string::JString;
 pub fn check_initing_or_inited_class<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, ptype: CPDType) -> Result<Arc<RuntimeClass<'gc>>, WasException<'gc>> {
     let class = check_loaded_class(jvm, int_state, ptype.clone())?;
     match class.clone().deref() {
-        RuntimeClass::Byte => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Byte) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::byte().into())?;
             return Ok(class);
         }
-        RuntimeClass::Boolean => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::boolean().into())?;
             return Ok(class);
         }
-        RuntimeClass::Short => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Short) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::short().into())?;
             return Ok(class);
         }
-        RuntimeClass::Char => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Char) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::character().into())?;
             return Ok(class);
         }
-        RuntimeClass::Int => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Int) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::int().into())?;
             return Ok(class);
         }
-        RuntimeClass::Long => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Long) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::long().into())?;
             return Ok(class);
         }
-        RuntimeClass::Float => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Float) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::float().into())?;
             return Ok(class);
         }
-        RuntimeClass::Double => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Double) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::double().into())?;
             return Ok(class);
         }
-        RuntimeClass::Void => {
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Void) => {
             check_initing_or_inited_class(jvm, int_state, CClassName::void().into())?;
             return Ok(class);
         }
@@ -133,12 +133,15 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                     let loader_obj = jvm.classes.read().unwrap().lookup_class_loader(loader_idx).clone();
                     let class_loader: ClassLoader = loader_obj.duplicate_discouraged().cast_class_loader();
                     match *ptype {
-                        CPDType::ByteType => Arc::new(RuntimeClass::Byte),
-                        CPDType::CharType => Arc::new(RuntimeClass::Char),
-                        CPDType::DoubleType => Arc::new(RuntimeClass::Double),
-                        CPDType::FloatType => Arc::new(RuntimeClass::Float),
-                        CPDType::IntType => Arc::new(RuntimeClass::Int),
-                        CPDType::LongType => Arc::new(RuntimeClass::Long),
+                        CPDType::ByteType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Byte)),
+                        CPDType::CharType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Char)),
+                        CPDType::DoubleType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Double)),
+                        CPDType::FloatType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Float)),
+                        CPDType::IntType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Int)),
+                        CPDType::LongType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Long)),
+                        CPDType::ShortType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Short)),
+                        CPDType::BooleanType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean)),
+                        CPDType::VoidType => Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Void)),
                         CPDType::Class(class_name) => {
                             let java_string = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(class_name.0.to_str(&jvm.string_pool).replace("/", ".").clone()))?;
                             class_loader.load_class(jvm, int_state, java_string)?.as_runtime_class(jvm)
@@ -148,8 +151,11 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                             let sub_class = check_loaded_class(jvm, int_state, sub_type.to_cpdtype())?;
                             let serializable = check_loaded_class(jvm, int_state, CClassName::serializable().into())?;
                             let cloneable = check_loaded_class(jvm, int_state, CClassName::cloneable().into())?;
+                            for i in 0..num_nested_arrs.get(){
+                                check_loaded_class(jvm, int_state, CPDType::new_array_or_normal(sub_type, i))?;
+                            }
                             let component_type = get_or_create_class_object(jvm, CPDType::new_array_or_normal(sub_type, num_nested_arrs.get() - 1), int_state)?.cast_class();
-                            let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable }));
+                            let res = Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested_arrs, serializable, cloneable }));
                             let class_intrinsics_data = ClassIntrinsicsData {
                                 is_array: true,
                                 is_primitive: false,
@@ -162,9 +168,6 @@ pub(crate) fn check_loaded_class_force_loader<'gc, 'l>(jvm: &'gc JVMState<'gc>, 
                             assert_eq!(obj.runtime_class(jvm).cpdtype(), CClassName::class().into());
                             res
                         }
-                        CPDType::ShortType => Arc::new(RuntimeClass::Short),
-                        CPDType::BooleanType => Arc::new(RuntimeClass::Boolean),
-                        CPDType::VoidType => Arc::new(RuntimeClass::Void),
                     }
                 }
                 LoaderName::BootstrapLoader => {
@@ -229,15 +232,15 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
     };
     let (class_object, runtime_class) = match ptype.clone() {
         //todo replace these names with actual tupes
-        CPDType::ByteType => (create_class_object(jvm, int_state, Some(ClassName::raw_byte().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Byte)),
-        CPDType::CharType => (create_class_object(jvm, int_state, Some(ClassName::raw_char().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Char)),
-        CPDType::DoubleType => (create_class_object(jvm, int_state, Some(ClassName::raw_double().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Double)),
-        CPDType::FloatType => (create_class_object(jvm, int_state, Some(ClassName::raw_float().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Float)),
-        CPDType::IntType => (create_class_object(jvm, int_state, Some(ClassName::raw_int().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Int)),
-        CPDType::LongType => (create_class_object(jvm, int_state, Some(ClassName::raw_long().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Long)),
-        CPDType::ShortType => (create_class_object(jvm, int_state, Some(ClassName::raw_short().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Short)),
-        CPDType::BooleanType => (create_class_object(jvm, int_state, Some(ClassName::raw_boolean().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Boolean)),
-        CPDType::VoidType => (create_class_object(jvm, int_state, Some(ClassName::raw_void().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Void)),
+        CPDType::ByteType => (create_class_object(jvm, int_state, Some(ClassName::raw_byte().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Byte))),
+        CPDType::CharType => (create_class_object(jvm, int_state, Some(ClassName::raw_char().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Char))),
+        CPDType::DoubleType => (create_class_object(jvm, int_state, Some(ClassName::raw_double().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Double))),
+        CPDType::FloatType => (create_class_object(jvm, int_state, Some(ClassName::raw_float().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Float))),
+        CPDType::IntType => (create_class_object(jvm, int_state, Some(ClassName::raw_int().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Int))),
+        CPDType::LongType => (create_class_object(jvm, int_state, Some(ClassName::raw_long().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Long))),
+        CPDType::ShortType => (create_class_object(jvm, int_state, Some(ClassName::raw_short().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Short))),
+        CPDType::BooleanType => (create_class_object(jvm, int_state, Some(ClassName::raw_boolean().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean))),
+        CPDType::VoidType => (create_class_object(jvm, int_state, Some(ClassName::raw_void().get_referred_name().to_string()), LoaderName::BootstrapLoader, class_intrinsics_data_primitive)?, Arc::new(RuntimeClass::Primitive(RuntimeClassPrimitive::Void))),
         CPDType::Class(class_name) => {
             let classfile = match jvm.classpath.lookup(&class_name, &jvm.string_pool) {
                 Ok(x) => x,
@@ -347,7 +350,7 @@ pub fn bootstrap_load<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pus
                 is_primitive: false,
                 component_type: Some(component_type_object),
                 this_cpdtype: ptype,
-            })?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, serializable, cloneable })))
+            })?, Arc::new(RuntimeClass::Array(RuntimeClassArray { sub_class, num_nested_arrs, serializable, cloneable })))
         }
     };
     class_object.duplicate_discouraged().cast_class().debug_assert(jvm);

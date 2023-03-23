@@ -13,6 +13,7 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::marker::PhantomData;
+use std::num::NonZeroU8;
 use std::ptr::NonNull;
 use std::sync::{Arc, RwLock};
 
@@ -45,8 +46,8 @@ pub enum ClassStatus {
     INITIALIZED,
 }
 
-#[derive(Debug)]
-pub enum RuntimeClass<'gc> {
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum RuntimeClassPrimitive{
     Byte,
     Boolean,
     Short,
@@ -56,59 +57,65 @@ pub enum RuntimeClass<'gc> {
     Float,
     Double,
     Void,
+}
+
+pub enum RuntimeClassRef<'gc, 'l> {
+    Array(&'l RuntimeClassArray<'gc>),
+    Object(&'l RuntimeClassClass<'gc>)
+}
+
+#[derive(Debug)]
+pub enum RuntimeClass<'gc> {
+    Primitive(RuntimeClassPrimitive),
     Array(RuntimeClassArray<'gc>),
     Object(RuntimeClassClass<'gc>),
-    Top,
 }
 
 
 impl<'gc> RuntimeClass<'gc> {
     pub fn cpdtype(&self) -> CPDType {
         match self {
-            RuntimeClass::Byte => CPDType::ByteType,
-            RuntimeClass::Boolean => CPDType::BooleanType,
-            RuntimeClass::Short => CPDType::ShortType,
-            RuntimeClass::Char => CPDType::CharType,
-            RuntimeClass::Int => CPDType::IntType,
-            RuntimeClass::Long => CPDType::LongType,
-            RuntimeClass::Float => CPDType::FloatType,
-            RuntimeClass::Double => CPDType::DoubleType,
-            RuntimeClass::Void => CPDType::VoidType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Byte) => CPDType::ByteType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean) => CPDType::BooleanType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Short) => CPDType::ShortType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Char) => CPDType::CharType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Int) => CPDType::IntType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Long) => CPDType::LongType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Float) => CPDType::FloatType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Double) => CPDType::DoubleType,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Void) => CPDType::VoidType,
             RuntimeClass::Array(arr) => CPDType::array(arr.sub_class.cpdtype()),
             RuntimeClass::Object(o) => CPDType::Class(o.class_view.name().unwrap_name()),
-            RuntimeClass::Top => panic!(),
         }
     }
     pub fn view(&self) -> Arc<dyn ClassView> {
         match self {
-            RuntimeClass::Byte => Arc::new(PrimitiveView::Byte),
-            RuntimeClass::Boolean => Arc::new(PrimitiveView::Boolean),
-            RuntimeClass::Short => Arc::new(PrimitiveView::Short),
-            RuntimeClass::Char => Arc::new(PrimitiveView::Char),
-            RuntimeClass::Int => Arc::new(PrimitiveView::Int),
-            RuntimeClass::Long => Arc::new(PrimitiveView::Long),
-            RuntimeClass::Float => Arc::new(PrimitiveView::Float),
-            RuntimeClass::Double => Arc::new(PrimitiveView::Double),
-            RuntimeClass::Void => Arc::new(PrimitiveView::Void),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Byte) => Arc::new(PrimitiveView::Byte),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean) => Arc::new(PrimitiveView::Boolean),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Short) => Arc::new(PrimitiveView::Short),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Char) => Arc::new(PrimitiveView::Char),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Int) => Arc::new(PrimitiveView::Int),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Long) => Arc::new(PrimitiveView::Long),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Float) => Arc::new(PrimitiveView::Float),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Double) => Arc::new(PrimitiveView::Double),
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Void) => Arc::new(PrimitiveView::Void),
             RuntimeClass::Array(arr) => Arc::new(ArrayView { sub: arr.sub_class.view() }),
             RuntimeClass::Object(o) => o.class_view.clone(),
-            RuntimeClass::Top => panic!(),
         }
     }
     pub fn status(&self) -> ClassStatus {
         match self {
-            RuntimeClass::Byte => ClassStatus::INITIALIZED,
-            RuntimeClass::Boolean => ClassStatus::INITIALIZED,
-            RuntimeClass::Short => ClassStatus::INITIALIZED,
-            RuntimeClass::Char => ClassStatus::INITIALIZED,
-            RuntimeClass::Int => ClassStatus::INITIALIZED,
-            RuntimeClass::Long => ClassStatus::INITIALIZED,
-            RuntimeClass::Float => ClassStatus::INITIALIZED,
-            RuntimeClass::Double => ClassStatus::INITIALIZED,
-            RuntimeClass::Void => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Byte) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Short) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Char) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Int) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Long) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Float) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Double) => ClassStatus::INITIALIZED,
+            RuntimeClass::Primitive(RuntimeClassPrimitive::Void) => ClassStatus::INITIALIZED,
             RuntimeClass::Array(a) => a.sub_class.status(),
             RuntimeClass::Object(o) => *o.status.read().unwrap(),
-            RuntimeClass::Top => panic!(),
         }
     }
 
@@ -137,11 +144,26 @@ impl<'gc> RuntimeClass<'gc> {
             _ => None,
         }
     }
+
+    pub fn try_unwrap_ref(&self) -> Option<RuntimeClassRef<'gc,'_>>{
+        match self {
+            RuntimeClass::Primitive(_) => {
+                None
+            }
+            RuntimeClass::Array(arr) => {
+                Some(RuntimeClassRef::Array(arr))
+            }
+            RuntimeClass::Object(obj) => {
+                Some(RuntimeClassRef::Object(obj))
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct RuntimeClassArray<'gc> {
     pub sub_class: Arc<RuntimeClass<'gc>>,
+    pub num_nested_arrs: NonZeroU8,
     pub serializable: Arc<RuntimeClass<'gc>>,
     pub cloneable: Arc<RuntimeClass<'gc>>,
 }

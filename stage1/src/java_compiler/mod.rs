@@ -4,11 +4,13 @@ use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::ir_compiler_common::branching::IntegerCompareKind;
 use crate::ir_compiler_common::special::IRCompilerState;
 use crate::ir_compiler_common::stack_stores::StackPos;
+use crate::ir_compiler_common::ValueToken;
 use crate::java_compiler::arithmetic::emit_iadd;
 use crate::java_compiler::array_load::array_load_impl;
 use crate::java_compiler::branching::{emit_integer_if_compare_two_values, emit_integer_if_compare_with_zero};
 use crate::java_compiler::constants::emit_iconst;
 use crate::java_compiler::local_var::{emit_aload_n, emit_iload_n};
+use crate::java_compiler::return_::emit_ireturn;
 
 pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, instr: &CompressedInstruction) {
     match instr.info {
@@ -258,7 +260,7 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
         CompressedInstructionInfo::fsub => {
             todo!()
         }
-        CompressedInstructionInfo::getfield { .. } => {
+        CompressedInstructionInfo::getfield { name, desc, target_class } => {
             todo!()
         }
         CompressedInstructionInfo::getstatic { .. } => {
@@ -421,7 +423,7 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
             todo!()
         }
         CompressedInstructionInfo::ireturn => {
-            todo!()
+            emit_ireturn(compiler_state);
         }
         CompressedInstructionInfo::ishl => {
             todo!()
@@ -625,6 +627,7 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
 }
 
 
+pub mod return_;
 pub mod local_var;
 pub mod constants;
 pub mod array_load;

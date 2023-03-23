@@ -1,10 +1,15 @@
+use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
-use another_jit_vm::IRMethodID;
+use std::env::set_current_dir;
+use itertools::Itertools;
+use another_jit_vm::{FramePointerOffset, IRMethodID};
 use compiler_common::JavaCompilerMethodAndFrameData;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
 use rust_jvm_common::classnames::ClassName::Str;
+use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
+use rust_jvm_common::runtime_type::RuntimeType;
 use strict_bi_hashmap::StrictBiHashMap;
-use crate::ir_compiler_common::{BranchToLabelID, PointerValueToken, Stage1IRInstr, TargetLabelID};
+use crate::ir_compiler_common::{BranchToLabelID, DoubleValueToken, FloatValueToken, IntegerValueToken, LongValueToken, PointerValueToken, Stage1IRInstr, TargetLabelID, TargetLabelIDInternal, ValueToken};
 use crate::native_compiler_common::GeneralRegister;
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -18,9 +23,46 @@ pub struct PendingExit{
     vm_exit_instr: Stage1IRInstr
 }
 
+pub struct TokenGen{
+    current_token: u32
+}
+
+impl TokenGen{
+    pub fn new() -> Self{
+        Self{
+            current_token: 0,
+        }
+    }
+
+    pub fn new_pointer_token(&mut self) -> PointerValueToken{
+        self.current_token += 1;
+        PointerValueToken(self.current_token)
+    }
+
+    pub fn new_integer_token(&mut self) -> IntegerValueToken{
+        self.current_token += 1;
+        IntegerValueToken(self.current_token)
+    }
+
+    pub fn new_double_token(&mut self) -> DoubleValueToken{
+        self.current_token += 1;
+        DoubleValueToken(self.current_token)
+    }
+
+    pub fn new_long_token(&mut self) -> LongValueToken{
+        self.current_token += 1;
+        LongValueToken(self.current_token)
+    }
+
+    pub fn new_float_token(&mut self) -> FloatValueToken {
+        self.current_token += 1;
+        FloatValueToken(self.current_token)
+    }
+}
+
 pub struct IRCompilerState<'l> {
     //res:
-    res: Vec<Stage1IRInstr>,
+    pub(crate) res: Vec<Stage1IRInstr>,
     //current_position:
     current: Option<IRCompilerPosition>,
     //method_ids:
@@ -33,8 +75,13 @@ pub struct IRCompilerState<'l> {
     //frame_data
     method_frame_data: &'l JavaCompilerMethodAndFrameData,
     //label ids:
-    labels: StrictBiHashMap<TargetLabelID, BranchToLabelID>
-
+    pub(crate) labels: StrictBiHashMap<TargetLabelIDInternal, BranchToLabelID>,
+    //token state:
+    initial_arg_tokens: Vec<ValueToken>,
+    pub(crate) current_local_var_tokens: Vec<ValueToken>,
+    pub(crate) current_operand_stack_tokens: Vec<ValueToken>,
+    res_token: OnceCell<ValueToken>,
+    token_gen: TokenGen
 }
 
 impl <'l> IRCompilerState<'l> {
@@ -42,9 +89,26 @@ impl <'l> IRCompilerState<'l> {
         method_id: MethodId,
         ir_method_id: IRMethodID,
         method_frame_data: &'l JavaCompilerMethodAndFrameData,
+        desc: &CMethodDescriptor,
         should_trace_instructions: bool
     ) -> Self {
+        let mut token_gen = TokenGen::new();
         let vec_capacity = method_frame_data.index_by_bytecode_offset.len()*2;
+        let mut current_local_var_tokens = (0..method_frame_data.local_vars).map(|_| ValueToken::Top).collect_vec();
+        let mut initial_arg_tokens = vec![];
+        for (i, arg_type) in desc.arg_types.iter().enumerate() {
+            let value_token = match arg_type.to_runtime_type() {
+                None => ValueToken::Top,
+                Some(RuntimeType::IntType) => ValueToken::Integer(token_gen.new_integer_token()),
+                Some(RuntimeType::FloatType) => ValueToken::Float(token_gen.new_float_token()),
+                Some(RuntimeType::DoubleType) => ValueToken::Double(token_gen.new_double_token()),
+                Some(RuntimeType::LongType) => ValueToken::Long(token_gen.new_long_token()),
+                Some(RuntimeType::Ref(_)) => ValueToken::Pointer(token_gen.new_pointer_token()),
+                Some(RuntimeType::TopType) => ValueToken::Top,
+            };
+            initial_arg_tokens.push(value_token);
+            current_local_var_tokens[i] = value_token;
+        }
         Self {
             method_frame_data,
             current: None,
@@ -54,6 +118,11 @@ impl <'l> IRCompilerState<'l> {
             pending_exits: vec![],
             should_trace_instructions,
             labels: StrictBiHashMap::new(),
+            initial_arg_tokens,
+            current_local_var_tokens,
+            current_operand_stack_tokens: vec![],
+            res_token: OnceCell::new(),
+            token_gen,
         }
     }
 
@@ -67,6 +136,11 @@ impl <'l> IRCompilerState<'l> {
             method_id: self.method_id,
             frame_size: self.method_frame_data.full_frame_size(),//todo actual frame size needs to be calculated after the fact todo.
         })
+    }
+
+    pub fn emit_ir_end(&mut self, return_val: ValueToken) {
+        self.res_token.set(return_val);
+        self.res.push(todo!());
     }
 
     pub fn emit_native_function_start(&mut self, registers_to_save: HashSet<GeneralRegister>) -> HashMap<GeneralRegister, PointerValueToken>{
@@ -95,4 +169,8 @@ impl <'l> IRCompilerState<'l> {
     pub fn notify_after_instruction(&mut self, byte_code_offset: ByteCodeOffset) {
         todo!()
     }
+
+    // fn lookup_local_var_token_pointer(&self, local_var_index: u16) -> PointerValueToken{
+    //     self.current_local_var_tokens[local_var_index as usize].unwrap_pointer()
+    // }
 }

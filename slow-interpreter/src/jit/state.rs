@@ -8,7 +8,7 @@ use gc_memory_layout_common::allocated_object_types::{AllocatedObjectType, Alloc
 use inheritance_tree::ClassID;
 use interface_vtable::ITableRaw;
 use jvmti_jni_bindings::jint;
-use runtime_class_stuff::{RuntimeClass, RuntimeClassArray, RuntimeClassClass};
+use runtime_class_stuff::{RuntimeClass, RuntimeClassArray, RuntimeClassClass, RuntimeClassPrimitive};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CompressedParsedDescriptorType;
 use rust_jvm_common::loading::LoaderName;
@@ -23,22 +23,13 @@ pub struct Opaque {}
 pub fn runtime_class_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, ref_type: Arc<RuntimeClass<'gc>>, loader: LoaderName, arr_len: Option<jint>) -> AllocatedObjectTypeWithSize {
     let itable = jvm.itables.lock().unwrap().lookup_or_new_itable(&jvm.interface_table, ref_type.clone());
     match ref_type.deref() {
-        RuntimeClass::Byte => panic!(),
-        RuntimeClass::Boolean => panic!(),
-        RuntimeClass::Short => panic!(),
-        RuntimeClass::Char => panic!(),
-        RuntimeClass::Int => panic!(),
-        RuntimeClass::Long => panic!(),
-        RuntimeClass::Float => panic!(),
-        RuntimeClass::Double => panic!(),
-        RuntimeClass::Void => panic!(),
+        RuntimeClass::Primitive(_) => panic!(),
         RuntimeClass::Array(arr) => {
             array_to_allocated_object_type(jvm, loader, arr_len, itable, arr)
         }
         RuntimeClass::Object(class_class) => {
             object_to_allocated_object_type(jvm, ref_type.clone(), loader, itable, &class_class)
         }
-        RuntimeClass::Top => panic!(),
     }
 }
 
@@ -72,15 +63,15 @@ fn array_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, loader: LoaderNa
     let (array_interfaces, interfaces_len) = jvm.interface_arrays.write().unwrap().add_interfaces(array_interfaces);
     let object_vtable = jvm.vtables.lock().unwrap().lookup_or_new_vtable(assert_inited_or_initing_class(jvm, CClassName::object().into()));
     let primitive_type = match arr.sub_class.deref() {
-        RuntimeClass::Byte => CompressedParsedDescriptorType::ByteType,
-        RuntimeClass::Boolean => CompressedParsedDescriptorType::BooleanType,
-        RuntimeClass::Short => CompressedParsedDescriptorType::ShortType,
-        RuntimeClass::Char => CompressedParsedDescriptorType::CharType,
-        RuntimeClass::Int => CompressedParsedDescriptorType::IntType,
-        RuntimeClass::Long => CompressedParsedDescriptorType::LongType,
-        RuntimeClass::Float => CompressedParsedDescriptorType::FloatType,
-        RuntimeClass::Double => CompressedParsedDescriptorType::DoubleType,
-        RuntimeClass::Void => panic!(),
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Byte) => CompressedParsedDescriptorType::ByteType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Boolean) => CompressedParsedDescriptorType::BooleanType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Short) => CompressedParsedDescriptorType::ShortType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Char) => CompressedParsedDescriptorType::CharType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Int) => CompressedParsedDescriptorType::IntType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Long) => CompressedParsedDescriptorType::LongType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Float) => CompressedParsedDescriptorType::FloatType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Double) => CompressedParsedDescriptorType::DoubleType,
+        RuntimeClass::Primitive(RuntimeClassPrimitive::Void) => panic!(),
         RuntimeClass::Object(_) | RuntimeClass::Array(_) => {
             let object_type = AllocatedObjectType::ObjectArray {
                 sub_type: arr.sub_class.cpdtype().unwrap_ref_type().clone(),
@@ -96,7 +87,6 @@ fn array_to_allocated_object_type<'gc>(jvm: &'gc JVMState<'gc>, loader: LoaderNa
                 size: ArrayMemoryLayout::from_cpdtype(arr.sub_class.cpdtype()).array_size(arr_len),
             };
         }
-        RuntimeClass::Top => panic!(),
     };
 
     let object_type = AllocatedObjectType::PrimitiveArray {

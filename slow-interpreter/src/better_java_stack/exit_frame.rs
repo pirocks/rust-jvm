@@ -121,6 +121,10 @@ impl<'gc, 'k> JavaExitFrame<'gc, 'k> {
                 .read()
         }
     }
+
+    pub fn unwind_interpreter_data_to(&mut self, to: FramePointer)  {
+        self.java_stack.unwind_interpreter_data_to(to);
+    }
 }
 
 

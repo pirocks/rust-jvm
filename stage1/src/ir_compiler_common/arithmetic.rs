@@ -1,5 +1,4 @@
-use crate::CompilerState;
-use crate::ir_compiler_common::{IntegerValue, IntegerValueToken};
+use crate::ir_compiler_common::IntegerValueToken;
 use crate::ir_compiler_common::special::IRCompilerState;
 
 impl IRCompilerState<'_>{

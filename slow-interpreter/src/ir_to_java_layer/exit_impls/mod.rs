@@ -34,6 +34,7 @@ use vtable::{RawNativeVTable, ResolvedVTableEntry, VTable, VTableEntry};
 
 use crate::{check_initing_or_inited_class, JavaValueCommon, JString, JVMState, MethodResolverImpl, NewAsObjectOrJavaValue, NewJavaValueHandle};
 use crate::better_java_stack::exit_frame::JavaExitFrame;
+use crate::better_java_stack::FramePointer;
 use crate::better_java_stack::frames::{HasFrame, PushableFrame};
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::virtual_::virtual_method_lookup;
@@ -560,9 +561,9 @@ pub fn allocate_object_array<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut J
 }
 
 pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFrame<'gc, 'k>, throwable: Throwable<'gc>, ignore_this_frame: bool) -> IRVMExitAction {
-    // let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
-    // dbg!(exception_as_string.to_rust_string(jvm));
-    // throwable.print_stack_trace(jvm,int_state).unwrap();
+    let exception_as_string = throwable.to_string(jvm, int_state).unwrap().unwrap();
+    dbg!(exception_as_string.to_rust_string(jvm));
+    throwable.print_stack_trace(jvm,int_state).unwrap();
     // let _exception_obj_rc = throwable.normal_object.runtime_class(jvm);
     let mut this_frame = true;
     for current_frame in int_state.frame_iter() {
@@ -620,6 +621,7 @@ pub fn throw_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut JavaExitFram
                     start_diff.saved_registers_without_ip.rbp = Some(handler_rbp.as_ptr() as u64);
                     start_diff.saved_registers_without_ip.rsp = Some(handler_rsp as u64);
                     start_diff.rip = Some(handler_address);
+                    int_state.unwind_interpreter_data_to(FramePointer(NonNull::new(handler_rbp.as_ptr() as *mut c_void).unwrap()));
                     return IRVMExitAction::RestartWithRegisterState {
                         diff: start_diff
                     };
