@@ -22,21 +22,7 @@ pub mod native_compiler_common;
 pub mod ir_compiler_common;
 pub mod java_compiler;
 pub mod frame_layout;
-pub mod registers_state{
-    use crate::ir_compiler_common::{DoubleValue, IntegerValue, LongValue, PointerValue};
-
-    pub enum GeneralRegisterStatus{
-        Empty,
-        PointerOccupied(PointerValue),
-        LongOccupied(LongValue),
-        DoubleOccupied(DoubleValue),
-        IntegerOccupied(IntegerValue),
-    }
-
-    pub struct GeneralRegisters{
-        rax: GeneralRegisterStatus
-    }
-}
+pub mod registers_state;
 
 pub fn compile_to_ir<'vm>(resolver: &impl MethodResolver<'vm>, method_frame_data: &JavaCompilerMethodAndFrameData, method_id: MethodId, ir_method_id: IRMethodID) -> Vec<Stage1IRInstr> {
     //todo use ir emit functions
