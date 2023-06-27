@@ -36,7 +36,7 @@ impl StaticField {
     pub fn new(cpdtype: CPDType) -> Arc<Self> {
         //todo make box smaller to match array packing
         Arc::new(Self {
-            data: NonNull::new(Box::into_raw(box 0u64)).unwrap().cast(),
+            data: NonNull::new(Box::into_raw(Box::new(0u64))).unwrap().cast(),
             field_type: cpdtype,
         })
     }

@@ -33,7 +33,7 @@ pub struct RegistersStatus {
 impl RegistersStatus {
     pub fn new() -> Self{
         Self{
-            general_register_status: GeneralRegister::new(),
+            general_register_status: todo!(),
         }
     }
 }

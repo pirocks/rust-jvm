@@ -1,5 +1,4 @@
 #![feature(exclusive_range_pattern)]
-#![feature(once_cell)]
 
 use std::ptr::NonNull;
 

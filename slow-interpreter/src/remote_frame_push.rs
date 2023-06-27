@@ -297,7 +297,7 @@ pub mod test {
     pub fn test() {
         let remote_frame_push = RemoteFramePush::sigaction_setup();
         let mut remote_query = RemoteQueryUnsafe {
-            signal_safe_data: NonNullConst::new(Box::into_raw(box SignalAccessibleJavaStackData::new(null_mut(), null_mut()))).unwrap(),
+            signal_safe_data: NonNullConst::new(Box::into_raw(Box::new(SignalAccessibleJavaStackData::new(null_mut(), null_mut())))).unwrap(),
             okay_to_free_this: AtomicBool::new(false),
             was_not_in_guest: todo!(),
             new_frame_rip: no_longer_in_handler as *const c_void,

@@ -7,24 +7,24 @@ use jvmti_jni_bindings::{jint, JNI_OK};
 
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void {
-    let reentrant_mutex = box ReentrantMutex::new(());
+unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut c_void {
+    let reentrant_mutex = Box::new(ReentrantMutex::new(()));
     Box::into_raw(reentrant_mutex) as *mut c_void
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorDestroy(mon: *mut ::std::os::raw::c_void) {
+unsafe extern "system" fn JVM_RawMonitorDestroy(mon: *mut c_void) {
     let mon_box: Box<ReentrantMutex<()>> = Box::from_raw(mon as *mut ReentrantMutex<()>);
     drop(mon_box);
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorEnter(mon: *mut ::std::os::raw::c_void) -> jint {
+unsafe extern "system" fn JVM_RawMonitorEnter(mon: *mut c_void) -> jint {
     forget((mon as *mut ReentrantMutex<()>).as_mut().unwrap().lock());
     JNI_OK as jint
 }
 
 #[no_mangle]
-unsafe extern "system" fn JVM_RawMonitorExit(mon: *mut ::std::os::raw::c_void) {
+unsafe extern "system" fn JVM_RawMonitorExit(mon: *mut c_void) {
     (mon as *mut ReentrantMutex<()>).as_mut().unwrap().force_unlock();
 }

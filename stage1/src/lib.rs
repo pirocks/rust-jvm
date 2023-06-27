@@ -1,5 +1,4 @@
 #![feature(const_option)]
-#![feature(once_cell)]
 
 use another_jit_vm::{IRMethodID};
 use another_jit_vm_ir::compiler::Size;

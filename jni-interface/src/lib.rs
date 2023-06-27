@@ -1,5 +1,4 @@
 #![feature(c_variadic)]
-#![feature(box_syntax)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 

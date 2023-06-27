@@ -1,4 +1,3 @@
-#![feature(box_syntax)]
 #![feature(vec_into_raw_parts)]
 
 use std::collections::{HashMap, HashSet};
@@ -263,7 +262,7 @@ impl<'gc> ITables<'gc> {
             }
             let interfaces = Self::all_interfaces(&rc);
             let table = ITable::new(interface_table, interfaces.as_slice()).to_raw();
-            NonNull::new(Box::into_raw(box table)).unwrap()
+            NonNull::new(Box::into_raw(Box::new(table))).unwrap()
         }
         )
     }

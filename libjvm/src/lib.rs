@@ -1,7 +1,4 @@
-#![feature(box_syntax)]
 #![feature(core_intrinsics)]
-#![feature(once_cell)]
-//#![feature(asm)]
 #![allow(non_snake_case)]
 #![allow(unreachable_code)]
 extern crate libc;

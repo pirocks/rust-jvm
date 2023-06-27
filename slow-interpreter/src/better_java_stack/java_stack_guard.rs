@@ -201,7 +201,7 @@ impl<'vm> JavaStackGuard<'vm> {
             native_local_refs,
             operand_stack: operand_stack.iter().map(|njv| njv.to_stack_native()).collect(),
         };
-        let raw_frame_info_pointer = Box::into_raw(box native_frame_info);
+        let raw_frame_info_pointer = Box::into_raw(Box::new(native_frame_info));
         let wrapped_method_id = OpaqueFrameIdOrMethodID::Method { method_id: method_id as u64 };
         //todo use NativeStackframeMemoryLayout for this
         let mut data = local_vars.iter().map(|local_var| unsafe { local_var.to_stack_native().as_u64 }).collect_vec();
@@ -243,7 +243,7 @@ impl<'vm> JavaStackGuard<'vm> {
         let top_level_exit_ptr = get_top_level_exit_ptr(jvm);
         let wrapped_opaque_id = OpaqueFrameIdOrMethodID::Opaque { opaque_id };
         let opaque_frame_info = OpaqueFrameInfo { native_local_refs, operand_stack: vec![] };
-        let raw_frame_info_pointer = Box::into_raw(box opaque_frame_info);
+        let raw_frame_info_pointer = Box::into_raw(Box::new(opaque_frame_info));
         let data = [raw_frame_info_pointer as *const c_void as usize as u64];
         unsafe {
             self.guard.as_mut().unwrap().owned_ir_stack.write_frame(

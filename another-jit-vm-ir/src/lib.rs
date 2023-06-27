@@ -1,6 +1,4 @@
 #![feature(step_trait)]
-#![feature(box_syntax)]
-#![feature(once_cell)]
 #![feature(trait_alias)]
 #![feature(bound_as_ref)]
 
