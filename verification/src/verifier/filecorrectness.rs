@@ -37,7 +37,7 @@ pub fn is_bootstrap_loader(loader: &LoaderName) -> bool {
 pub fn get_class_methods(vf: &VerifierContext, class: ClassWithLoader) -> Result<Vec<ClassWithLoaderMethod>, TypeSafetyError> {
     let mut res = vec![];
     for method_index in 0..get_class(vf, &class)?.num_methods() {
-        res.push(ClassWithLoaderMethod { class: class.clone(), method_index })
+        res.push(ClassWithLoaderMethod { class, method_index })
     }
     Ok(res)
 }
@@ -67,7 +67,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
         return Result::Ok(());
     }
     let mut chain = vec![];
-    super_class_chain(vf, &loaded_class(vf, from.class_name.clone(), from.loader.clone())?, from.loader.clone(), &mut chain)?;
+    super_class_chain(vf, &loaded_class(vf, from.class_name, from.loader)?, from.loader, &mut chain)?;
     match chain.iter().find(|x| x.class_name == to.class_name) {
         None => {
             // dbg!(&from.class_name);
@@ -77,7 +77,7 @@ pub fn is_java_sub_class_of(vf: &VerifierContext, from: &ClassWithLoader, to: &C
             Result::Err(unknown_error_verifying!())
         }
         Some(c) => {
-            loaded_class(vf, c.class_name.clone(), to.loader.clone())?;
+            loaded_class(vf, c.class_name, to.loader)?;
             Result::Ok(())
         }
     }
@@ -107,7 +107,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifi
             _ => is_assignable(vf, &VType::OneWord, to, true),
         },
         VType::Class(c) => match to {
-            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(c.clone()), &c2.to_verification_type(BootstrapLoader), true), //todo bootstrap loader
+            VType::UninitializedThisOrClass(c2) => is_assignable(vf, &VType::Class(*c), &c2.to_verification_type(BootstrapLoader), true), //todo bootstrap loader
             VType::Class(c2) => {
                 if c == c2 {
                     Result::Ok(())
@@ -130,10 +130,8 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifi
                 if is_java_assignable(vf, from, to).is_ok() {
                     return Result::Ok(());
                 }
-                if is_assignable(vf, &VType::Reference, to, true).is_err() {
-                    if c.class_name == CClassName::object() && c.loader == LoaderName::BootstrapLoader {
-                        return Result::Ok(());
-                    }
+                if is_assignable(vf, &VType::Reference, to, true).is_err() && c.class_name == CClassName::object() && c.loader == BootstrapLoader {
+                    return Result::Ok(());
                 }
                 is_assignable(vf, &VType::Reference, to, true)
             }
@@ -168,7 +166,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifi
             VType::NullType => Result::Ok(()),
             VType::Class(_) => Result::Ok(()),
             VType::ArrayReferenceType(_) => Result::Ok(()),
-            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader.clone() }), to, true),
+            _ => is_assignable(vf, &VType::Class(ClassWithLoader { class_name: CClassName::object(), loader: vf.current_loader }), to, true),
         },
         VType::OneWord => match to {
             VType::OneWord => Result::Ok(()),
@@ -195,7 +193,7 @@ pub fn is_assignable(vf: &VerifierContext, from: &VType, to: &VType, from_verifi
                 dbg!(from);
                 panic!("This is a bug")
             }
-            return Err(unknown_error_verifying!())
+            Err(unknown_error_verifying!())
         }
     }
 }
@@ -225,9 +223,9 @@ fn is_java_assignable(vf: &VerifierContext, left: &VType, right: &VType) -> Resu
                 if c.class_name == CClassName::serializable() || c.class_name == CClassName::cloneable() {
                     return Result::Ok(());
                 }
-                return Err(unknown_error_verifying!())
+                Err(unknown_error_verifying!())
             }
-            VType::ArrayReferenceType(a2) => is_java_assignable_array_types(vf, a1.clone(), a2.clone()),
+            VType::ArrayReferenceType(a2) => is_java_assignable_array_types(vf, *a1, *a2),
             _ => unimplemented!(),
         },
         _ => unimplemented!(),
@@ -248,8 +246,8 @@ fn is_java_assignable_array_types(vf: &VerifierContext, left: CPDType, right: CP
 }
 
 fn is_java_assignable_class(vf: &VerifierContext, from: &ClassWithLoader, to: &ClassWithLoader) -> Result<(), TypeSafetyError> {
-    loaded_class(vf, to.class_name.clone(), to.loader.clone())?;
-    if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name.clone(), loader: to.loader.clone() })? {
+    loaded_class(vf, to.class_name, to.loader)?;
+    if class_is_interface(vf, &ClassWithLoader { class_name: to.class_name, loader: to.loader })? {
         //todo bug should check actually has interface
         return Result::Ok(());
     }
@@ -281,11 +279,11 @@ pub fn super_class_chain(vf: &VerifierContext, chain_start: &ClassWithLoader, lo
         //     return Result::Err(TypeSafetyError::NotSafe("java/lang/Object superclasschain failed. This is bad and likely unfixable.".to_string()));
         // }
     }
-    let class = loaded_class(vf, chain_start.class_name.clone(), loader.clone())?; //todo loader duplication
+    let class = loaded_class(vf, chain_start.class_name, loader)?; //todo loader duplication
     let super_class_name = class_super_class_name(vf, &class)?;
-    let super_class = loaded_class(vf, super_class_name.clone(), loader.clone())?;
+    let super_class = loaded_class(vf, super_class_name, loader)?;
     res.push(super_class);
-    super_class_chain(vf, &loaded_class(vf, super_class_name, loader.clone())?, loader, res)?;
+    super_class_chain(vf, &loaded_class(vf, super_class_name, loader)?, loader, res)?;
     Result::Ok(())
 }
 
@@ -307,7 +305,7 @@ pub fn is_private(vf: &VerifierContext, method: &ClassWithLoaderMethod, _class: 
 
 pub fn does_not_override_final_method(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     if class.class_name == CClassName::object() {
-        return Ok(());
+        Ok(())
         // if is_bootstrap_loader(&class.loader) {
         //     Result::Ok(())
         // } else {
@@ -361,8 +359,8 @@ pub fn final_method_not_overridden(vf: &VerifierContext, method: &ClassWithLoade
 
 pub fn does_not_override_final_method_of_superclass(vf: &VerifierContext, class: &ClassWithLoader, method: &ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let super_class_name = class_super_class_name(vf, class)?;
-    let super_class = loaded_class(vf, super_class_name, vf.current_loader.clone())?;
-    let super_methods_list = get_class_methods(vf, super_class.clone())?;
+    let super_class = loaded_class(vf, super_class_name, vf.current_loader)?;
+    let super_methods_list = get_class_methods(vf, super_class)?;
     final_method_not_overridden(vf, method, &super_class, &super_methods_list)
 }
 

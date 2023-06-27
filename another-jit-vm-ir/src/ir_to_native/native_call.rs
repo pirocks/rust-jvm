@@ -10,7 +10,19 @@ use another_jit_vm::JITContext;
 
 use crate::compiler::Size;
 
-pub(crate) fn call_native_helper(assembler: &mut CodeAssembler, to_call: &NonNullConst<c_void>, integer_args: &Vec<FramePointerOffset>, byte_res: &Option<FramePointerOffset>, bool_res: &Option<FramePointerOffset>, char_res: &Option<FramePointerOffset>, short_res: &Option<FramePointerOffset>, integer_res: &Option<FramePointerOffset>, float_double_args: &Vec<(FramePointerOffset, Size)>, float_res: &Option<FramePointerOffset>, double_res: &Option<FramePointerOffset>) {
+pub(crate) fn call_native_helper(
+    assembler: &mut CodeAssembler,
+    to_call: &NonNullConst<c_void>,
+    integer_args: &[FramePointerOffset],
+    byte_res: &Option<FramePointerOffset>,
+    bool_res: &Option<FramePointerOffset>,
+    char_res: &Option<FramePointerOffset>,
+    short_res: &Option<FramePointerOffset>,
+    integer_res: &Option<FramePointerOffset>,
+    float_double_args: &[(FramePointerOffset, Size)],
+    float_res: &Option<FramePointerOffset>,
+    double_res: &Option<FramePointerOffset>
+) {
     let mut integer_args = integer_args.iter();
     if let Some(arg) = integer_args.next() {
         assembler.mov(rdi, rbp - arg.0).unwrap();

@@ -140,8 +140,8 @@ impl Utf8OrWtf8 {
     }
     pub fn push_codepoint(&mut self, to_push: u32) -> Result<(), ValidationError> {
         match self {
-            Utf8OrWtf8::Wtf(wtf) => wtf.push(CodePoint::from_u32(to_push as u32).ok_or_else(|| panic!("panic for now for debugging todo")).unwrap()),
-            Utf8OrWtf8::Utf(utf) => utf.push(char::from_u32(to_push as u32).ok_or(ValidationError::InvalidCodePoint)?),
+            Utf8OrWtf8::Wtf(wtf) => wtf.push(CodePoint::from_u32(to_push).ok_or_else(|| panic!("panic for now for debugging todo")).unwrap()),
+            Utf8OrWtf8::Utf(utf) => utf.push(char::from_u32(to_push).ok_or(ValidationError::InvalidCodePoint)?),
         }
         Ok(())
     }

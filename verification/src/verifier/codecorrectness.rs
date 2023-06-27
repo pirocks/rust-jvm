@@ -25,8 +25,8 @@ use crate::verifier::TypeSafetyError;
 #[allow(unreachable_code)]
 pub fn valid_type_transition(env: &Environment, expected_types_on_stack: Vec<VType>, result_type: VType, input_frame: Frame) -> Result<Frame, TypeSafetyError> {
     let Frame { locals, stack_map: input_operand_stack, flag_this_uninit } = input_frame;
-    let interim_operand_stack = pop_matching_list(&env.vf, input_operand_stack, expected_types_on_stack)?;
-    let next_operand_stack = push_operand_stack(&env.vf, interim_operand_stack, &result_type);
+    let interim_operand_stack = pop_matching_list(env.vf, input_operand_stack, expected_types_on_stack)?;
+    let next_operand_stack = push_operand_stack(env.vf, interim_operand_stack, &result_type);
     if operand_stack_has_legal_length(env, &next_operand_stack) {
         Result::Ok(Frame { locals, stack_map: next_operand_stack, flag_this_uninit })
     } else {
@@ -48,7 +48,7 @@ pub fn pop_matching_list_impl(vf: &VerifierContext, mut pop_from: OperandStack, 
     }
 }
 
-pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
+pub fn pop_matching_type(vf: &VerifierContext, operand_stack: &mut OperandStack, type_: &VType) -> Result<VType, TypeSafetyError> {
     if size_of(vf, type_) == 1 {
         let actual_type = operand_stack.peek();
         is_assignable(vf, &actual_type, type_, true)?;
@@ -63,7 +63,7 @@ pub fn pop_matching_type<'l>(vf: &VerifierContext, operand_stack: &'l mut Operan
             return Err(err);
         };
         operand_stack.operand_pop();
-        Result::Ok(actual_type.clone())
+        Result::Ok(*actual_type)
     } else {
         panic!()
     }
@@ -89,10 +89,10 @@ pub fn push_operand_stack(vf: &VerifierContext, mut operand_stack: OperandStack,
         VType::VoidType => operand_stack,
         _ => {
             if size_of(vf, type_) == 2 {
-                operand_stack.operand_push(type_.clone());
+                operand_stack.operand_push(*type_);
                 operand_stack.operand_push(VType::TopType);
             } else if size_of(vf, type_) == 1 {
-                operand_stack.operand_push(type_.clone());
+                operand_stack.operand_push(*type_);
             } else {
                 panic!("It's impossible to have something which isn't size 1 or 2")
             }
@@ -142,7 +142,7 @@ pub fn method_is_type_safe(vf: &mut VerifierContext, class: &ClassWithLoader, me
     if method_view.is_native() || method_view.is_abstract() {
         Result::Ok(())
     } else {
-        method_with_code_is_type_safe(vf, class.clone(), method.clone())
+        method_with_code_is_type_safe(vf, *class, method.clone())
     }
 }
 
@@ -162,7 +162,7 @@ pub fn get_handlers(_vf: &VerifierContext, _class: &ClassWithLoader, code: &Comp
         .collect()
 }
 
-pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
+pub fn method_with_code_is_type_safe(vf: &mut VerifierContext<'_>, class: ClassWithLoader, method: ClassWithLoaderMethod) -> Result<(), TypeSafetyError> {
     let method_class = get_class(vf, &class)?;
     let method_info = &method_class.method_view_i(method.method_index as u16);
     let code = method_info.code_attribute().unwrap();
@@ -189,14 +189,14 @@ pub fn method_with_code_is_type_safe<'l, 'k>(vf: &'l mut VerifierContext<'k>, cl
     let mut env = Environment {
         method,
         max_stack,
-        frame_size: frame_size as u16,
+        frame_size,
         merged_code: Some(&merged),
-        class_loader: class.loader.clone(),
+        class_loader: class.loader,
         handlers,
         return_type,
         vf,
         debug,
-        max_locals: frame_size as u16,
+        max_locals: frame_size,
     };
     handlers_are_legal(&env)?;
     merged_code_is_type_safe(&mut env, merged.as_slice(), FrameResult::Regular(frame))?;
@@ -215,12 +215,12 @@ pub fn handler_exception_class(_vf: &VerifierContext, handler: &Handler, loader:
     //may want to return a unifiedType instead
     match &handler.class_name {
         None => ClassWithLoader { class_name: CClassName::throwable(), loader: LoaderName::BootstrapLoader },
-        Some(s) => ClassWithLoader { class_name: *s, loader: loader.clone() },
+        Some(s) => ClassWithLoader { class_name: *s, loader },
     }
 }
 
 pub fn init_handler_is_legal(_env: &Environment, _handler: &Handler) -> Result<(), TypeSafetyError> {
-    return Result::Ok(());
+    Result::Ok(())
     // if not_init_handler(&_env.vf, _env, _handler) {
     //     todo!()
     // } else {
@@ -301,9 +301,9 @@ fn method_initial_stack_frame(vf: &VerifierContext, class: &ClassWithLoader, met
     let args = expand_type_list(vf, parsed_descriptor.arg_types.iter().map(|x| x.to_verification_type(vf.current_loader)).collect()); //todo need to solve loader situation
     let mut this_args = vec![];
     this_list.iter().for_each(|x| {
-        this_args.push(x.clone());
+        this_args.push(*x);
     });
-    args.iter().for_each(|x| this_args.push(x.clone()));
+    args.iter().for_each(|x| this_args.push(*x));
     let locals = Rc::new(expand_to_length_verification(this_args, frame_size as usize, VType::TopType));
     Ok((Frame { locals, flag_this_uninit, stack_map: OperandStack::empty() }, parsed_descriptor.return_type.to_verification_type(vf.current_loader)))
 }
@@ -313,10 +313,10 @@ fn expand_type_list(vf: &VerifierContext, list: Vec<VType>) -> Vec<VType> {
         .iter()
         .flat_map(|x| {
             if size_of(vf, x) == 1 {
-                vec![x.clone()]
+                vec![*x]
             } else {
                 assert_eq!(size_of(vf, x), 2);
-                vec![x.clone(), VType::TopType]
+                vec![*x, VType::TopType]
             }
         })
         .collect();
@@ -334,8 +334,8 @@ pub fn expand_to_length(list: Vec<VType>, size: usize, filler: VType) -> Vec<VTy
     let mut res = vec![];
     for i in 0..size {
         res.push(match list.get(i) {
-            None => filler.clone(),
-            Some(elem) => elem.clone(),
+            None => filler,
+            Some(elem) => *elem,
         })
     }
     res
@@ -346,8 +346,8 @@ fn expand_to_length_verification(list: Vec<VType>, size: usize, filler: VType) -
     let mut res = vec![];
     for i in 0..size {
         res.push(match list.get(i) {
-            None => filler.clone(),
-            Some(elem) => elem.clone(),
+            None => filler,
+            Some(elem) => *elem,
         })
     }
     res
@@ -374,10 +374,10 @@ fn instance_method_initial_this_type(vf: &VerifierContext, class: &ClassWithLoad
     let method_name = classfile.method_view_i(method.method_index as u16).name();
     if method_name == MethodName::constructor_init() {
         if class.class_name == CClassName::object() {
-            Result::Ok(VType::Class(ClassWithLoader { class_name: class.class_name, loader: class.loader.clone() }))
+            Result::Ok(VType::Class(ClassWithLoader { class_name: class.class_name, loader: class.loader }))
         } else {
             let mut chain = vec![];
-            super_class_chain(vf, class, class.loader.clone(), &mut chain)?;
+            super_class_chain(vf, class, class.loader, &mut chain)?;
             if !chain.is_empty() {
                 Result::Ok(VType::UninitializedThis)
             } else {

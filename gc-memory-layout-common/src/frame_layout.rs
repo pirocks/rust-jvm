@@ -35,7 +35,7 @@ pub struct NativeStackframeMemoryLayout {
 
 impl NativeStackframeMemoryLayout {
     pub fn local_var_entry(&self, i: u16) -> FramePointerOffset {
-        assert!(i < self.num_locals as u16);
+        assert!(i < self.num_locals);
         FramePointerOffset(size_of::<FrameHeader>() + i as usize * size_of::<jlong>())
     }
 

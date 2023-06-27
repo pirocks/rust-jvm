@@ -71,7 +71,7 @@ unsafe extern "system" fn JVM_GetLastErrorString(buf: *mut c_char, len: c_int) -
     let error_string= CStr::from_ptr(libc::strerror(nix::errno::errno()));
     let output_len = min(error_string.len(), (len - 1) as usize);
     libc::strncpy(buf, error_string.as_ptr(), output_len as size_t);
-    buf.offset(output_len as isize).write(0);
+    buf.add(output_len).write(0);
     output_len as jint
 }
 

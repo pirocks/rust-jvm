@@ -7,7 +7,7 @@ use jvmti_jni_bindings::{jboolean, jint};
 #[no_mangle]
 unsafe extern "system" fn JVM_RegisterSignal(_sig: jint, _handler: *mut c_void) -> *mut c_void {
     //todo unimpl for now
-    transmute(0xdeaddeadbeafdead as usize)
+    transmute(0xdeaddeadbeafdead_usize)
 }
 
 #[no_mangle]

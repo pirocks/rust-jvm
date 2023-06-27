@@ -74,7 +74,7 @@ impl VTable {
         let raw_native_vtable = unsafe { raw_native_vtable.as_ref() };
         let RawNativeVTable { capacity, len, ptr } = *raw_native_vtable;
         let vtable = VTable { vtable: unsafe { Vec::from_raw_parts(ptr, len, capacity) } };
-        let res = vtable.vtable[method_number.0 as usize].clone();
+        let res = vtable.vtable[method_number.0 as usize];
         forget(vtable);
         res.resolved()
     }

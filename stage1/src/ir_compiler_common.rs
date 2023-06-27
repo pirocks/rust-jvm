@@ -1,10 +1,10 @@
 use std::num::NonZeroUsize;
 
 use another_jit_vm::{FramePointerOffset, IRMethodID};
-use another_jit_vm_ir::compiler::Size;
-use array_memory_layout::layout::ArrayMemoryLayout;
+
+
 use rust_jvm_common::{ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+
 
 use crate::ir_compiler_common::special::IRCompilerState;
 use crate::native_compiler_common::{GeneralRegister, GeneralRegisterPart, ValueVectorPosition32, ValueVectorPosition64, VectorRegister};

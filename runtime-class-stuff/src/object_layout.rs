@@ -36,7 +36,7 @@ fn reverse_hidden_fields(hidden_field_numbers_reverse: &HashMap<FieldNumber, Hid
 
 impl ObjectLayout {
     pub fn new<'gc>(class_view: &Arc<ClassBackedView>, parent: &Option<Arc<RuntimeClass<'gc>>>) -> Self {
-        let field_numbers = get_field_numbers(class_view, &parent);
+        let field_numbers = get_field_numbers(class_view, parent);
         let (field_numbers, field_numbers_reverse) = field_numbers.reverse_fields();
         let mut recursive_num_fields = field_numbers_reverse.len() as u32;
         assert_eq!(field_numbers_reverse.keys().map(|num| num.0).sorted().collect_vec(), (0..recursive_num_fields).collect_vec());
@@ -93,7 +93,7 @@ impl ObjectLayout {
 
     pub fn field_entry_pointer(&self, object: NonNull<c_void>, field_number: FieldNumber) -> FieldAccessor {
         self.self_check();
-        let inner_ptr = NonNull::new(unsafe { object.as_ptr().offset(self.field_entry_offset(field_number) as isize) }).unwrap();
+        let inner_ptr = NonNull::new(unsafe { object.as_ptr().add(self.field_entry_offset(field_number)) }).unwrap();
         FieldAccessor {
             expected_type: self.field_entry_type(field_number),
             inner: inner_ptr,
@@ -111,7 +111,7 @@ impl ObjectLayout {
     }
 
     pub fn lookup_hidden_field_offset(&self, to_lookup: HiddenJVMField) -> usize{
-        (self.hidden_field_numbers.get(&to_lookup).unwrap().number.0 as usize * size_of::<u64>()) as usize
+        self.hidden_field_numbers.get(&to_lookup).unwrap().number.0 as usize * size_of::<u64>()
     }
 }
 

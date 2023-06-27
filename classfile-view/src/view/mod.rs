@@ -157,10 +157,10 @@ impl ClassView for ClassBackedView {
         FieldView::from(self, i)
     }
     fn fields(&self) -> FieldIterator {
-        FieldIterator::ClassBacked { backing_class: &self, i: 0 }
+        FieldIterator::ClassBacked { backing_class: self, i: 0 }
     }
     fn interfaces(&self) -> InterfaceIterator {
-        InterfaceIterator::ClassBacked { view: &self, i: 0 }
+        InterfaceIterator::ClassBacked { view: self, i: 0 }
     }
     fn num_fields(&self) -> usize {
         self.backing_class.fields.len()
@@ -169,10 +169,7 @@ impl ClassView for ClassBackedView {
         self.backing_class.interfaces.len()
     }
     fn bootstrap_methods_attr(&self) -> Option<BootstrapMethodsView> {
-        let (i, _) = self.underlying_class.attributes.iter().enumerate().find(|(_, x)| match &x.attribute_type {
-            AttributeType::BootstrapMethods(_) => true,
-            _ => false,
-        })?;
+        let (i, _) = self.underlying_class.attributes.iter().enumerate().find(|(_, x)| matches!(&x.attribute_type, AttributeType::BootstrapMethods(_)))?;
         BootstrapMethodsView { backing_class: self, attr_i: i }.into()
     }
     fn sourcefile_attr(&self) -> Option<SourceFileView> {
@@ -401,7 +398,7 @@ impl HasAccessFlags for ArrayView {
 
 impl ClassView for ArrayView {
     fn name(&self) -> CPRefType {
-        self.type_().unwrap_ref_type().clone()
+        self.type_().unwrap_ref_type()
     }
 
     fn type_(&self) -> CPDType {

@@ -78,8 +78,7 @@ pub fn get_regions() -> Regions {
         map_address(large_regions);
         map_address(extra_large_regions);
     }
-    let res = Regions { small_regions, medium_regions, large_regions, extra_large_regions };
-    res
+    Regions { small_regions, medium_regions, large_regions, extra_large_regions }
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -145,8 +144,7 @@ pub fn region_pointer_to_region(ptr: u64) -> Region {
 
 pub fn region_pointer_to_region_size(ptr: u64) -> u64 {
     let res_shift = region_pointer_to_region_size_size(ptr);
-    let res = 1 << res_shift;
-    res
+    1 << res_shift
 }
 
 pub fn region_pointer_to_region_size_size(ptr: u64) -> u8 {

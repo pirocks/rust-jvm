@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_AllocateNewArray(_env: *mut JNIEnv, _obj: jobject,
 #[no_mangle]
 unsafe extern "system" fn JVM_GetArrayLength(env: *mut JNIEnv, arr: jobject) -> jint {
     match get_array(env, arr) {
-        Ok(jv) => jv.unwrap_object_nonnull().unwrap_array().len() as i32,
+        Ok(jv) => jv.unwrap_object_nonnull().unwrap_array().len(),
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
             jint::invalid_default()
@@ -71,7 +71,7 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
             let nonnull = jv.unwrap_object_nonnull();
             let array = nonnull.unwrap_array();
             let elem_type = array.elem_cpdtype();
-            let len = array.len() as i32;
+            let len = array.len();
             if index < 0 || index >= len {
                 return throw_array_out_of_bounds(jvm, int_state, throw, index);
             }
@@ -94,7 +94,7 @@ unsafe extern "system" fn JVM_GetArrayElement(env: *mut JNIEnv, arr: jobject, in
         }
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jobject::invalid_default()
+            jobject::invalid_default()
         }
     }
 }
@@ -170,7 +170,7 @@ unsafe extern "system" fn JVM_SetArrayElement(env: *mut JNIEnv, arr: jobject, in
         Ok(array) => {
             match array.unwrap_object(){
                 None => {
-                    return throw_npe(jvm, int_state, throw);
+                    throw_npe(jvm, int_state, throw)
                 }
                 Some(array) => {
                     let array = array.unwrap_array();
@@ -186,7 +186,6 @@ unsafe extern "system" fn JVM_SetArrayElement(env: *mut JNIEnv, arr: jobject, in
         }
         Err(WasException{ exception_obj }) => {
             *throw = Some(WasException{ exception_obj });
-            return;
         }
     }
 }
@@ -269,7 +268,7 @@ unsafe extern "system" fn JVM_ArrayCopy(env: *mut JNIEnv, _ignored: jclass, src:
     let src_len = array_layout.calculate_len_address(NonNull::new(src).unwrap().cast()).as_ptr().read();
     let dest_len = array_layout.calculate_len_address(NonNull::new(dst).unwrap().cast()).as_ptr().read();
 
-    if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len as i32 || dst_pos + length > dest_len as i32 {
+    if src_pos < 0 || dst_pos < 0 || length < 0 || src_pos + length > src_len || dst_pos + length > dest_len {
         let jvm = get_state(env);
         let int_state = get_interpreter_state(env);
         *get_throw(env) = Some(WasException { exception_obj: IndexOutOfBoundsException::new(jvm, int_state).unwrap().object().cast_throwable() });

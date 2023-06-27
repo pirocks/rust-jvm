@@ -14,6 +14,11 @@ impl<Left: Clone + Hash + Eq, Right: Clone + Hash + Eq> StrictBiHashMap<Left, Ri
         }
     }
 
+    pub fn is_empty(&self) -> bool{
+        assert_eq!(self.right_to_left.len(), self.left_to_right.len());
+        self.left_to_right.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         assert_eq!(self.right_to_left.len(), self.left_to_right.len());
         self.left_to_right.len()

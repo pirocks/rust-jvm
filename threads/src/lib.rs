@@ -79,7 +79,7 @@ impl<'vm> Threads<'vm> {
 }
 
 pub struct ThreadStartInfo<'vm> {
-    func: Box<dyn FnOnce(Box<dyn Any>) -> () + 'vm>,
+    func: Box<dyn FnOnce(Box<dyn Any>) + 'vm>,
     data: Box<dyn Any>,
 }
 

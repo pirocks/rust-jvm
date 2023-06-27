@@ -22,15 +22,15 @@ impl IRCompilerState<'_>{
         (branch_to_label_id, TargetLabelID(new_label_id as u32))
     }
 
-    pub fn set_label_target(&mut self, label: TargetLabelID){
+    pub fn set_label_target(&mut self, _label: TargetLabelID){
         todo!()
     }
 
-    pub fn set_label_target_pending(&mut self, byte_code_offset: ByteCodeOffset, label: TargetLabelID) {
+    pub fn set_label_target_pending(&mut self, _byte_code_offset: ByteCodeOffset, _label: TargetLabelID) {
         todo!()
     }
 
-    pub fn emit_branch_compare_int(&self, branch_to: BranchToLabelID, a: IntegerValueToken, b: IntegerValueToken, compare_kind: IntegerCompareKind){
+    pub fn emit_branch_compare_int(&self, _branch_to: BranchToLabelID, _a: IntegerValueToken, _b: IntegerValueToken, _compare_kind: IntegerCompareKind){
         todo!()
     }
 }

@@ -45,7 +45,7 @@ unsafe extern "system" fn JVM_GetClassDeclaredMethods(env: *mut JNIEnv, ofClass:
     }
 }
 
-fn JVM_GetClassDeclaredMethods_impl<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'l>, publicOnly: u8, _loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredMethods_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, '_>, publicOnly: u8, _loader: LoaderName, of_class_obj: JClass<'gc>) -> Result<jobjectArray, WasException<'gc>> {
     let class_ptype = of_class_obj.gc_lifeify().as_type(jvm);
     if class_ptype.is_array() || class_ptype.is_primitive() {
         unsafe {
@@ -90,12 +90,12 @@ unsafe extern "system" fn JVM_GetClassDeclaredConstructors(env: *mut JNIEnv, ofC
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException{ exception_obj });
-            return jobjectArray::invalid_default();
+            jobjectArray::invalid_default()
         }
     }
 }
 
-fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, 'k>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
+fn JVM_GetClassDeclaredConstructors_impl<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut NativeFrame<'gc, '_>, class_obj: &RuntimeClass, publicOnly: bool, class_type: CPDType) -> Result<jobjectArray, WasException<'gc>> {
     if class_type.is_array() || class_type.is_primitive() {
         unsafe {
             let allocated_empty_array = JavaValue::new_vec_from_vec(jvm, vec![], CClassName::constructor().into());
@@ -106,7 +106,7 @@ fn JVM_GetClassDeclaredConstructors_impl<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_s
     let mut object_array = vec![];
 
     constructors.iter().filter(|m| if publicOnly { m.is_public() } else { true }).for_each(|m| {
-        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, &m).expect("todo");
+        let constructor = Constructor::constructor_object_from_method_view(jvm, int_state, m).expect("todo");
         object_array.push(constructor.new_java_value_handle())
     });
     let whole_array_runtime_class = check_initing_or_inited_class(jvm, int_state, CPDType::array(CClassName::constructor().into())).unwrap();

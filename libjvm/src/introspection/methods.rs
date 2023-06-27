@@ -67,20 +67,20 @@ unsafe extern "system" fn JVM_GetEnclosingMethodInfo(env: *mut JNIEnv, ofClass: 
         None => null_mut(),
         Some(em) => {
             match (|| {
-                let ptype_name = em.class_name(&jvm.string_pool);
+                let ptype_name = em.class_name(jvm.string_pool);
                 let jclass = JClass::from_type(jvm, int_state, ptype_name.to_cpdtype())?;
-                let method_desc = match em.method_desc(&jvm.string_pool) {
+                let method_desc = match em.method_desc(jvm.string_pool) {
                     None => {
                         return Ok(null_mut());
                     }
                     Some(method_desc) => method_desc
                 };
-                let method_desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_desc.to_str(&jvm.string_pool)))?;
-                let method_name = match em.method_name(&jvm.string_pool) {
+                let method_desc = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_desc.to_str(jvm.string_pool)))?;
+                let method_name = match em.method_name(jvm.string_pool) {
                     None => { return Ok(null_mut()); }
                     Some(method_name) => method_name,
                 };
-                let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_name.0.to_str(&jvm.string_pool)))?;
+                let method_name = JString::from_rust(jvm, int_state, Wtf8Buf::from_string(method_name.0.to_str(jvm.string_pool)))?;
                 let array_obj = JavaValue::new_vec_from_vec(jvm, vec![jclass.new_java_value(), method_desc.new_java_value(), method_name.new_java_value()], CPDType::object());
                 Ok(new_local_ref_public_new(Some(array_obj.as_allocated_obj()), int_state))
             })() {
@@ -141,12 +141,11 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionsCount(env: *mut JNIEnv, cb: j
 unsafe extern "system" fn JVM_GetMethodIxByteCode(env: *mut JNIEnv, cb: jclass, method_index: jint, code_output: *mut c_uchar) {
     if let Err(WasException { exception_obj }) = get_code_attr(env, cb, method_index, |code| {
         for (i, x) in code.code_raw.iter().enumerate() {
-            code_output.offset(i as isize).write(*x)
+            code_output.add(i).write(*x)
         }
         Ok(())
     }) {
         *get_throw(env) = Some(WasException { exception_obj });
-        return;
     }
 }
 
@@ -156,7 +155,7 @@ unsafe extern "system" fn JVM_GetMethodIxByteCodeLength(env: *mut JNIEnv, cb: jc
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }
@@ -167,7 +166,7 @@ unsafe extern "system" fn JVM_GetMethodIxExceptionTableLength(env: *mut JNIEnv, 
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }
@@ -178,7 +177,7 @@ unsafe extern "system" fn JVM_GetMethodIxModifiers(env: *mut JNIEnv, cb: jclass,
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }
@@ -189,7 +188,7 @@ unsafe extern "system" fn JVM_GetMethodIxLocalsCount(env: *mut JNIEnv, cb: jclas
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }
@@ -200,7 +199,7 @@ unsafe extern "system" fn JVM_GetMethodIxArgsSize(env: *mut JNIEnv, cb: jclass, 
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }
@@ -211,7 +210,7 @@ unsafe extern "system" fn JVM_GetMethodIxMaxStack(env: *mut JNIEnv, cb: jclass, 
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jint::invalid_default();
+            jint::invalid_default()
         }
     }
 }

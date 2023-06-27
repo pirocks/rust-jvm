@@ -277,7 +277,7 @@ pub struct LaunchedVM<'vm, 'l, T> {
     pending_exit: bool,
 }
 
-impl<'vm, 'extra_data_life, T> Iterator for LaunchedVM<'vm, '_, T> {
+impl<'vm, T> Iterator for LaunchedVM<'vm, '_, T> {
     type Item = VMExitEvent;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -292,7 +292,7 @@ impl<'vm, 'extra_data_life, T> Iterator for LaunchedVM<'vm, '_, T> {
     }
 }
 
-impl<'vm, 'extra_data_life, T> LaunchedVM<'vm, '_, T> {
+impl<'vm, T> LaunchedVM<'vm, '_, T> {
     pub fn return_to(&mut self, mut event: VMExitEvent, return_register_state: SavedRegistersWithIPDiff) {
         assert!(self.pending_exit);
         self.pending_exit = false;
@@ -327,7 +327,7 @@ impl<'vm, T> VMState<'vm, T> {
         }
     }
 
-    pub fn launch_vm<'l, 'stack_life, 'extra_data>(&'l self, stack: &'stack_life OwnedNativeStack, extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, jvm_ptr: *const c_void) -> LaunchedVM<'vm, 'l, T> {
+    pub fn launch_vm<'l, 'stack_life>(&'l self, stack: &'stack_life OwnedNativeStack, extra_stack: &'stack_life OwnedNativeStack, extra_intrinsics: ExtraIntrinsicHelpers, method_id: MethodImplementationID, initial_registers: SavedRegistersWithoutIP, jvm_ptr: *const c_void) -> LaunchedVM<'vm, 'l, T> {
         let inner_guard = self.inner.read().unwrap();
         let code_region: Range<*const c_void> = inner_guard.code_regions.get(&method_id).unwrap().clone();
         let branch_to = code_region.start;

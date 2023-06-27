@@ -21,7 +21,7 @@ pub mod test;
 pub unsafe extern "C" fn array_copy_no_validate(src: jobject, src_pos: jint, dst: jobject, dst_pos: jint, length: jint) {
     let array_elem_type = MemoryRegions::find_object_region_header(NonNull::new(src).unwrap().cast()).array_elem_type.unwrap();
     let array_layout = ArrayMemoryLayout::from_cpdtype(array_elem_type);
-    let elem_size = array_layout.elem_size().get() as usize;
+    let elem_size = array_layout.elem_size().get();
     let length = length as usize;
 
     let dst = NonNull::new(dst.cast()).unwrap();

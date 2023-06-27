@@ -3,8 +3,6 @@ use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, Compres
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
 use crate::ir_compiler_common::branching::IntegerCompareKind;
 use crate::ir_compiler_common::special::IRCompilerState;
-use crate::ir_compiler_common::stack_stores::StackPos;
-use crate::ir_compiler_common::ValueToken;
 use crate::java_compiler::arithmetic::emit_iadd;
 use crate::java_compiler::array_load::array_load_impl;
 use crate::java_compiler::branching::{emit_integer_if_compare_two_values, emit_integer_if_compare_with_zero};
@@ -260,7 +258,7 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
         CompressedInstructionInfo::fsub => {
             todo!()
         }
-        CompressedInstructionInfo::getfield { name, desc, target_class } => {
+        CompressedInstructionInfo::getfield { name: _, desc: _, target_class: _ } => {
             todo!()
         }
         CompressedInstructionInfo::getstatic { .. } => {
@@ -326,10 +324,10 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
         CompressedInstructionInfo::idiv => {
             todo!()
         }
-        CompressedInstructionInfo::if_acmpeq(offset) => {
+        CompressedInstructionInfo::if_acmpeq(_offset) => {
             todo!()
         }
-        CompressedInstructionInfo::if_acmpne(offset) => {
+        CompressedInstructionInfo::if_acmpne(_offset) => {
             todo!()
         }
         CompressedInstructionInfo::if_icmpeq(offset) => {
@@ -374,7 +372,7 @@ pub(crate) fn emit_single_instruction(compiler_state: &mut IRCompilerState, inst
         CompressedInstructionInfo::ifnull(_) => {
             todo!()
         }
-        CompressedInstructionInfo::iinc(IInc{ index, const_ }) => {
+        CompressedInstructionInfo::iinc(IInc{ index: _, const_: _ }) => {
             todo!()
         }
         CompressedInstructionInfo::iload(n) => {

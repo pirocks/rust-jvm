@@ -27,7 +27,7 @@ pub(crate) fn instance_of_interface(assembler: &mut CodeAssembler, target_interf
     assembler.set_label(&mut loop_).unwrap();
     assembler.cmp(interface_list_base_pointer.to_native_64(), interface_list_base_pointer_len.to_native_64()).unwrap();
     assembler.je(instance_of_fail).unwrap();
-    assembler.cmp(dword_ptr(interface_list_base_pointer.to_native_64()), target_interface_id.0 as u32).unwrap();
+    assembler.cmp(dword_ptr(interface_list_base_pointer.to_native_64()), target_interface_id.0).unwrap();
     assembler.je(instance_of_succeed).unwrap();
     assembler.lea(interface_list_base_pointer.to_native_64(), interface_list_base_pointer.to_native_64() + size_of::<ClassID>() as u64).unwrap();
     assembler.jmp(loop_).unwrap();

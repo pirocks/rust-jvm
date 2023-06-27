@@ -54,7 +54,7 @@ impl InheritanceTreeInner {
     pub fn insert(&mut self, class_id_path: &InheritanceClassIDPath) -> InheritanceTreePath {
         self.top_node.insert(class_id_path);
         let res = self.top_node.lookup_class_id_path(class_id_path).unwrap();
-        if !(class_id_path.as_slice().len() < res.as_slice().len()) {
+        if class_id_path.as_slice().len() >= res.as_slice().len() {
             dbg!(&self);
             panic!()
         }
@@ -123,14 +123,7 @@ impl InheritanceTreeNode {
             return if rest.is_empty() {
                 Some(already_present_path)
             } else {
-                match next_node.lookup_class_id_path(&rest) {
-                    None => {
-                        None
-                    }
-                    Some(next_path) => {
-                        Some(already_present_path.concat(&next_path))
-                    }
-                }
+                next_node.lookup_class_id_path(&rest).map(|next_path| already_present_path.concat(&next_path))
             };
         }
         None
@@ -149,7 +142,6 @@ impl InheritanceTreeNode {
         };
 
         if rest.is_empty() {
-            return;
         } else {
             let next_node = self.sub_classes.inheritance_tree_node_at_path_mut(&already_present_path);
             next_node.insert(&rest)

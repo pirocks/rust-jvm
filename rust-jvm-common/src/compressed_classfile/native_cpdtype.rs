@@ -89,10 +89,10 @@ impl CompressedParsedDescriptorType {
                 num_nested_arrs
             } => {
                 res = (CPDTYPE_MAX_DISCRIMINANT as u64 + 1 + base_type.discriminant() as u64) << 56;
-                res |= (num_nested_arrs.get() as u8 as u64) << 48;
+                res |= (num_nested_arrs.get() as u64) << 48;
                 res |= match base_type {
                     NonArrayCompressedParsedDescriptorType::Class(ccn) => {
-                        ccn.0.id.0 as u32 as u64
+                        ccn.0.id.0 as u64
                     }
                     _ => 0
                 }

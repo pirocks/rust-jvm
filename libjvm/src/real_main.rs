@@ -87,7 +87,7 @@ fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc
     let (args, jvm): (Vec<String>, JVMState<'l>) = initial_jvm_state(jvm_options, scope, gc, string_pool);
 
     let jvm_ref: &'l JVMState<'l> = Box::leak(Box::new(jvm));
-    main_run(args, &jvm_ref);
+    main_run(args, jvm_ref);
     //todo clean jvm shutdown
     std::process::exit(0);
 }
@@ -161,7 +161,7 @@ pub fn initial_jvm_state<'gc>(jvm_options: JVMOptions, scope: &'gc Scope<'gc, 'g
     let object_class_id = class_ids.get_id_or_add(CPDType::object());
     let inheritance_tree = InheritanceTree::new(object_class_id);
     let bt_vec_paths = RwLock::new(BitVecPaths::new());
-    let classes = init_classes(&string_pool, &all_the_static_fields, &class_ids, &inheritance_tree, &mut bt_vec_paths.write().unwrap(), &classpath_arc);
+    let classes = init_classes(string_pool, &all_the_static_fields, &class_ids, &inheritance_tree, &mut bt_vec_paths.write().unwrap(), &classpath_arc);
     let main_class_name = CompressedClassName(string_pool.add_name(main_class_name.get_referred_name().clone(), true));
 
     let jvm = JVMState {
@@ -326,7 +326,8 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, all_the_static_fields
     initiating_loaders.insert(CClassName::type_().into(), (LoaderName::BootstrapLoader, type_class.clone()));
     initiating_loaders.insert(CClassName::generic_declaration().into(), (LoaderName::BootstrapLoader, generic_declaration_class.clone()));
     initiating_loaders.insert(CClassName::annotated_element().into(), (LoaderName::BootstrapLoader, annotated_element_class.clone()));
-    let classes = RwLock::new(Classes {
+    
+    RwLock::new(Classes {
         loaded_classes_by_type,
         initiating_loaders,
         class_object_pool: Default::default(),
@@ -337,6 +338,5 @@ fn init_classes<'gc>(pool: &CompressedClassfileStringPool, all_the_static_fields
         protection_domains: Default::default(),
         class_class_view: class_view,
         object_view: object_class_view,
-    });
-    classes
+    })
 }

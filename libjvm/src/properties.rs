@@ -35,7 +35,7 @@ unsafe extern "system" fn JVM_InitProperties(env: *mut JNIEnv, p0: jobject) -> j
         add_prop(env, p0, "java.class.path".to_string(), jvm.classpath.classpath_string())?;
         add_prop(env, p0, "java.vm.version".to_string(), "1.8+0+rust-jvm".to_string())?;
         // add_prop(env, p0, "java.library.path".to_string(), "/usr/java/packages/lib/amd64:/usr/lib64:/lib64:/lib:/usr/lib".to_string())?;
-        Ok(add_prop(env, p0, "java.home".to_string(), jvm.java_home.to_str().unwrap().to_string())?)
+        add_prop(env, p0, "java.home".to_string(), jvm.java_home.to_str().unwrap().to_string())
     })() {
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });

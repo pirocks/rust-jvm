@@ -50,7 +50,7 @@ pub enum TestCompilationResult {
 
 
 pub async fn run_parsed(test_output_lock: Arc<tokio::sync::Mutex<()>>, parsed: ParsedOpenJDKTest, test_base_dir: PathBuf, compilation_base_dir: PathBuf, javac: JavaCLocation, jdk_dir: PathBuf, java_binary: PathBuf) -> Result<TestResult, TestRunError> {
-    return match parsed {
+    match parsed {
         ParsedOpenJDKTest::Test {
             file_type,
             defining_file_path,
@@ -115,7 +115,7 @@ pub async fn run_parsed(test_output_lock: Arc<tokio::sync::Mutex<()>>, parsed: P
                 }
             }
         }
-    };
+    }
 }
 
 async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBuf, java_binary: PathBuf, compiled_file: PathBuf, source_file: PathBuf) -> Result<TestResult, TestRunError> {

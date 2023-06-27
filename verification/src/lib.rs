@@ -86,18 +86,22 @@ impl OperandStack {
         self.data.pop_front().unwrap()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
     pub fn len(&self) -> usize {
         self.data.len()
     }
 
     pub fn peek(&self) -> VType {
-        self.data.front().unwrap().clone()
+        *self.data.front().unwrap()
     }
 
     pub fn new_prolog_display_order(types: &[VType]) -> OperandStack {
         let mut o = OperandStack::empty();
         for type_ in types {
-            o.operand_push(type_.clone())
+            o.operand_push(*type_)
         }
         o
     }
@@ -113,7 +117,7 @@ impl OperandStack {
     pub fn substitute(&mut self, old: &VType, new: &VType) {
         for entry in &mut self.data {
             if entry == old {
-                *entry = new.clone();
+                *entry = *new;
             }
         }
     }

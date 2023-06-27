@@ -167,7 +167,7 @@ impl InnerClassesView<'_> {
     }
 
     pub fn classes(&self) -> impl Iterator<Item=InnerClassView> {
-        self.raw().classes.iter().map(move |class| InnerClassView { backing_class: &self.backing_class, class })
+        self.raw().classes.iter().map(move |class| InnerClassView { backing_class: self.backing_class, class })
     }
 }
 

@@ -14,7 +14,7 @@ fn libjvm_path_from_java_home() -> anyhow::Result<Option<PathBuf>> {
 }
 
 fn main() {
-    let lib = Library::new("libjvm.so", (RTLD_LAZY | RTLD_GLOBAL) as i32).unwrap();
+    let lib = Library::new("libjvm.so", RTLD_LAZY | RTLD_GLOBAL).unwrap();
     let real_main = unsafe { lib.get::<fn()>("rust_jvm_real_main".as_bytes()) }.unwrap();
     real_main();
 }

@@ -215,8 +215,7 @@ pub async fn parse_test_file(file_path: PathBuf) -> Result<ParsedOpenJDKTest, Te
                 let comments = extract_comments_java(contents.as_str());
                 let test_comment = find_test_comment(comments)?;
                 let tokens = tokenize_test_comment_content(test_comment)?;
-                let res = parse_java_test_file(file_path, tokens);
-                res
+                parse_java_test_file(file_path, tokens)
             }).await.unwrap()
         }
         FileType::Bash => {

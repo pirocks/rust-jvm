@@ -150,7 +150,7 @@ pub fn load_or_create_xtask_config(workspace_dir: &Path) -> anyhow::Result<XTask
     match load_xtask_config(workspace_dir)? {
         None => {
             let xtask_config_path = xtask_config_path(workspace_dir);
-            std::fs::write(&xtask_config_path, ron::to_string(&XTaskConfig {
+            std::fs::write(xtask_config_path, ron::to_string(&XTaskConfig {
                 dep_dir: default_deps_dir(workspace_dir),
                 bootstrap_jdk_dir: None,
             })?)?;
@@ -164,7 +164,7 @@ pub fn load_or_create_xtask_config(workspace_dir: &Path) -> anyhow::Result<XTask
 
 pub fn write_xtask_config(workspace_dir: &Path, config: XTaskConfig) -> anyhow::Result<()> {
     let xtask_config_path = xtask_config_path(workspace_dir);
-    std::fs::write(&xtask_config_path, ron::to_string(&config)?)?;
+    std::fs::write(xtask_config_path, ron::to_string(&config)?)?;
     Ok(())
 }
 

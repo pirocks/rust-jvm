@@ -61,7 +61,7 @@ pub fn array_out_of_bounds<'gc, 'k>(jvm: &'gc JVMState<'gc>, int_state: &mut Jav
     }
     let array_out_of_bounds = ArrayOutOfBoundsException::new(jvm, int_state, index).unwrap();
     let throwable = array_out_of_bounds.object().cast_throwable();
-    throw_impl(&jvm, int_state, throwable, false)
+    throw_impl(jvm, int_state, throwable, false)
 }
 
 #[inline(never)]

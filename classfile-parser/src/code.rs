@@ -360,7 +360,7 @@ fn parse_code_impl(c: &mut CodeParserContext) -> Result<Vec<Instruction>, Classf
         let offset = c.offset;
         let instruction_option = parse_instruction(c);
         match instruction_option {
-            Ok(instruction) => res.push(Instruction { offset, size: (c.offset.0 - offset.0) as u16, instruction }),
+            Ok(instruction) => res.push(Instruction { offset, size: (c.offset.0 - offset.0), instruction }),
             Err(ClassfileParsingError::EndOfInstructions) => {
                 break;
             }

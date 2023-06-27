@@ -70,8 +70,8 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
                     lookup_line_number(line_number_table, stack_entry).unwrap_or(LineNumber(u16::MAX))
                 }
             };
-            let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), &jvm.string_pool).class_name_representation());
-            let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(&jvm.string_pool));
+            let class_name_wtf8 = Wtf8Buf::from_string(PTypeView::from_compressed(declaring_class_view.type_(), jvm.string_pool).class_name_representation());
+            let method_name_wtf8 = Wtf8Buf::from_string(method_view.name().0.to_str(jvm.string_pool));
             let source_file_name_wtf8 = file;
             Ok(Some(OwnedStackEntry { _declaring_class: declaring_class, line_number, class_name_wtf8, method_name_wtf8, source_file_name_wtf8 }))
         })
@@ -84,7 +84,7 @@ unsafe extern "system" fn JVM_FillInStackTrace<'gc>(env: *mut JNIEnv, throwable:
             let method_name = JString::from_rust(jvm, int_state, method_name_wtf8)?;
             let source_file_name = JString::from_rust(jvm, int_state, source_file_name_wtf8)?;
 
-            Ok(StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)?)
+            StackTraceElement::new(jvm, int_state, declaring_class_name, method_name, source_file_name, line_number)
         })
         .collect::<Result<Vec<_>, WasException<'gc>>>().expect("todo");
 
@@ -137,7 +137,7 @@ unsafe extern "system" fn JVM_GetStackTraceElement(env: *mut JNIEnv, throwable: 
     match stack_traces.get(index as usize)
     {
         None => {
-            return throw_array_out_of_bounds(jvm, int_state, throw, index);
+            throw_array_out_of_bounds(jvm, int_state, throw, index)
         }
         Some(element) => { to_object_new(Some(element.full_object_ref())) }
     }

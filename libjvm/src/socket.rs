@@ -44,10 +44,8 @@ unsafe extern "system" fn JVM_Timeout(fd: ::std::os::raw::c_int, timeout: ::std:
         let mut pollfd = libc::pollfd { fd, events: libc::POLLIN | libc::POLLERR, revents: 0 };
         let err = libc::poll(&mut pollfd as *mut libc::pollfd, 1, timeout as i32);
         if nix::errno::errno() == EINTR as i32 && err == -1 {
-            if timeout >= 0 {
-                if Instant::now().duration_since(start).as_millis() >= timeout as u128 {
-                    return 0;
-                }
+            if timeout >= 0 && Instant::now().duration_since(start).as_millis() >= timeout as u128 {
+                return 0;
             }
         } else {
             return err;

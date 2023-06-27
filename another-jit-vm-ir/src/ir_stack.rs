@@ -19,7 +19,7 @@ pub struct OwnedIRStack {
 }
 
 
-impl<'k> OwnedIRStack {
+impl OwnedIRStack {
     pub fn new() -> Result<Self, CannotAllocateStack> {
         Ok(Self {
             native: OwnedNativeStack::new()?,
@@ -27,7 +27,7 @@ impl<'k> OwnedIRStack {
         })
     }
 
-    pub unsafe fn frame_at<'l>(&'l self, frame_pointer: NonNullConst<c_void>) -> IRFrameRef<'l> {
+    pub unsafe fn frame_at(&self, frame_pointer: NonNullConst<c_void>) -> IRFrameRef {
         self.native.validate_frame_pointer(frame_pointer);
         let _frame_header = read_frame_ir_header(frame_pointer);
         IRFrameRef {
@@ -80,7 +80,7 @@ pub struct IRStackMut<'l> {
     pub current_rsp: NonNull<c_void>,
 }
 
-impl<'l, 'k> IRStackMut<'l> {
+impl<'l> IRStackMut<'l> {
     pub fn new(owned_ir_stack: &'l mut OwnedIRStack, current_rbp: NonNull<c_void>, exiting_stack_pointer: NonNull<c_void>) -> Self {
         unsafe { owned_ir_stack.native.validate_frame_pointer(current_rbp.into()) }
         Self {
@@ -99,27 +99,6 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn push_frame<'vm_life, HandlerExtraData: HasRBPAndRSP>(&mut self, prev_rip: *const c_void, ir_method_id: Option<IRMethodID>, method_id: i64, data: &[u64], _ir_vm_state: &'_ IRVMState<'vm_life, HandlerExtraData>) -> IRPushFrameGuard {
-        unsafe {
-            // if self.current_rsp != self.owned_ir_stack.native.mmaped_top && self.current_rbp != self.owned_ir_stack.native.mmaped_top {
-            //     let offset = self.current_rbp.offset_from(self.current_rsp).abs() as usize;
-            //     let expected_current_frame_size = self.current_frame_ref().frame_size(ir_vm_state);
-            //     assert_eq!(offset, expected_current_frame_size);
-            // }
-            let prev_rbp = self.current_rbp;
-            let prev_rsp = self.current_rsp;
-            self.current_rbp = self.current_rsp;
-            self.current_rsp = NonNull::new(self.current_rbp.as_ptr().sub(FRAME_HEADER_END_OFFSET + data.len() * size_of::<u64>())).unwrap();
-            self.owned_ir_stack.write_frame(self.current_rbp, prev_rip, prev_rbp.as_ptr(), ir_method_id, method_id, data);
-            assert!((self.current_frame_ref().ir_method_id() == ir_method_id));
-            assert_ne!(self.current_rbp, self.current_rsp);
-            IRPushFrameGuard {
-                exited_correctly: false,
-                return_to_rbp: prev_rbp,
-                return_to_rsp: prev_rsp,
-            }
-        }
-    }
 
     pub fn pop_frame(&mut self, mut frame_guard: IRPushFrameGuard) {
         self.current_rsp = self.current_rbp;
@@ -129,7 +108,7 @@ impl<'l, 'k> IRStackMut<'l> {
         assert_eq!(frame_guard.return_to_rsp, self.current_rsp);
     }
 
-    pub fn debug_print_stack_strace<'vm, ExtraData, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<'vm, HandlerExtraData>) {
+    pub fn debug_print_stack_strace<ExtraData, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<HandlerExtraData>) {
         let frame_iter = self.frame_iter(ir_vm_state);
         eprintln!("Start IR stacktrace:");
         for frame in frame_iter {
@@ -163,7 +142,7 @@ impl<'l, 'k> IRStackMut<'l> {
         }
     }
 
-    pub fn previous_frame_ir_instr<'vm, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &IRVMState<'vm, HandlerExtraData>) -> IRInstructIndex {
+    pub fn previous_frame_ir_instr<HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &IRVMState<HandlerExtraData>) -> IRInstructIndex {
         let current = self.current_frame_ref();
         let prev_rip = current.prev_rip();
         let (ir_method_id_from_ip, ir_instruct) = ir_vm_state.lookup_ip(prev_rip);
@@ -309,7 +288,7 @@ impl IRFrameRef<'_> {
         unsafe { data_raw_ptr.read() }
     }
 
-    pub fn all_data<'vm, HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<'vm, HandlerExtraData>) -> Vec<u64> {
+    pub fn all_data<HandlerExtraData: HasRBPAndRSP>(&self, ir_vm_state: &'_ IRVMState<HandlerExtraData>) -> Vec<u64> {
         let _frame_size = self.frame_size(ir_vm_state);
         todo!()
     }
@@ -338,7 +317,7 @@ impl<'l> IRFrameMut<'l> {
         }
     }
 
-    pub fn downgrade<'new_l>(&'new_l self) -> IRFrameRef<'new_l> {
+    pub fn downgrade(&self) -> IRFrameRef {
         IRFrameRef {
             ptr: self.ptr.into(),
             _ir_stack: self.ir_stack,

@@ -14,7 +14,7 @@ pub(crate) fn branch_equal_val(assembler: &mut CodeAssembler, labels: &mut HashM
             todo!()
         }
         Size::X86DWord => {
-            assembler.cmp(a.to_native_32(), *const_ as u32).unwrap();
+            assembler.cmp(a.to_native_32(), *const_).unwrap();
         }
         Size::X86QWord => {
             panic!()

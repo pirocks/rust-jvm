@@ -46,7 +46,7 @@ unsafe extern "system" fn JVM_DefineClassWithSource(env: *mut JNIEnv, _name: *co
         },
     });
     to_object_new(
-        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, &jvm.string_pool)) {
+        match define_class_safe(jvm, int_state, parsed.clone(), loader_name, ClassBackedView::from(parsed, jvm.string_pool)) {
             Ok(res) => res,
             Err(WasException { exception_obj }) => {
                 *get_throw(env) = Some(WasException { exception_obj });

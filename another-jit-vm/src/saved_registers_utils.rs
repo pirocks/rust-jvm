@@ -131,7 +131,7 @@ impl SavedRegistersWithoutIP {
     }
 
     pub fn get_register(&self, register: Register) -> u64 {
-        (match register.0 {
+        match register.0 {
             0 => self.rax,
             1 => self.rbx,
             2 => self.rcx,
@@ -144,7 +144,7 @@ impl SavedRegistersWithoutIP {
             9 => self.r13,
             10 => self.r14,
             _ => todo!()
-        }) as u64
+        }
     }
 }
 

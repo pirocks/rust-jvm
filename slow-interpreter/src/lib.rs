@@ -15,7 +15,9 @@
 #![feature(fmt_internals)]
 #![feature(naked_functions)]
 #![feature(asm_const)]
-
+//This warning was annoying me a lot. todo def need to do cleanup on this but not necisarily in the
+// way clippy wants
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use std::error::Error;
 use std::sync::Arc;

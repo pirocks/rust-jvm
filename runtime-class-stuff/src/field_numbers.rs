@@ -67,10 +67,10 @@ fn get_field_numbers_impl(class_view: Arc<ClassBackedView>, parent: &Option<Arc<
     let mut field_number = 0;
     let mut numbers = HashMap::new();
     let mut canonical_numbers = HashMap::new();
-    for (i, (class_name, fields)) in temp_vec.iter().into_iter().enumerate() {
+    for (i, (class_name, fields)) in temp_vec.iter().enumerate() {
         let class_name = *class_name;
         let subclasses = &temp_vec[i..];
-        for (field_name, cpdtype) in fields.into_iter().sorted_by_key(|(name, _ptype)| *name).cloned() {
+        for (field_name, cpdtype) in fields.iter().sorted_by_key(|(name, _ptype)| *name).cloned() {
             let field_name_and_class = FieldNameAndClass { field_name, class_name };
             canonical_numbers.insert(field_name_and_class, (FieldNumber::new(field_number), cpdtype));
             for (subclass, _) in subclasses {

@@ -237,14 +237,14 @@ impl ClassListNode {
                 }
                 path_so_far.resize(save, Bit::Set);
                 path_so_far.push(Bit::UnSet);
-                return unset.try_insert_at_depth_impl(depth - 1, to_insert, path_so_far);
+                unset.try_insert_at_depth_impl(depth - 1, to_insert, path_so_far)
             }
             ClassListNode::GrowthNode => {
                 *self = ClassListNode::GrownNode {
                     set: Box::new(ClassListNode::GrowthNode),
                     unset: Box::new(ClassListNode::GrowthNode),
                 };
-                return self.try_insert_at_depth_impl(depth, to_insert, path_so_far);
+                self.try_insert_at_depth_impl(depth, to_insert, path_so_far)
             }
         }
     }
@@ -291,7 +291,7 @@ impl ClassListNode {
                 }
             }
             ClassListNode::LeafNode { sub_node } => {
-                return Some(sub_node.class_id);
+                Some(sub_node.class_id)
             }
             ClassListNode::GrowthNode => {
                 None

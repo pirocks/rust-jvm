@@ -61,6 +61,6 @@ fn get_method_numbers_recurse<'gc>(class_view: &Arc<dyn ClassView>, parent: &Opt
 // returns all method numbers applicable for this class and super clasess and super interfaces
 pub fn get_method_numbers<'gc>(class_view: &Arc<dyn ClassView>, parent: &Option<Arc<RuntimeClass<'gc>>>, interfaces: &[Arc<RuntimeClass<'gc>>]) -> (u32, HashMap<MethodShape, MethodNumber>) {
     let mut method_number_mappings = MethodNumberMappings::new();
-    get_method_numbers_recurse(&class_view, parent, interfaces, &mut method_number_mappings);
+    get_method_numbers_recurse(class_view, parent, interfaces, &mut method_number_mappings);
     (method_number_mappings.current_method_number, method_number_mappings.mapping)
 }

@@ -31,10 +31,10 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::areturn => instruction_is_type_safe_areturn(env, stack_frame),
         CInstructionInfo::arraylength => instruction_is_type_safe_arraylength(env, stack_frame),
         CInstructionInfo::astore(i) => instruction_is_type_safe_astore(*i as u16, env, stack_frame),
-        CInstructionInfo::astore_0 => instruction_is_type_safe_astore(0 as u16, env, stack_frame),
-        CInstructionInfo::astore_1 => instruction_is_type_safe_astore(1 as u16, env, stack_frame),
-        CInstructionInfo::astore_2 => instruction_is_type_safe_astore(2 as u16, env, stack_frame),
-        CInstructionInfo::astore_3 => instruction_is_type_safe_astore(3 as u16, env, stack_frame),
+        CInstructionInfo::astore_0 => instruction_is_type_safe_astore(0_u16, env, stack_frame),
+        CInstructionInfo::astore_1 => instruction_is_type_safe_astore(1_u16, env, stack_frame),
+        CInstructionInfo::astore_2 => instruction_is_type_safe_astore(2_u16, env, stack_frame),
+        CInstructionInfo::astore_3 => instruction_is_type_safe_astore(3_u16, env, stack_frame),
         CInstructionInfo::athrow => instruction_is_type_safe_athrow(env, stack_frame),
         CInstructionInfo::baload => instruction_is_type_safe_baload(env, stack_frame),
         CInstructionInfo::bastore => instruction_is_type_safe_bastore(env, stack_frame),
@@ -165,7 +165,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
             assert!(final_target >= 0);
             instruction_is_type_safe_ifnonnull(ByteCodeOffset(final_target as u16), env, stack_frame)
         }
-        CInstructionInfo::iinc(iinc) => instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame),
+        CInstructionInfo::iinc(iinc) => instruction_is_type_safe_iinc(iinc.index, env, stack_frame),
         CInstructionInfo::iload(index) => instruction_is_type_safe_iload(*index as u16, env, stack_frame),
         CInstructionInfo::iload_0 => instruction_is_type_safe_iload(0, env, stack_frame),
         CInstructionInfo::iload_1 => instruction_is_type_safe_iload(1, env, stack_frame),
@@ -204,7 +204,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::lcmp => instruction_is_type_safe_lcmp(env, stack_frame),
         CInstructionInfo::lconst_0 => instruction_is_type_safe_lconst_0(env, stack_frame),
         CInstructionInfo::lconst_1 => instruction_is_type_safe_lconst_0(env, stack_frame),
-        CInstructionInfo::ldc(cldc) => instruction_is_type_safe_ldc_w(&cldc.as_ref().left().unwrap(), env, stack_frame),
+        CInstructionInfo::ldc(cldc) => instruction_is_type_safe_ldc_w(cldc.as_ref().left().unwrap(), env, stack_frame),
         CInstructionInfo::ldc_w(cp) => instruction_is_type_safe_ldc_w(cp, env, stack_frame),
         CInstructionInfo::ldc2_w(cldc2w) => instruction_is_type_safe_ldc2_w(cldc2w, env, stack_frame),
         CInstructionInfo::ldiv => instruction_is_type_safe_ladd(env, stack_frame),
@@ -216,7 +216,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::lmul => instruction_is_type_safe_ladd(env, stack_frame),
         CInstructionInfo::lneg => instruction_is_type_safe_lneg(env, stack_frame),
         CInstructionInfo::lookupswitch(s) => {
-            let targets: Vec<ByteCodeOffset> = s.pairs.iter().map(|(_, x)| ByteCodeOffset((offset.0 as i32 + *x as i32) as u16)).collect();
+            let targets: Vec<ByteCodeOffset> = s.pairs.iter().map(|(_, x)| ByteCodeOffset((offset.0 as i32 + *x) as u16)).collect();
             let keys = s.pairs.iter().map(|(x, _)| *x).collect();
             instruction_is_type_safe_lookupswitch(targets, keys, env, stack_frame)
         }
@@ -241,7 +241,7 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::nop => instruction_is_type_safe_nop(stack_frame),
         CInstructionInfo::pop => instruction_is_type_safe_pop(env, stack_frame),
         CInstructionInfo::pop2 => instruction_is_type_safe_pop2(env, stack_frame),
-        CInstructionInfo::putfield { name, desc, target_class } => instruction_is_type_safe_putfield((*target_class).into(), *name, desc, env, stack_frame),
+        CInstructionInfo::putfield { name, desc, target_class } => instruction_is_type_safe_putfield(*target_class, *name, desc, env, stack_frame),
         CInstructionInfo::putstatic { name: _, desc, target_class: _ } => instruction_is_type_safe_putstatic(desc, env, stack_frame),
         CInstructionInfo::ret(_) => instruction_is_type_safe_nop(stack_frame),
         CInstructionInfo::return_ => instruction_is_type_safe_return(env, stack_frame),
@@ -252,24 +252,24 @@ pub fn instruction_is_type_safe(instruction: &CInstruction, env: &mut Environmen
         CInstructionInfo::tableswitch(s) => {
             let mut targets = vec![];
             for o in &s.offsets {
-                targets.push(ByteCodeOffset((offset.0 as i32 + *o as i32) as u16))
+                targets.push(ByteCodeOffset((offset.0 as i32 + *o) as u16))
             }
-            targets.push(ByteCodeOffset((offset.0 as i32 + s.default as i32) as u16));
+            targets.push(ByteCodeOffset((offset.0 as i32 + s.default) as u16));
             instruction_is_type_safe_tableswitch(targets, env, stack_frame)
         }
         CInstructionInfo::wide(wide) => match wide {
-            Wide::Iload(WideIload { index }) => instruction_is_type_safe_iload(*index as u16, env, stack_frame),
-            Wide::Fload(WideFload { index }) => instruction_is_type_safe_fload(*index as u16, env, stack_frame),
-            Wide::Aload(WideAload { index }) => instruction_is_type_safe_aload(*index as u16, env, stack_frame),
-            Wide::Lload(WideLload { index }) => instruction_is_type_safe_lload(*index as u16, env, stack_frame),
-            Wide::Dload(WideDload { index }) => instruction_is_type_safe_dload(*index as u16, env, stack_frame),
-            Wide::Istore(WideIstore { index }) => instruction_is_type_safe_istore(*index as u16, env, stack_frame),
-            Wide::Fstore(WideFstore { index }) => instruction_is_type_safe_fstore(*index as u16, env, stack_frame),
-            Wide::Astore(WideAstore { index }) => instruction_is_type_safe_astore(*index as u16, env, stack_frame),
-            Wide::Lstore(WideLstore { index }) => instruction_is_type_safe_lstore(*index as u16, env, stack_frame),
-            Wide::Dstore(WideDstore { index }) => instruction_is_type_safe_dstore(*index as u16, env, stack_frame),
+            Wide::Iload(WideIload { index }) => instruction_is_type_safe_iload(*index, env, stack_frame),
+            Wide::Fload(WideFload { index }) => instruction_is_type_safe_fload(*index, env, stack_frame),
+            Wide::Aload(WideAload { index }) => instruction_is_type_safe_aload(*index, env, stack_frame),
+            Wide::Lload(WideLload { index }) => instruction_is_type_safe_lload(*index, env, stack_frame),
+            Wide::Dload(WideDload { index }) => instruction_is_type_safe_dload(*index, env, stack_frame),
+            Wide::Istore(WideIstore { index }) => instruction_is_type_safe_istore(*index, env, stack_frame),
+            Wide::Fstore(WideFstore { index }) => instruction_is_type_safe_fstore(*index, env, stack_frame),
+            Wide::Astore(WideAstore { index }) => instruction_is_type_safe_astore(*index, env, stack_frame),
+            Wide::Lstore(WideLstore { index }) => instruction_is_type_safe_lstore(*index, env, stack_frame),
+            Wide::Dstore(WideDstore { index }) => instruction_is_type_safe_dstore(*index, env, stack_frame),
             Wide::Ret(WideRet { index: _ }) => instruction_is_type_safe_nop(stack_frame),
-            Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index as u16, env, stack_frame),
+            Wide::IInc(iinc) => instruction_is_type_safe_iinc(iinc.index, env, stack_frame),
         },
         CInstructionInfo::EndOfCode => Result::Err(unknown_error_verifying!()),
     }

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use crate::ir_compiler_common::{DoubleValue, DoubleValueToken, IntegerValue, IntegerValueToken, LongValue, LongValueToken, PointerValue, PointerValueToken};
 use crate::native_compiler_common::GeneralRegister;
 

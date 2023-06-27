@@ -42,7 +42,8 @@ pub const THREAD_RESTART_SIGNAL: Signal = Signal::SIGUSR2;
 pub const THREAD_PAUSE_SIGNAL_RAW: c_int = THREAD_PAUSE_SIGNAL as i32;
 pub const THREAD_RESTART_SIGNAL_RAW: c_int = THREAD_RESTART_SIGNAL as i32;
 
-
+//todo this should be unsafe but can't be because pub functions that might dereference raw ptrs need to be marked as unsafe
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn handler(sig: c_int, info: *mut siginfo_t, ucontext: *mut c_void) {
     let sig_expected = THREAD_PAUSE_SIGNAL_RAW;
     unsafe {

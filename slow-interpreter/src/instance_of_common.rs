@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use runtime_class_stuff::{RuntimeClass, RuntimeClassRef};
+use runtime_class_stuff::RuntimeClass;
 
 use crate::jvm_state::JVMState;
 use crate::new_java_values::allocated_objects::AllocatedObject;

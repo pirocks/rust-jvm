@@ -36,13 +36,13 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
     let mut previous_frame_is_first_frame = true;
     for (_, entry) in stack_map.iter().enumerate() {
         match entry {
-            CompressedStackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, &s),
-            CompressedStackMapFrame::AppendFrame(append_frame) => handle_append_frame(&mut frame, &append_frame),
-            CompressedStackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(&mut frame, &s),
-            CompressedStackMapFrame::FullFrame(f) => handle_full_frame(&mut frame, &f),
-            CompressedStackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, &f),
-            CompressedStackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, &f),
-            CompressedStackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&mut frame, &f),
+            CompressedStackMapFrame::SameFrame(s) => handle_same_frame(&mut frame, s),
+            CompressedStackMapFrame::AppendFrame(append_frame) => handle_append_frame(&mut frame, append_frame),
+            CompressedStackMapFrame::SameLocals1StackItemFrame(s) => handle_same_locals_1_stack(&mut frame, s),
+            CompressedStackMapFrame::FullFrame(f) => handle_full_frame(&mut frame, f),
+            CompressedStackMapFrame::ChopFrame(f) => handle_chop_frame(&mut frame, f),
+            CompressedStackMapFrame::SameFrameExtended(f) => handle_same_frame_extended(&mut frame, f),
+            CompressedStackMapFrame::SameLocals1StackItemFrameExtended(f) => handle_same_locals_1_stack_frame_extended(&mut frame, f),
         }
         if previous_frame_is_first_frame {
             previous_frame_is_first_frame = false;
@@ -52,8 +52,8 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
         res.push(StackMap {
             offset: frame.current_offset,
             map_frame: Frame {
-                locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, VType::TopType).iter().cloned().collect()),
-                stack_map: OperandStack::new_prolog_display_order(&frame.stack.iter().cloned().collect::<Vec<_>>()),
+                locals: Rc::new(expand_to_length(frame.locals.clone(), frame.max_locals as usize, VType::TopType).to_vec()),
+                stack_map: OperandStack::new_prolog_display_order(&frame.stack.to_vec()),
                 flag_this_uninit: false,
             },
         });
@@ -62,18 +62,18 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
     res
 }
 
-pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &CompressedSameLocals1StackItemFrameExtended) {
+pub fn handle_same_locals_1_stack_frame_extended(frame: &mut InternalFrame, f: &CompressedSameLocals1StackItemFrameExtended) {
     frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &f.stack);
 }
 
-pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &CompressedSameFrameExtended) {
+pub fn handle_same_frame_extended(frame: &mut InternalFrame, f: &CompressedSameFrameExtended) {
     frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
 }
 
-pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &CompressedChopFrame) {
+pub fn handle_chop_frame(frame: &mut InternalFrame, f: &CompressedChopFrame) {
     frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {
@@ -99,12 +99,12 @@ pub fn handle_full_frame(frame: &mut InternalFrame, f: &CompressedFullFrame) {
     frame.current_offset.0 += f.offset_delta;
     frame.locals.clear();
     for new_local in f.locals.iter() {
-        add_verification_type_to_array_convert(&mut frame.locals, &new_local);
+        add_verification_type_to_array_convert(&mut frame.locals, new_local);
     }
 
     frame.stack.clear();
     for new_stack_member in f.stack.iter() {
-        add_verification_type_to_array_convert(&mut frame.stack, &new_stack_member);
+        add_verification_type_to_array_convert(&mut frame.stack, new_stack_member);
     }
 }
 
@@ -117,7 +117,7 @@ pub fn handle_same_locals_1_stack(frame: &mut InternalFrame, s: &CompressedSameL
 pub fn handle_append_frame(frame: &mut InternalFrame, append_frame: &CompressedAppendFrame) {
     frame.current_offset.0 += append_frame.offset_delta;
     for new_local in append_frame.locals.iter() {
-        add_verification_type_to_array_convert(&mut frame.locals, &new_local)
+        add_verification_type_to_array_convert(&mut frame.locals, new_local)
     }
     frame.stack.clear();
 }
@@ -128,7 +128,7 @@ pub fn handle_same_frame(frame: &mut InternalFrame, s: &SameFrame) {
 }
 
 fn add_verification_type_to_array_convert(locals: &mut Vec<VType>, new_local: &VType) {
-    match new_local.clone() {
+    match new_local {
         VType::DoubleType => {
             locals.push(VType::DoubleType);
             locals.push(VType::TopType);
@@ -138,7 +138,7 @@ fn add_verification_type_to_array_convert(locals: &mut Vec<VType>, new_local: &V
             locals.push(VType::TopType);
         }
         new => {
-            locals.push(new);
+            locals.push(*new);
         }
     }
 }

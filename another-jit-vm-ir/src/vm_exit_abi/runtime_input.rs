@@ -277,7 +277,7 @@ pub enum RuntimeVMExitInput {
 
 impl RuntimeVMExitInput {
     pub fn from_register_state(register_state: &SavedRegistersWithIP) -> Self {
-        let raw_vm_exit_type: RawVMExitType = RawVMExitType::from_u64(register_state.saved_registers_without_ip.rax as u64).unwrap();
+        let raw_vm_exit_type: RawVMExitType = RawVMExitType::from_u64(register_state.saved_registers_without_ip.rax).unwrap();
         match raw_vm_exit_type {
             RawVMExitType::AllocateObjectArray => {
                 RuntimeVMExitInput::AllocateObjectArray {
@@ -330,7 +330,7 @@ impl RuntimeVMExitInput {
             }
             RawVMExitType::LogFramePointerOffsetValue => {
                 RuntimeVMExitInput::LogFramePointerOffsetValue {
-                    value: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::VALUE) as u64,
+                    value: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::VALUE),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::RESTART_IP) as *const c_void,
                     // str_message: register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::STRING_MESSAGE)
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(LogFramePointerOffsetValue::JAVA_PC) as u16),
@@ -395,7 +395,7 @@ impl RuntimeVMExitInput {
                 assert_ne!(native_method_res, null_mut());
                 RuntimeVMExitInput::InvokeVirtualResolve {
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::RESTART_IP) as *const c_void,
-                    method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::METHOD_SHAPE_ID) as u64),
+                    method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::METHOD_SHAPE_ID)),
                     object_ref_ptr: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::OBJECT_REF_PTR) as *const c_void,
                     native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RESTART_POINT)),
                     native_method_res,
@@ -457,7 +457,7 @@ impl RuntimeVMExitInput {
             RawVMExitType::Todo => {
                 RuntimeVMExitInput::Todo {
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(Todo::JAVA_PC) as u16),
-                    todo_case: TodoCase::from_u64(register_state.saved_registers_without_ip.get_register(Todo::TODO_CASE) as u64).unwrap(),
+                    todo_case: TodoCase::from_u64(register_state.saved_registers_without_ip.get_register(Todo::TODO_CASE)).unwrap(),
                 }
             }
             RawVMExitType::InvokeInterfaceResolve => {
@@ -466,7 +466,7 @@ impl RuntimeVMExitInput {
                     native_method_restart_point: RestartPointID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::NATIVE_RESTART_POINT)),
                     native_method_res: register_state.saved_registers_without_ip.get_register(InvokeVirtualResolve::NATIVE_RETURN_PTR) as *mut c_void,
                     object_ref: register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::OBJECT_REF) as *const c_void,
-                    method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::METHOD_SHAPE_ID) as u64),
+                    method_shape_id: MethodShapeID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::METHOD_SHAPE_ID)),
                     method_number: MethodNumber(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::METHOD_NUMBER) as u32),
                     interface_id: InterfaceID(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::INTERFACE_ID) as u32),
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(InvokeInterfaceResolve::JAVA_PC) as u16),
@@ -510,7 +510,7 @@ impl RuntimeVMExitInput {
                     cpdtype_id: CPDTypeID(register_state.saved_registers_without_ip.get_register(AssertInstanceOf::CPDTYPE_ID) as u32),
                     return_to_ptr: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::RESTART_IP) as *const c_void,
                     pc: ByteCodeOffset(register_state.saved_registers_without_ip.get_register(AssertInstanceOf::JAVA_PC) as u16),
-                    expected: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::FAST_INSTANCE_OF_RES) as u64 != 0,
+                    expected: register_state.saved_registers_without_ip.get_register(AssertInstanceOf::FAST_INSTANCE_OF_RES) != 0,
                 }
             }
             RawVMExitType::ArrayOutOfBounds => {

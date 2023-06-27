@@ -37,7 +37,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
     dbg!(current_loader);
     //todo current loader
     let guard = jvm.classes.write().unwrap();
-    let runtime_class = match guard.loaded_classes_by_type.get(&LoaderName::BootstrapLoader).unwrap().get(&class_name.clone().into()) {
+    let runtime_class = match guard.loaded_classes_by_type.get(&LoaderName::BootstrapLoader).unwrap().get(&class_name.into()) {
         None => {
             drop(guard);
             let runtime_class = match bootstrap_load(jvm, int_state, class_name.into()) {
@@ -49,7 +49,7 @@ unsafe extern "system" fn JVM_FindClassFromBootLoader<'gc, 'l>(env: *mut JNIEnv,
             };
             let ptype = runtime_class.cpdtype();
             let mut guard = jvm.classes.write().unwrap();
-            guard.initiating_loaders.entry(ptype.clone()).or_insert((LoaderName::BootstrapLoader, runtime_class.clone())); //todo wrong loader?
+            guard.initiating_loaders.entry(ptype).or_insert((LoaderName::BootstrapLoader, runtime_class.clone())); //todo wrong loader?
             guard.loaded_classes_by_type.entry(LoaderName::BootstrapLoader).or_insert(HashMap::new()).insert(ptype, runtime_class.clone());
             runtime_class
         }
@@ -86,8 +86,8 @@ unsafe extern "system" fn JVM_FindLoadedClass(env: *mut JNIEnv, _loader: jobject
     assert_ne!(&name_str, "int");
     // dbg!(&name_str);
     //todo what if not bl
-    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str.replace(".", "/"), true));
-    let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.clone().into());
+    let class_name = CompressedClassName(jvm.string_pool.add_name(name_str.replace('.', "/"), true));
+    let loaded = jvm.classes.write().unwrap().is_loaded(&class_name.into());
     match loaded {
         None => null_mut(),
         Some(_) => {

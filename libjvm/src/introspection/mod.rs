@@ -95,7 +95,7 @@ unsafe extern "system" fn JVM_GetComponentType(env: *mut JNIEnv, cls: jclass) ->
     let temp = NewJavaValueHandle::from_optional_object(object).cast_class().unwrap().as_type(jvm);
     let object_class = temp.unwrap_ref_type();
     let previous_res = new_local_ref_public_new(
-        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type().clone()) {
+        match JClass::from_type(jvm, int_state, object_class.unwrap_array_type()) {
             Ok(jclass) => jclass,
             Err(WasException { exception_obj }) => {
                 *get_throw(env) = Some(WasException { exception_obj });
@@ -113,7 +113,7 @@ unsafe extern "system" fn JVM_GetClassModifiers(env: *mut JNIEnv, cls: jclass) -
     let jvm = get_state(env);
     let jclass = from_jclass(jvm, cls);
     let mut res = jclass.as_runtime_class(jvm).view().access_flags() as u32;
-    res &= !(JVM_ACC_SYNCHRONIZED as u32);
+    res &= !JVM_ACC_SYNCHRONIZED;
     res as i32
 }
 
@@ -126,8 +126,8 @@ unsafe extern "system" fn JVM_GetDeclaredClasses(env: *mut JNIEnv, ofClass: jcla
         None => vec![],
         Some(inner_classes) => inner_classes
             .classes()
-            .filter(|inner_class| inner_class.outer_name(&jvm.string_pool) == class.unwrap_class_class().class_view.name().unwrap_name())
-            .flat_map(|inner_class| Some(CPDType::Class(inner_class.complete_name(&jvm.string_pool)?)))
+            .filter(|inner_class| inner_class.outer_name(jvm.string_pool) == class.unwrap_class_class().class_view.name().unwrap_name())
+            .flat_map(|inner_class| Some(CPDType::Class(inner_class.complete_name(jvm.string_pool)?)))
             .collect::<Vec<_>>(),
     }
         .into_iter()
@@ -165,13 +165,13 @@ unsafe extern "system" fn JVM_GetDeclaringClass(env: *mut JNIEnv, ofClass: jclas
         None => return null_mut(),
     };
     for inner_class in inner_classes.classes() {
-        if inner_class.complete_name(&jvm.string_pool) == Some(class_name) {
-            let target_class_name = inner_class.outer_name(&jvm.string_pool);
+        if inner_class.complete_name(jvm.string_pool) == Some(class_name) {
+            let target_class_name = inner_class.outer_name(jvm.string_pool);
             let class = get_or_create_class_object(jvm, target_class_name.into(), int_state).unwrap();
             return to_object_new(Some(class.as_allocated_obj()));
         }
     }
-    return null_mut();
+    null_mut()
 }
 
 #[no_mangle]
@@ -192,7 +192,7 @@ unsafe extern "system" fn JVM_GetClassSignature(env: *mut JNIEnv, cls: jclass) -
         Ok(jstring) => new_local_ref_public_new(jstring.full_object_ref().into(), int_state),
         Err(WasException{ exception_obj }) => {
             *get_throw(env) = Some(WasException { exception_obj });
-            return jstring::invalid_default()
+            jstring::invalid_default()
         }
     }
 }
@@ -251,7 +251,7 @@ unsafe extern "system" fn JVM_GetClassNameUTF(env: *mut JNIEnv, cb: jclass) -> *
     let sketch_string = JVMString::from_regular_string(rust_string.as_str());
     let mut len = 0;
     let mut data_ptr: *mut u8 = null_mut();
-    jvm.native.native_interface_allocations.allocate_and_write_vec(sketch_string.buf.clone(), &mut len as *mut jint, &mut data_ptr as *mut *mut u8);
+    jvm.native.native_interface_allocations.allocate_and_write_vec(sketch_string.buf, &mut len as *mut jint, &mut data_ptr as *mut *mut u8);
     data_ptr as *const c_char
 }
 
@@ -304,7 +304,7 @@ unsafe extern "system" fn JVM_IsSameClassPackage(env: *mut JNIEnv, class1: jclas
         Ok(res) => res,
         Err(WasException { exception_obj }) => {
             *get_throw(env) = Some(WasException{ exception_obj });
-            return jboolean::MAX;
+            jboolean::MAX
         }
     }
 }
@@ -315,12 +315,12 @@ unsafe extern "system" fn JVM_FindClassFromCaller<'gc>(env: *mut JNIEnv, c_name:
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let name = CStr::from_ptr(&*c_name).to_str().unwrap().to_string();
-    let p_type = if name.starts_with("[") {
+    let p_type = if name.starts_with('[') {
         CPDType::from_ptype(&parse_field_descriptor(name.as_str()).unwrap().field_type,jvm.string_pool)
     } else { CompressedClassName(jvm.string_pool.add_name(name, true)).into() };
 
     let loader_name = from_object_new(jvm, loader)
-        .map(|loader_obj| NewJavaValueHandle::Object(loader_obj.into()).cast_class_loader().to_jvm_loader(jvm))
+        .map(|loader_obj| NewJavaValueHandle::Object(loader_obj).cast_class_loader().to_jvm_loader(jvm))
         .unwrap_or(LoaderName::BootstrapLoader);
 
     let class_lookup_result = get_or_create_class_object_force_loader(jvm, p_type, int_state, loader_name);
@@ -346,6 +346,6 @@ unsafe extern "system" fn JVM_GetClassName(env: *mut JNIEnv, cls: jclass) -> jst
     let jvm = get_state(env);
     let int_state = get_interpreter_state(env);
     let obj = from_jclass(jvm, cls).as_runtime_class(jvm);
-    let full_name = PTypeView::from_compressed(obj.cpdtype(), &jvm.string_pool).class_name_representation();
+    let full_name = PTypeView::from_compressed(obj.cpdtype(), jvm.string_pool).class_name_representation();
     to_object_new(Some(JString::from_rust(jvm, int_state, Wtf8Buf::from_string(full_name)).unwrap().full_object_ref()))
 }

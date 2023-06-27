@@ -1,5 +1,5 @@
 use std::cell::OnceCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
@@ -14,7 +14,7 @@ use crate::execution::{run_parsed, TestResult, TestRunError};
 use crate::java_compilation::javac_location;
 use crate::load_or_create_xtask_config;
 
-pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
+pub async fn all_tests(workspace_dir: &Path) -> anyhow::Result<()> {
     let config = load_or_create_xtask_config(workspace_dir)?;
     let jdk_dir = config.dep_dir.join("jdk8u");
     let compilation_dir = config.dep_dir.join("compiled_test_classes");
@@ -35,7 +35,7 @@ pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn build_jvm(workspace_dir: &PathBuf) -> anyhow::Result<PathBuf> {
+async fn build_jvm(workspace_dir: &Path) -> anyhow::Result<PathBuf> {
     tokio::process::Command::new("cargo")
         .arg("build")
         .arg("--manifest-path").arg(workspace_dir.join("Cargo.toml"))

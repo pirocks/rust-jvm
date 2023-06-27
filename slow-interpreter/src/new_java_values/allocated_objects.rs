@@ -326,7 +326,7 @@ impl<'gc, 'k> AllocatedObjectCOW<'gc, 'k> {
                 handle
             }
             AllocatedObjectCOW::Ref(allocated_object) => {
-                allocated_object.clone()
+                allocated_object
             }
         }
     }

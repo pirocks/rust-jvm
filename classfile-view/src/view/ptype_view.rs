@@ -48,7 +48,7 @@ impl PTypeView {
             PTypeView::VoidType => PType::VoidType,
             PTypeView::TopType => PType::TopType,
             PTypeView::NullType => PType::NullType,
-            PTypeView::Uninitialized(u) => PType::Uninitialized(u.clone()),
+            PTypeView::Uninitialized(u) => PType::Uninitialized(*u),
             PTypeView::UninitializedThis => PType::UninitializedThis,
             PTypeView::UninitializedThisOrClass(u) => PType::UninitializedThisOrClass(u.deref().to_ptype().into()),
         }
@@ -68,7 +68,7 @@ impl PTypeView {
             PType::VoidType => PTypeView::VoidType,
             PType::TopType => PTypeView::TopType,
             PType::NullType => PTypeView::NullType,
-            PType::Uninitialized(u) => PTypeView::Uninitialized(u.clone()),
+            PType::Uninitialized(u) => PTypeView::Uninitialized(*u),
             PType::UninitializedThis => PTypeView::UninitializedThis,
             PType::UninitializedThisOrClass(u) => PTypeView::UninitializedThisOrClass(PTypeView::from_ptype(u.deref()).into()),
         }
@@ -103,7 +103,7 @@ impl PTypeView {
             PTypeView::VoidType => VType::VoidType,
             PTypeView::TopType => VType::TopType,
             PTypeView::NullType => VType::NullType,
-            PTypeView::Uninitialized(uvi) => VType::Uninitialized(uvi.clone()),
+            PTypeView::Uninitialized(uvi) => VType::Uninitialized(*uvi),
             PTypeView::UninitializedThis => VType::UninitializedThis,
             PTypeView::UninitializedThisOrClass(c) => VType::UninitializedThisOrClass(CPDType::from_ptype(&c.to_ptype(), pool)),
             PTypeView::Ref(r) => r.to_verification_type(loader, pool),
@@ -192,7 +192,7 @@ impl PTypeView {
             PTypeView::LongType => res.push_str("long"),
             PTypeView::Ref(ref_) => match ref_ {
                 ReferenceTypeView::Class(c) => {
-                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
+                    res.push_str(c.get_referred_name().replace('/', ".").as_str());
                 }
                 ReferenceTypeView::Array(subtype) => {
                     res.push('[');
@@ -218,7 +218,7 @@ impl PTypeView {
             PTypeView::Ref(ref_) => match ref_ {
                 ReferenceTypeView::Class(c) => {
                     res.push('L');
-                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
+                    res.push_str(c.get_referred_name().replace('/', ".").as_str());
                     res.push(';')
                 }
                 ReferenceTypeView::Array(subtype) => {
@@ -244,7 +244,7 @@ impl PTypeView {
             PTypeView::LongType => res.push_str("long"),
             PTypeView::Ref(ref_) => match ref_ {
                 ReferenceTypeView::Class(c) => {
-                    res.push_str(c.get_referred_name().replace("/", ".").as_str());
+                    res.push_str(c.get_referred_name().replace('/', ".").as_str());
                 }
                 ReferenceTypeView::Array(subtype) => {
                     res.push_str(&subtype.deref().java_source_representation());
@@ -292,7 +292,7 @@ impl ReferenceTypeView {
         match self {
             ReferenceTypeView::Class(c) => VType::Class(ClassWithLoader {
                 class_name: CompressedClassName(pool.add_name(c.get_referred_name().to_string(), true)),
-                loader: loader.clone(),
+                loader: *loader,
             }),
             ReferenceTypeView::Array(p) => {
                 VType::ArrayReferenceType(CompressedParsedDescriptorType::from_ptype(&p.to_ptype(), pool) /*p.deref().clone()*/)
@@ -373,7 +373,7 @@ impl Clone for PTypeView {
             PTypeView::VoidType => PTypeView::VoidType,
             PTypeView::TopType => PTypeView::TopType,
             PTypeView::NullType => PTypeView::NullType,
-            PTypeView::Uninitialized(uvi) => PTypeView::Uninitialized(uvi.clone()),
+            PTypeView::Uninitialized(uvi) => PTypeView::Uninitialized(*uvi),
             PTypeView::UninitializedThis => PTypeView::UninitializedThis,
             PTypeView::UninitializedThisOrClass(t) => PTypeView::UninitializedThisOrClass(t.clone()),
             PTypeView::Ref(r) => PTypeView::Ref(r.clone()),

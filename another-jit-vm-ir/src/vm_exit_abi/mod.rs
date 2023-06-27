@@ -214,7 +214,7 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::LoadClassAndRecompile as u64).unwrap();
                 assembler.mov(LoadClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
                 assembler.mov(LoadClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
-                assembler.mov(LoadClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
+                assembler.mov(LoadClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0).unwrap();
                 assembler.mov(LoadClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
             IRVMExitType::TopLevelReturn => {
@@ -223,7 +223,7 @@ impl IRVMExitType {
             }
             IRVMExitType::CompileFunctionAndRecompileCurrent { current_method_id, target_method_id, restart_point_id, java_pc } => {
                 assembler.mov(rax, RawVMExitType::CompileFunctionAndRecompileCurrent as u64).unwrap();
-                assembler.mov(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
+                assembler.mov(CompileFunctionAndRecompileCurrent::RESTART_POINT_ID.to_native_64(), restart_point_id.0).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::CURRENT.to_native_64(), *current_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::TO_RECOMPILE.to_native_64(), *target_method_id as u64).unwrap();
                 assembler.mov(CompileFunctionAndRecompileCurrent::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
@@ -232,7 +232,7 @@ impl IRVMExitType {
                 assembler.mov(rax, RawVMExitType::InitClassAndRecompile as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::CPDTYPE_ID.to_native_64(), class.0 as u64).unwrap();
                 assembler.mov(InitClassAndRecompile::TO_RECOMPILE.to_native_64(), *this_method_id as u64).unwrap();
-                assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0 as u64).unwrap();
+                assembler.mov(InitClassAndRecompile::RESTART_POINT_ID.to_native_64(), restart_point_id.0).unwrap();
                 assembler.mov(InitClassAndRecompile::JAVA_PC.to_native_64(), java_pc.0 as u64).unwrap();
             }
             IRVMExitType::NPE { java_pc } => {
@@ -341,7 +341,7 @@ impl IRVMExitType {
             IRVMExitType::InvokeInterfaceResolve { object_ref, target_method_shape_id, interface_id, native_restart_point, native_return_offset, method_number, java_pc } => {
                 assembler.mov(rax, RawVMExitType::InvokeInterfaceResolve as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::OBJECT_REF.to_native_64(), rbp - object_ref.0).unwrap();
-                assembler.mov(InvokeInterfaceResolve::METHOD_SHAPE_ID.to_native_64(), target_method_shape_id.0 as u64).unwrap();
+                assembler.mov(InvokeInterfaceResolve::METHOD_SHAPE_ID.to_native_64(), target_method_shape_id.0).unwrap();
                 assembler.mov(InvokeInterfaceResolve::METHOD_NUMBER.to_native_64(), method_number.0 as u64).unwrap();
                 assembler.mov(InvokeInterfaceResolve::INTERFACE_ID.to_native_64(), interface_id.0 as u64).unwrap();
                 assembler.lea(InvokeInterfaceResolve::RESTART_IP.to_native_64(), qword_ptr(*after_exit_label)).unwrap();

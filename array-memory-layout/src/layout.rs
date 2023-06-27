@@ -67,7 +67,7 @@ impl ArrayMemoryLayout {
 
     pub fn calculate_index_address(&self, array_pointer: NonNull<c_void>, index: i32) -> ArrayAccessor {
         assert!(index >= 0);
-        let inner_ptr = unsafe { NonNull::new(array_pointer.as_ptr().offset(self.elem_0_entry_offset() as isize).offset(index as isize * self.elem_size().get() as isize)).unwrap() };
+        let inner_ptr = unsafe { NonNull::new(array_pointer.as_ptr().add(self.elem_0_entry_offset()).add(index as usize * self.elem_size().get())).unwrap() };
         ArrayAccessor {
             expected_type: self.sub_type,
             inner: inner_ptr,
@@ -75,7 +75,7 @@ impl ArrayMemoryLayout {
     }
 
     pub fn calculate_len_address(&self, array_pointer: NonNull<c_void>) -> NonNull<i32> {
-        unsafe { NonNull::new(array_pointer.as_ptr().offset(self.len_entry_offset() as isize)).unwrap().cast::<i32>() }
+        unsafe { NonNull::new(array_pointer.as_ptr().add(self.len_entry_offset())).unwrap().cast::<i32>() }
     }
 
     pub fn elem_0_entry_offset(&self) -> usize {

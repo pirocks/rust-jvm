@@ -241,7 +241,7 @@ impl<'gc> RuntimeClassClass<'gc> {
         all_the_static_fields.sink_class_load(get_fields_static(&(class_view.clone() as Arc<dyn ClassView>), &parent, interfaces.as_slice()));
 
         let method_numbers_reverse = method_numbers.iter()
-            .map(|(method_shape, method_number)| (method_number.clone(), method_shape.clone()))
+            .map(|(method_shape, method_number)| (*method_number, method_shape.clone()))
             .collect();
         let object_layout = ObjectLayout::new(&class_view, &parent);
         assert!(recursive_num_methods >= method_numbers.len() as u32);

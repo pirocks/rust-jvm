@@ -8,23 +8,23 @@ pub enum StackPos{
 }
 
 impl IRCompilerState<'_>{
-    pub fn emit_stack_store_int(&mut self, from_end: StackPos, to_store: IntegerValueToken){
+    pub fn emit_stack_store_int(&mut self, _from_end: StackPos, _to_store: IntegerValueToken){
         todo!()
     }
 
-    pub fn emit_stack_store_long(&mut self, from_end: StackPos, to_store: LongValueToken){
+    pub fn emit_stack_store_long(&mut self, _from_end: StackPos, _to_store: LongValueToken){
         todo!()
     }
 
-    pub fn emit_stack_store_float(&mut self, from_end: StackPos, to_store: FloatValueToken){
+    pub fn emit_stack_store_float(&mut self, _from_end: StackPos, _to_store: FloatValueToken){
         todo!()
     }
 
-    pub fn emit_stack_store_double(&mut self, from_end: StackPos, to_store: DoubleValueToken){
+    pub fn emit_stack_store_double(&mut self, _from_end: StackPos, _to_store: DoubleValueToken){
         todo!()
     }
 
-    pub fn emit_stack_store_pointer(&mut self, from_end: StackPos, to_store: PointerValueToken){
+    pub fn emit_stack_store_pointer(&mut self, _from_end: StackPos, _to_store: PointerValueToken){
         todo!()
     }
 }

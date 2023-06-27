@@ -1,14 +1,9 @@
 #![feature(const_option)]
 
 use another_jit_vm::{IRMethodID};
-use another_jit_vm_ir::compiler::Size;
-use array_memory_layout::layout::ArrayMemoryLayout;
 use compiler_common::{JavaCompilerMethodAndFrameData, MethodResolver};
-use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
-use rust_jvm_common::compressed_classfile::code::{CompressedInstruction, CompressedInstructionInfo};
-use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
+use rust_jvm_common::{ByteCodeIndex, MethodId};
 use crate::ir_compiler_common::{Stage1IRInstr};
-use crate::ir_compiler_common::branching::IntegerCompareKind;
 use crate::ir_compiler_common::special::IRCompilerState;
 use crate::java_compiler::emit_single_instruction;
 

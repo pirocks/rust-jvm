@@ -29,13 +29,13 @@ pub fn sync_current_meminfo(path: impl AsRef<Path>) -> Result<MemInfo, SyncError
 
 
 pub fn parse_meminfo(meminfo: String) -> Result<MemInfo, ParseError> {
-    let lines = meminfo.split("\n");
+    let lines = meminfo.split('\n');
     let mut entries = HashMap::new();
     for line in lines {
         if line.is_empty(){
             continue
         }
-        match line.split(":").next_tuple() {
+        match line.split(':').next_tuple() {
             Some((entry_name, entry_value)) => {
                 entries.entry(entry_name.to_string()).or_insert(entry_value.to_string());
             }

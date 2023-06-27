@@ -161,14 +161,14 @@ impl ITable {
         }
     }
 
-    pub fn lookup<'gc>(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<InterfaceVTableEntry> {
+    pub fn lookup(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber) -> Option<InterfaceVTableEntry> {
         unsafe {
             lookup_unsafe(table, interface_id, interface_method_number)
                 .map(|address| InterfaceVTableEntry { address: Some(address) })
         }
     }
 
-    fn set_entry<'gc>(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
+    fn set_entry(table: NonNull<ITableRaw>, interface_id: InterfaceID, interface_method_number: MethodNumber, resolved: InterfaceVTableEntry) {
         unsafe { write_resolved_unsafe(table, interface_id, interface_method_number, resolved.address.unwrap()) }
     }
 }
@@ -304,9 +304,9 @@ pub fn generate_itable_access(
     assembler.set_label(&mut loop_start).unwrap();
     assert_eq!(offset_of!(ITableEntryRaw,interface_id), 0);
     assembler.cmp(ptr_val.to_native_64() + offset_of!(ITableEntryRaw,interface_id), target_interface_id.to_native_32()).unwrap();
-    assembler.je(interface_found.clone()).unwrap();
+    assembler.je(interface_found).unwrap();
     assembler.lea(ptr_val.to_native_64(), ptr_val.to_native_64() + size_of::<ITableEntryRaw>()).unwrap();
-    assembler.jmp(loop_start.clone()).unwrap();
+    assembler.jmp(loop_start).unwrap();
     assembler.set_label(&mut interface_found).unwrap();
     assembler.mov(temp_3.to_native_64(), ptr_val.to_native_64() + offset_of!(ITableEntryRaw,vtable_ptr)).unwrap();
     assembler.mov(temp_2.to_native_64(), temp_3.to_native_64() + method_number.0 * size_of::<InterfaceVTableEntry>() as u32).unwrap();

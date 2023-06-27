@@ -84,11 +84,11 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMStateInner<'vm, HandlerExtraData> 
     }
 
     pub fn add_function_ir_offsets(&mut self, current_ir_id: IRMethodID,
-                                   new_instruction_offsets: &Vec<IRInstructNativeOffset>,
+                                   new_instruction_offsets: &[IRInstructNativeOffset],
                                    ir_instruct_index_to_assembly_index: Vec<(IRInstructIndex, AssemblyInstructionIndex)>) {
         let mut offsets_range = BTreeMap::new();
         let mut offsets_at_index = HashMap::new();
-        for ((i, instruction_offset), (ir_instruction_index, assembly_instruction_index_2)) in new_instruction_offsets.into_iter().enumerate().zip(ir_instruct_index_to_assembly_index.into_iter()) {
+        for ((i, instruction_offset), (ir_instruction_index, assembly_instruction_index_2)) in new_instruction_offsets.iter().enumerate().zip(ir_instruct_index_to_assembly_index.into_iter()) {
             if instruction_offset.0 as u32 == u32::MAX {
                 //hack to work around iced generating annoying jumps
                 continue;
@@ -99,7 +99,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMStateInner<'vm, HandlerExtraData> 
             assert!(overwritten.is_none());
             offsets_at_index.entry(ir_instruction_index).or_insert(*instruction_offset);
         }
-        let indexes = offsets_range.iter().map(|(_, instruct)| *instruct).collect::<HashSet<_>>();
+        let indexes = offsets_range.values().cloned().collect::<HashSet<_>>();
         assert_eq!(indexes.iter().max().unwrap().0 + 1, indexes.len());
         self.method_ir_offsets_range.insert(current_ir_id, offsets_range);
         self.method_ir_offsets_at_index.insert(current_ir_id, offsets_at_index);
@@ -155,7 +155,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
                 guard.opaque_method_to_or_method_id.insert(opaque_id, new_ir_method_id);
                 guard.frame_sizes_by_ir_method_id.insert(new_ir_method_id, OPAQUE_FRAME_SIZE);
                 drop(guard);
-                return self.lookup_opaque_ir_method_id(opaque_id);
+                self.lookup_opaque_ir_method_id(opaque_id)
             }
             Some(ir_method_id) => {
                 *ir_method_id
@@ -163,6 +163,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]// false positive b/c I'm looking up pointer differences not dereferencing
     pub fn lookup_ip(&self, ip: *const c_void) -> (IRMethodID, IRInstructIndex) {
         let implementation_id = self.native_vm.lookup_ip(ip);
         let method_start = self.native_vm.lookup_method_addresses(implementation_id).start;
@@ -202,7 +203,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         let method_ir_offsets_for_this_method = read_guard.method_ir_offsets_at_index.get(&ir_method_id).unwrap();
         let offset = *method_ir_offsets_for_this_method.get(&ir_instruct_index).unwrap();
         let func_start = self.lookup_ir_method_id_pointer(ir_method_id);
-        unsafe { NativeInstructionLocation(func_start.as_ptr().offset(offset.0 as isize)) }
+        unsafe { NativeInstructionLocation(func_start.as_ptr().add(offset.0)) }
     }
 
     pub fn new() -> Self {
@@ -214,7 +215,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
     }
 
     //todo should take a frame or some shit b/c needs to run on a frame for nested invocation to work
-    pub fn run_method<'g, 'l, 'f>(&'g self, extra_intrinsics: ExtraIntrinsicHelpers, ir_method_id: IRMethodID, rbp_and_rsp: RBPAndRSP, handler_extra_data: &mut HandlerExtraData, jvm_ptr: *const c_void) -> Result<u64, NonNull<c_void>> {
+    pub fn run_method(&self, extra_intrinsics: ExtraIntrinsicHelpers, ir_method_id: IRMethodID, rbp_and_rsp: RBPAndRSP, handler_extra_data: &mut HandlerExtraData, jvm_ptr: *const c_void) -> Result<u64, NonNull<c_void>> {
         let inner_read_guard = self.inner.read().unwrap();
         let current_implementation = *inner_read_guard.current_implementation.get(&ir_method_id).unwrap();
         //todo for now we launch with zeroed registers, in future we may need to map values to stack or something
@@ -277,7 +278,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
     }
 
     #[allow(unused_variables)]
-    fn debug_print_instructions(assembler: &CodeAssembler, offsets: &Vec<IRInstructNativeOffset>, base_address: BaseAddress, ir_index_to_assembly_index: &Vec<(IRInstructIndex, AssemblyInstructionIndex)>, ir: &Vec<IRInstr>) {
+    fn debug_print_instructions(assembler: &CodeAssembler, offsets: &[IRInstructNativeOffset], base_address: BaseAddress, ir_index_to_assembly_index: &[(IRInstructIndex, AssemblyInstructionIndex)], ir: &[IRInstr]) {
         // use iced_x86::IntelFormatter;
         // use iced_x86::Formatter;
         // let mut formatted_instructions = String::new();
@@ -327,18 +328,15 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
         assert!(was_present);
         let mut function_call_targets: HashMap<usize, Vec<FunctionCallTarget>> = HashMap::new();
         for call_modification_point in call_modification_points {
-            match call_modification_point {
-                AssemblerFunctionCallTarget { method_id, modification_target } => {
-                    unsafe {
-                        match modification_target {
-                            AssemblerRuntimeModificationTarget::MovQ { instruction_number } => {
-                                let constant_offset: &ConstantOffsets = &result.constant_offsets[instruction_number];
-                                assert!(constant_offset.has_immediate());
-                                let raw_ptr = base_address.0.offset(new_instruction_offsets[instruction_number].0 as isize)
-                                    .offset(constant_offset.immediate_offset() as isize);
-                                function_call_targets.entry(method_id).or_default().push(FunctionCallTarget(raw_ptr as *mut *const c_void));
-                            }
-                        }
+            let AssemblerFunctionCallTarget { method_id, modification_target } = call_modification_point;
+            unsafe {
+                match modification_target {
+                    AssemblerRuntimeModificationTarget::MovQ { instruction_number } => {
+                        let constant_offset: &ConstantOffsets = &result.constant_offsets[instruction_number];
+                        assert!(constant_offset.has_immediate());
+                        let raw_ptr = base_address.0.add(new_instruction_offsets[instruction_number].0)
+                            .offset(constant_offset.immediate_offset() as isize);
+                        function_call_targets.entry(method_id).or_default().push(FunctionCallTarget(raw_ptr as *mut *const c_void));
                     }
                 }
             }
@@ -349,7 +347,7 @@ impl<'vm, HandlerExtraData: HasRBPAndRSP> IRVMState<'vm, HandlerExtraData> {
 }
 
 
-fn add_function_from_ir(instructions: &Vec<IRInstr>) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
+fn add_function_from_ir(instructions: &[IRInstr]) -> (CodeAssembler, Vec<(IRInstructIndex, AssemblyInstructionIndex)>, HashMap<RestartPointID, IRInstructIndex>, Vec<AssemblerFunctionCallTarget>) {
     let mut assembler = CodeAssembler::new(64).unwrap();
     let mut ir_instruct_index_to_assembly_instruction_index = Vec::new();
     let mut labels = HashMap::new();

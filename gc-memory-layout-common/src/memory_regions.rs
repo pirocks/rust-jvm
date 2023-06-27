@@ -76,7 +76,7 @@ impl ConstantRegionHeaderWrapper<'_> {
             if new_current_pointer >= self.inner.region_max_ptr.as_ptr() {
                 return None;
             }
-            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, new_current_pointer, Ordering::SeqCst, Ordering::SeqCst) {
+            if self.inner.current_ptr.compare_exchange(current_ptr, new_current_pointer, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                 break new_current_pointer.sub(region_elem_size);
             }
         };
@@ -95,7 +95,7 @@ impl ConstantRegionHeaderWrapper<'_> {
     pub unsafe fn get_allocation(region_header: NonNullConst<RegionHeader>) -> Option<NonNull<c_void>> {
         // assert!(dbg!(size_of::<RegionHeader>()) < SMALL_REGION_SIZE);//todo deal with this
         let region_header_ref = region_header.as_ref();
-        ConstantRegionHeaderWrapper { region_header_raw: region_header.into(), inner: region_header_ref }.get_allocation_impl()
+        ConstantRegionHeaderWrapper { region_header_raw: region_header, inner: region_header_ref }.get_allocation_impl()
     }
 }
 
@@ -122,7 +122,7 @@ impl VariableRegionHeaderWrapper<'_> {
             if next_current_ptr >= self.inner.region_max_ptr.as_ptr() {
                 return None;
             }
-            if let Ok(_) = self.inner.current_ptr.compare_exchange(current_ptr, next_current_ptr, Ordering::SeqCst, Ordering::SeqCst) {
+            if self.inner.current_ptr.compare_exchange(current_ptr, next_current_ptr, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
                 break next_current_ptr.sub(size.get());
             }
         };
@@ -216,7 +216,7 @@ impl MemoryRegions {
                 self.types_reverse.insert(type_.allocated_object_type.clone(), new_id);
                 assert_eq!(self.types.len(), self.types_reverse.len());
                 assert!(self.types_reverse.contains_key(&type_.allocated_object_type));
-                assert!(self.types_reverse.len() > 0);
+                assert!(!self.types_reverse.is_empty());
                 new_id
             }
             Some(cur_id) => *cur_id,
@@ -335,7 +335,7 @@ impl MemoryRegions {
     fn new_region_for(&mut self, to_allocate_type: &AllocatedObjectTypeWithSize, size_override: Option<Region>, prev_vtable_ptr: Option<NonNull<RawNativeVTable>>) -> NonNull<RegionHeader> {
         //todo this doesn't handle variable size properly at all.
         //todo uses cached type
-        let type_id = self.lookup_or_add_type(&to_allocate_type);
+        let type_id = self.lookup_or_add_type(to_allocate_type);
         let mut current_region_to_use = self.current_region_type[type_id.0 as usize];
         if let Some(size_override) = size_override {
             current_region_to_use = size_override;

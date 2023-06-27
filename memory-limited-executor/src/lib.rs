@@ -69,7 +69,7 @@ impl MemoryLimitedProcessExecutor{
 
     pub async fn simple_process(&self, simple_string: impl AsRef<str>, expected_max_ram: MemoryAmount) -> anyhow::Result<()> {
         let simple_string = simple_string.as_ref();
-        let split_words: Vec<String> = shell_words::split(&simple_string)?;
+        let split_words: Vec<String> = shell_words::split(simple_string)?;
         let (binary, args) = split_words.split_at(1);
         let proccess_handle = self.submit_process(ProcessStartData {
             binary: OsString::from(&binary[0]),
@@ -105,9 +105,9 @@ impl MemoryLimitedProcessExecutor{
             tokio::time::sleep(Duration::from_micros(100)).await;
         }
         let mut command = tokio::process::Command::new(binary);
-        command.args(args.into_iter());
+        command.args(args.iter());
         if let Some(env_vars) = env_vars{
-            command.envs(env_vars.into_iter());
+            command.envs(env_vars.iter());
         }
         if let Some(working_dir) = working_dir{
             command.current_dir(working_dir);

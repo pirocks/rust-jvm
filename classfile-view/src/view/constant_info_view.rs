@@ -47,7 +47,7 @@ pub struct ClassPoolElemView<'l> {
 impl ClassPoolElemView<'_> {
     pub fn class_ref_type(&self, string_pool: &CompressedClassfileStringPool) -> CPRefType {
         let name_str = self.underlying_class.constant_pool[self.name_index].extract_string_from_utf8();
-        let type_ = PTypeView::from_ptype(&parse_class_name(&name_str.as_str().unwrap()));
+        let type_ = PTypeView::from_ptype(&parse_class_name(name_str.as_str().unwrap()));
         CPDType::from_ptype(&type_.to_ptype(), string_pool).unwrap_ref_type()
     }
 }
@@ -71,7 +71,7 @@ pub struct FieldrefView<'cl> {
 impl FieldrefView<'_> {
     fn field_ref(&self) -> &Fieldref {
         match &self.class_view.underlying_class.constant_pool[self.i].kind {
-            ConstantKind::Fieldref(fr) => &fr,
+            ConstantKind::Fieldref(fr) => fr,
             _ => panic!(),
         }
     }
@@ -93,7 +93,7 @@ pub struct MethodrefView<'cl> {
 impl MethodrefView<'_> {
     fn get_raw(&self) -> &Methodref {
         match &self.class_view.underlying_class.constant_pool[self.i].kind {
-            ConstantKind::Methodref(mf) => &mf,
+            ConstantKind::Methodref(mf) => mf,
             c => {
                 dbg!(c);
                 panic!()
@@ -103,7 +103,7 @@ impl MethodrefView<'_> {
 
     pub fn class(&self, pool: &CompressedClassfileStringPool) -> CPRefType {
         let class_index = self.get_raw().class_index;
-        CPDType::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index)), pool).unwrap_ref_type().clone()
+        CPDType::from_ptype(&PType::Ref(self.class_view.underlying_class.extract_class_from_constant_pool_name(class_index)), pool).unwrap_ref_type()
     }
     pub fn name_and_type(&self) -> NameAndTypeView {
         NameAndTypeView { class_view: self.class_view, i: self.get_raw().name_and_type_index as usize }
@@ -118,7 +118,7 @@ pub struct InterfaceMethodrefView<'cl> {
 impl InterfaceMethodrefView<'_> {
     fn interface_method_ref(&self) -> &InterfaceMethodref {
         match &self.class_view.underlying_class.constant_pool[self.i].kind {
-            ConstantKind::InterfaceMethodref(imr) => &imr,
+            ConstantKind::InterfaceMethodref(imr) => imr,
             _ => panic!(),
         }
     }
@@ -138,8 +138,8 @@ pub struct NameAndTypeView<'cl> {
 
 impl NameAndTypeView<'_> {
     fn name_and_type(&self) -> &NameAndType {
-        match &self.class_view.underlying_class.constant_pool[self.i as usize].kind {
-            ConstantKind::NameAndType(nt) => &nt,
+        match &self.class_view.underlying_class.constant_pool[self.i].kind {
+            ConstantKind::NameAndType(nt) => nt,
             _ => panic!(),
         }
     }

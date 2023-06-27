@@ -160,7 +160,7 @@ pub struct Classes<'gc> {
 }
 
 impl<'gc> Classes<'gc> {
-    pub fn debug_assert(&self, jvm: &'gc JVMState<'gc>) {
+    pub fn debug_assert(&self, _jvm: &'gc JVMState<'gc>) {
         // for allocated_obj in self.class_object_pool.left_values() {
         //     let handle = allocated_obj.owned_inner_ref().duplicate_discouraged();
         //     handle.cast_class().debug_assert(jvm);

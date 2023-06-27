@@ -1,11 +1,9 @@
 use std::cell::OnceCell;
 use std::collections::{HashMap, HashSet};
-use std::env::set_current_dir;
 use itertools::Itertools;
-use another_jit_vm::{FramePointerOffset, IRMethodID};
+use another_jit_vm::IRMethodID;
 use compiler_common::JavaCompilerMethodAndFrameData;
 use rust_jvm_common::{ByteCodeIndex, ByteCodeOffset, MethodId};
-use rust_jvm_common::classnames::ClassName::Str;
 use rust_jvm_common::compressed_classfile::compressed_types::CMethodDescriptor;
 use rust_jvm_common::runtime_type::RuntimeType;
 use strict_bi_hashmap::StrictBiHashMap;
@@ -139,11 +137,11 @@ impl <'l> IRCompilerState<'l> {
     }
 
     pub fn emit_ir_end(&mut self, return_val: ValueToken) {
-        self.res_token.set(return_val);
+        self.res_token.set(return_val).expect("todo");
         self.res.push(todo!());
     }
 
-    pub fn emit_native_function_start(&mut self, registers_to_save: HashSet<GeneralRegister>) -> HashMap<GeneralRegister, PointerValueToken>{
+    pub fn emit_native_function_start(&mut self, _registers_to_save: HashSet<GeneralRegister>) -> HashMap<GeneralRegister, PointerValueToken>{
         todo!()
     }
 
@@ -155,7 +153,7 @@ impl <'l> IRCompilerState<'l> {
         todo!()
     }
 
-    pub fn emit_load_arg_pointer(&mut self, arg_num: u16) -> PointerValueToken {
+    pub fn emit_load_arg_pointer(&mut self, _arg_num: u16) -> PointerValueToken {
         todo!()
     }
 
@@ -166,7 +164,7 @@ impl <'l> IRCompilerState<'l> {
         self.current = Some(IRCompilerPosition{ current_pc, index: byte_code_index })
     }
 
-    pub fn notify_after_instruction(&mut self, byte_code_offset: ByteCodeOffset) {
+    pub fn notify_after_instruction(&mut self, _byte_code_offset: ByteCodeOffset) {
         todo!()
     }
 

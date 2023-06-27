@@ -81,7 +81,7 @@ impl Display for MangledDisplayWrapper<'_,'_> {
 
 pub fn mangling_escape(s: impl AsRef<str>) -> String {
     //todo need to handle unicode but shouldn't be an issue for now.
-    s.as_ref().replace("_", "_1").replace(";", "_2").replace("[", "_3").replace("(", "").replace(")", "").replace("$", "_00024").replace("/", "_")
+    s.as_ref().replace('_', "_1").replace(';', "_2").replace('[', "_3").replace(['(', ')'], "").replace('$', "_00024").replace('/', "_")
 }
 
 pub type CFieldDescriptor = CompressedFieldDescriptor;

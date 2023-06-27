@@ -26,7 +26,7 @@ impl FieldView<'_> {
         FieldName(self.field_info_compressed().name)
     }
     pub fn field_desc(&self) -> String {
-        self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i as usize].descriptor_index as usize].extract_string_from_utf8().clone().into_string().expect("should have validated this earlier maybe todo")
+        self.view.underlying_class.constant_pool[self.view.underlying_class.fields[self.i as usize].descriptor_index as usize].extract_string_from_utf8().into_string().expect("should have validated this earlier maybe todo")
     }
     pub fn constant_value_attribute(&self) -> Option<ConstantInfoView> {
         self.view.underlying_class.fields[self.i as usize].constant_value_attribute_i().map(|i| self.view.constant_pool_view(i as usize))
@@ -39,8 +39,7 @@ impl FieldView<'_> {
         FieldView { view: c, i: i as u16 }
     }
     pub fn field_type(&self) -> CPDType {
-        self.field_info_compressed().descriptor_type.clone()
-        /*PTypeView::from_ptype(&parse_field_descriptor(self.field_desc().as_str()).unwrap().field_type)*/
+        self.field_info_compressed().descriptor_type
     }
 
     pub fn get_annotation_bytes(&self) -> Option<Vec<u8>> {

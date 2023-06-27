@@ -194,7 +194,7 @@ unsafe extern "system" fn JVM_GetThreadStateValues(env: *mut JNIEnv, javaThreadS
         _ => return null_mut(),
     }
         .into_iter()
-        .map(|int| JavaValue::Int(int))
+        .map(JavaValue::Int)
         .collect::<Vec<_>>();
 }
 
@@ -234,7 +234,7 @@ unsafe fn GetThreadStateNames_impl<'gc>(env: *mut JNIEnv, javaThreadState: i32) 
         .into_iter()
         .map(|jstring| jstring.java_value())
         .collect::<Vec<_>>();
-    let _res = todo!()/*JavaValue::new_vec_from_vec(jvm, names, CClassName::string().into()).unwrap_object()*/;
+    todo!();
     Ok(new_local_ref_public(todo!()/*res*/, int_state))
 }
 

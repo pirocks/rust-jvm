@@ -91,13 +91,13 @@ unsafe extern "system" fn JVM_GetStackAccessControlContext<'vm>(env: *mut JNIEnv
         })
         .collect::<Vec<_>>();
     if protection_domains.is_empty() {
-        return null_mut();
+        null_mut()
     } else {
         match AccessControlContext::new(jvm, int_state, protection_domains) {
             Ok(access_control_ctx) => new_local_ref_public_new(access_control_ctx.full_object_ref().into(), int_state),
             Err(WasException { exception_obj }) => {
                 *get_throw(env) = Some(WasException{ exception_obj });
-                return jobject::invalid_default();
+                jobject::invalid_default()
             }
         }
     }
