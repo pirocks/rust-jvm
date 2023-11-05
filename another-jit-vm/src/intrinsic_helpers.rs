@@ -81,7 +81,8 @@ pub enum IntrinsicHelperType {
     FindITablePtr,
     FindClassPtr,
     FindObjectHeader,
-    FastClone
+    FastClone,
+
 }
 
 impl IntrinsicHelperType {

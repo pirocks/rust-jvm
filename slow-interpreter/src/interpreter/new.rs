@@ -1,3 +1,4 @@
+use iced_x86::CC_l::l;
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;
@@ -41,6 +42,8 @@ pub fn anewarray<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealIn
 
 pub fn a_new_array_from_name<'gc, 'k, 'l>(jvm: &'gc JVMState<'gc>, int_state: &'_ mut RealInterpreterStateGuard<'gc, 'l, 'k>, len: i32, elem_type: CPDType) -> Result<(), WasException<'gc>> {
     if len < 0 {
+        dbg!(len);
+        int_state.inner().debug_print_stack_trace(jvm);
         todo!("check array length");
     }
     let whole_array_runtime_class = check_resolved_class(jvm, int_state.inner(), CPDType::array(elem_type))?;

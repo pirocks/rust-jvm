@@ -154,13 +154,19 @@
 //}
 
 public class DebuggingClass {
-    public static int bad_global_var = 0;
+    class A{
+
+    }
+
+    class B extends A{
+
+    }
     public static void main(String[] args) throws Exception {
-        for (int i = 0; i < 1000; i++) {
-            if (i % 100 == 1){
-                bad_global_var += i;
-            }
-        }
-        System.out.println(bad_global_var);
+        new DebuggingClass().foo();
+    }
+
+    void foo(){
+        B[] as = new B[10];
+        as[0] = new B();
     }
 }

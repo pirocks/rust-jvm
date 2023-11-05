@@ -146,7 +146,14 @@ pub enum IRInstr {
     BranchALessB { a: Register, b: Register, label: LabelName, size: Size },
     BranchEqualVal { a: Register, const_: u32, label: LabelName, size: Size },
     BoundsCheck { length: Register, index: Register, size: Size, exit: IRVMExitType },
-    Return { return_val: Option<Register>, temp_register_1: Register, temp_register_2: Register, temp_register_3: Register, temp_register_4: Register, frame_size: usize },
+    Return {
+        return_val: Option<Register>,
+        temp_register_1: Register,
+        temp_register_2: Register,
+        temp_register_3: Register,
+        temp_register_4: Register,
+        frame_size: usize
+    },
     RestartPoint(RestartPointID),
     VTableLookupOrExit {
         resolve_exit: IRVMExitType,
@@ -228,6 +235,14 @@ pub enum IRInstr {
     MaxUnsigned {
         res: Register,
         other: Register,
+    },
+    ArrayStoreCheck {
+        array_ref: Register,
+        obj_elem: Register,
+        temp_1: Register,
+        temp_2: Register,
+        temp_3: Register,
+        temp_4: Register,
     },
     NOP,
     DebuggerBreakpoint,
@@ -552,6 +567,9 @@ impl IRInstr {
             }
             IRInstr::GetThread { .. } => {
                 "GetThread".to_string()
+            }
+            IRInstr::ArrayStoreCheck { .. } => {
+                "ArrayStoreCheck".to_string()
             }
         }
     }

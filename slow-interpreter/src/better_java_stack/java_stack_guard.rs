@@ -1,4 +1,3 @@
-use std::backtrace::Backtrace;
 use std::ffi::c_void;
 use std::mem::transmute;
 use std::ptr::{NonNull};
@@ -324,10 +323,10 @@ impl<'vm> JavaStackGuard<'vm> {
         //     print!(" ");
         // }
         // println!("Push: {}", method_name);
-        if (next_frame_pointer.0.as_ptr() as u64) & 0xfffff == 0xfedf0 {
-            dbg!(next_frame_pointer);
-            println!("{}", Backtrace::force_capture());
-        }
+        // if (next_frame_pointer.0.as_ptr() as u64) & 0xfffff == 0xfedf0 {
+        //     dbg!(next_frame_pointer);
+        //     println!("{}", Backtrace::force_capture());
+        // }
         if let Some((frame_pointer, _)) = self.guard.as_ref().unwrap().interpreter_frame_operand_stack_depths.last() {
             assert!(*frame_pointer > next_frame_pointer);
         }

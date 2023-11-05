@@ -4,6 +4,7 @@ use gc_memory_layout_common::memory_regions::{MemoryRegions};
 use inheritance_tree::ClassID;
 use inheritance_tree::paths::BitPath256;
 use jvmti_jni_bindings::{jclass};
+use crate::hidden_field_constants::CLASS_BIT_PATH_POINTER_OFFSET;
 
 #[repr(C)]
 enum InstanceOfUnsafeResult {
@@ -13,12 +14,18 @@ enum InstanceOfUnsafeResult {
 }
 
 
-unsafe extern "C" fn instance_of_class_object<'gc>(ptr_in: *mut c_void, class_object: jclass) -> InstanceOfUnsafeResult {
-    todo!()
+unsafe extern "C" fn array_store_exception_check(array_ref: *mut c_void, value: *mut c_void) -> InstanceOfUnsafeResult{
+    let array_region = MemoryRegions::find_object_region_header_raw(NonNull::new(array_ref).unwrap()).as_ref().unwrap();
+    let array_elem_class = array_region.class_pointer_cache;
+    instance_of_class_object(value, array_elem_class)
 }
 
+unsafe extern "C" fn instance_of_class_object<'gc>(ptr_in: *mut c_void, class_object: jclass) -> InstanceOfUnsafeResult {
+    let inheritance_bit_path = (class_object.offset(CLASS_BIT_PATH_POINTER_OFFSET as isize) as *const BitPath256).read();
+    instance_of_class(ptr_in, &inheritance_bit_path as *const BitPath256)
+}
 
-unsafe extern "C" fn instance_of_class(ptr_in: *mut c_void, class_id: ClassID, inheritance_bit_path: *const BitPath256) -> InstanceOfUnsafeResult {
+unsafe extern "C" fn instance_of_class(ptr_in: *mut c_void, inheritance_bit_path: *const BitPath256) -> InstanceOfUnsafeResult {
     //todo use class id to traverse an inheritance tree if other options fail.
     let object_header = MemoryRegions::find_object_region_header_raw(NonNull::new(ptr_in).unwrap()).as_ref().unwrap();
     let object_bit_path = match object_header.inheritance_bit_path_ptr.as_ref() {

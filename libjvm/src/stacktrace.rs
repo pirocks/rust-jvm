@@ -111,7 +111,7 @@ unsafe extern "system" fn JVM_GetStackTraceDepth(env: *mut JNIEnv, throwable: jo
         }
     })) {
         Some(x) => x,
-        None => return JNI_ERR,
+        None => return 0,//this is what openjdk seems to do
     }
         .len() as i32
 }

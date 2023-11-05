@@ -6,6 +6,8 @@ use memoffset::offset_of;
 use another_jit_vm::{JITContext};
 use another_jit_vm::code_modification::AssemblerFunctionCallTarget;
 use another_jit_vm::intrinsic_helpers::{ThreadLocalIntrinsicHelpers};
+use gc_memory_layout_common::memory_regions::RegionHeader;
+use vtable::generate_vtable_access;
 
 use crate::{gen_vm_exit, IRInstr, IRInstructIndex, LabelName, RestartPointID};
 use crate::ir_to_native::bit_manipulation::{binary_bit_and, binary_bit_or, binary_bit_xor, shift_left, shift_right};
@@ -315,6 +317,12 @@ pub fn single_ir_to_native(assembler: &mut CodeAssembler, instruction: &IRInstr,
         }
         IRInstr::GetThread { res_register } => {
             assembler.mov(res_register.to_native_64(), r15 + offset_of!(JITContext,thread_local_intrinsic_data) + offset_of!(ThreadLocalIntrinsicHelpers,current_thread_obj)).unwrap();
+        }
+        IRInstr::ArrayStoreCheck { array_ref, obj_elem, temp_1, temp_2, temp_3, temp_4 } => {
+//             RegionHeader{};
+// ir_call_intrinsic_helper()
+//             assembler.mov().unwrap();
+            todo!()
         }
     }
     None
