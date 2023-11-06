@@ -1,4 +1,3 @@
-use iced_x86::CC_l::l;
 use rust_jvm_common::classfile::Atype;
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
 use rust_jvm_common::compressed_classfile::compressed_types::CPDType;

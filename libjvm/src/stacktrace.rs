@@ -5,7 +5,7 @@ use wtf8::Wtf8Buf;
 use another_jit_vm_ir::ir_stack::IsOpaque;
 
 use classfile_view::view::ptype_view::PTypeView;
-use jvmti_jni_bindings::{jint, JNI_ERR, JNIEnv, jobject};
+use jvmti_jni_bindings::{jint, JNIEnv, jobject};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;

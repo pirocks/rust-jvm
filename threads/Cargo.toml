@@ -10,4 +10,4 @@ edition = "2018"
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.60"
+bindgen = "0.68.1"
