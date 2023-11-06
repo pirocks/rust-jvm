@@ -1,6 +1,7 @@
 FROM rust
-RUN rustup toolchain install nightly-2020-05-15-x86_64-unknown-linux-gnu
-RUN rustup default nightly-2020-05-15-x86_64-unknown-linux-gnu
+RUN rustup toolchain install nightly-2023-10-24-x86_64-unknown-linux-gnu
+RUN rustup default nightly-2023-10-24-x86_64-unknown-linux-gnu
+# We need a bootstrap jdk to provide a java standard library
 RUN git clone https://github.com/AdoptOpenJDK/openjdk-jdk8u.git --depth 1
 RUN wget https://github.com/AdoptOpenJDK/openjdk8-binaries/releases/download/jdk8u252-b09/OpenJDK8U-jdk_x64_linux_hotspot_8u252b09.tar.gz
 RUN tar xf OpenJDK8U-jdk_x64_linux_hotspot_8u252b09.tar.gz
