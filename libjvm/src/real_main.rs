@@ -93,7 +93,7 @@ pub fn main_<'l, 'env>() {
 fn within_thread_scope<'l>(scope: &'l Scope<'l, 'l>, jvm_options: JVMOptions, gc: &'l GC<'l>, string_pool: &'l CompressedClassfileStringPool) {
     let (args, jvm): (Vec<String>, JVMState<'l>) = initial_jvm_state(jvm_options, scope, gc, string_pool);
 
-    let jvm_ref: &'l JVMState<'l> = Box::leak(box jvm);
+    let jvm_ref: &'l JVMState<'l> = Box::leak(Box::new(jvm));
     main_run(args, &jvm_ref);
     //todo clean jvm shutdown
     std::process::exit(0);

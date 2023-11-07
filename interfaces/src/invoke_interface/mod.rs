@@ -39,7 +39,7 @@ pub unsafe extern "C" fn get_env(vm: *mut JavaVM, penv: *mut *mut c_void, versio
     } else {
         //todo this is really not correct in the case of multiple thread interactions
         let jni_native_interface = get_jni_interface_invoke_interface(vm);
-        let res = Box::into_raw(box (jni_native_interface as *const JNINativeInterface_));
+        let res = Box::into_raw(Box::new(jni_native_interface as *const JNINativeInterface_));
         (penv as *mut *mut *const JNINativeInterface_).write(res);
     }
 

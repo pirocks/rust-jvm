@@ -62,7 +62,7 @@ pub fn get_stack_map_frames(_vf: &VerifierContext, class: &ClassWithLoader, meth
     res
 }
 
-pub fn handle_same_locals_1_stack_frame_extended(mut frame: &mut InternalFrame, f: &CompressedSameLocals1StackItemFrameExtended) {
+pub fn handle_same_locals_1_stack_frame_extended(frame: &mut InternalFrame, f: &CompressedSameLocals1StackItemFrameExtended) {
     frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     add_verification_type_to_array_convert(&mut frame.stack, &f.stack);
@@ -73,7 +73,7 @@ pub fn handle_same_frame_extended(mut frame: &mut InternalFrame, f: &CompressedS
     frame.stack.clear();
 }
 
-pub fn handle_chop_frame(mut frame: &mut InternalFrame, f: &CompressedChopFrame) {
+pub fn handle_chop_frame(frame: &mut InternalFrame, f: &CompressedChopFrame) {
     frame.current_offset.0 += f.offset_delta;
     frame.stack.clear();
     for _ in 0..f.k_frames_to_chop {

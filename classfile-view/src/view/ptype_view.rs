@@ -82,7 +82,7 @@ impl PTypeView {
             CPDType::FloatType => PTypeView::FloatType,
             CPDType::IntType => PTypeView::IntType,
             CPDType::LongType => PTypeView::LongType,
-            CPDType::Array { .. } => PTypeView::Ref(ReferenceTypeView::Array(box PTypeView::from_compressed(cpd.unwrap_array_type(), pool))),
+            CPDType::Array { .. } => PTypeView::Ref(ReferenceTypeView::Array(Box::new(PTypeView::from_compressed(cpd.unwrap_array_type(), pool)))),
             CPDType::Class(obj) => PTypeView::Ref(ReferenceTypeView::Class(ClassName::Str(pool.lookup(obj.0).to_string()))),
             CPDType::ShortType => PTypeView::ShortType,
             CPDType::BooleanType => PTypeView::BooleanType,

@@ -68,7 +68,7 @@ impl<'gc> JavaThread<'gc> {
         let java_stack = &unsafe { Arc::into_raw(java_thread.clone()).as_ref() }.unwrap().java_stack;
         //todo should run on actual thread.
         let java_thread_clone = java_thread.clone();
-        java_thread_clone.get_underlying().start_thread(box move |_| {
+        java_thread_clone.get_underlying().start_thread(Box::new(move |_| {
             JavaStackGuard::new_from_empty_stack(jvm, java_thread.clone(), java_stack, move |opaque_frame| {
                 jvm.thread_state.set_current_thread(java_thread.clone());
                 java_thread.notify_alive(jvm);
@@ -76,7 +76,7 @@ impl<'gc> JavaThread<'gc> {
                 java_thread.notify_terminated(jvm);
                 res
             }).unwrap();
-        }, box ());
+        }), Box::new(()));
         Ok(java_thread_clone)
     }
 

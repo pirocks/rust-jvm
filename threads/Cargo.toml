@@ -11,4 +11,4 @@ nix = { git = "https://github.com/pirocks/nix.git", branch = "master" }
 libc = "0.2"
 
 [build-dependencies]
-bindgen = "0.60"
+bindgen = "0.66.1"

@@ -1,5 +1,4 @@
 #![feature(vec_into_raw_parts)]
-#![feature(box_syntax)]
 #![feature(portable_simd)]
 
 use std::collections::HashMap;
@@ -136,7 +135,7 @@ impl<'gc> VTables<'gc> {
                     dbg!(VTABLE_ALLOCS);
                 }
             }
-            NonNull::new(Box::into_raw(box RawNativeVTable::new(rc.unwrap_class_class()))).unwrap()
+            NonNull::new(Box::into_raw(Box::new(RawNativeVTable::new(rc.unwrap_class_class())))).unwrap()
         }
         )
     }

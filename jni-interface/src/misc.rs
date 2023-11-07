@@ -156,8 +156,8 @@ pub unsafe extern "C" fn get_java_vm(env: *mut JNIEnv, vm: *mut *mut JavaVM) -> 
     let jmm_inner_mut_raw = int_state.stack_jni_interface().jmm_inner_mut_raw();
     let interface = int_state.stack_jni_interface().invoke_interface_mut();
     interface.jvm_state = (**env).jvm_state;// jvm pointer
-    interface.other_native_interfaces_this_thread = Box::into_raw(box (jni_inner_mut_raw, jvmti_inner_mut_raw, jmm_inner_mut_raw));//todo leak?
-    *vm = Box::into_raw(box (interface as *const JNIInvokeInterfaceNamedReservedPointers as *const JNIInvokeInterface_)); //todo do something about this leak
+    interface.other_native_interfaces_this_thread = Box::into_raw(Box::new((jni_inner_mut_raw, jvmti_inner_mut_raw, jmm_inner_mut_raw)));//todo leak?
+    *vm = Box::into_raw(Box::new(interface as *const JNIInvokeInterfaceNamedReservedPointers as *const JNIInvokeInterface_)); //todo do something about this leak
     0 as jint
 }
 

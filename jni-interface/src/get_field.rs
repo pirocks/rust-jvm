@@ -185,7 +185,7 @@ pub unsafe extern "C" fn get_static_method_id(env: *mut JNIEnv, clazz: jclass, n
         },
     };
     assert!(method.is_static());
-    let res = Box::into_raw(box jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16));
+    let res = Box::into_raw(Box::new(jvm.method_table.write().unwrap().get_method_id(runtime_class.clone(), method.method_i() as u16)));
     res as jmethodID
 }
 

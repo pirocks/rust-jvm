@@ -52,7 +52,7 @@ impl NativeAllocator {
     }
 
     pub fn allocate_box<'life, ElemType>(&self, vec: ElemType) -> &'life mut ElemType {
-        let res = Box::leak(box vec);
+        let res = Box::leak(Box::new(vec));
         let mut guard = self.allocations.write().unwrap();
         guard.insert(res as *mut ElemType as *mut c_void as usize, AllocationType::BoxLeak);
         res

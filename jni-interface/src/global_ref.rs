@@ -15,7 +15,7 @@ pub unsafe extern "C" fn new_global_ref(env: *mut JNIEnv, lobj: jobject) -> jobj
             if TIMES % 1000000 == 0 {
                 dbg!(TIMES);
             }
-            Box::leak(Box::new(o.clone()));
+            Box::leak(Box::new(o));
         }
     }
     to_object_new(obj.as_ref().map(|handle| handle.as_allocated_obj()))
