@@ -1,4 +1,3 @@
-#![feature(box_syntax)]
 #![feature(box_patterns)]
 #![allow(unreachable_code)]
 #![allow(dead_code)]

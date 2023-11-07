@@ -458,7 +458,7 @@ impl CompressedClassfile {
             InstructionInfo::sastore => CInstructionInfo::sastore,
             InstructionInfo::sipush(idx) => CInstructionInfo::sipush(*idx),
             InstructionInfo::swap => CInstructionInfo::swap,
-            InstructionInfo::tableswitch(ts) => CInstructionInfo::tableswitch(box ts.clone()),
+            InstructionInfo::tableswitch(ts) => CInstructionInfo::tableswitch(Box::new(ts.clone())),
             InstructionInfo::wide(wide) => CInstructionInfo::wide(*wide),
             InstructionInfo::EndOfCode => CInstructionInfo::EndOfCode,
         }

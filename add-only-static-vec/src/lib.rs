@@ -1,5 +1,3 @@
-#![feature(box_syntax)]
-
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::hash::Hash;
@@ -21,7 +19,7 @@ pub struct AddOnlyVec<T> {
 
 impl<T> AddOnlyVec<T> {
     pub fn push(&self, elem: T) {
-        self.inner.write().unwrap().push(box elem);
+        self.inner.write().unwrap().push(Box::new(elem));
     }
 
     pub fn len(&self) -> usize {

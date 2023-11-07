@@ -8,7 +8,7 @@ use jvmti_jni_bindings::{jint, JNI_OK};
 
 #[no_mangle]
 unsafe extern "system" fn JVM_RawMonitorCreate() -> *mut ::std::os::raw::c_void {
-    let reentrant_mutex = box ReentrantMutex::new(());
+    let reentrant_mutex = Box::new(ReentrantMutex::new(()));
     Box::into_raw(reentrant_mutex) as *mut c_void
 }
 

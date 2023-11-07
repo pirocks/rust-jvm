@@ -1,5 +1,3 @@
-#![feature(box_syntax)]
-#![feature(once_cell)]
 #![feature(c_variadic)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
@@ -14,9 +12,9 @@ pub mod invoke_interface;
 
 pub fn initial_per_stack_interfaces() -> PerStackInterfaces {
     PerStackInterfaces {
-        jni: box initial_jni_interface(),
-        jmm: box initial_jmm(),
-        jvmti: box initial_jvmti(),
-        invoke_interface: box initial_invoke_interface(),
+        jni: Box::new( initial_jni_interface()),
+        jmm: Box::new( initial_jmm()),
+        jvmti: Box::new( initial_jvmti()),
+        invoke_interface: Box::new( initial_invoke_interface()),
     }
 }

@@ -65,7 +65,7 @@ pub trait ClassView: HasAccessFlags {
     fn super_name(&self) -> Option<CompressedClassName>;
     fn methods(&self) -> MethodIterator;
     fn virtual_methods(&self) -> Box<dyn Iterator<Item=MethodView<'_>> + '_> {
-        box self.methods().filter(|method| !method.is_static())
+        Box::new(self.methods().filter(|method| !method.is_static()))
     }
     fn method_view_i(&self, i: u16) -> MethodView;
     fn num_methods(&self) -> usize;

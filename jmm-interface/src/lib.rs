@@ -1,4 +1,3 @@
-#![feature(once_cell)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 

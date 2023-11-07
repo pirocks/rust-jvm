@@ -2,7 +2,6 @@
 #![feature(never_type)]
 #![feature(exit_status_error)]
 #![feature(path_file_prefix)]
-#![feature(once_cell)]
 #![feature(async_closure)]
 
 extern crate core;

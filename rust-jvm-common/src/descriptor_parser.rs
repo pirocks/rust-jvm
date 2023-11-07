@@ -191,7 +191,7 @@ pub fn parse_return_descriptor(str_: &str) -> Option<(&str, PType)> {
 pub fn parse_class_name(str_: &str) -> PType {
     if let Some(subtype_descriptor) = str_.strip_prefix('[') {
         let field_descriptor = parse_field_descriptor(subtype_descriptor).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type;
-        PType::Ref(ReferenceType::Array(box field_descriptor))
+        PType::Ref(ReferenceType::Array(Box::new(field_descriptor)))
     } else if str_.ends_with(';') {
         parse_field_descriptor(str_).expect("Invalid field descriptor but this should have been validated when classnames etc where validated").field_type
     } else {
