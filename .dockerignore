@@ -1,0 +1,5 @@
+target/
+*.log
+*.json
+world/
+Dockerfile
