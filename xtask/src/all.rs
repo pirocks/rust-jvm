@@ -24,7 +24,7 @@ pub async fn all_tests(workspace_dir: &PathBuf) -> anyhow::Result<()> {
     let test_files_base = config.dep_dir.join("jdk8u/jdk/test");
     let javac = javac_location(&config);
     let java_file_paths = get_java_files(test_files_base.clone()).await?;
-    let summary = Summary::new();
+    let summary = Arc::new(Summary::new());
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary).await;
     let java_binary = build_jvm(workspace_dir).await?;
     let output_lock = Arc::new(tokio::sync::Mutex::new(()));
@@ -55,28 +55,38 @@ async fn get_java_files(test_resources_base: PathBuf) -> anyhow::Result<Vec<Path
     }).await.unwrap()
 }
 
-async fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Summary) -> Vec<ParsedOpenJDKTest> {
+async fn parse_test_files_with_summary(java_file_paths: Vec<PathBuf>, summary: &Arc<Summary>) -> Vec<ParsedOpenJDKTest> {
     let parse_before = Instant::now();
-    let parsed_tests: Vec<ParsedOpenJDKTest> = futures::future::join_all(java_file_paths.into_iter().map(async move |path| {
-        match parse_test_file(path.clone()).await {
-            Ok(parsed) => {
-                Some(parsed)
-            }
-            Err(err) => {
-                match &err {
-                    TestParseError::ContainsNoTest => {
-                        None
-                    }
-                    TestParseError::IncompatibleFileType |
-                    TestParseError::TokenError(_) |
-                    TestParseError::IO(_) => {
-                        summary.sink_parse_failure(err);
-                        None
+    let mut futures = vec![];
+    for path in  java_file_paths{
+        let summary = summary.clone();
+        futures.push(tokio::spawn(async move {
+            match parse_test_file(path).await {
+                Ok(parsed) => {
+                    Some(parsed)
+                }
+                Err(err) => {
+                    match &err {
+                        TestParseError::ContainsNoTest => {
+                            None
+                        }
+                        TestParseError::IncompatibleFileType |
+                        TestParseError::TokenError(_) |
+                        TestParseError::IO(_) => {
+                            summary.sink_parse_failure(err);
+                            None
+                        }
                     }
                 }
             }
+        }));
+    }
+    let mut parsed_tests = vec![];
+    for future in futures {
+        if let Some(parsed) = future.await.unwrap(){
+            parsed_tests.push(parsed);
         }
-    })).await.into_iter().flatten().collect();
+    }
     let parse_after = Instant::now();
     summary.sink_parse_time(parse_before, parse_after);
     summary.sink_num_parsed(parsed_tests.as_slice());
