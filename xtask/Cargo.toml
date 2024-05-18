@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 tokio = { version = "1", features = ["fs", "sync", "io-std", "io-util"] }
+nix = "0.28.0"
+sysinfo = "0.30.12"
+procfs = "0.16.0"
 futures = "0.3"
 anyhow = "1"
 xshell = "0.2"
@@ -25,3 +28,4 @@ rayon = "1.5"
 itertools = "0.10"
 sha256 = "1.1"
 wait-timeout = "0.2"
+pressure-stall-information-parser = {path = "../pressure-stall-information-parser" }

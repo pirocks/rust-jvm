@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-use futures::StreamExt;
 use tokio::task::spawn_blocking;
 
 use openjdk_test_parser::parse::{parse_test_file, TestParseError};
@@ -13,6 +12,7 @@ use openjdk_test_parser::ParsedOpenJDKTest;
 use crate::execution::{run_parsed, TestResult, TestRunError};
 use crate::java_compilation::javac_location;
 use crate::load_or_create_xtask_config;
+use crate::pressure_maximizing_executor::PressureMaximizingExecutor;
 
 pub async fn all_tests(workspace_dir: &Path) -> anyhow::Result<()> {
     let config = load_or_create_xtask_config(workspace_dir)?;
@@ -28,9 +28,17 @@ pub async fn all_tests(workspace_dir: &Path) -> anyhow::Result<()> {
     let parsed_tests = parse_test_files_with_summary(java_file_paths, &summary).await;
     let java_binary = build_jvm(workspace_dir).await?;
     let output_lock = Arc::new(tokio::sync::Mutex::new(()));
-    let test_execution_results = futures::stream::iter(parsed_tests.into_iter().map(|parsed| {
-        run_parsed(output_lock.clone(), parsed, test_files_base.clone(), compilation_dir.clone(), javac.clone(), jdk_dir.clone(), java_binary.clone())
-    })).buffer_unordered(100).collect::<Vec<_>>().await;
+    let to_execute = parsed_tests.into_iter().map(|parsed| {
+        let java_binary = java_binary.clone();
+        let jdk_dir = jdk_dir.clone();
+        let javac = javac.clone();
+        let test_files_base = test_files_base.clone();
+        let compilation_dir = compilation_dir.clone();
+        let output_lock = output_lock.clone();
+        run_parsed(output_lock, parsed, test_files_base, compilation_dir, javac, jdk_dir, java_binary)
+    });
+    let test_execution_results: Vec<Result<TestResult, TestRunError>> =  PressureMaximizingExecutor::<Result<TestResult, TestRunError>, _, _>::new(to_execute).await
+        .execute().await;
     summary.sink_test_results(test_execution_results.as_slice());
     Ok(())
 }

@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![feature(int_roundings)]
-#![feature(exclusive_range_pattern)]
 #![feature(const_refs_to_cell)]
 #![feature(strict_provenance_atomic_ptr)]
 #![feature(vec_into_raw_parts)]

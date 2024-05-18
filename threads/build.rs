@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::PathBuf;
+use bindgen::Formatter;
 
 fn main() {
-    let signal = bindgen::Builder::default().header("signals-wrapper.h").parse_callbacks(Box::new(bindgen::CargoCallbacks)).derive_debug(true).rustfmt_bindings(true).generate().unwrap();
+    let signal = bindgen::Builder::default().header("signals-wrapper.h").parse_callbacks(Box::new(bindgen::CargoCallbacks)).derive_debug(true).formatter(Formatter::Rustfmt).generate().unwrap();
 
-    let ucontext = bindgen::Builder::default().header("ucontext-wrapper.h").parse_callbacks(Box::new(bindgen::CargoCallbacks)).derive_debug(true).rustfmt_bindings(true).generate().unwrap();
+    let ucontext = bindgen::Builder::default().header("ucontext-wrapper.h").parse_callbacks(Box::new(bindgen::CargoCallbacks)).derive_debug(true).formatter(Formatter::Rustfmt).generate().unwrap();
 
     println!("cargo:rerun-if-changed=signals-wrapper.h");
     println!("cargo:rerun-if-changed=ucontext-wrapper.h");

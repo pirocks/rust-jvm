@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::create_dir;
 use std::path::PathBuf;
+use bindgen::Formatter;
 
 use xtask::load_xtask_config;
 
@@ -47,7 +48,7 @@ fn main() -> anyhow::Result<()> {
         .clang_arg("-I.".to_string())
         .parse_callbacks(Box::new(bindgen::CargoCallbacks))
         .derive_debug(true)
-        .rustfmt_bindings(true)
+        .formatter(Formatter::Rustfmt)
         .generate()
         .expect("Unable to generate bindings");
     let out_path = PathBuf::from("gen/");

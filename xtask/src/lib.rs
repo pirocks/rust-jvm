@@ -13,6 +13,8 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use xshell::{cmd, Shell};
 
+pub mod pressure_maximizing_executor;
+
 pub mod java_compilation;
 pub mod build_steps;
 pub mod all;

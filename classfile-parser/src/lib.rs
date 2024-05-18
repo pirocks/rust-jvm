@@ -1,5 +1,3 @@
-#![feature(exclusive_range_pattern)]
-
 use std::io::{BufReader, Read};
 
 use rust_jvm_common::classfile::{Classfile, FieldInfo, MethodInfo};

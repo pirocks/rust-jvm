@@ -38,7 +38,7 @@ better-nonnull = { path = "../better-nonnull" }
 array-memory-layout = { path = "../array-memory-layout" }
 rangemap = "1"
 num-traits = "0.2"
-num-derive = "0.3"
+num-derive = "0.4"
 num-integer = "0.1"
 lazy_static = "1.4"
 libc = "0.2"

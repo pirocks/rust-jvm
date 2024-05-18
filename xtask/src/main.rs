@@ -204,7 +204,7 @@ fn main() -> anyhow::Result<()> {
             run_classes(jdk_dir, compilation_dir, class_files, exclude)?;
         }
         OptsInner::OpenJDKAll {} => {
-            tokio::runtime::Builder::new_multi_thread().max_blocking_threads(256).enable_all().build()?.block_on(async move {
+            tokio::runtime::Builder::new_multi_thread().max_blocking_threads(2048).enable_all().build()?.block_on(async move {
                 all_tests(workspace_dir).await
             })?
         }

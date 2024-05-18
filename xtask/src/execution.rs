@@ -7,9 +7,9 @@ use std::time::{Duration, Instant};
 
 use shell_words::ParseError;
 use thiserror::Error;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::time::timeout;
+use tokio::time::{timeout};
 
 use openjdk_test_parser::parse::FileType;
 use openjdk_test_parser::ParsedOpenJDKTest;
@@ -130,7 +130,7 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
         .arg("--scope")
         .arg("--no-block")
         .arg("-p")
-        .arg("RuntimeMaxSec=120")
+        .arg("RuntimeMaxSec=30")
         .arg("-p")
         .arg("MemoryMax=1G")
         .arg("-p")
@@ -167,13 +167,15 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
     let instant_before = Instant::now();
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
-    match timeout(Duration::from_secs(119), child.wait()).await {
+    match timeout(Duration::from_secs(29), child.wait()).await {
         Err(_) => {
-            child.start_kill().unwrap();
             let mut stdout_buf = vec![];
-            stdout.read_to_end(&mut stdout_buf).await.unwrap();
             let mut stderr_buf = vec![];
-            stderr.read_to_end(&mut stderr_buf).await.unwrap();
+            sorta_read_to_end(&mut stdout, &mut stdout_buf).await.unwrap();
+            sorta_read_to_end(&mut stderr, &mut stderr_buf).await.unwrap();
+            sorta_read_to_end(&mut stdout, &mut stdout_buf).await.unwrap();
+            sorta_read_to_end(&mut stderr, &mut stderr_buf).await.unwrap();
+            child.start_kill().unwrap();
             output_run_output(run_string, ExitKind::Timeout, test_output_lock, stdout_buf, stderr_buf, compiled_file).await;
             Err(TestRunError::Timeout)
         }
@@ -195,6 +197,22 @@ async fn run_test(test_output_lock: Arc<tokio::sync::Mutex<()>>, jdk_dir: PathBu
             })
         }
     }
+}
+
+async fn sorta_read_to_end(reader: &mut (impl AsyncRead + Unpin), buf: &mut Vec<u8>) -> io::Result<()> {
+    let mut chunk = vec![0; 1024];
+    for _ in 0..100 {
+        loop {
+            let n = reader.read(&mut chunk).await?;
+            if n == 0 {
+                tokio::task::yield_now().await;
+                std::thread::yield_now();
+                break;
+            }
+            buf.extend_from_slice(&chunk[..n]);
+        }
+    }
+    Ok(())
 }
 
 #[derive(Debug)]

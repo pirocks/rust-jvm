@@ -1,4 +1,3 @@
-#![feature(core_intrinsics)]
 #![allow(non_snake_case)]
 #![allow(unreachable_code)]
 extern crate libc;
