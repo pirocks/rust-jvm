@@ -1,4 +1,3 @@
-#![feature(asm_const)]
 #![feature(trait_alias)]
 // methodid to code id mapping is handled seperately
 // exit handling has registered handling but actual handling is seperate -

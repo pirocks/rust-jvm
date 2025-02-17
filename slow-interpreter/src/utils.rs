@@ -9,18 +9,17 @@ use jvmti_jni_bindings::{jboolean, jbyte, jchar, jfieldID, jshort};
 use runtime_class_stuff::RuntimeClass;
 use rust_jvm_common::classfile::{LineNumber, LineNumberTable};
 use rust_jvm_common::compressed_classfile::class_names::CClassName;
-use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CompressedParsedDescriptorType, CPDType};
+use rust_jvm_common::compressed_classfile::compressed_types::{CMethodDescriptor, CPDType, CompressedParsedDescriptorType};
 use rust_jvm_common::compressed_classfile::method_names::MethodName;
 use rust_jvm_common::descriptor_parser::parse_field_descriptor;
 
-use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 use crate::better_java_stack::frame_iter::FrameIterFrameRef;
 use crate::better_java_stack::frames::PushableFrame;
 use crate::class_loading::assert_inited_or_initing_class;
 use crate::interpreter::common::invoke::static_::invoke_static_impl;
 use crate::interpreter::common::invoke::virtual_::invoke_virtual;
 use crate::interpreter::common::ldc::load_class_constant_by_type;
-use crate::java_values::{JavaValue};
+use crate::java_values::JavaValue;
 use crate::new_java_values::allocated_objects::AllocatedHandle;
 use crate::new_java_values::java_value_common::JavaValueCommon;
 use crate::new_java_values::NewJavaValueHandle;
@@ -35,6 +34,7 @@ use crate::stdlib::java::lang::long::Long;
 use crate::stdlib::java::lang::reflect::field::Field;
 use crate::stdlib::java::lang::short::Short;
 use crate::throw_utils::throw_npe_res;
+use crate::{check_initing_or_inited_class, JString, JVMState, NewAsObjectOrJavaValue, NewJavaValue, OpaqueFrame, WasException};
 
 pub fn lookup_method_parsed<'gc>(jvm: &'gc JVMState<'gc>, class: Arc<RuntimeClass<'gc>>, name: MethodName, descriptor: &CMethodDescriptor) -> Option<(u16, Arc<RuntimeClass<'gc>>)> {
     lookup_method_parsed_impl(jvm, class, name, descriptor)

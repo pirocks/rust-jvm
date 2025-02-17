@@ -467,7 +467,7 @@ impl SharedLibJVMTI {
 impl SharedLibJVMTI {
     pub fn load_libjdwp(jdwp_path: &PathBuf) -> SharedLibJVMTI {
         SharedLibJVMTI {
-            lib: Arc::new(Library::new(jdwp_path, RTLD_NOW as c_int).unwrap()),
+            lib: Arc::new(unsafe {Library::new(jdwp_path, RTLD_NOW as c_int).unwrap() }),
             vm_init_callback: RwLock::new(None),
             vm_init_enabled: RwLock::new(false),
             vm_death_callback: RwLock::new(None),

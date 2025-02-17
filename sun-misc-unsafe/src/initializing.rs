@@ -50,8 +50,7 @@ pub unsafe extern "system" fn Java_sun_misc_Unsafe_ensureClassInitialized(env: *
 pub fn ensure_initialized<'gc>(jvm: &'gc JVMState<'gc>, int_state: &mut impl PushableFrame<'gc>, class: Option<JClass<'gc>>) -> Result<(), WasException<'gc>> {
     let jclass = match class {
         None => {
-            throw_npe_res(jvm, int_state)?;
-            unreachable!()
+            return throw_npe_res(jvm, int_state)
         }
         Some(class) => class,
     };

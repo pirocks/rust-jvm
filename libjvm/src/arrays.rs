@@ -48,8 +48,7 @@ unsafe fn get_array<'gc>(env: *mut JNIEnv, arr: jobject) -> Result<NewJavaValueH
     let int_state = get_interpreter_state(env);
     match from_object_new(jvm, arr) {
         None => {
-            throw_npe_res(jvm, int_state)?;
-            unreachable!()
+            return throw_npe_res(jvm, int_state);
         }
         Some(possibly_arr) => {
             if possibly_arr.is_array(jvm) {

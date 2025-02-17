@@ -127,8 +127,7 @@ unsafe fn get_method<'gc>(env: *mut JNIEnv, jcpool: jobject, index: i32, load_cl
     let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds_res(jvm, int_state, index)?;
-        unreachable!()
+        return throw_array_out_of_bounds_res(jvm, int_state, index)
     }
     let method_obj = match view.constant_pool_view(index as usize) {
         ConstantInfoView::Methodref(method_ref) => {
@@ -178,8 +177,7 @@ unsafe fn get_field<'gc>(env: *mut JNIEnv, jcpool: jobject, index: i32, load_cla
     let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds_res(jvm, int_state, index)?;
-        unreachable!()
+        return throw_array_out_of_bounds_res(jvm, int_state, index)
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Fieldref(field_ref) => {
@@ -366,7 +364,7 @@ unsafe fn ConstantPoolGetStringAt_impl<'gc>(env: *mut JNIEnv, _constantPoolOop: 
     let _rc = from_jclass(jvm, todo!()/*jcpool*/).as_runtime_class(jvm);
     let view = _rc.view();
     if _index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds_res(jvm, _int_state, _index)?;
+        return throw_array_out_of_bounds_res(jvm, _int_state, _index);
     }
     match view.constant_pool_view(_index as usize) {
         ConstantInfoView::String(_string) => Ok(to_object(todo!()/*JString::from_rust(jvm, pushable_frame_todo(), string.string())?.object().to_gc_managed().into()*/)),
@@ -393,7 +391,7 @@ unsafe fn ConstantPoolGetUTF8At_impl<'gc>(env: *mut JNIEnv, _constantPoolOop: jo
     let rc = from_jclass(jvm, jcpool).as_runtime_class(jvm);
     let view = rc.view();
     if index >= view.constant_pool_size() as jint {
-        throw_array_out_of_bounds_res(jvm, int_state, index)?;
+        return throw_array_out_of_bounds_res(jvm, int_state, index);
     }
     match view.constant_pool_view(index as usize) {
         ConstantInfoView::Utf8(utf8) => Ok(to_object_new(JString::from_rust(jvm, int_state, utf8.str)?.full_object_ref().into())),

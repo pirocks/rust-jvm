@@ -1,4 +1,3 @@
-use std::intrinsics::{volatile_copy_memory};
 use std::mem::transmute;
 use std::ptr::null_mut;
 
@@ -93,7 +92,7 @@ unsafe extern "system" fn Java_sun_misc_Unsafe_getFloat__J(_env: *mut JNIEnv, _t
 unsafe extern "system" fn Java_sun_misc_Unsafe_copyMemory(_env: *mut JNIEnv, _the_unsafe: jobject, src_obj: jobject, offset: jlong, dst_obj: jobject, address: jlong, len: jlong) {
     let src_address = calc_address(src_obj, offset) as *const u8;
     let dst_address = calc_address(dst_obj, address) as *mut u8;
-    volatile_copy_memory(dst_address, src_address, len as usize);
+    std::ptr::copy_nonoverlapping(src_address, dst_address, len as usize);
     return;
 }
 

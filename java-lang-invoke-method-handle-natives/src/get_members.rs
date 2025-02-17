@@ -89,8 +89,7 @@ pub fn mhn_get_members<'gc, 'l>(jvm: &'gc JVMState<'gc>, int_state: &mut impl Pu
         Some(match_sig) => match parse_field_descriptor(match_sig.to_str(&jvm.string_pool).as_str()) {
             None => match parse_method_descriptor(match_sig.to_str(&jvm.string_pool).as_str()) {
                 None => {
-                    throw_illegal_arg_res(jvm, int_state)?;
-                    unreachable!()
+                    return throw_illegal_arg_res(jvm, int_state);
                 }
                 Some(md) => {
                     assert!(is_method);

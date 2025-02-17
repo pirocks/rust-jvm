@@ -72,10 +72,10 @@ pub fn deps(xtask_config: XTaskConfig) -> anyhow::Result<()> {
     sh.change_dir("jdk8u");
     match bootstrap_jdk {
         None => {
-            cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\"").run()?;
+            cmd!(sh,"env CFLAGS='-Wno-error -fpermissive -w' CXXFLAGS='-Wno-error -fpermissive -w' CFLAGS_JDK='-Wno-error -fpermissive -w' CXXFLAGS_JDK='-Wno-error -fpermissive -w' bash configure --enable-debug").run()?;
         }
         Some(bootstrap_jdk) => {
-            cmd!(sh,"bash configure --enable-debug --with-extra-cxxflags=\"-fpermissive\" --with-boot-jdk={bootstrap_jdk}").run()?;
+            cmd!(sh,"env CFLAGS='-Wno-error -fpermissive -w' CXXFLAGS='-Wno-error -fpermissive -w' CFLAGS_JDK='-Wno-error -fpermissive -w' CXXFLAGS_JDK='-Wno-error -fpermissive -w' bash configure --enable-debug --with-boot-jdk={bootstrap_jdk}").run()?;
         }
     }
     cmd!(sh,"make clean").run()?;

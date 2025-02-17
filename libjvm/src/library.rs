@@ -22,7 +22,6 @@ unsafe extern "system" fn JVM_LoadLibrary(name: *const ::std::os::raw::c_char) -
     let path = match PossiblyJVMString::new(CStr::from_ptr(name).to_bytes().to_vec()).validate() {
         Ok(path) => match OsString::from_str(path.to_string_validated().as_str()) {
             Ok(path) => path,
-            Err(_) => return null_mut(),
         },
         Err(_) => return null_mut(),
     };

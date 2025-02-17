@@ -251,7 +251,6 @@ pub fn invoke_virtual_resolve<'gc, 'k>(
         None => {
             let allocated_type = memory_region_guard.find_object_allocated_type(maybe_non_null.unwrap()).clone();
             // let allocated_type_id = memory_region_guard.lookup_or_add_type(&allocated_type);
-            drop(vtable);//make sure vtable is always guarded by memory region lock
             drop(memory_region_guard);
 
             let MethodShape { name, desc } = jvm.method_shapes.lookup_method_shape(method_shape_id);
